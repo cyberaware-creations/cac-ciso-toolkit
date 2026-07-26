@@ -1,0 +1,1018 @@
+{
+  "schemaVersion": 2,
+  "meta": {
+    "clientName": "Northwind Traders",
+    "assessor": "Cyber Aware Creations, LLC.",
+    "scopeNote": "Demo v2 register for skill fixtures.",
+    "appetiteStatement": "Medium: no residual High/Critical without recorded board sign-off."
+  },
+  "settings": {
+    "matrixSize": 5,
+    "appetite": "medium"
+  },
+  "themes": [
+    {
+      "id": "identity",
+      "name": "Identity & Access",
+      "description": "Authn, access, privileged accounts"
+    },
+    {
+      "id": "third-party",
+      "name": "Third-Party & Supply Chain",
+      "description": "Vendor and SaaS exposure"
+    },
+    {
+      "id": "resilience",
+      "name": "Resilience & Recovery",
+      "description": "Backup, recovery, incident response"
+    },
+    {
+      "id": "infrastructure",
+      "name": "Infrastructure & Vulnerability",
+      "description": "Patching, exposure of internet-facing systems, cloud configuration"
+    },
+    {
+      "id": "detection",
+      "name": "Detection & Response",
+      "description": "Monitoring, alerting, triage capacity"
+    },
+    {
+      "id": "data",
+      "name": "Data Protection",
+      "description": "Data handling, exfiltration, privacy exposure"
+    }
+  ],
+  "risks": [
+    {
+      "id": "R-001",
+      "title": "Stolen admin credentials enable lateral movement",
+      "description": "",
+      "category": "PR",
+      "theme": "identity",
+      "owner": "IAM Lead",
+      "inherent": {
+        "likelihood": 4,
+        "impact": 5
+      },
+      "response": {
+        "type": "mitigate",
+        "description": "PAM, MFA on admin, tiered admin, JIT access",
+        "cost": 90000
+      },
+      "residual": {
+        "likelihood": 2,
+        "impact": 3
+      },
+      "status": "open",
+      "acceptance": null,
+      "reviewDate": "2026-10-01",
+      "csfSubcategoryId": "PR.AA-05"
+    },
+    {
+      "id": "R-002",
+      "title": "Missing MFA on remote access",
+      "description": "",
+      "category": "PR",
+      "theme": "identity",
+      "owner": "IAM Lead",
+      "inherent": {
+        "likelihood": 4,
+        "impact": 4
+      },
+      "response": {
+        "type": "mitigate",
+        "description": "Enforce MFA on VPN/RDP/SSO",
+        "cost": 25000
+      },
+      "residual": {
+        "likelihood": 1,
+        "impact": 4
+      },
+      "status": "closed",
+      "acceptance": null,
+      "csfSubcategoryId": "PR.AA-03"
+    },
+    {
+      "id": "R-003",
+      "title": "Third-party SaaS breach exposes customer PII",
+      "description": "",
+      "category": "GV",
+      "theme": "third-party",
+      "owner": "Vendor Risk Manager",
+      "inherent": {
+        "likelihood": 4,
+        "impact": 4
+      },
+      "response": {
+        "type": "transfer",
+        "description": "Contractual clauses, breach SLAs, cyber insurance rider",
+        "cost": 35000
+      },
+      "residual": {
+        "likelihood": 3,
+        "impact": 5
+      },
+      "status": "open",
+      "acceptance": null,
+      "reviewDate": "2026-11-01",
+      "csfSubcategoryId": "GV.SC-07"
+    },
+    {
+      "id": "R-004",
+      "title": "Weak backup strategy risks unrecoverable data",
+      "description": "",
+      "category": "RC",
+      "theme": "resilience",
+      "owner": "Backup Administrator",
+      "inherent": {
+        "likelihood": 3,
+        "impact": 5
+      },
+      "response": {
+        "type": "mitigate",
+        "description": "Immutable/air-gapped backups, 3-2-1, restore drills",
+        "cost": 55000
+      },
+      "residual": {
+        "likelihood": 1,
+        "impact": 5
+      },
+      "status": "closed",
+      "acceptance": null
+    },
+    {
+      "id": "R-005",
+      "title": "No tested incident response plan",
+      "description": "",
+      "category": "RS",
+      "theme": "resilience",
+      "owner": "CISO",
+      "inherent": {
+        "likelihood": 3,
+        "impact": 4
+      },
+      "response": {
+        "type": "accept",
+        "description": "Documented IR plan, on-call, quarterly tabletops"
+      },
+      "residual": {
+        "likelihood": 2,
+        "impact": 2
+      },
+      "status": "open",
+      "acceptance": {
+        "approver": "CISO",
+        "justification": "Residual Low and within appetite; second tabletop scheduled",
+        "acceptedDate": "2026-07-26",
+        "expiryDate": "2027-07-31",
+        "revalidationDate": "2027-01-31"
+      }
+    },
+    {
+      "id": "R-006",
+      "title": "Unpatched internet-facing VPN appliance enables ransomware",
+      "description": "If an internet-facing VPN appliance remains unpatched against a known exploited vulnerability, then an intrusion operator gains network entry and deploys ransomware across the estate.",
+      "category": "PR",
+      "theme": "infrastructure",
+      "owner": "Infrastructure Lead",
+      "inherent": {
+        "likelihood": 4,
+        "impact": 5
+      },
+      "response": {
+        "type": "mitigate",
+        "description": "Emergency patch window, WAF virtual patch, EDR on the DMZ segment",
+        "cost": 60000
+      },
+      "residual": {
+        "likelihood": 2,
+        "impact": 4
+      },
+      "status": "open",
+      "acceptance": null,
+      "reviewDate": "2026-06-30",
+      "csfSubcategoryId": "PR.PS-02"
+    },
+    {
+      "id": "R-007",
+      "title": "Business email compromise redirects a supplier payment",
+      "description": "If an attacker impersonates an executive or a supplier over email, then finance redirects a live payment to an attacker-controlled account before the fraud is detected.",
+      "category": "PR",
+      "theme": "identity",
+      "owner": "Finance Operations Manager",
+      "inherent": {
+        "likelihood": 4,
+        "impact": 4
+      },
+      "response": {
+        "type": "mitigate",
+        "description": "Callback verification on bank-detail changes, DMARC rollout in progress",
+        "cost": 15000
+      },
+      "residual": {
+        "likelihood": 3,
+        "impact": 5
+      },
+      "status": "open",
+      "acceptance": null,
+      "reviewDate": "2026-12-01",
+      "csfSubcategoryId": "PR.DS-02"
+    },
+    {
+      "id": "R-008",
+      "title": "Insider exfiltration of customer data via unmanaged endpoints",
+      "description": "If a departing or disgruntled employee copies customer records to personal storage, then regulated data leaves the estate with no detective control in the path.",
+      "category": "PR",
+      "theme": "data",
+      "owner": "",
+      "inherent": {
+        "likelihood": 4,
+        "impact": 4
+      },
+      "response": {
+        "type": "mitigate",
+        "description": "DLP in monitor mode, leaver checklist; no owner assigned yet"
+      },
+      "residual": {
+        "likelihood": 2,
+        "impact": 4
+      },
+      "status": "open",
+      "acceptance": null,
+      "reviewDate": "2027-01-15",
+      "csfSubcategoryId": "PR.DS-01"
+    },
+    {
+      "id": "R-009",
+      "title": "Alert backlog delays detection of an active intrusion",
+      "description": "If security alerts queue faster than the team can triage them, then an active intrusion goes unnoticed long enough for the attacker to reach crown-jewel systems.",
+      "category": "DE",
+      "theme": "detection",
+      "owner": "SOC Manager",
+      "inherent": {
+        "likelihood": 4,
+        "impact": 4
+      },
+      "response": {
+        "type": "mitigate",
+        "description": "Tuning of noisy rules; second-shift analyst requisition open",
+        "cost": 120000
+      },
+      "residual": {
+        "likelihood": 2,
+        "impact": 3
+      },
+      "status": "open",
+      "acceptance": null,
+      "reviewDate": "2026-07-01",
+      "csfSubcategoryId": "DE.AE-02"
+    },
+    {
+      "id": "R-010",
+      "title": "Shadow IT SaaS handles company data outside governance",
+      "description": "If teams adopt SaaS tools without review, then company data is processed under contracts and controls nobody has assessed.",
+      "category": "GV",
+      "theme": null,
+      "owner": "IT Director",
+      "inherent": {
+        "likelihood": 3,
+        "impact": 3
+      },
+      "response": {
+        "type": "accept",
+        "description": "CASB discovery reporting monthly; no blocking enforcement"
+      },
+      "residual": {
+        "likelihood": 2,
+        "impact": 3
+      },
+      "status": "open",
+      "acceptance": {
+        "approver": "IT Director",
+        "justification": "Discovery-only coverage is proportionate for low-sensitivity collaboration tools; no regulated data identified in the CASB inventory",
+        "acceptedDate": "2026-01-15",
+        "expiryDate": "2027-01-15",
+        "revalidationDate": "2026-07-15"
+      },
+      "reviewDate": "2026-11-30",
+      "csfSubcategoryId": "GV.SC-04"
+    },
+    {
+      "id": "R-011",
+      "title": "Leaked cloud access keys enable resource abuse",
+      "description": "If long-lived cloud access keys are committed to a code repository, then an attacker uses them to spin up resources or reach production data before the key is rotated.",
+      "category": "PR",
+      "theme": "infrastructure",
+      "owner": "Head of Cloud",
+      "inherent": {
+        "likelihood": 4,
+        "impact": 4
+      },
+      "response": {
+        "type": "accept",
+        "description": "Secret scanning on push, short-lived credentials for CI, billing anomaly alerts",
+        "cost": 20000
+      },
+      "residual": {
+        "likelihood": 2,
+        "impact": 3
+      },
+      "status": "open",
+      "acceptance": {
+        "approver": "Head of Cloud",
+        "justification": "Secret scanning plus short-lived CI credentials keep residual within appetite; full rotation to workload identity is a FY27 programme",
+        "acceptedDate": "2026-02-01",
+        "expiryDate": "2027-02-01",
+        "revalidationDate": "2026-06-30"
+      },
+      "reviewDate": "2026-10-15",
+      "csfSubcategoryId": "PR.AA-01"
+    }
+  ],
+  "history": [
+    {
+      "ts": "2026-07-26T19:40:54Z",
+      "actor": "Cyber Aware Creations, LLC.",
+      "type": "risk-added",
+      "riskId": "R-001",
+      "rationale": "Initial assessment"
+    },
+    {
+      "ts": "2026-07-26T19:40:54Z",
+      "actor": "Cyber Aware Creations, LLC.",
+      "type": "risk-added",
+      "riskId": "R-002",
+      "rationale": "Initial assessment"
+    },
+    {
+      "ts": "2026-07-26T19:40:54Z",
+      "actor": "Cyber Aware Creations, LLC.",
+      "type": "risk-added",
+      "riskId": "R-003",
+      "rationale": "Initial assessment"
+    },
+    {
+      "ts": "2026-07-26T19:40:54Z",
+      "actor": "Cyber Aware Creations, LLC.",
+      "type": "risk-added",
+      "riskId": "R-004",
+      "rationale": "Initial assessment"
+    },
+    {
+      "ts": "2026-07-26T19:40:54Z",
+      "actor": "Cyber Aware Creations, LLC.",
+      "type": "risk-added",
+      "riskId": "R-005",
+      "rationale": "Initial assessment"
+    },
+    {
+      "ts": "2026-07-26T19:40:54Z",
+      "actor": "Cyber Aware Creations, LLC.",
+      "type": "score-changed",
+      "riskId": "R-001",
+      "field": "residual",
+      "from": {
+        "likelihood": 2,
+        "impact": 4
+      },
+      "to": {
+        "likelihood": 2,
+        "impact": 3
+      },
+      "rationale": "PAM extended to SaaS admins; blast radius reduced"
+    },
+    {
+      "ts": "2026-07-26T19:40:54Z",
+      "actor": "Cyber Aware Creations, LLC.",
+      "type": "risk-accepted",
+      "riskId": "R-005",
+      "rationale": "Accepted within appetite"
+    },
+    {
+      "ts": "2026-07-26T19:40:54Z",
+      "actor": "Cyber Aware Creations, LLC.",
+      "type": "status-changed",
+      "riskId": "R-002",
+      "field": "status",
+      "from": "open",
+      "to": "closed",
+      "rationale": "MFA enforced on all remote paths; verified"
+    },
+    {
+      "ts": "2026-07-26T19:40:54Z",
+      "actor": "Cyber Aware Creations, LLC.",
+      "type": "snapshot-created",
+      "rationale": "Presented to audit committee"
+    },
+    {
+      "ts": "2026-07-26T19:59:59Z",
+      "actor": "Cyber Aware Creations, LLC.",
+      "type": "theme-changed",
+      "field": "themes",
+      "to": "infrastructure",
+      "rationale": "Theme 'Infrastructure & Vulnerability' added"
+    },
+    {
+      "ts": "2026-07-26T19:59:59Z",
+      "actor": "Cyber Aware Creations, LLC.",
+      "type": "theme-changed",
+      "field": "themes",
+      "to": "detection",
+      "rationale": "Theme 'Detection & Response' added"
+    },
+    {
+      "ts": "2026-07-26T19:59:59Z",
+      "actor": "Cyber Aware Creations, LLC.",
+      "type": "theme-changed",
+      "field": "themes",
+      "to": "data",
+      "rationale": "Theme 'Data Protection' added"
+    },
+    {
+      "ts": "2026-07-26T20:00:19Z",
+      "actor": "Cyber Aware Creations, LLC.",
+      "type": "risk-added",
+      "riskId": "R-006",
+      "rationale": "Raised after the Q3 external vulnerability scan"
+    },
+    {
+      "ts": "2026-07-26T20:00:19Z",
+      "actor": "Cyber Aware Creations, LLC.",
+      "type": "risk-added",
+      "riskId": "R-007",
+      "rationale": "Two attempted supplier-invoice frauds reported this quarter"
+    },
+    {
+      "ts": "2026-07-26T20:00:19Z",
+      "actor": "Cyber Aware Creations, LLC.",
+      "type": "risk-added",
+      "riskId": "R-008",
+      "rationale": "Identified during the data-flow review"
+    },
+    {
+      "ts": "2026-07-26T20:00:19Z",
+      "actor": "Cyber Aware Creations, LLC.",
+      "type": "risk-added",
+      "riskId": "R-009",
+      "rationale": "Median alert age exceeded the 72-hour internal target"
+    },
+    {
+      "ts": "2026-07-26T20:00:19Z",
+      "actor": "Cyber Aware Creations, LLC.",
+      "type": "risk-added",
+      "riskId": "R-010",
+      "rationale": "CASB discovery surfaced 40+ unsanctioned applications"
+    },
+    {
+      "ts": "2026-07-26T20:00:19Z",
+      "actor": "Cyber Aware Creations, LLC.",
+      "type": "risk-added",
+      "riskId": "R-011",
+      "rationale": "Key found in a public fork during the Q3 review"
+    },
+    {
+      "ts": "2026-07-26T20:00:33Z",
+      "actor": "Cyber Aware Creations, LLC.",
+      "type": "snapshot-created",
+      "rationale": "Presented to the audit committee; six new risks from the Q3 assessment cycle"
+    },
+    {
+      "ts": "2026-07-26T20:00:33Z",
+      "actor": "Cyber Aware Creations, LLC.",
+      "type": "score-changed",
+      "riskId": "R-006",
+      "field": "residual",
+      "from": {
+        "likelihood": 3,
+        "impact": 4
+      },
+      "to": {
+        "likelihood": 2,
+        "impact": 4
+      },
+      "rationale": "Emergency patch applied and the appliance moved behind the VPN concentrator; segmentation of crown-jewel VLANs still pending"
+    },
+    {
+      "ts": "2026-07-26T20:00:33Z",
+      "actor": "Cyber Aware Creations, LLC.",
+      "type": "score-changed",
+      "riskId": "R-007",
+      "field": "residual",
+      "from": {
+        "likelihood": 3,
+        "impact": 4
+      },
+      "to": {
+        "likelihood": 3,
+        "impact": 5
+      },
+      "rationale": "Two further supplier-invoice fraud attempts landed; DMARC still at p=none so impersonation remains trivial"
+    },
+    {
+      "ts": "2026-07-26T20:00:33Z",
+      "actor": "Cyber Aware Creations, LLC.",
+      "type": "score-changed",
+      "riskId": "R-009",
+      "field": "residual",
+      "from": {
+        "likelihood": 3,
+        "impact": 3
+      },
+      "to": {
+        "likelihood": 2,
+        "impact": 3
+      },
+      "rationale": "Second-shift analyst hired; median alert age down from nine days to under two"
+    },
+    {
+      "ts": "2026-07-26T20:00:33Z",
+      "actor": "Cyber Aware Creations, LLC.",
+      "type": "status-changed",
+      "riskId": "R-004",
+      "field": "status",
+      "from": "open",
+      "to": "closed",
+      "rationale": "Immutable backup tier live in all three regions; two full-restore drills completed and evidenced"
+    },
+    {
+      "ts": "2026-07-26T20:00:33Z",
+      "actor": "Cyber Aware Creations, LLC.",
+      "type": "risk-accepted",
+      "riskId": "R-010",
+      "rationale": "Accepted within appetite pending a formal SaaS governance standard"
+    },
+    {
+      "ts": "2026-07-26T20:00:33Z",
+      "actor": "Cyber Aware Creations, LLC.",
+      "type": "risk-accepted",
+      "riskId": "R-011",
+      "rationale": "Accepted within appetite pending workload-identity migration"
+    }
+  ],
+  "snapshots": [
+    {
+      "id": "q2-2026-board-review",
+      "label": "Q2 2026 Board Review",
+      "ts": "2026-07-26T19:40:54Z",
+      "note": "Presented to audit committee",
+      "data": {
+        "settings": {
+          "matrixSize": 5,
+          "appetite": "medium"
+        },
+        "risks": [
+          {
+            "id": "R-001",
+            "title": "Stolen admin credentials enable lateral movement",
+            "description": "",
+            "category": "PR",
+            "theme": "identity",
+            "owner": "IAM Lead",
+            "inherent": {
+              "likelihood": 4,
+              "impact": 5
+            },
+            "response": {
+              "type": "mitigate",
+              "description": "PAM, MFA on admin, tiered admin, JIT access",
+              "cost": 90000
+            },
+            "residual": {
+              "likelihood": 2,
+              "impact": 3
+            },
+            "status": "open",
+            "acceptance": null,
+            "reviewDate": "2026-10-01",
+            "csfSubcategoryId": "PR.AA-05"
+          },
+          {
+            "id": "R-002",
+            "title": "Missing MFA on remote access",
+            "description": "",
+            "category": "PR",
+            "theme": "identity",
+            "owner": "IAM Lead",
+            "inherent": {
+              "likelihood": 4,
+              "impact": 4
+            },
+            "response": {
+              "type": "mitigate",
+              "description": "Enforce MFA on VPN/RDP/SSO",
+              "cost": 25000
+            },
+            "residual": {
+              "likelihood": 1,
+              "impact": 4
+            },
+            "status": "closed",
+            "acceptance": null,
+            "csfSubcategoryId": "PR.AA-03"
+          },
+          {
+            "id": "R-003",
+            "title": "Third-party SaaS breach exposes customer PII",
+            "description": "",
+            "category": "GV",
+            "theme": "third-party",
+            "owner": "Vendor Risk Manager",
+            "inherent": {
+              "likelihood": 4,
+              "impact": 4
+            },
+            "response": {
+              "type": "transfer",
+              "description": "Contractual clauses, breach SLAs, cyber insurance rider",
+              "cost": 35000
+            },
+            "residual": {
+              "likelihood": 3,
+              "impact": 5
+            },
+            "status": "open",
+            "acceptance": null,
+            "reviewDate": "2026-11-01",
+            "csfSubcategoryId": "GV.SC-07"
+          },
+          {
+            "id": "R-004",
+            "title": "Weak backup strategy risks unrecoverable data",
+            "description": "",
+            "category": "RC",
+            "theme": "resilience",
+            "owner": "Backup Administrator",
+            "inherent": {
+              "likelihood": 3,
+              "impact": 5
+            },
+            "response": {
+              "type": "mitigate",
+              "description": "Immutable/air-gapped backups, 3-2-1, restore drills",
+              "cost": 55000
+            },
+            "residual": {
+              "likelihood": 1,
+              "impact": 5
+            },
+            "status": "open",
+            "acceptance": null
+          },
+          {
+            "id": "R-005",
+            "title": "No tested incident response plan",
+            "description": "",
+            "category": "RS",
+            "theme": "resilience",
+            "owner": "CISO",
+            "inherent": {
+              "likelihood": 3,
+              "impact": 4
+            },
+            "response": {
+              "type": "accept",
+              "description": "Documented IR plan, on-call, quarterly tabletops"
+            },
+            "residual": {
+              "likelihood": 2,
+              "impact": 2
+            },
+            "status": "open",
+            "acceptance": {
+              "approver": "CISO",
+              "justification": "Residual Low and within appetite; second tabletop scheduled",
+              "acceptedDate": "2026-07-26",
+              "expiryDate": "2027-07-31",
+              "revalidationDate": "2027-01-31"
+            }
+          }
+        ],
+        "summary": {
+          "total": 5,
+          "closed": 1,
+          "overAppetite": 1,
+          "byBand": {
+            "low": 2,
+            "medium": 2,
+            "high": 0,
+            "critical": 1
+          },
+          "topByResidual": [
+            "R-003",
+            "R-001",
+            "R-004",
+            "R-002",
+            "R-005"
+          ]
+        }
+      }
+    },
+    {
+      "id": "q3-2026-board-review",
+      "label": "Q3 2026 Board Review",
+      "ts": "2026-07-26T20:00:33Z",
+      "note": "Presented to the audit committee; six new risks from the Q3 assessment cycle",
+      "data": {
+        "settings": {
+          "matrixSize": 5,
+          "appetite": "medium"
+        },
+        "risks": [
+          {
+            "id": "R-001",
+            "title": "Stolen admin credentials enable lateral movement",
+            "description": "",
+            "category": "PR",
+            "theme": "identity",
+            "owner": "IAM Lead",
+            "inherent": {
+              "likelihood": 4,
+              "impact": 5
+            },
+            "response": {
+              "type": "mitigate",
+              "description": "PAM, MFA on admin, tiered admin, JIT access",
+              "cost": 90000
+            },
+            "residual": {
+              "likelihood": 2,
+              "impact": 3
+            },
+            "status": "open",
+            "acceptance": null,
+            "reviewDate": "2026-10-01",
+            "csfSubcategoryId": "PR.AA-05"
+          },
+          {
+            "id": "R-002",
+            "title": "Missing MFA on remote access",
+            "description": "",
+            "category": "PR",
+            "theme": "identity",
+            "owner": "IAM Lead",
+            "inherent": {
+              "likelihood": 4,
+              "impact": 4
+            },
+            "response": {
+              "type": "mitigate",
+              "description": "Enforce MFA on VPN/RDP/SSO",
+              "cost": 25000
+            },
+            "residual": {
+              "likelihood": 1,
+              "impact": 4
+            },
+            "status": "closed",
+            "acceptance": null,
+            "csfSubcategoryId": "PR.AA-03"
+          },
+          {
+            "id": "R-003",
+            "title": "Third-party SaaS breach exposes customer PII",
+            "description": "",
+            "category": "GV",
+            "theme": "third-party",
+            "owner": "Vendor Risk Manager",
+            "inherent": {
+              "likelihood": 4,
+              "impact": 4
+            },
+            "response": {
+              "type": "transfer",
+              "description": "Contractual clauses, breach SLAs, cyber insurance rider",
+              "cost": 35000
+            },
+            "residual": {
+              "likelihood": 3,
+              "impact": 5
+            },
+            "status": "open",
+            "acceptance": null,
+            "reviewDate": "2026-11-01",
+            "csfSubcategoryId": "GV.SC-07"
+          },
+          {
+            "id": "R-004",
+            "title": "Weak backup strategy risks unrecoverable data",
+            "description": "",
+            "category": "RC",
+            "theme": "resilience",
+            "owner": "Backup Administrator",
+            "inherent": {
+              "likelihood": 3,
+              "impact": 5
+            },
+            "response": {
+              "type": "mitigate",
+              "description": "Immutable/air-gapped backups, 3-2-1, restore drills",
+              "cost": 55000
+            },
+            "residual": {
+              "likelihood": 1,
+              "impact": 5
+            },
+            "status": "open",
+            "acceptance": null
+          },
+          {
+            "id": "R-005",
+            "title": "No tested incident response plan",
+            "description": "",
+            "category": "RS",
+            "theme": "resilience",
+            "owner": "CISO",
+            "inherent": {
+              "likelihood": 3,
+              "impact": 4
+            },
+            "response": {
+              "type": "accept",
+              "description": "Documented IR plan, on-call, quarterly tabletops"
+            },
+            "residual": {
+              "likelihood": 2,
+              "impact": 2
+            },
+            "status": "open",
+            "acceptance": {
+              "approver": "CISO",
+              "justification": "Residual Low and within appetite; second tabletop scheduled",
+              "acceptedDate": "2026-07-26",
+              "expiryDate": "2027-07-31",
+              "revalidationDate": "2027-01-31"
+            }
+          },
+          {
+            "id": "R-006",
+            "title": "Unpatched internet-facing VPN appliance enables ransomware",
+            "description": "If an internet-facing VPN appliance remains unpatched against a known exploited vulnerability, then an intrusion operator gains network entry and deploys ransomware across the estate.",
+            "category": "PR",
+            "theme": "infrastructure",
+            "owner": "Infrastructure Lead",
+            "inherent": {
+              "likelihood": 4,
+              "impact": 5
+            },
+            "response": {
+              "type": "mitigate",
+              "description": "Emergency patch window, WAF virtual patch, EDR on the DMZ segment",
+              "cost": 60000
+            },
+            "residual": {
+              "likelihood": 3,
+              "impact": 4
+            },
+            "status": "open",
+            "acceptance": null,
+            "reviewDate": "2026-06-30",
+            "csfSubcategoryId": "PR.PS-02"
+          },
+          {
+            "id": "R-007",
+            "title": "Business email compromise redirects a supplier payment",
+            "description": "If an attacker impersonates an executive or a supplier over email, then finance redirects a live payment to an attacker-controlled account before the fraud is detected.",
+            "category": "PR",
+            "theme": "identity",
+            "owner": "Finance Operations Manager",
+            "inherent": {
+              "likelihood": 4,
+              "impact": 4
+            },
+            "response": {
+              "type": "mitigate",
+              "description": "Callback verification on bank-detail changes, DMARC rollout in progress",
+              "cost": 15000
+            },
+            "residual": {
+              "likelihood": 3,
+              "impact": 4
+            },
+            "status": "open",
+            "acceptance": null,
+            "reviewDate": "2026-12-01",
+            "csfSubcategoryId": "PR.DS-02"
+          },
+          {
+            "id": "R-008",
+            "title": "Insider exfiltration of customer data via unmanaged endpoints",
+            "description": "If a departing or disgruntled employee copies customer records to personal storage, then regulated data leaves the estate with no detective control in the path.",
+            "category": "PR",
+            "theme": "data",
+            "owner": "",
+            "inherent": {
+              "likelihood": 4,
+              "impact": 4
+            },
+            "response": {
+              "type": "mitigate",
+              "description": "DLP in monitor mode, leaver checklist; no owner assigned yet"
+            },
+            "residual": {
+              "likelihood": 2,
+              "impact": 4
+            },
+            "status": "open",
+            "acceptance": null,
+            "reviewDate": "2027-01-15",
+            "csfSubcategoryId": "PR.DS-01"
+          },
+          {
+            "id": "R-009",
+            "title": "Alert backlog delays detection of an active intrusion",
+            "description": "If security alerts queue faster than the team can triage them, then an active intrusion goes unnoticed long enough for the attacker to reach crown-jewel systems.",
+            "category": "DE",
+            "theme": "detection",
+            "owner": "SOC Manager",
+            "inherent": {
+              "likelihood": 4,
+              "impact": 4
+            },
+            "response": {
+              "type": "mitigate",
+              "description": "Tuning of noisy rules; second-shift analyst requisition open",
+              "cost": 120000
+            },
+            "residual": {
+              "likelihood": 3,
+              "impact": 3
+            },
+            "status": "open",
+            "acceptance": null,
+            "reviewDate": "2026-07-01",
+            "csfSubcategoryId": "DE.AE-02"
+          },
+          {
+            "id": "R-010",
+            "title": "Shadow IT SaaS handles company data outside governance",
+            "description": "If teams adopt SaaS tools without review, then company data is processed under contracts and controls nobody has assessed.",
+            "category": "GV",
+            "theme": null,
+            "owner": "IT Director",
+            "inherent": {
+              "likelihood": 3,
+              "impact": 3
+            },
+            "response": {
+              "type": "mitigate",
+              "description": "CASB discovery reporting monthly; no blocking enforcement"
+            },
+            "residual": {
+              "likelihood": 2,
+              "impact": 3
+            },
+            "status": "open",
+            "acceptance": null,
+            "reviewDate": "2026-11-30",
+            "csfSubcategoryId": "GV.SC-04"
+          },
+          {
+            "id": "R-011",
+            "title": "Leaked cloud access keys enable resource abuse",
+            "description": "If long-lived cloud access keys are committed to a code repository, then an attacker uses them to spin up resources or reach production data before the key is rotated.",
+            "category": "PR",
+            "theme": "infrastructure",
+            "owner": "Head of Cloud",
+            "inherent": {
+              "likelihood": 4,
+              "impact": 4
+            },
+            "response": {
+              "type": "mitigate",
+              "description": "Secret scanning on push, short-lived credentials for CI, billing anomaly alerts",
+              "cost": 20000
+            },
+            "residual": {
+              "likelihood": 2,
+              "impact": 3
+            },
+            "status": "open",
+            "acceptance": null,
+            "reviewDate": "2026-10-15",
+            "csfSubcategoryId": "PR.AA-01"
+          }
+        ],
+        "summary": {
+          "total": 11,
+          "closed": 1,
+          "overAppetite": 3,
+          "byBand": {
+            "low": 2,
+            "medium": 6,
+            "high": 2,
+            "critical": 1
+          },
+          "topByResidual": [
+            "R-003",
+            "R-006",
+            "R-007",
+            "R-009",
+            "R-008"
+          ]
+        }
+      }
+    }
+  ],
+  "createdAt": "2026-07-26T19:40:54Z",
+  "updatedAt": "2026-07-26T20:00:33Z"
+}

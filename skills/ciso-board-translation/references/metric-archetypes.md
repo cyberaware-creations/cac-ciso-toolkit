@@ -1,0 +1,154 @@
+# The Seven Metric Archetypes
+
+Most security metrics that reach a board are one of seven recognizable shapes,
+and each hides a *different* way the raw number lies to a director. Read the
+relevant section when the fact you're translating matches one of these — it
+gives you the specific trap to expose, the sharp board ask to land on, the
+receipt angle to ground it, and a one-line Grade-A example.
+
+For every archetype the same discipline applies: never invent the numbers, name
+the real exposure, and end on a decision (fund the close, or record the
+acceptance). Numbers in the examples are illustrative placeholders.
+
+## Contents
+
+1. [Patch coverage — the coverage % that says nothing](#1-patch-coverage)
+2. [Phishing click rate — the reassuring 4%](#2-phishing-click-rate)
+3. [Dwell time / MTTD — the 8-hour illusion](#3-dwell-time--mttd)
+4. [Third-party / vendor risk — the 90% that isn't yours](#4-third-party--vendor-risk)
+5. [MFA / identity coverage — the last 5%](#5-mfa--identity-coverage)
+6. [Framework maturity score — the maturity mirage](#6-framework-maturity-score)
+7. [Backup / recovery — the backup you haven't tested](#7-backup--recovery)
+
+## 1. Patch coverage
+
+**The trap.** A coverage percentage that looks reassuring and says nothing. "87%
+patched" hides *which* systems make up the missing slice — and that slice is
+never random. The remainder typically concentrates the real risk (internet-
+facing, revenue-critical), which the average erases.
+
+**The board ask.** Fund the close (cost + what you need), or formally record the
+acceptance of the exposure window on the specific systems that remain.
+
+**Receipt angle.** A recorded acceptance produces the documented board decision
+the Caremark line rewards. (See `references/regulatory-receipts.md`.)
+
+**Grade-A one-liner.** "We patch 87% within SLA, up from 78% — gaining ground —
+but the last 13% is 9 internet-facing systems open for 40 days, two blocked by
+the billing app; fund one engineer plus a maintenance window to close it under 7
+days, or accept the 40-day window on the record."
+
+## 2. Phishing click rate
+
+**The trap.** A *low* number that feels like safety and ends the conversation.
+4% of 5,000 people is still ~200 who clicked, and an attacker needs exactly one.
+The metric measures *your simulation*, not a real spear-phish, and it is silent
+on *who* clicked and whether they reported it.
+
+**The board ask.** Fund phishing-resistant MFA on high-value groups (finance,
+admins), or accept that a single click can land on a payment system.
+
+**Receipt angle.** BEC and wire fraud rank among the costliest cybercrime
+categories; human error here is predictable, therefore foreseeable, therefore
+governable — which is what makes it a board decision rather than an IT footnote.
+
+**Grade-A one-liner.** "Click rate is 4%, down from 6% — improving — but that's
+~200 people, and finance approves payments without phishing-resistant MFA; fund
+hardware-key MFA for that group, or accept that one click can reach the payment
+system."
+
+## 3. Dwell time / MTTD
+
+**The trap.** A time metric with no reference point, distorted three ways:
+there's no baseline to say whether 8 hours is good or bad; **survivorship bias**
+means the average only counts incidents you actually *found*; and it hides *when*
+you're watching — an 8-hour average during business hours says nothing about the
+nights and weekends when attackers prefer to move.
+
+**The board ask.** Fund 24/7 detection coverage, or accept the off-hours
+detection gap on the record.
+
+**Receipt angle.** Detection speed drives disclosure timeliness (SEC Item 1.05,
+DORA incident reporting), and a documented monitoring capability is the kind of
+"minimal reporting system" that wins Caremark dismissals.
+
+**Grade-A one-liner.** "Mean time to detect is 8 hours — but that's a business-
+hours average that only counts what we caught, and we don't watch nights or
+weekends; fund 24/7 detection, or accept an unmonitored off-hours window on the
+record."
+
+## 4. Third-party / vendor risk
+
+**The trap.** A metric that reports *your effort*, not the risk you actually
+control. "90% of vendors assessed" often means a stale, self-attested
+questionnaire — and the percentage ignores **concentration**: the single vendor
+whose breach takes you down matters more than the other 89%. Their breach still
+becomes your notification obligation and your liability.
+
+**The board ask.** Fund real oversight of the critical few vendors, or accept
+the concentration risk on the named vendor(s).
+
+**Receipt angle.** NYDFS third-party service-provider policy and DORA's ICT
+third-party pillar both target this; breach-notification liability runs to the
+data owner, not the vendor.
+
+**Grade-A one-liner.** "We've assessed 90% of vendors — but that's self-attested
+paperwork, and one vendor holds the data whose breach would force *our*
+notification; fund continuous oversight of that critical vendor, or accept the
+concentration risk on the record."
+
+## 5. MFA / identity coverage
+
+**The trap.** The uncovered gap is *inversely* correlated with risk — the 5%
+left out is usually admins, service accounts, and legacy systems, the highest-
+value targets. On top of that: push and SMS MFA are bypassed at scale (MFA
+fatigue, SIM swap, adversary-in-the-middle); enrollment is not enforcement; and
+non-human identities are often unprotected entirely.
+
+**The board ask.** Move crown-jewel accounts to phishing-resistant MFA (FIDO2 /
+hardware keys), or accept the privileged-access gap on the record.
+
+**Receipt angle.** NYDFS §500.12 sets an MFA baseline, and MFA is a common cyber-
+insurance precondition — a privileged-access gap can void a claim.
+
+**Grade-A one-liner.** "MFA covers 95% — but the missing 5% is admins and
+service accounts, and our push MFA is phishable anyway; move privileged accounts
+to hardware keys, or accept the crown-jewel gap on the record."
+
+## 6. Framework maturity score
+
+**The trap.** A composite average that hides the one weak function. A 3.2/5
+overall can conceal a strong Protect at 4 masking a Recover at 1.5. It measures
+*process*, not *outcome*, and it's usually self-assessed. The average is
+precisely the thing that buries the material gap.
+
+**The board ask.** Fund the *specific weak function* up one level — not a
+uniform push to 5 everywhere, which wastes money.
+
+**Receipt angle.** NIST CSF is designed to be risk-prioritized, not maxed
+uniformly; after an incident the question is whether the board governed the
+*material* gap — which the average obscures.
+
+**Grade-A one-liner.** "Our CSF maturity is 3.2, up from 2.9 — but that average
+hides Recover at 1.5 behind a strong Protect; fund Recover up one level, or
+accept the recovery gap on the record — chasing a uniform 5 is the wrong
+target."
+
+## 7. Backup / recovery
+
+**The trap.** Backup success is not restore success. Most organizations have
+never run a full restore drill, so real RTO is unknown (and, for those who test,
+often days). Ransomware hunts backups first, so immutability matters — and
+RTO/RPO figures are usually *assumed*, not measured.
+
+**The board ask.** Fund isolated/immutable recovery plus quarterly restore
+drills, or accept an unknown recovery time on the record.
+
+**Receipt angle.** Operational-resilience regimes increasingly require *tested*
+recovery (DORA; financial-sector BC/DR), and insurers now probe immutability and
+restore testing directly.
+
+**Grade-A one-liner.** "Backups succeed on 99% of systems — but we've never run a
+full restore, so real recovery time is unknown and our backups aren't immutable;
+fund immutable recovery plus quarterly restore drills, or accept an unmeasured
+recovery time on the record."

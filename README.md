@@ -1,0 +1,53 @@
+# Cyber Aware Creations — CISO Toolkit
+
+A Claude plugin of composable, NIST-aligned skills for security leaders, by
+**Cyber Aware Creations, LLC.** Not endorsed by or affiliated with NIST.
+
+## Skills
+
+### `risk-register`
+Build, score, and maintain a cybersecurity risk register that persists in a local `.rr` file and
+tracks how risk changes over time. NISTIR 8286 event-statement risks, deterministic Likelihood ×
+Impact scoring and banding (SP 800-30), risk-appetite flagging (CSF 2.0 GV.RM), an append-only change
+log with rationale, named review snapshots, structured risk acceptance, and reporting — heat matrix,
+themes, trend, and operational, executive, and printable board outputs.
+
+- **Deterministic engine** — `scripts/score_register.py` is ported from the Limen Labs web tool and
+  verified identical to it (`self-test` → 34/34 parity checks).
+- **Tooled persistence** — every mutation (`add`, `set-score`, `accept`, `set-status`, `snapshot`,
+  `export-csv`) appends a history event and writes a schema-valid file, so the audit trail is
+  enforced by tooling, not by hand.
+- **Renderers** — self-contained, brand-consistent HTML dashboards and a printable PDF board report.
+
+### `ciso-board-translation`
+The reusable "moat" skill. Turns a raw security fact — a metric, a risk, or a quarter of program
+work — into board-ready language a director acts on, using the four-question method, a curated
+board-question bank, and sourced regulatory receipts (Caremark, DORA RTS, SEC Item 106, NYDFS Part
+500) with their honest limits kept intact. `risk-register` calls it for all board-facing output.
+
+## Layout
+
+```
+.claude-plugin/plugin.json     plugin manifest
+skills/
+  risk-register/
+    SKILL.md
+    scripts/score_register.py  scoring + CSF import + persistence (stdlib only)
+    renderers/                 render_dashboard / render_board / render_report
+    references/                schema, history & review, dashboards, CSF import, fixtures
+    assets/                    brand tokens, PDF report layout
+    examples/                  worked v2 register
+  ciso-board-translation/
+    SKILL.md
+    references/                four-questions, board-question bank, receipts, metric archetypes
+```
+
+## Design principles
+
+- **Local-only, structure not data.** Everything runs on the user's own machine against the risks
+  they provide. Nothing is uploaded anywhere.
+- **Deterministic where it must be.** Scoring and banding are scripted, never eyeballed.
+- **Composable.** Board language lives in one skill and is reused across the suite.
+
+*Not legal advice. Regulatory receipts carry their stated limits; do not present them to a board as
+legal advice.*
