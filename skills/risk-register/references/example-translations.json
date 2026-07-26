@@ -1,0 +1,21 @@
+{
+  "_comment": "Example board-language sidecar, the shape the ciso-board-translation skill produces. Pass to any renderer with --translations. Every figure here is read from examples/example-register-v2.rr — the skill supplies structure and judgment, never invented numbers. Keys are optional: omit any and that slot renders as a labelled placeholder.",
+  "generatedBy": "ciso-board-translation",
+  "asOf": "2026-07-26",
+  "executiveSummary": "Two of our eleven tracked risks sit above the appetite the board set, down from three at the Q3 review — the direction is right, but the composition changed. Ransomware exposure through the internet-facing VPN appliance came down after an emergency patch and is now within appetite. Payment fraud moved the other way: two further supplier-invoice fraud attempts landed this quarter and email authentication is still not enforcing, so that risk rose from High to Critical and now sits alongside the third-party CRM exposure. Two accepted risks passed their re-validation date and need the board to either renew or withdraw the acceptance, and two risks are past their scheduled review. We are asking for two decisions today: fund DMARC enforcement to close the payment-fraud path, and renew or withdraw the two lapsed acceptances.",
+  "risks": {
+    "R-003": "A breach at the CRM vendor would expose customer records we do not directly control. The insurance rider moves the financial loss but not the regulatory notification duty or the customer-facing consequence, so this stays above appetite regardless of the transfer.",
+    "R-007": "An attacker impersonating a supplier can redirect a live payment before anyone notices. Two attempts landed this quarter; callback verification caught both, but that control is a person on a phone, not a system. Until email authentication enforces, the next attempt only has to beat one person having a bad day.",
+    "R-006": "An unpatched internet-facing appliance is the most direct route to enterprise-wide ransomware. The emergency patch closed the immediate path and brought this within appetite; the network segmentation that would keep it there is still unfunded.",
+    "R-008": "Regulated customer data can leave through unmanaged endpoints with no detective control in the path, and the risk has no named owner — which means nobody is accountable for closing it.",
+    "R-001": "Stolen administrator credentials are the difference between an incident and an outage. Privileged access management has already cut the blast radius; this is now a managed risk rather than an open one."
+  },
+  "themes": {
+    "identity": "Identity is where our exposure grew this quarter — payment fraud outweighed the gains from privileged access management.",
+    "third-party": "Vendor exposure is unchanged and remains our single largest residual risk."
+  },
+  "decisions": [
+    "Fund DMARC enforcement and supplier bank-detail verification to bring payment fraud (R-007) back within appetite, or record the board's acceptance of a Critical residual.",
+    "Fund network segmentation to hold the ransomware improvement (R-006), which is currently within appetite on a patch alone."
+  ]
+}

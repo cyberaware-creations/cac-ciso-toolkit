@@ -1,0 +1,17 @@
+{
+  "name": "cyber-aware-creations",
+  "displayName": "Cyber Aware Creations — CISO Toolkit",
+  "version": "0.1.0",
+  "description": "NIST-aligned cybersecurity skills for security leaders. Build, score, and maintain a risk register with change history and board dashboards, and translate security facts into board-ready language with sourced regulatory receipts.",
+  "author": {
+    "name": "Cyber Aware Creations, LLC.",
+    "url": "https://cyberawarecreations.com"
+  },
+  "homepage": "https://cyberawarecreations.com",
+  "license": "UNLICENSED",
+  "keywords": ["ciso", "risk-register", "nist", "cybersecurity", "board", "grc", "risk-management"],
+  "skills": [
+    "skills/risk-register",
+    "skills/ciso-board-translation"
+  ]
+}
