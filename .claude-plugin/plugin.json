@@ -8,7 +8,7 @@
     "url": "https://cyberawarecreations.com"
   },
   "homepage": "https://cyberawarecreations.com",
-  "license": "UNLICENSED",
+  "license": "Apache-2.0",
   "keywords": ["ciso", "risk-register", "nist", "cybersecurity", "board", "grc", "risk-management"],
   "skills": [
     "skills/risk-register",
