@@ -25,20 +25,29 @@ Three things make it a valid routing test:
 
 ### Refresh the plugin first — this bites
 
-The runs exercise the **installed** plugin, not your working tree. `claude plugin update` compares
-version numbers, so it reports "already at the latest version" and does nothing when you have edited
-a skill without bumping `plugin.json`. Reinstall instead:
+The runs exercise the **installed** plugin, not your working tree.
+
+```bash
+V=$(python3 -c "import json;print(json.load(open('.claude-plugin/plugin.json'))['version'])")
+claude plugin update cyber-aware-creations@cyber-aware-creations
+diff -q ~/.claude/plugins/cache/cyber-aware-creations/cyber-aware-creations/$V/skills/nist-csf/SKILL.md \
+        skills/nist-csf/SKILL.md && echo "under test == working tree"
+```
+
+**This only works if the version was bumped.** `claude plugin update` compares version numbers, so
+an edited skill at an unchanged version makes it report "already at the latest version" and do
+nothing — the cache keeps serving old code. Bump `.claude-plugin/plugin.json` and
+`.claude-plugin/marketplace.json` in the same commit as any skill change. If you hit a stale cache
+anyway, force it:
 
 ```bash
 claude plugin uninstall cyber-aware-creations@cyber-aware-creations -y
 claude plugin install   cyber-aware-creations@cyber-aware-creations -s user
-diff -q ~/.claude/plugins/cache/cyber-aware-creations/cyber-aware-creations/0.1.0/skills/nist-csf/SKILL.md \
-        skills/nist-csf/SKILL.md && echo "under test == working tree"
 ```
 
-The 2026-07-26 run was nearly made against a cache four commits stale. It would still have been
-*valid* — the frontmatter `description` is all that decides routing, and that had not changed — but
-that is luck, not method. Diff before you spend the money.
+This is not hypothetical. The 2026-07-26 run was nearly made against a cache four commits stale, and
+the live end-to-end test the same day *was* — it reported a rendering defect that had already been
+fixed. Diff before you spend the money.
 
 ### Detect by tool-use event, never by prose
 
