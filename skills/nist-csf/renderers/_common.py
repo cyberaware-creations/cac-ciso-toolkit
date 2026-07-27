@@ -113,6 +113,23 @@ def rating(v, scale_max: int = 3) -> str:
     return "unassessed" if v is None else f"{v}"
 
 
+def trunc(text: str, n: int) -> str:
+    """Shorten on a word boundary with an ellipsis.
+
+    CSF outcome text is long and uniformly phrased, so a hard character cut lands
+    mid-word and mid-clause ("...are analyzed to better underst"), which reads as a
+    rendering fault rather than an abbreviation.
+    """
+    text = (text or "").strip()
+    if len(text) <= n:
+        return text
+    cut = text[:n]
+    space = cut.rfind(" ")
+    if space > n * 0.6:          # only back up to a word break if one is reasonably near
+        cut = cut[:space]
+    return cut.rstrip(" ,;:.") + "…"
+
+
 # --- CLI ---------------------------------------------------------------------
 
 def parse_args(argv: list[str], description: str, default_out: str) -> argparse.Namespace:
