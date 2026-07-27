@@ -1,12 +1,14 @@
 # Build-time tools
 
 **Not part of the plugin.** Nothing here ships to users or is loaded by a skill. These scripts
-regenerate bundled reference data from its published sources, and they are exempt from the repo's
-stdlib-only Python rule because their *output* is what ships, not their code.
+regenerate bundled reference data from its published sources.
 
 They exist so that `skills/nist-csf/references/nist-csf-2.0-core.json` is reproducible. Without
 them the file is a 389K blob nobody can regenerate, verify, or update when NIST publishes a
 revision.
+
+**No dependencies, no install step.** Python stdlib and node built-ins only. That is a deliberate
+constraint, not a happy accident — see "Why there is no `package.json`" at the end.
 
 ## Regenerating the CSF 2.0 Core
 
@@ -27,16 +29,10 @@ shasum -a 256 tools/csf-2.0.xlsx
 python3 -c "import json;print(json.load(open('skills/nist-csf/references/nist-csf-2.0-core.json'))['source']['sha256'])"
 ```
 
-### Setup
-
-```bash
-npm install --prefix tools     # installs xlsx (SheetJS); tools/node_modules is gitignored
-```
-
 ### Pass 1 — hierarchy, examples, informative references
 
 ```bash
-node tools/ingest-csf-core.js skills/nist-csf/references/nist-csf-2.0-core.json
+python3 tools/ingest-csf-core.py skills/nist-csf/references/nist-csf-2.0-core.json
 ```
 
 Defaults to the vendored `tools/csf-2.0.xlsx`. Pass a different path as a second argument to build
@@ -107,15 +103,46 @@ than transcribing by hand: 15 multi-paragraph entries copied manually is a near-
 silent drift, and re-running this proves the shipped JSON still matches source. Asserts 15 deep
 entries, 6 Function slants, 6 `whyItMatters` entries and 3 tier transitions before writing.
 
+Runs on `node:fs`, `node:path`, and `node:vm` — built-ins only, no install.
+
 Sources: `guidance-deep.ts`, `guidance.data.ts`, `csf-2.0-context.ts`.
 
-**Provenance matters here.** Function `definition` strings are NIST CSWP 29 text (public domain).
+**Provenance note.** Function `definition` strings are NIST CSWP 29 text (public domain).
 Everything else — the deep guidance, the Function slants, the tier-transition paragraphs, and
 `whyItMatters` — is original Cyber Aware Creations content, and the JSON records that distinction in
 its `source.note`. The `0 → 1` transition and the `0 Not Implemented` label are authored *for this
 skill* (the web tool had no 0 level) and are flagged separately under `added`.
 
-No npm dependency; runs on plain node.
+## Why there is no `package.json`
+
+Pass 1 used to be `ingest-csf-core.js`, running on SheetJS (`xlsx`) to turn the worksheet into rows
+of strings. That single call cost two unfixable high-severity advisories:
+
+| Advisory | CVSS | Fixed in |
+|---|---|---|
+| [GHSA-4r6h-8v6p-xvw6](https://github.com/advisories/GHSA-4r6h-8v6p-xvw6) — prototype pollution | 7.8 | 0.19.3 |
+| [GHSA-5pgg-2g8v-p4x9](https://github.com/advisories/GHSA-5pgg-2g8v-p4x9) — ReDoS | 7.5 | 0.20.2 |
+
+**Unfixable via npm**: SheetJS stopped publishing to the registry at 0.18.5 and ships later releases
+only from its own CDN, so `npm audit` reports `fixAvailable: false` in perpetuity. The choices were a
+CDN tarball URL that Dependabot cannot track, or no dependency at all.
+
+An XLSX is a zip of XML; `zipfile` and `xml.etree` are stdlib. Pass 1 was ported to
+`ingest-csf-core.py` and the JS deleted, along with `package.json`, `package-lock.json`, and
+`node_modules`. The repo now has zero third-party dependencies of any kind.
+
+The port is **verified, not asserted** — both implementations were run against the vendored XLSX and
+their output diffed:
+
+```
+775e835b1c4436cc3fe2d98f44b3025b4beca4fe114be3126252df0af7151505   core-js.json
+775e835b1c4436cc3fe2d98f44b3025b4beca4fe114be3126252df0af7151505   core-py.json
+```
+
+Byte-identical, so the shipped Core is unchanged by the migration. Re-check any time with the
+regeneration diff below. Worth remembering if a future tool is tempted to take a dependency to save
+sixty lines: this one was build-time only and never shipped, and it still generated recurring alerts
+on the default branch.
 
 ## A note on Informative References
 
