@@ -17,6 +17,11 @@ import sys
 
 import _common as C
 
+# Kept out of the f-string that uses it. An escaped quote inside an f-string expression
+# only became legal in Python 3.12 (PEP 701); on the supported floor it is a SyntaxError
+# that stops this module importing at all, so the whole working view disappears.
+PROVTAG = ' <span class="provtag">unreworded</span>'
+
 
 def build_data(ctx: C.Context) -> str:
     fields = ["id", "title", "description", "category", "owner", "status", "response",
@@ -97,8 +102,13 @@ def attention_lists(ctx: C.Context) -> str:
         # Working view: show the real title even when provisional. This is the screen the
         # CISO rewords *from* — withholding it here would hide the very text that needs
         # fixing. The tag says it is not board-eligible yet; the board renderers withhold.
+        #
+        # The tag is a module constant rather than an inline literal on purpose: a
+        # backslash-escaped quote inside an f-string expression is a hard SyntaxError
+        # before Python 3.12, and this file would not import at all on the floor we
+        # support. See PROVTAG.
         items = "".join(f'<li><b>{r["id"]}</b> {C.esc(r["title"])}'
-                        f'{" <span class=\"provtag\">unreworded</span>" if r.get("provisionalTitle") else ""}'
+                        f'{PROVTAG if r.get("provisionalTitle") else ""}'
                         f'<span class="d">{detail(r)}</span></li>' for r in rs)
         cards += (f'<div class="att" style="border-left-color:{colour}">'
                   f'<h3>{title} <span class="cnt">{len(rs)}</span></h3>'
