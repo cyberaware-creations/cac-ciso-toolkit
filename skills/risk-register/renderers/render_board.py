@@ -110,6 +110,15 @@ def themes_block(ctx: C.Context) -> str:
 def top_risks_block(ctx: C.Context) -> str:
     rows = ""
     for r in ctx.top_risks(5):
+        # A provisional risk's title is the CSF Subcategory text — a control objective
+        # phrased as a good thing ("Identities and credentials ... are managed by the
+        # organization") which, tagged Critical, reads to a director as the opposite of
+        # what it says. Withhold it exactly as an untranslated narrative is withheld.
+        provisional = r.get("provisional")
+        title = (f'<span class="placeholder">Risk statement not yet written for {r["id"]} — '
+                 f'imported CSF gap, still framework wording. Reword it with '
+                 f'<code>set-text</code>.</span>'
+                 if provisional else f'<span class="t">{C.esc(r["title"])}</span>')
         line = (C.esc(r["translation"]) if r["translation"]
                 else f'<span class="placeholder">Business-impact line not supplied — '
                      f'run ciso-board-translation for {r["id"]}.</span>')
@@ -118,9 +127,9 @@ def top_risks_block(ctx: C.Context) -> str:
                f' {r["priorExposure"]} → {r["residualExposure"]}'
                if r["priorExposure"] is not None else "new since last review")
         rows += (f'<div class="toprisk"><div>{C.chip(r["residualBand"])}</div>'
-                 f'<div class="body"><span class="t">{C.esc(r["title"])}</span> '
+                 f'<div class="body">{title} '
                  f'<span class="note">({r["id"]} · {C.esc(r["themeName"])} · residual '
-                 f'{r["residualExposure"]} · {vel}'
+                 f'{r["residualExposure"]}{" — provisional seed" if provisional else ""} · {vel}'
                  f'{" · over appetite" if r["overAppetite"] else ""})</span><br>{line}</div></div>')
     return rows
 
@@ -232,6 +241,16 @@ def render(ctx: C.Context) -> str:
     expired_txt = "· %d past expiry" % len(expired) if expired else ""
     since = (C.esc(ctx.diff["baseline"].get("label", "the last review"))
              if ctx.diff["baseline"] else "the last review")
+    # A register that is mostly unrefined import seeds still renders a confident band
+    # mix and a headline count. Say so at the top, once, rather than letting the numbers
+    # imply an assessment that has not happened.
+    prov = sm.get("provisional", 0)
+    prov_banner = (
+        f'<div class="sub" style="background:{C.BAND["high"]}1a;border-bottom:1px solid '
+        f'{C.BAND["high"]}55"><div class="wrap"><b>{prov} of {sm["total"]} risks are '
+        f'provisional</b> — imported CSF gaps still carrying the priority seed and framework '
+        f'wording. Their scores are placeholders, not assessments, and the figures below '
+        f'include them.</div></div>' if prov else "")
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Risk Register — Executive{title_tail}</title>
@@ -245,6 +264,7 @@ def render(ctx: C.Context) -> str:
   &nbsp;{s['matrixSize']}×{s['matrixSize']} matrix</div></div></header>
 <div class="sub"><div class="wrap">{C.esc(ctx.as_of_line())} · {sm['total']} risks tracked
   ({live} live, {sm['closed']} closed)</div></div>
+{prov_banner}
 <div class="wrap">
   <div class="section exec-top">
     <div class="big"><div class="n">{sm['overAppetite']} of {sm['total']} risks</div>

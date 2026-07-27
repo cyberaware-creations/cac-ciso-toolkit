@@ -328,12 +328,11 @@ def main(argv):
     scope_bits = [b for b in [
         ", ".join(scope.get("orgUnits", [])) or None,
         ("threats: " + ", ".join(scope.get("threatTypes", []))) if scope.get("threatTypes") else None,
-        ("owner: " + scope["owner"]) if scope.get("owner") else None,
     ] if b]
 
-    head = (f'<header><h1>{c.esc(p.get("name", "CSF Organizational Profile"))}</h1>'
-            f'<div class="sub">{c.esc(ctx.as_of_line())}</div>'
-            f'<div class="sub">{c.esc(" · ".join(scope_bits))}</div></header>')
+    head = c.header("Coverage dashboard", ctx,
+                    [c.esc(ctx.as_of_line()),
+                     c.esc(" · ".join(scope_bits)) if scope_bits else ""])
 
     overall = (f'<section><h2>Overall coverage</h2>'
                f'<div class="card"><div style="font-size:30px;font-weight:700;'

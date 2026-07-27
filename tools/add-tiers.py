@@ -146,14 +146,26 @@ core["tiers"] = {
             "OUR paraphrase for chips and tooltips, not NIST text."
         ),
     },
+    # Two audiences, two strings. `guardrail` instructs the model and must never be
+    # rendered: a board deck that tells its own reader what "must never be rendered" is
+    # talking to itself in front of the client. `readerNote` says the same thing to the
+    # person holding the report, in their language.
     "guardrail": (
-        "NIST presents Table 2 as a NOTIONAL ILLUSTRATION. Tiers characterize the rigor of "
-        "cybersecurity risk governance (GOVERN) and risk management (IDENTIFY, PROTECT, "
-        "DETECT, RESPOND, RECOVER) practices. They are NOT a maturity score, and must never "
-        "be rendered, averaged, or trended as one. Per CSWP 29 Sec. 3.2, Tiers complement a "
-        "risk management methodology rather than replace it, and progression to higher Tiers "
-        "is encouraged only when risks or mandates are greater, or when a cost-benefit "
-        "analysis indicates a feasible and cost-effective reduction of negative risk."
+        "MODEL-FACING — do not render. NIST presents Table 2 as a NOTIONAL ILLUSTRATION. "
+        "Tiers characterize the rigor of cybersecurity risk governance (GOVERN) and risk "
+        "management (IDENTIFY, PROTECT, DETECT, RESPOND, RECOVER) practices. They are NOT a "
+        "maturity score, and must never be rendered, averaged, or trended as one. Per CSWP 29 "
+        "Sec. 3.2, Tiers complement a risk management methodology rather than replace it, and "
+        "progression to higher Tiers is encouraged only when risks or mandates are greater, or "
+        "when a cost-benefit analysis indicates a feasible and cost-effective reduction of "
+        "negative risk. Use `readerNote` for anything a human will see."
+    ),
+    "readerNote": (
+        "Tiers describe how rigorous this organisation's approach to cybersecurity risk is — "
+        "how risk decisions get made, and how consistently. They are a considered judgment, "
+        "not a score calculated from the ratings in this report, and a higher Tier is not "
+        "automatically better: NIST recommends moving up only when the risks you face or the "
+        "obligations you carry justify the cost."
     ),
 }
 core["notes"]["tiers"] = (

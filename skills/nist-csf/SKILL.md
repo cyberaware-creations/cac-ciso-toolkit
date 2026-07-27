@@ -85,6 +85,9 @@ python3 scripts/profile_analysis.py set acme.csfp PR.AA-01 --target 3 --rational
 python3 scripts/profile_analysis.py set acme.csfp PR.AA-01 --current 1 --rationale "..."
 ```
 
+`quickstart-target` **seeds blanks only** — it will not overwrite a Target someone set deliberately,
+and reports how many it left alone. Pass `--force` to reset those too.
+
 `--rationale` is **required** on material changes — rating moves, target moves, accepting a gap,
 claiming an outcome met, and scoping something out. The tool refuses without it. That refusal is a
 feature; don't route around it by editing the file directly.
@@ -175,6 +178,19 @@ illustration* (CSWP 29 §3.2, Appendix B).
 **Do:** set Tiers as a deliberate judgment with the user, reading the verbatim NIST characterization
 in the Core's `tiers` block. Progression to a higher Tier is warranted only when risks or mandates
 are greater, or when a cost-benefit analysis supports it — NIST's own framing.
+
+```bash
+python3 scripts/profile_analysis.py set-tier acme.csfp --overall 2 --function GV=3 PR=2 \
+    --rationale "Board review: governance is repeatable; delivery is inconsistent across units."
+```
+
+`--rationale` is required and a fractional Tier is refused. The command never reads the ratings —
+there is no code path from coverage to a Tier, by design.
+
+Two strings live in the Core's `tiers` block and they are not interchangeable. `guardrail` is
+**model-facing** and must never be rendered; `readerNote` is the sentence written for whoever is
+holding the report. A board deck that tells its own reader what "must never be rendered" is the
+report talking to its author.
 
 ## Routing between the three skills
 

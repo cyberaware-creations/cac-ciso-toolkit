@@ -29,11 +29,18 @@ CVD-safe green→red, used **only** to encode risk severity in tiles, tables, an
 | Band | Hex | Label |
 |---|---|---|
 | low | `#2e8b57` | Low |
-| medium | `#7fb069` | Medium |
+| medium | `#e8c547` | Medium |
 | high | `#e08e0b` | High |
 | critical | `#c0392b` | Critical |
 
 On high/critical cells, use white text; on low/medium, use ink.
+
+**Why medium is amber and not a second green.** It used to be `#7fb069`, a light green. Two adjacent
+greens are not separable at stacked-bar size, which is exactly where the band mix is read — and a
+mostly-green bar tells the reader "we're fine" when it may be nothing of the sort. It also broke the
+CVD-safe claim above: a ramp that runs green→green→orange→red carries its first step in hue alone.
+Amber puts a large lightness step between low and medium, so the ramp survives both a small render
+and a colour-vision deficiency.
 
 ## Type
 

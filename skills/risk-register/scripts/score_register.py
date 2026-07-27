@@ -13,11 +13,17 @@ NIST anchors:
 
 Subcommands:
   score        <register.rr> [--json]   Score a register; print summary (+ optional JSON).
-  import-gaps  <gaps.csv> [--into r.rr]  Map a CSF gap CSV to candidate risks (dedupe if --into).
+  import-gaps  <gaps.csv> [--into r.rr] [--write]   Map a CSF gap CSV to candidate risks.
+                                         Previews by default; --write applies the merge.
   self-test                              Assert the engine against the web repo's test cases.
 
 Mutations (each appends an append-only history event and writes a schema-valid file):
+  init         <register.rr> --client 'Name' [--assessor ..] [--matrix 5] [--appetite medium]
+                                         [--scope-note ..] [--appetite-statement ..]
   add          <register.rr> --title ... --il L --ii I --rl L --ri I [--theme ID] [--why ...]
+  set-text     <register.rr> <id> [--title ...] [--description ...] --why ...
+                                         Reword an imported gap as a NISTIR 8286 event
+                                         statement; clears `provisional`.
   set-score    <register.rr> <id> [--inherent L I] [--residual L I] --why ...
   accept       <register.rr> <id> --approver ... --justification ... --revalidate DATE
   set-status   <register.rr> <id> <open|in-treatment|monitoring|closed> [--why ...]
@@ -76,6 +82,17 @@ RATING_LABELS = {
 # Seed inherent likelihood == impact from a CSF gap's priority (import.ts).
 PRIORITY_SEED = {"critical": 5, "high": 4, "medium": 3, "low": 2}
 
+# Default themes for CSF-imported risks. Themes are the stated board-rollup axis, and
+# without a mapping every imported risk lands as "Unclassified", which makes the board's
+# theme tile read "Unclassified · 74 risks · worst Critical". The CSF Function is the one
+# grouping the gap CSV always carries, so it is the honest default — rename or re-theme
+# afterwards with add-theme / set-theme if the organisation groups risk differently.
+# This is the CSF import path specifically; nothing else in the engine knows these names.
+CSF_FUNCTION_THEMES = {
+    "GV": "Govern", "ID": "Identify", "PR": "Protect",
+    "DE": "Detect", "RS": "Respond", "RC": "Recover",
+}
+
 # --- Core scoring (scoring.ts) -----------------------------------------------
 
 
@@ -125,6 +142,11 @@ def summarize(risks: list[dict], size: int, appetite: str) -> dict:
         "overAppetite": over,
         "byBand": by_band,
         "topByResidual": [r["id"] for r in top],
+        # Additive to the ported web-engine summary: how many of `total` are still
+        # sitting on the import seed. Without it a register cannot tell "assessed as
+        # medium" from "never refined", and a band mix of unreviewed candidates renders
+        # as a confident, mostly-green bar.
+        "provisional": sum(1 for r in risks if r.get("provisional")),
     }
 
 
@@ -165,16 +187,45 @@ def next_risk_id(risks: list[dict]) -> str:
     return f"R-{max_n + 1:03d}"
 
 
+def trunc(text: str, limit: int = 140) -> str:
+    """Truncate on a word boundary with an ellipsis, never mid-word.
+
+    A title cut mid-word ("…other third parties are understood, recorded, prioritized,
+    assesse") reads as a rendering bug to anyone senior enough to be shown it. The
+    ellipsis is what tells a reader the sentence continues elsewhere.
+    """
+    text = (text or "").strip()
+    if len(text) <= limit:
+        return text
+    cut = text[:limit - 1]
+    space = cut.rfind(" ")
+    if space > limit * 0.6:                     # only if it doesn't gut the string
+        cut = cut[:space]
+    return cut.rstrip(" ,;:.-") + "…"
+
+
 def gap_row_to_risk(row: dict, risk_id: str) -> dict:
     level = PRIORITY_SEED.get((row["priority"] or "").lower(), 3)
     risk = empty_risk(risk_id)
-    risk["title"] = f"{row['subcategory_id']}: {row['subcategory_text']}"[:140]
+    risk["title"] = trunc(f"{row['subcategory_id']}: {row['subcategory_text']}")
     risk["description"] = f"CSF gap — {row['subcategory_text']}"
     risk["category"] = row["function_id"]
+    fid = (row["function_id"] or "").strip().upper()
+    risk["theme"] = fid.lower() if fid in CSF_FUNCTION_THEMES else None
     risk["csfSubcategoryId"] = row["subcategory_id"]
     risk["inherent"] = {"likelihood": level, "impact": level}
     risk["residual"] = {"likelihood": level, "impact": level}
-    note_parts = [f"Tier {row['current_tier']} → {row['target_tier']}", f"priority: {row['priority']}"]
+    # An imported row is a *candidate*, not an assessed risk: the title is a control
+    # objective phrased as a good thing, and the scores are a priority seed nobody has
+    # looked at. Flagged so renderers can refuse to put either in front of a board and
+    # so the register can tell "assessed as medium" from "never refined from the seed".
+    # Cleared by set-text or set-score — the two acts that constitute a human review.
+    risk["provisional"] = True
+    # Deliberately NOT "Tier X → Y". These are achievement ratings on a 0-3 scale, and
+    # both skills warn that the gap CSV's `current_tier`/`target_tier` column names must
+    # never reach a reader. The importer used to produce that exact leak itself.
+    note_parts = [f"CSF rating {row['current_tier']} → {row['target_tier']} (achievement, not a CSF Tier)",
+                  f"priority: {row['priority']}"]
     if row["note"]:
         note_parts.append(row["note"])
     risk["notes"] = " · ".join(note_parts)
@@ -189,10 +240,18 @@ def merge_import(existing: list[dict], candidates: list[dict]) -> dict:
         if cand.get("csfSubcategoryId"):
             match = next((r for r in risks if r.get("csfSubcategoryId") == cand["csfSubcategoryId"]), None)
         if match:
-            match["title"] = cand["title"]
-            match["description"] = cand["description"]
+            # Only overwrite the wording while nobody has rewritten it. Once a risk has
+            # been through set-text it carries a NISTIR 8286 event statement someone
+            # authored; re-importing after a quarterly review must refresh the CSF-derived
+            # facts without silently throwing that away.
+            if match.get("provisional"):
+                match["title"] = cand["title"]
+                match["description"] = cand["description"]
             match["category"] = cand["category"]
             match["notes"] = cand.get("notes")
+            # Fill an unset theme, but never overwrite a deliberate re-theme.
+            if not match.get("theme") and cand.get("theme"):
+                match["theme"] = cand["theme"]
             updated += 1
         else:
             new = dict(cand)
@@ -229,6 +288,9 @@ def load_register(path: str) -> dict:
     for r in obj["risks"]:
         r.setdefault("theme", None)
         r.setdefault("acceptance", None)
+        # Risks written before the flag existed were authored by hand, so they are
+        # assessed by definition. Only the importer sets this true.
+        r.setdefault("provisional", False)
     return obj
 
 
@@ -282,11 +344,43 @@ def _cmd_score(args: list[str]) -> int:
     print(f"Total: {s['total']}   Closed: {s['closed']}   Over appetite: {s['overAppetite']}")
     print(f"Residual band mix — Low {s['byBand']['low']} · Medium {s['byBand']['medium']} · "
           f"High {s['byBand']['high']} · Critical {s['byBand']['critical']}")
+    if s["provisional"]:
+        print(f"\n⚠ {s['provisional']} of {s['total']} risks are PROVISIONAL — imported candidates "
+              f"still on the\n  priority seed, with framework wording for a title. They are excluded "
+              f"from board-facing\n  views until reworded (set-text) or rescored (set-score).")
     print("\nID     Residual  Band       Over  Title")
     for r in scored["risks"]:
         flag = "⚠" if r["overAppetite"] else " "
-        print(f"{r['id']:<6} {r['residualExposure']:>7}  {r['residualBand']:<9}  {flag:<4}  {r['title'][:54]}")
+        mark = "~" if r.get("provisional") else " "
+        print(f"{r['id']:<6} {r['residualExposure']:>7}  {r['residualBand']:<9}  {flag:<4} "
+              f"{mark}{trunc(r['title'], 54)}")
+    if s["provisional"]:
+        print("\n  ~ = provisional")
     return 0
+
+
+def _ensure_csf_themes(reg: dict) -> list[str]:
+    """Define a theme for every CSF Function actually used by a risk in this register.
+
+    Assigning `theme` on import is not enough on its own — an id with no matching theme
+    definition rolls up as Unclassified, which is the state this is fixing. Only Functions
+    present in the data get a theme, so a register importing three Functions does not grow
+    six themes it will never use.
+    """
+    have = {t.get("id") for t in reg.get("themes", [])}
+    used = {r.get("theme") for r in reg["risks"] if r.get("theme")}
+    added = []
+    for fid, name in CSF_FUNCTION_THEMES.items():
+        tid = fid.lower()
+        if tid in used and tid not in have:
+            reg.setdefault("themes", []).append(
+                {"id": tid, "name": name,
+                 "description": f"CSF 2.0 {name} ({fid}) Function — assigned automatically on gap import."})
+            added.append(tid)
+    if added:
+        _append_event(reg, "theme-changed", field="themes", to=",".join(added),
+                      rationale="CSF Function themes defined automatically during gap import.")
+    return added
 
 
 def _cmd_import_gaps(args: list[str]) -> int:
@@ -295,9 +389,14 @@ def _cmd_import_gaps(args: list[str]) -> int:
         into = args[args.index("--into") + 1]
     paths = [a for a in args if not a.startswith("--") and a != into]
     if not paths:
-        print("usage: score_register.py import-gaps <gaps.csv> [--into <register.rr>]", file=sys.stderr)
+        print("usage: score_register.py import-gaps <gaps.csv> [--into <register.rr>] [--write]\n"
+              "  Previews the mapped candidates by default and writes nothing.\n"
+              "  --write applies the merge to the --into register.", file=sys.stderr)
         return 2
     do_write = "--write" in args
+    if do_write and not into:
+        print("import-gaps: --write needs --into <register.rr> to write to.", file=sys.stderr)
+        return 2
     with open(paths[0], encoding="utf-8") as fh:
         rows = parse_gaps_csv(fh.read())
     existing = load_register(into)["risks"] if into else []
@@ -306,13 +405,24 @@ def _cmd_import_gaps(args: list[str]) -> int:
     if do_write and into:
         reg = load_register(into)
         reg["risks"] = result["risks"]
+        added_themes = _ensure_csf_themes(reg)
         _append_event(reg, "import-merged",
                       rationale=f"{result['added']} added, {result['updated']} updated from {os.path.basename(paths[0])}")
         save_register(reg, into)
         print(f"Wrote {into}: {result['added']} added, {result['updated']} updated", file=sys.stderr)
+        if added_themes:
+            print(f"  Defined {len(added_themes)} CSF Function themes so the board rollup is not "
+                  f"all Unclassified: {', '.join(added_themes)}.\n"
+                  f"  Re-theme with set-theme if you group risk differently.", file=sys.stderr)
+        prov = sum(1 for r in reg["risks"] if r.get("provisional"))
+        if prov:
+            print(f"  {prov} risks are provisional: seeded scores and framework wording, held back "
+                  f"from board views.\n  Reword with `set-text`, rescore with `set-score`.",
+                  file=sys.stderr)
     else:
         print(json.dumps(result, indent=2))
-        tail = " (preview; add --write to apply)" if into else ""
+        tail = " (preview only — nothing written; add --write to apply)" if into else \
+               " (preview only — pass --into <register.rr> --write to apply)"
         print(f"\n# {result['added']} added, {result['updated']} updated{tail}", file=sys.stderr)
     return 0
 
@@ -459,6 +569,76 @@ def _lvl(v, size, label):
     return n
 
 
+def _int_opt(opt, key, default):
+    """Read an integer flag. A bare `--matrix` with no value is a typo, not a default."""
+    if key not in opt or opt[key] is True:
+        return default
+    try:
+        return int(_s(opt[key]))
+    except (TypeError, ValueError):
+        raise ValueError(f"--{key} must be an integer (got {_s(opt[key])!r}).")
+
+
+def _cmd_init(args):
+    """Create an empty register.
+
+    Without this, the only way to start one is to hand-author the JSON — which
+    SKILL.md forbids everywhere else ("the audit trail is enforced by tooling rather
+    than by discipline") and which means the register's own creation, its matrix size
+    and its appetite never enter history. Those three are exactly the settings a
+    board later asks to see justified.
+    """
+    pos, opt = parse_flags(args)
+    if not pos or "client" not in opt:
+        raise ValueError("usage: init <register.rr> --client 'Acme Corp' [--assessor 'CISO'] "
+                         "[--matrix 5] [--appetite medium] [--scope-note '...'] "
+                         "[--appetite-statement '...']")
+    path = pos[0]
+    # Never clobber a register. It is the system of record, and a re-run of a setup
+    # command is a plausible mistake with an unrecoverable outcome.
+    if os.path.exists(path):
+        raise ValueError(f"{path} already exists — refusing to overwrite an existing register.")
+
+    size = _int_opt(opt, "matrix", 5)
+    if size not in BAND_THRESHOLDS:
+        raise ValueError(f"--matrix must be one of {sorted(BAND_THRESHOLDS)} (got {size}).")
+    appetite = _s(opt.get("appetite", "medium"))
+    if appetite not in BAND_ORDER:
+        raise ValueError(f"--appetite must be one of {BAND_ORDER} (got {appetite!r}).")
+
+    reg = {
+        "schemaVersion": SCHEMA_VERSION,
+        "meta": {
+            "clientName": _s(opt["client"]),
+            "assessor": _s(opt.get("assessor", "")) if opt.get("assessor") is not True else "",
+            "scopeNote": _s(opt.get("scope-note", "")) if opt.get("scope-note") is not True else "",
+            "appetiteStatement": (_s(opt.get("appetite-statement", ""))
+                                  if opt.get("appetite-statement") is not True else ""),
+        },
+        "settings": {"matrixSize": size, "appetite": appetite},
+        "themes": [],
+        "risks": [],
+        "history": [],
+        "snapshots": [],
+    }
+    _append_event(reg, "register-created", field="settings",
+                  to=f"{size}x{size} matrix, {appetite} appetite",
+                  rationale=_s(opt.get("why")) if isinstance(opt.get("why"), (str, list)) else None)
+    save_register(reg, path)
+
+    print(f"Created {path}")
+    print(f"  Client:   {reg['meta']['clientName']}")
+    print(f"  Assessor: {reg['meta']['assessor'] or '—'}")
+    print(f"  Matrix:   {size}x{size}   Appetite: {appetite} "
+          f"(worst band still acceptable)")
+    if not reg["meta"]["scopeNote"]:
+        print("  Note: no --scope-note set. An unscoped register is hard to defend; "
+              "record what is in and out.")
+    print("  Next: add risks with `add`, or import CSF gaps with "
+          "`import-gaps <gaps.csv> --into " + path + " --write`.")
+    return 0
+
+
 def _cmd_add(args):
     pos, opt = parse_flags(args)
     if not pos:
@@ -501,6 +681,47 @@ def _cmd_add(args):
     res = exposure(risk["residual"]["likelihood"], risk["residual"]["impact"])
     over = " (over appetite)" if over_appetite(res, size, reg["settings"]["appetite"]) else ""
     print(f"Added {risk['id']}: residual {res} {band(res, size)}{over}")
+    return 0
+
+
+def _cmd_set_text(args):
+    """Rewrite a risk's title and/or description, clearing the provisional flag.
+
+    The build workflow says to reword each imported gap as a NISTIR 8286 event
+    statement — "PR.AA-05 partially implemented" is a control objective, not a risk —
+    but until this command existed there was no way to do it except hand-editing the
+    JSON, which bypasses history entirely. This is the command that makes an imported
+    candidate into an assessed risk.
+    """
+    pos, opt = parse_flags(args)
+    if len(pos) < 2 or not ({"title", "description"} & set(opt)):
+        raise ValueError("usage: set-text <register.rr> <risk-id> [--title '...'] "
+                         "[--description '...'] --why '...'")
+    path, rid = pos[0], pos[1]
+    if "why" not in opt:
+        raise ValueError("set-text: --why is required — rewording a risk is a material change.")
+    reg = load_register(path)
+    risk = _find(reg, rid)
+
+    for field in ("title", "description"):
+        if field in opt:
+            old, new = risk.get(field, ""), _s(opt[field])
+            if old == new:
+                continue
+            risk[field] = new
+            _append_event(reg, "risk-updated", riskId=rid, field=field,
+                          frm=trunc(old, 80), to=trunc(new, 80), rationale=opt["why"])
+
+    was_provisional = bool(risk.get("provisional"))
+    if was_provisional:
+        risk["provisional"] = False
+        _append_event(reg, "risk-updated", riskId=rid, field="provisional",
+                      frm=True, to=False, rationale=opt["why"])
+    save_register(reg, path)
+
+    print(f"Updated {rid}: {trunc(risk['title'], 90)}")
+    if was_provisional:
+        print("  No longer provisional — it will now render in board-facing views.")
     return 0
 
 
@@ -563,6 +784,12 @@ def _cmd_set_score(args):
             changed = True
     if not changed:
         raise ValueError("set-score: provide --inherent and/or --residual.")
+    # Scoring an imported candidate is a human review — it is no longer sitting on the
+    # priority seed. The title may still be framework wording, which set-text fixes.
+    if r.get("provisional"):
+        r["provisional"] = False
+        _append_event(reg, "risk-updated", riskId=pos[1], field="provisional",
+                      frm=True, to=False, rationale=opt["why"])
     save_register(reg, pos[0])
     res = exposure(r["residual"]["likelihood"], r["residual"]["impact"])
     print(f"{pos[1]} updated: residual {res} {band(res, size)}")
@@ -627,14 +854,18 @@ def _cmd_export_csv(args):
     scored = score_register(load_register(pos[0]))
     cols = ["id", "title", "category", "theme", "owner", "inherentL", "inherentI", "inherentExposure",
             "inherentBand", "response", "cost", "residualL", "residualI", "residualExposure",
-            "residualBand", "overAppetite", "status", "reviewDate", "csfSubcategoryId"]
+            "residualBand", "overAppetite", "status", "reviewDate", "csfSubcategoryId", "provisional"]
+    # Python's True/False are not CSV booleans — Excel and every downstream parser expect
+    # true/false. Writing the repr leaks the implementation language into an export.
+    b = lambda v: "true" if v else "false"          # noqa: E731
     buf = io.StringIO(); w = csv.writer(buf); w.writerow(cols)
     for r in scored["risks"]:
         w.writerow([r["id"], r["title"], r["category"], r.get("theme") or "", r["owner"],
                     r["inherent"]["likelihood"], r["inherent"]["impact"], r["inherentExposure"], r["inherentBand"],
                     r["response"]["type"], r["response"].get("cost", ""),
                     r["residual"]["likelihood"], r["residual"]["impact"], r["residualExposure"], r["residualBand"],
-                    r["overAppetite"], r["status"], r.get("reviewDate", ""), r.get("csfSubcategoryId", "")])
+                    b(r["overAppetite"]), r["status"], r.get("reviewDate", ""),
+                    r.get("csfSubcategoryId", ""), b(r.get("provisional"))])
     out = _s(opt.get("out")) if isinstance(opt.get("out"), (str, list)) else None
     if out:
         with open(out, "w", newline="", encoding="utf-8") as fh:
@@ -647,6 +878,7 @@ def _cmd_export_csv(args):
 
 COMMANDS = {
     "score": _cmd_score, "import-gaps": _cmd_import_gaps, "self-test": _cmd_self_test,
+    "init": _cmd_init, "set-text": _cmd_set_text,
     "add": _cmd_add, "set-score": _cmd_set_score, "accept": _cmd_accept,
     "set-status": _cmd_set_status, "snapshot": _cmd_snapshot, "export-csv": _cmd_export_csv,
     "add-theme": _cmd_add_theme, "set-theme": _cmd_set_theme,

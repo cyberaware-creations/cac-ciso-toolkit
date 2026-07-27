@@ -31,7 +31,8 @@ Mutations (each appends an append-only history event and rewrites the store):
   set               <store.csfp> <subcategoryId> [--current N|null] [--target N|null]
                     [--priority P] [--status S] [--applicability A] [--notes ...]
                     [--evidence A B] [--reviewed] [--rationale ...] [--actor A] [--ts TS]
-  quickstart-target <store.csfp> [--level N] [--rationale ...] [--actor A] [--ts TS]
+  set-tier          <store.csfp> [--overall N] [--function GV=N ...] --rationale ... [--actor A]
+  quickstart-target <store.csfp> [--level N] [--force] [--rationale ...] [--actor A] [--ts TS]
   snapshot          <store.csfp> --label 'Q2 2026 Assessment' [--note ...] [--ts TS]
   action add        <store.csfp> --title T [--linked A B] [--owner O] [--milestone M]
                     [--target-date D] [--notes ...]
@@ -866,9 +867,88 @@ def _cmd_set(args):
     return 0
 
 
+def _cmd_set_tier(args):
+    """Record a Tier characterization as a deliberate judgment, with its reasoning.
+
+    Tiers are a headline capability of this skill and the executive dashboard has a whole
+    section for them, but until this command existed `profile.tier` could only be reached
+    by hand-editing the .csfp — which SKILL.md forbids and which bypasses history entirely.
+
+    This command deliberately does NOT derive anything. It refuses a fractional Tier and
+    it never looks at the ratings: a Tier calculated from coverage is the single most
+    recognisable tell that a CSF report was not written by someone who reads NIST.
+    """
+    pos, opt = parse_flags(args)
+    usage = ("usage: set-tier <store.csfp> [--overall N] [--function GV=N ...] "
+             "--rationale '...' [--actor A]")
+    path = _require_store(pos, usage)
+    store = load_store(path)
+    core = load_core()
+    valid_fns = function_ids(core)
+    levels = sorted(int(lv["tier"]) for lv in (core.get("tiers") or {}).get("levels", []))
+    if not levels:
+        raise ValueError("The bundled Core carries no Tier definitions; cannot set a Tier.")
+
+    ts = _s(opt.get("ts")) if isinstance(opt.get("ts"), (str, list)) else _now()
+    actor = _s(opt.get("actor")) if isinstance(opt.get("actor"), (str, list)) else None
+    rationale = _s(opt.get("rationale")) if isinstance(opt.get("rationale"), (str, list)) else None
+    if not rationale:
+        raise ValueError("--rationale is required. A Tier is a judgment about the rigor of risk "
+                         "governance; without the reasoning it is just a number someone picked.")
+
+    def parse_tier(raw, label):
+        v = _s(raw)
+        if str(v).lower() in ("none", "null", "-"):
+            return None
+        try:
+            n = int(str(v))
+        except (TypeError, ValueError):
+            raise ValueError(f"{label} must be a whole Tier {levels[0]}-{levels[-1]} "
+                             f"(got {v!r}). Fractional Tiers do not exist.")
+        if n not in levels:
+            raise ValueError(f"{label} must be one of {levels}, got {n}.")
+        return n
+
+    tier = store["profile"].setdefault("tier", {"overall": None, "byFunction": {}})
+    changes = []
+    if "overall" in opt and opt["overall"] is not True:
+        new = parse_tier(opt["overall"], "--overall")
+        if tier.get("overall") != new:
+            changes.append(("overall", tier.get("overall"), new))
+            tier["overall"] = new
+    for pair in _list(opt.get("function")):
+        if "=" not in pair:
+            raise ValueError(f"--function expects FID=N (e.g. GV=3), got {pair!r}.")
+        fid, raw = pair.split("=", 1)
+        fid = fid.strip().upper()
+        if fid not in valid_fns:
+            raise ValueError(f"Unknown Function {fid!r}; expected one of {valid_fns}.")
+        new = parse_tier(raw, f"--function {fid}")
+        if tier.setdefault("byFunction", {}).get(fid) != new:
+            changes.append((f"byFunction.{fid}", tier["byFunction"].get(fid), new))
+            tier["byFunction"][fid] = new
+
+    if not changes:
+        print("No change — the Tier characterization already reads that way.")
+        return 0
+
+    for field, old, new in changes:
+        append_history(store, "tier-changed", field=field, frm=old, to=new,
+                       rationale=rationale, actor=actor, ts=ts)
+    save_store(store, path, ts)
+
+    names = {int(lv["tier"]): lv.get("name", "") for lv in core["tiers"]["levels"]}
+    for field, old, new in changes:
+        def show(v):
+            return f"Tier {v} ({names.get(v, '')})" if v is not None else "not characterized"
+        print(f"{field}: {show(old)} → {show(new)}")
+    print("  Recorded as a judgment, not a calculation. Tiers are never derived from ratings.")
+    return 0
+
+
 def _cmd_quickstart_target(args):
     pos, opt = parse_flags(args)
-    path = _require_store(pos, "usage: quickstart-target <store.csfp> [--level N] [--rationale ...]")
+    path = _require_store(pos, "usage: quickstart-target <store.csfp> [--level N] [--force] [--rationale ...]")
     core = load_core(); index = index_subcategories(core)
     store = load_store(path)
     settings = store["profile"]["settings"]
@@ -882,7 +962,13 @@ def _cmd_quickstart_target(args):
                  else f"Quick-start default Target applied at level {level} "
                       f"({settings['scale']['labels'].get(str(level), level)}).")
 
-    changed, untouched, skipped = 0, 0, 0
+    # A Target someone already set deliberately is a decision with reasoning behind it.
+    # Quick-start is a *seeding* command: it fills in the blanks, it does not overrule
+    # judgment. Overwriting PR.AA-01's considered Target of 0 back to 2 — and logging a
+    # generic quick-start rationale over the user's own — silently destroys the thing the
+    # rationale requirement exists to protect. --force is the deliberate way to reset.
+    force = bool(opt.get("force"))
+    changed, untouched, skipped, preserved = 0, 0, 0, []
     for a in store["assessments"]:
         if a.get("applicability") != "in-scope":
             skipped += 1
@@ -891,6 +977,9 @@ def _cmd_quickstart_target(args):
             untouched += 1
             continue
         old = a.get("target")
+        if old is not None and not force:
+            preserved.append(a["subcategoryId"])
+            continue
         a["target"] = level
         append_history(store, "target-changed", subcategoryId=a["subcategoryId"], field="target",
                        frm=old, to=level, rationale=rationale, actor=actor, ts=ts)
@@ -899,6 +988,10 @@ def _cmd_quickstart_target(args):
     if not changed:
         # Idempotent: a true no-op writes nothing, so re-running cannot pad the history.
         print(f"No change — all {untouched} in-scope Targets are already at level {level}.")
+        if preserved:
+            print(f"  {len(preserved)} Target{'s' if len(preserved) != 1 else ''} already set "
+                  f"deliberately and left alone. Re-run with --force to reset "
+                  f"{'them' if len(preserved) != 1 else 'it'} to {level}.")
         return 0
 
     save_store(store, path, ts)
@@ -906,6 +999,10 @@ def _cmd_quickstart_target(args):
     print(f"Set {changed} Target{'s' if changed != 1 else ''} to level {level} ({label}).")
     if untouched:
         print(f"  {untouched} already at that level.")
+    if preserved:
+        shown = ", ".join(preserved[:6]) + (f", +{len(preserved) - 6} more" if len(preserved) > 6 else "")
+        print(f"  {len(preserved)} left alone — already set deliberately ({shown}).")
+        print(f"  Re-run with --force to overwrite {'those' if len(preserved) != 1 else 'that'} too.")
     if skipped:
         print(f"  {skipped} skipped (not applicable).")
     print("  Now tune Targets by risk — not every outcome warrants the same Target.")
@@ -1377,7 +1474,8 @@ def _cmd_self_test(_args):
 
 COMMANDS = {
     "validate": _cmd_validate, "self-test": _cmd_self_test,
-    "init": _cmd_init, "set": _cmd_set, "quickstart-target": _cmd_quickstart_target,
+    "init": _cmd_init, "set": _cmd_set, "set-tier": _cmd_set_tier,
+    "quickstart-target": _cmd_quickstart_target,
     "snapshot": _cmd_snapshot, "diff": _cmd_diff, "action": _cmd_action,
     "analyze": _cmd_analyze, "export-gaps": _cmd_export_gaps,
 }

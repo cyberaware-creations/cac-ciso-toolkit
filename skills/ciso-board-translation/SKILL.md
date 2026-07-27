@@ -146,6 +146,59 @@ risk, MFA/identity coverage, framework maturity, backup/recovery), pull
 board ask, and the receipt angle. Each archetype hides a different way the raw
 number lies.
 
+### Writing the sidecar file the dashboards consume
+
+`nist-csf` and `risk-register` both render board dashboards with a
+**labelled placeholder** wherever narrative should be, and neither will ever
+write that prose itself. This skill fills those slots — and it does so through a
+JSON file, not conversational output. Return prose when a human asked a
+question; write the file when a dashboard is being generated.
+
+`nist-csf` — `render_executive.py --translations board.json`, keyed by CSF
+Subcategory ID:
+
+```json
+{
+  "executiveSummary": "One paragraph of posture, with a through-line and a trend.",
+  "gaps": {
+    "PR.AA-01": "Leavers keep system access for weeks, so a departing employee can still reach patient records.",
+    "GV.SC-07": "We cannot say which suppliers hold our data, so a breach at one of them would surprise us."
+  },
+  "decisions": ["Fund the joiner-mover-leaver automation, or record the acceptance and its owner."],
+  "asOf": "2026-10-01"
+}
+```
+
+`risk-register` — the same flag on all three of its renderers. Same
+`executiveSummary` / `decisions` / `asOf`, but the per-item maps are `risks`
+(keyed `R-001`) and `themes` (keyed by theme id), not `gaps`:
+
+```json
+{
+  "executiveSummary": "…",
+  "risks":  {"R-001": "One sentence on what this means for the business."},
+  "themes": {"third-party": "One sentence on this theme as a whole."},
+  "decisions": ["…"],
+  "asOf": "2026-10-01"
+}
+```
+
+See `risk-register/references/example-translations.json` for a filled example.
+
+Three things that make the difference between a working file and a silent
+failure:
+
+- **`gaps` must be nested.** A flat `{"PR.AA-01": "..."}` map is the natural
+  guess, and it is wrong. It parses, the render claims success, and every
+  narrative reverts to the placeholder — a deck that looks finished and says
+  nothing.
+- **One sentence per key, in the board's language.** These land in a tile, not a
+  page. The Subcategory text is already on the operational view; repeating it
+  here wastes the only slot that was reserved for meaning.
+- **The guardrails below still apply.** No invented numbers, no invented
+  benchmarks, and a decision at the end. A placeholder left visible in the
+  dashboard is a better outcome than a fabricated sentence.
+
 ## When to pull each reference
 
 Keep this file lean and reach for depth only when the task needs it. One level
