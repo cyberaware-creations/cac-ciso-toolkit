@@ -1,0 +1,19 @@
+# The repo ships zero third-party dependencies and tools/README.md explains at length why
+# that is deliberate. This file does not change that: `github-actions` is the only ecosystem
+# here, and it covers the actions pinned in workflows/evals.yml — checkout, setup-python,
+# setup-node. Nothing under skills/ or tools/ has anything for Dependabot to look at.
+#
+# Worth having anyway. A pinned action is a supply-chain dependency that executes with a
+# token in our CI, and a major-version pin goes stale silently — the run keeps passing, so
+# nothing ever tells you. That is the same failure shape as v0.1.4: green tests over a
+# problem no check was looking for.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "ci"
+    labels:
+      - "dependencies"
