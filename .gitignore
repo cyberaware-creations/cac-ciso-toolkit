@@ -1,3 +1,8 @@
 __pycache__/
 *.pyc
 .DS_Store
+
+# Per-machine Claude Code state. settings.local.json records the tool permissions
+# you happened to grant in this checkout; it is nobody else's business and it is
+# one `git add -A` away from being published.
+.claude/
