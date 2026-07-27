@@ -3,6 +3,31 @@
 A Claude plugin of composable, NIST-aligned skills for security leaders, by
 **Cyber Aware Creations, LLC.** Not endorsed by or affiliated with NIST.
 
+## Install
+
+This repository is itself the plugin marketplace — `.claude-plugin/marketplace.json` is the
+catalogue, so there is nothing to download by hand and no install step beyond pointing your agent at
+it.
+
+**Claude Code**
+
+```
+/plugin marketplace add cyberaware-creations/cac-ciso-toolkit
+/plugin install cyber-aware-creations
+```
+
+**Codex**
+
+```
+codex plugin marketplace add cyberaware-creations/cac-ciso-toolkit
+```
+
+Then open **Plugins → Personal** and install it. The CLI and the desktop app read the same catalogue.
+
+Nothing runs until you invoke a skill, and when one does run it runs locally against your own files
+— see [Design principles](#design-principles). The only requirement is a Python 3.9+ interpreter you
+already have; see [Requirements](#requirements).
+
 ## Skills
 
 ### `risk-register`
