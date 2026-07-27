@@ -350,7 +350,7 @@ def main(argv):
             + playbook(ctx) + action_plan(ctx) + "</main>"
             + f'<footer>{c.esc(ctx.footer())}</footer>'
             + f"<script>{JS}</script>")
-    c.write(ctx, c.page(f'{p.get("name", "CSF Profile")} — Coverage', CSS, body))
+    c.write(ctx, c.page(f'{p.get("name", "CSF Profile")} — Coverage', CSS, body, ctx.offline))
     return 0
 
 

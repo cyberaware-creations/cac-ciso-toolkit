@@ -24,7 +24,11 @@ def build_data(ctx: C.Context) -> str:
               "residualBand", "overAppetite", "outOfRange", "themeId", "themeName", "velocity",
               "priorExposure", "delta", "reviewDate", "reviewOverdue", "unowned", "acceptance",
               "acceptanceDue", "acceptanceExpired", "acceptanceIncomplete", "history",
-              "translation"]
+              "translation",
+              # Carried so the interactive table can mark what still needs review. The
+              # working view shows provisional titles on purpose; it must not imply they
+              # are board-ready.
+              "provisionalTitle", "provisionalScore"]
     risks = [{**{k: r.get(k) for k in fields},
               "csfSubcategoryId": r.get("csfSubcategoryId", ""),
               "notes": r.get("notes", "")} for r in ctx.risks]
@@ -90,7 +94,11 @@ def attention_lists(ctx: C.Context) -> str:
     for title, rs, colour, detail in groups:
         if not rs:
             continue
+        # Working view: show the real title even when provisional. This is the screen the
+        # CISO rewords *from* — withholding it here would hide the very text that needs
+        # fixing. The tag says it is not board-eligible yet; the board renderers withhold.
         items = "".join(f'<li><b>{r["id"]}</b> {C.esc(r["title"])}'
+                        f'{" <span class=\"provtag\">unreworded</span>" if r.get("provisionalTitle") else ""}'
                         f'<span class="d">{detail(r)}</span></li>' for r in rs)
         cards += (f'<div class="att" style="border-left-color:{colour}">'
                   f'<h3>{title} <span class="cnt">{len(rs)}</span></h3>'
@@ -134,6 +142,13 @@ header .wrap{{display:flex;align-items:center;justify-content:space-between;gap:
 .appetite{{background:{C.PATINA};color:{C.INK};font-weight:700;border-radius:999px;
   padding:2px 10px;font-size:12px}}
 .sub{{background:{C.INK_RAISED};color:{C.LIME_DIM};font-size:12.5px}}
+.sub.provisional{{background:{C.BAND["high"]}26;color:{C.LIME};
+  border-bottom:1px solid {C.BAND["high"]}66}}
+.placeholder{{color:{C.SLATE};font-style:italic}}
+.provtag{{display:inline-block;background:{C.BAND["high"]}2e;color:{C.BAND["high"]};
+  border-radius:999px;padding:1px 7px;font-size:10.5px;font-weight:700;white-space:nowrap}}
+.placeholder code{{font-style:normal;font-family:'IBM Plex Mono',ui-monospace,monospace;
+  font-size:11px}}
 .sub .wrap{{padding:8px 24px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}}
 .section{{margin-top:26px}}
 .section h2{{font-size:15px;margin-bottom:12px}}
@@ -282,7 +297,7 @@ function renderGrid(){let h='<table class="matrix">';
    `${skipped} risk${skipped>1?"s":""} scored above the ${size}×${size} matrix and ${skipped>1?"are":"is"} not plotted (still counted in every total).`:"";}
 function renderRows(){const list=sorted(filtered());
  document.getElementById("rows").innerHTML=list.map(r=>`<tr class="row" onclick="openDrawer('${r.id}')">
-  <td>${r.id}</td><td>${r.title}</td><td>${r.themeName}</td><td>${r.response.type}</td>
+  <td>${r.id}</td><td>${r.title}${r.provisionalTitle?' <span class="provtag">unreworded</span>':''}</td><td>${r.themeName}</td><td>${r.response.type}</td>
   <td>${chip(bandOfView(r))} ${expOf(r)} ${isOver(r)?'<span class="flag">⚠</span>':''}</td>
   <td style="color:${{improving:BAND.low,worsening:BAND.critical,steady:"#6A7180",new:"#2FA98C"}[r.velocity]}"
     title="${r.priorExposure===null?"no baseline":"was "+r.priorExposure+" at "+DB.baseline}">${VELMARK[r.velocity]}</td>
@@ -308,7 +323,7 @@ function openDrawer(id){const r=DB.risks.find(x=>x.id===id);const d=document.get
  const accNote=r.acceptanceExpired?"past expiry":r.acceptanceDue?"due for re-validation":
    r.acceptanceIncomplete?"incomplete":"";
  d.innerHTML=`<div class="dhead"><button class="dclose" onclick="closeDrawer()">×</button>
-   <div class="id">${r.id} · ${r.themeName}</div><h2>${r.title}</h2></div><div class="dbody">
+   <div class="id">${r.id} · ${r.themeName}${r.provisionalTitle?' · <span class="provtag">title not reworded — withheld from board views</span>':''}${r.provisionalScore?' · <span class="provtag">score is an import seed</span>':''}</div><h2>${r.title}</h2></div><div class="dbody">
    <div class="scores">
      <div class="score"><div class="lab">Inherent</div><div class="val">${r.inherent.likelihood}×${r.inherent.impact}=${r.inherentExposure}</div>${chip(r.inherentBand)}</div>
      <div class="score"><div class="lab">Residual</div><div class="val">${r.residual.likelihood}×${r.residual.impact}=${r.residualExposure}</div>${chip(r.residualBand)} ${r.overAppetite?'<span class="flag">⚠ over</span>':''}</div></div>
@@ -347,10 +362,13 @@ def render(ctx: C.Context) -> str:
               .replace("__BAND__", json.dumps(C.BAND)))
     client = C.esc(m.get("clientName") or "")
     title_tail = " · " + client if client else ""
+    note = C.provisional_note(ctx.summary)
+    prov_banner = (f'<div class="sub provisional"><div class="wrap">{note}</div></div>'
+                   if note else "")
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Risk Register — Working View{title_tail}</title>
-{C.FONTS}<style>{CSS}</style></head><body>
+{C.fonts(ctx.offline)}<style>{CSS}</style></head><body>
 <header><div class="wrap"><div class="brand"><div class="mark"></div><div>
   <div class="eyebrow">Limen Labs · Risk Register</div>
   <h1>Heat map &amp; register — working view</h1></div></div>
@@ -361,6 +379,7 @@ def render(ctx: C.Context) -> str:
 <div class="sub"><div class="wrap"><span>{C.esc(ctx.as_of_line())}</span>
   <span>Toggle inherent / residual · click a cell to drill in · sort any column · click a risk for detail</span>
 </div></div>
+{prov_banner}
 <div class="wrap">
   <div class="section">{tiles(ctx)}</div>
   <div class="section top">

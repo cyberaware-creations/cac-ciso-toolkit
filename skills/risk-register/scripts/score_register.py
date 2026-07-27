@@ -23,7 +23,7 @@ Mutations (each appends an append-only history event and writes a schema-valid f
   add          <register.rr> --title ... --il L --ii I --rl L --ri I [--theme ID] [--why ...]
   set-text     <register.rr> <id> [--title ...] [--description ...] --why ...
                                          Reword an imported gap as a NISTIR 8286 event
-                                         statement; clears `provisional`.
+                                         statement; clears `provisionalTitle`.
   set-score    <register.rr> <id> [--inherent L I] [--residual L I] --why ...
   accept       <register.rr> <id> --approver ... --justification ... --revalidate DATE
   set-status   <register.rr> <id> <open|in-treatment|monitoring|closed> [--why ...]
@@ -142,11 +142,18 @@ def summarize(risks: list[dict], size: int, appetite: str) -> dict:
         "overAppetite": over,
         "byBand": by_band,
         "topByResidual": [r["id"] for r in top],
-        # Additive to the ported web-engine summary: how many of `total` are still
-        # sitting on the import seed. Without it a register cannot tell "assessed as
-        # medium" from "never refined", and a band mix of unreviewed candidates renders
-        # as a confident, mostly-green bar.
-        "provisional": sum(1 for r in risks if r.get("provisional")),
+        # Additive to the ported web-engine summary. Without these a register cannot tell
+        # "assessed as medium" from "never refined", and a band mix of unreviewed
+        # candidates renders as a confident bar.
+        #
+        # `provisional` is the union — anything unreviewed in either dimension — and is
+        # what the disclosure banners count. The two components are reported separately
+        # because they mean different things to a reader: a provisional *title* is a
+        # board-safety issue, a provisional *score* is a data-quality one.
+        "provisional": sum(1 for r in risks
+                           if r.get("provisionalTitle") or r.get("provisionalScore")),
+        "provisionalTitle": sum(1 for r in risks if r.get("provisionalTitle")),
+        "provisionalScore": sum(1 for r in risks if r.get("provisionalScore")),
     }
 
 
@@ -215,12 +222,16 @@ def gap_row_to_risk(row: dict, risk_id: str) -> dict:
     risk["csfSubcategoryId"] = row["subcategory_id"]
     risk["inherent"] = {"likelihood": level, "impact": level}
     risk["residual"] = {"likelihood": level, "impact": level}
-    # An imported row is a *candidate*, not an assessed risk: the title is a control
-    # objective phrased as a good thing, and the scores are a priority seed nobody has
-    # looked at. Flagged so renderers can refuse to put either in front of a board and
-    # so the register can tell "assessed as medium" from "never refined from the seed".
-    # Cleared by set-text or set-score — the two acts that constitute a human review.
-    risk["provisional"] = True
+    # An imported row is a *candidate*, not an assessed risk, and it is unreviewed in two
+    # independent ways: the title is a control objective phrased as a good thing, and the
+    # scores are a priority seed nobody has looked at.
+    #
+    # Tracked separately because they are cleared by different acts and only one of them
+    # governs board safety. Treating them as one flag meant `set-score` — refining the
+    # numbers — also authorised the untouched framework wording for the board, which is
+    # precisely the exposure this mechanism exists to prevent.
+    risk["provisionalTitle"] = True     # cleared by set-text; gates board-facing titles
+    risk["provisionalScore"] = True     # cleared by set-score; gates "is this assessed?"
     # Deliberately NOT "Tier X → Y". These are achievement ratings on a 0-3 scale, and
     # both skills warn that the gap CSV's `current_tier`/`target_tier` column names must
     # never reach a reader. The importer used to produce that exact leak itself.
@@ -244,7 +255,7 @@ def merge_import(existing: list[dict], candidates: list[dict]) -> dict:
             # been through set-text it carries a NISTIR 8286 event statement someone
             # authored; re-importing after a quarterly review must refresh the CSF-derived
             # facts without silently throwing that away.
-            if match.get("provisional"):
+            if match.get("provisionalTitle"):
                 match["title"] = cand["title"]
                 match["description"] = cand["description"]
             match["category"] = cand["category"]
@@ -288,9 +299,18 @@ def load_register(path: str) -> dict:
     for r in obj["risks"]:
         r.setdefault("theme", None)
         r.setdefault("acceptance", None)
-        # Risks written before the flag existed were authored by hand, so they are
-        # assessed by definition. Only the importer sets this true.
-        r.setdefault("provisional", False)
+        # Risks written before these flags existed were authored by hand, so they are
+        # reviewed by definition. Only the importer sets them true.
+        #
+        # `provisional` was a single flag in an earlier build; a file carrying it is
+        # normalized to both dimensions, since at that point neither had been reviewed
+        # independently.
+        legacy = r.pop("provisional", None)
+        if legacy is not None:
+            r.setdefault("provisionalTitle", bool(legacy))
+            r.setdefault("provisionalScore", bool(legacy))
+        r.setdefault("provisionalTitle", False)
+        r.setdefault("provisionalScore", False)
     return obj
 
 
@@ -345,17 +365,21 @@ def _cmd_score(args: list[str]) -> int:
     print(f"Residual band mix — Low {s['byBand']['low']} · Medium {s['byBand']['medium']} · "
           f"High {s['byBand']['high']} · Critical {s['byBand']['critical']}")
     if s["provisional"]:
-        print(f"\n⚠ {s['provisional']} of {s['total']} risks are PROVISIONAL — imported candidates "
-              f"still on the\n  priority seed, with framework wording for a title. They are excluded "
-              f"from board-facing\n  views until reworded (set-text) or rescored (set-score).")
+        print(f"\n⚠ {s['provisional']} of {s['total']} risks are PROVISIONAL:")
+        if s["provisionalTitle"]:
+            print(f"    {s['provisionalTitle']} still carry CSF framework wording as a title. "
+                  f"Held out of every\n      board-facing view until reworded with `set-text`.")
+        if s["provisionalScore"]:
+            print(f"    {s['provisionalScore']} still sit on the import priority seed. "
+                  f"Their scores are placeholders,\n      not assessments. Refine with `set-score`.")
     print("\nID     Residual  Band       Over  Title")
     for r in scored["risks"]:
         flag = "⚠" if r["overAppetite"] else " "
-        mark = "~" if r.get("provisional") else " "
+        mark = ("T" if r.get("provisionalTitle") else "") + ("S" if r.get("provisionalScore") else "")
         print(f"{r['id']:<6} {r['residualExposure']:>7}  {r['residualBand']:<9}  {flag:<4} "
-              f"{mark}{trunc(r['title'], 54)}")
+              f"{mark:<2} {trunc(r['title'], 54)}")
     if s["provisional"]:
-        print("\n  ~ = provisional")
+        print("\n  T = title still framework wording · S = score still the import seed")
     return 0
 
 
@@ -414,10 +438,12 @@ def _cmd_import_gaps(args: list[str]) -> int:
             print(f"  Defined {len(added_themes)} CSF Function themes so the board rollup is not "
                   f"all Unclassified: {', '.join(added_themes)}.\n"
                   f"  Re-theme with set-theme if you group risk differently.", file=sys.stderr)
-        prov = sum(1 for r in reg["risks"] if r.get("provisional"))
+        prov = sum(1 for r in reg["risks"]
+                   if r.get("provisionalTitle") or r.get("provisionalScore"))
         if prov:
-            print(f"  {prov} risks are provisional: seeded scores and framework wording, held back "
-                  f"from board views.\n  Reword with `set-text`, rescore with `set-score`.",
+            print(f"  {prov} risks are provisional: CSF framework wording for a title and seeded "
+                  f"scores.\n  Titles are held out of every board-facing view until reworded with "
+                  f"`set-text`;\n  scores stay placeholders until refined with `set-score`.",
                   file=sys.stderr)
     else:
         print(json.dumps(result, indent=2))
@@ -685,7 +711,7 @@ def _cmd_add(args):
 
 
 def _cmd_set_text(args):
-    """Rewrite a risk's title and/or description, clearing the provisional flag.
+    """Rewrite a risk's title and/or description, clearing `provisionalTitle`.
 
     The build workflow says to reword each imported gap as a NISTIR 8286 event
     statement — "PR.AA-05 partially implemented" is a control objective, not a risk —
@@ -712,16 +738,18 @@ def _cmd_set_text(args):
             _append_event(reg, "risk-updated", riskId=rid, field=field,
                           frm=trunc(old, 80), to=trunc(new, 80), rationale=opt["why"])
 
-    was_provisional = bool(risk.get("provisional"))
+    was_provisional = bool(risk.get("provisionalTitle"))
     if was_provisional:
-        risk["provisional"] = False
-        _append_event(reg, "risk-updated", riskId=rid, field="provisional",
+        risk["provisionalTitle"] = False
+        _append_event(reg, "risk-updated", riskId=rid, field="provisionalTitle",
                       frm=True, to=False, rationale=opt["why"])
     save_register(reg, path)
 
     print(f"Updated {rid}: {trunc(risk['title'], 90)}")
     if was_provisional:
-        print("  No longer provisional — it will now render in board-facing views.")
+        print("  Wording reviewed — this title will now render in board-facing views.")
+    if risk.get("provisionalScore"):
+        print("  Scores are still the import seed. Refine them with `set-score`.")
     return 0
 
 
@@ -784,15 +812,20 @@ def _cmd_set_score(args):
             changed = True
     if not changed:
         raise ValueError("set-score: provide --inherent and/or --residual.")
-    # Scoring an imported candidate is a human review — it is no longer sitting on the
-    # priority seed. The title may still be framework wording, which set-text fixes.
-    if r.get("provisional"):
-        r["provisional"] = False
-        _append_event(reg, "risk-updated", riskId=pos[1], field="provisional",
+    # Scoring clears the *score* dimension only. It deliberately does not authorise the
+    # title: refining likelihood and impact says nothing about whether the wording is
+    # still a control objective phrased as a good thing. Conflating the two let the
+    # score-only review path put raw framework text in front of a board.
+    if r.get("provisionalScore"):
+        r["provisionalScore"] = False
+        _append_event(reg, "risk-updated", riskId=pos[1], field="provisionalScore",
                       frm=True, to=False, rationale=opt["why"])
     save_register(reg, pos[0])
     res = exposure(r["residual"]["likelihood"], r["residual"]["impact"])
     print(f"{pos[1]} updated: residual {res} {band(res, size)}")
+    if r.get("provisionalTitle"):
+        print("  Title is still CSF framework wording, so it stays out of board views.")
+        print("  Reword it with `set-text` when you are ready to show it.")
     return 0
 
 
@@ -823,7 +856,18 @@ def _cmd_set_status(args):
         raise ValueError(f"usage: set-status <register.rr> <id> <{'|'.join(sorted(STATUSES))}> [--why '...']")
     if pos[2] not in STATUSES:
         raise ValueError(f"status must be one of {sorted(STATUSES)}")
-    reg = load_register(pos[0]); r = _find(reg, pos[1]); frm = r["status"]; r["status"] = pos[2]
+    reg = load_register(pos[0]); r = _find(reg, pos[1]); frm = r["status"]
+    # Closing a risk, or reopening one that was closed, is a material change: it is a
+    # completion claim an auditor will test. Refuse before touching the file so a rejected
+    # mutation leaves the register byte-identical.
+    material = pos[2] == "closed" or frm == "closed"
+    if material and not (isinstance(opt.get("why"), (str, list)) and _s(opt["why"]).strip()):
+        verb = "Closing" if pos[2] == "closed" else "Reopening"
+        raise ValueError(f"set-status: --why is required to move {pos[1]} {frm} → {pos[2]}. "
+                         f"{verb} a risk is a material change and the rationale is the audit "
+                         f"trail — an unsupported completion claim is exactly what a reviewer "
+                         f"looks for.")
+    r["status"] = pos[2]
     _append_event(reg, "status-changed", riskId=pos[1], field="status", frm=frm, to=pos[2], rationale=opt.get("why"))
     save_register(reg, pos[0])
     print(f"{pos[1]}: {frm} → {pos[2]}")
@@ -854,7 +898,7 @@ def _cmd_export_csv(args):
     scored = score_register(load_register(pos[0]))
     cols = ["id", "title", "category", "theme", "owner", "inherentL", "inherentI", "inherentExposure",
             "inherentBand", "response", "cost", "residualL", "residualI", "residualExposure",
-            "residualBand", "overAppetite", "status", "reviewDate", "csfSubcategoryId", "provisional"]
+            "residualBand", "overAppetite", "status", "reviewDate", "csfSubcategoryId", "provisionalTitle", "provisionalScore"]
     # Python's True/False are not CSV booleans — Excel and every downstream parser expect
     # true/false. Writing the repr leaks the implementation language into an export.
     b = lambda v: "true" if v else "false"          # noqa: E731
@@ -865,7 +909,8 @@ def _cmd_export_csv(args):
                     r["response"]["type"], r["response"].get("cost", ""),
                     r["residual"]["likelihood"], r["residual"]["impact"], r["residualExposure"], r["residualBand"],
                     b(r["overAppetite"]), r["status"], r.get("reviewDate", ""),
-                    r.get("csfSubcategoryId", ""), b(r.get("provisional"))])
+                    r.get("csfSubcategoryId", ""), b(r.get("provisionalTitle")),
+                    b(r.get("provisionalScore"))])
     out = _s(opt.get("out")) if isinstance(opt.get("out"), (str, list)) else None
     if out:
         with open(out, "w", newline="", encoding="utf-8") as fh:

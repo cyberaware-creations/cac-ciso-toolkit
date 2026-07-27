@@ -110,15 +110,9 @@ def themes_block(ctx: C.Context) -> str:
 def top_risks_block(ctx: C.Context) -> str:
     rows = ""
     for r in ctx.top_risks(5):
-        # A provisional risk's title is the CSF Subcategory text — a control objective
-        # phrased as a good thing ("Identities and credentials ... are managed by the
-        # organization") which, tagged Critical, reads to a director as the opposite of
-        # what it says. Withhold it exactly as an untranslated narrative is withheld.
-        provisional = r.get("provisional")
-        title = (f'<span class="placeholder">Risk statement not yet written for {r["id"]} — '
-                 f'imported CSF gap, still framework wording. Reword it with '
-                 f'<code>set-text</code>.</span>'
-                 if provisional else f'<span class="t">{C.esc(r["title"])}</span>')
+        provisional = r.get("provisionalTitle")
+        title = (C.risk_title(r) if provisional
+                 else f'<span class="t">{C.esc(r["title"])}</span>')
         line = (C.esc(r["translation"]) if r["translation"]
                 else f'<span class="placeholder">Business-impact line not supplied — '
                      f'run ciso-board-translation for {r["id"]}.</span>')
@@ -254,7 +248,7 @@ def render(ctx: C.Context) -> str:
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Risk Register — Executive{title_tail}</title>
-{C.FONTS}<style>{CSS}</style></head><body>
+{C.fonts(ctx.offline)}<style>{CSS}</style></head><body>
 <header><div class="wrap"><div class="brand"><div class="mark"></div><div>
   <div class="eyebrow">Limen Labs · Risk Register</div>
   <h1>Executive dashboard</h1></div></div>

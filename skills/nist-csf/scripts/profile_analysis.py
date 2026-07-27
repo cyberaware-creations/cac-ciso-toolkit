@@ -1276,7 +1276,16 @@ def _cmd_export_gaps(args):
         with open(dest, "w", newline="", encoding="utf-8") as fh:
             fh.write(buf.getvalue())
         print(f"Wrote {dest} — {len(rows)} gap rows.")
-        print("  Feed to: risk-register/scripts/score_register.py import-gaps <file> --into <register.rr>")
+        # Both commands, in order. `--into` alone is a preview that writes nothing, so a
+        # message showing only that step invites the reader to believe the register was
+        # updated when it was not.
+        print("  Feed to risk-register — preview first, then apply:")
+        print(f"    python3 ../risk-register/scripts/score_register.py import-gaps {dest} "
+              f"--into <register.rr>")
+        print(f"    python3 ../risk-register/scripts/score_register.py import-gaps {dest} "
+              f"--into <register.rr> --write")
+        print("  Imported risks land provisional: framework wording and seeded scores, held out")
+        print("  of board views until reworded with `set-text`.")
     else:
         sys.stdout.write(buf.getvalue())
     return 0

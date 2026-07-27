@@ -4,8 +4,10 @@ Two audiences, two artifacts, one data source. Both are rendered from the `analy
 **nothing is computed in a renderer**. If a number a dashboard needs is not in `analyze`, add it to
 `analyze` (T10), not to the renderer — otherwise two views of the same Profile can disagree.
 
-Both outputs are single self-contained HTML files: inline CSS and JS, no external assets beyond an
-optional Google Fonts link with a system fallback. Both carry the footer from `assets/brand.md`.
+Both outputs are single self-contained HTML files: inline CSS and JS, no external assets beyond a
+Google Fonts link with a system fallback. That link is one outbound request when the file is opened
+— pass `--offline` to drop it and render on the system font stack instead, for anything going to a
+client or an air-gapped machine. Both carry the footer from `assets/brand.md`.
 
 ---
 

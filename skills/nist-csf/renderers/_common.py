@@ -45,9 +45,23 @@ NA_FILL = WB
 
 PRIORITY_COLOR = {"low": "#6A7180", "medium": "#5F7A8A", "high": "#A6603A", "critical": "#7C3A32"}
 
+# Two font modes. The brand faces come from Google Fonts, which means opening a report
+# makes an outbound request — for a document full of a client's risk data, that is a real
+# (if small) disclosure, and the dashboards were documented as making "no external calls".
+#
+# `--offline` is the honest escape hatch: no request, system stack, layout unchanged
+# because the CSS already names fallbacks. Default stays branded.
 FONTS = ('<link rel="preconnect" href="https://fonts.googleapis.com">'
          '<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700'
          '&family=Space+Grotesk:wght@500;600&display=swap" rel="stylesheet">')
+FONTS_OFFLINE = ""
+
+
+def fonts(offline: bool = False) -> str:
+    """The <head> font links, or nothing at all when rendering offline."""
+    return FONTS_OFFLINE if offline else FONTS
+
+
 DISCLAIMER = "A Cyber Aware Creation · Not affiliated with NIST"
 
 PLACEHOLDER = ("Board narrative not supplied. Run the ciso-board-translation skill over this "
@@ -141,6 +155,9 @@ def parse_args(argv: list[str], description: str, default_out: str) -> argparse.
     p.add_argument("--translations", metavar="FILE",
                    help="board-language sidecar from the ciso-board-translation skill; "
                         "omitted means board narrative is shown as a labelled placeholder")
+    p.add_argument("--offline", action="store_true",
+                   help="omit the Google Fonts links so the file makes no external request; "
+                        "falls back to the system font stack")
     return p.parse_args(argv)
 
 
@@ -193,6 +210,7 @@ class Context:
 
     def __init__(self, args: argparse.Namespace):
         self.args = args
+        self.offline = bool(getattr(args, "offline", False))
         self.out_path = args.out
         if args.infile:
             try:
@@ -347,8 +365,8 @@ def header(artifact: str, ctx, sub_lines: list[str]) -> str:
             f'</div>{subs}</header>')
 
 
-def page(title: str, head_extra: str, body: str) -> str:
+def page(title: str, head_extra: str, body: str, offline: bool = False) -> str:
     return (f"<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">"
             f"<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
-            f"<title>{esc(title)}</title>{FONTS}"
+            f"<title>{esc(title)}</title>{fonts(offline)}"
             f"<style>{BASE_CSS}{head_extra}</style></head><body>{body}</body></html>")
