@@ -5,20 +5,20 @@
  * exempt from the repo's stdlib-only Python rule and runs on node + SheetJS, reusing
  * the xlsx module already installed in the csf-assessment project.
  *
- * Source:  csf-assessment/scripts/csf-2.0.xlsx (checked-in NIST CPRT export)
+ * Source:  tools/csf-2.0.xlsx (vendored NIST CPRT export; sha256 recorded in the output)
  * Model:   csf-assessment/scripts/ingest-csf.ts documents the row shape and the
  *          [Withdrawn:] exclusion rule; this script additionally captures columns
  *          D (Implementation Examples) and E (Informative References), which that
  *          ingest deliberately skipped.
  *
- * Run from the csf-assessment repo root:
+ * Run from the repo root (after `npm install --prefix tools`):
  *   node <this file> <out-path> [path/to/csf-2.0.xlsx]
  */
 const XLSX = require("xlsx");
 const { writeFileSync, readFileSync } = require("node:fs");
 const { createHash } = require("node:crypto");
 
-const SOURCE_XLSX = process.argv[3] || "scripts/csf-2.0.xlsx";
+const SOURCE_XLSX = process.argv[3] || require("node:path").join(__dirname, "csf-2.0.xlsx");
 const SHEET = "CSF 2.0";
 const OUT = process.argv[2];
 if (!OUT) { console.error("usage: node ingest-csf-core.js <out-path> [xlsx-path]"); process.exit(2); }
