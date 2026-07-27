@@ -31,13 +31,28 @@ import score_register as sr  # noqa: E402
 INK = "#14171C"; INK_RAISED = "#1C2026"; INK_LINE = "#2A2F36"
 LIME = "#EAE7DF"; LIME_DIM = "#9AA0A6"
 PATINA = "#2FA98C"; PATINA_H = "#279884"
-SLATE = "#6A7180"; WB = "#F6F4EE"; WB_SURF = "#FFFFFF"; WB_LINE = "#D8D3C6"
+# Patina reads well as text on the dark chrome (6.14:1 on ink) and badly on the
+# light workbench (2.66:1). Same accent, two surfaces, two values.
+PATINA_TEXT = "#1C6F5A"
+# Slate was #6A7180: 4.45:1 on the workbench, just under the 4.5 AA floor, and it
+# carries hints, footers, filter bars and table headers in every artifact. One
+# step darker clears all of them at once.
+SLATE = "#666D7C"; WB = "#F6F4EE"; WB_SURF = "#FFFFFF"; WB_LINE = "#D8D3C6"
 # medium is amber, not a second green. Two adjacent greens are not separable at
 # stacked-bar size — which also made a bar full of unrefined import seeds read as
 # "we're fine" — and a ramp that runs green→green→orange→red is not the CVD-safe
 # green→red brand.md claims. Lightness now carries the step as well as hue.
-BAND = {"low": "#2e8b57", "medium": "#e8c547", "high": "#e08e0b", "critical": "#c0392b"}
+# low was #2e8b57, which tops out at 4.25:1 against its best text colour — the one
+# band fill no text colour could rescue. A small lift clears AA with ink on top.
+BAND = {"low": "#30915B", "medium": "#e8c547", "high": "#e08e0b", "critical": "#c0392b"}
 BAND_LABEL = {"low": "Low", "medium": "Medium", "high": "High", "critical": "Critical"}
+
+# A fill and a text colour are different jobs and the same hex cannot do both.
+# BAND is for fills — text goes *on* it, and text_on() picks what. BAND_TEXT is
+# for the cases where the band colour IS the text (a ⚠ mark, a velocity arrow, a
+# tag) on a light surface, where the fill values run 1.5–2.6:1 and are unreadable.
+BAND_TEXT = {"low": "#25764A", "medium": "#7A6410", "high": "#8F5B06",
+             "critical": "#c0392b"}
 
 # Two font modes. The brand faces come from Google Fonts, which means opening a report
 # makes an outbound request — for a document full of a client's risk data, that is a real
@@ -60,17 +75,57 @@ DISCLAIMER = "A Cyber Aware Creation · Not affiliated with NIST"
 
 UNCLASSIFIED = "Unclassified"
 VELOCITY_MARK = {"improving": "▼", "worsening": "▲", "steady": "→", "new": "＋"}
-VELOCITY_COLOR = {"improving": BAND["low"], "worsening": BAND["critical"],
-                  "steady": SLATE, "new": PATINA}
+# These are arrows drawn *as text* on the light workbench, so they take the text
+# ramp, not the fill ramp. Patina as text is 2.9:1 — the ink-on-patina button is
+# fine, patina-on-workbench is not.
+VELOCITY_COLOR = {"improving": BAND_TEXT["low"], "worsening": BAND_TEXT["critical"],
+                  "steady": SLATE, "new": PATINA_TEXT}
 
 
 def esc(s) -> str:
     return html.escape("" if s is None else str(s))
 
 
+# --- Contrast ----------------------------------------------------------------
+# The text colour for a fill is derived, never hand-picked. It was hand-picked in
+# four places — `chip()`, the band pills, and twice more in the dashboard's inline
+# JS — as `white if band in (high, critical) else ink`. That rule is wrong for
+# amber: white on #e08e0b is 2.61:1, ink on it is 6.88:1. Four copies of one wrong
+# judgement, and the two in JS were invisible to any check that reads Python.
+
+def _luminance(hex_colour: str) -> float:
+    h = hex_colour.lstrip("#")
+    if len(h) == 3:
+        h = "".join(ch * 2 for ch in h)
+    chans = []
+    for i in (0, 2, 4):
+        v = int(h[i:i + 2], 16) / 255.0
+        chans.append(v / 12.92 if v <= 0.03928 else ((v + 0.055) / 1.055) ** 2.4)
+    return 0.2126 * chans[0] + 0.7152 * chans[1] + 0.0722 * chans[2]
+
+
+def contrast_ratio(a: str, b: str) -> float:
+    """WCAG 2.x contrast ratio between two opaque colours. 1.0 … 21.0."""
+    la, lb = sorted((_luminance(a), _luminance(b)), reverse=True)
+    return (la + 0.05) / (lb + 0.05)
+
+
+def text_on(fill: str) -> str:
+    """The brand text colour with the most contrast on `fill`.
+
+    Ink for light fills, limestone/white for dark ones — decided by measurement so
+    a change to a fill cannot silently leave unreadable text behind it.
+    """
+    return max((INK, LIME, "#FFFFFF"), key=lambda fg: contrast_ratio(fg, fill))
+
+
+# Precomputed so the dashboard's inline JS can be handed the same answers rather
+# than reimplementing the rule and drifting from it.
+BAND_ON = {b: text_on(c) for b, c in BAND.items()}
+
+
 def chip(band: str) -> str:
-    fg = "#fff" if band in ("high", "critical") else INK
-    return (f'<span class="chip" style="background:{BAND[band]};color:{fg}">'
+    return (f'<span class="chip" style="background:{BAND[band]};color:{BAND_ON[band]}">'
             f'{BAND_LABEL[band]}</span>')
 
 

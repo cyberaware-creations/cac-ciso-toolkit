@@ -18,7 +18,7 @@ product family.
 | limestoneDim | `#9AA0A6` | Muted text on ink; footer stamp |
 | patina | `#2FA98C` | **Brand/action** accent (active tab, primary button) |
 | patinaHover | `#279884` | Hover state for patina |
-| slate | `#6A7180` | Secondary text |
+| slate | `#666D7C` | Secondary text (was `#6A7180`: 4.45:1 on workbench, just under AA) |
 | workbench | `#F6F4EE` | Light working background |
 | workbenchSurface | `#FFFFFF` | Cards, tables |
 | workbenchLine | `#D8D3C6` | Lines on light |
@@ -51,7 +51,19 @@ Two states are **not** on this ramp and must be visually distinct from every val
 This is the visual half of the rule the engine enforces: *nothing targeted* must never look like
 *fully covered*. A blank cell and a green cell must never be confusable.
 
-On the two darkest coverage swatches use `limestone` text; on the rest use `ink`.
+### Text on a coverage swatch — do not hand-pick it
+
+Use `_common.text_on(fill)`, or `cov_text_color(cov)` which wraps it. It measures.
+
+The rule here used to be *"on the two darkest coverage swatches use limestone; on the rest use
+ink"* — a threshold that approximates the fill instead of asking it. It put limestone on `#A6603A`
+at **3.90:1** and ink on `#4A7C59` at **3.69:1**, both under AA, and the delta chip that inherited
+the same threshold logic sat at **1.57:1** on the full-coverage tile. A threshold will always miss
+somewhere on a five-value ramp; measuring cannot.
+
+Anything drawn *on* a tile — the Function code, the fraction, the completeness line, the movement
+chip — takes that same measured colour. And never reach for `opacity` to de-emphasise one of them:
+it is invisible to a colour-pair check but fades the text toward the fill exactly as alpha would.
 
 ## Type
 
