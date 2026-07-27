@@ -1,0 +1,20 @@
+P1	nist-csf	Assess our NIST CSF posture.
+P2	nist-csf	Where are our framework gaps?
+P3	nist-csf	Build a CSF target profile for us.
+P4	nist-csf	I need a board view of our cybersecurity maturity against the framework.
+P5	nist-csf	What CSF tier are we at?
+P6	nist-csf	How complete is our security programme against a recognised standard?
+P7	nist-csf	Track how our CSF coverage has moved since last quarter.
+P8	nist-csf	We need a current profile and a target profile.
+N1	risk-register	Add a risk to the register.
+N2	risk-register	What's our top risk over appetite?
+N3	risk-register	Score this risk: likelihood 4, impact 5.
+N4	risk-register	Show me the heat map.
+N5	risk-register	We accepted this risk — record who approved it.
+X1	neither	Write us an acceptable use policy.
+X2	neither	Track delivery risks for the ERP project.
+A1	either	We have a CSF assessment — what should we do with it?
+A2	risk-register	Turn our gap assessment into risks.
+A3	nist-csf	How mature is our security programme?
+A4	either	What should I show the board about our security posture?
+A5	nist-csf	Are we compliant with NIST?
