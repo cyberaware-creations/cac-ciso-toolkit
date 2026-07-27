@@ -36,12 +36,18 @@ def rollup(ctx: c.Context) -> str:
         cov = ctx.coverage["byFunction"].get(fid, {"percent": None, "n": 0, "d": 0})
         comp = ctx.completeness["byFunction"].get(fid, {})
         delta = (dfn.get(fid) or {}).get("delta")
+        # Direction is carried by the arrow, not by colour. A dark tile (low coverage)
+        # already uses light text, and a hardcoded dark-green delta on it was
+        # effectively unreadable — the worst-performing Function is exactly where the
+        # movement most needs to be legible.
+        dark = not c.cov_is_untargeted(cov) and (cov.get("percent") or 0) < 50
+        tone = "ondark" if dark else "onlight"
         if delta is None:
             move = '<span class="delta flat">—</span>'
         elif delta > 0:
-            move = f'<span class="delta up">▲ {delta:+.0f} pts</span>'
+            move = f'<span class="delta up {tone}">▲ {delta:+.0f} pts</span>'
         elif delta < 0:
-            move = f'<span class="delta down">▼ {delta:+.0f} pts</span>'
+            move = f'<span class="delta down {tone}">▼ {delta:+.0f} pts</span>'
         else:
             move = '<span class="delta flat">no change</span>'
 
@@ -173,8 +179,9 @@ def decisions(ctx: c.Context) -> str:
     out = []
     unowned = a.get("unownedActions", [])
     if unowned:
-        out.append(f'Assign an owner to {len(unowned)} commitment'
-                   f'{"s" if len(unowned) != 1 else ""} that currently has none '
+        n = len(unowned)
+        out.append(f'Assign {"an owner" if n == 1 else "owners"} to {n} commitment'
+                   f'{"" if n == 1 else "s"} that currently {"has" if n == 1 else "have"} none '
                    f'({", ".join(i["id"] for i in unowned)}).')
     past = a.get("pastDueActions", [])
     if past:
@@ -213,7 +220,9 @@ CSS = f"""
 .frac{{font-size:12px;opacity:.85}}
 .tcomp{{font-size:11px;opacity:.8;margin-top:auto}}
 .tmove{{font-size:12px;font-weight:600;margin-top:4px}}
-.delta.up{{color:#2f5d3f}} .delta.down{{color:#7C3A32}} .delta.flat{{opacity:.7}}
+.delta.up.onlight{{color:#2f5d3f}} .delta.down.onlight{{color:#7C3A32}}
+.delta.up.ondark,.delta.down.ondark{{color:{c.LIME}}}
+.delta.flat{{opacity:.7}}
 .tile.untargeted .delta{{color:{c.SLATE}}}
 .tierhead{{font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:600;
   margin-bottom:10px}}

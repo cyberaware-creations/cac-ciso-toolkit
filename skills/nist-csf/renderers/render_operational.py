@@ -116,15 +116,15 @@ def attention(ctx: c.Context) -> str:
     a = ctx.attention
     panels = [
         ("Largest gaps", "Is anything being done about the top few?",
-         [f'<span class="mono">{c.esc(g["subcategoryId"])}</span> {c.esc(g["text"][:70])}'
+         [f'<span class="mono">{c.esc(g["subcategoryId"])}</span> {c.esc(c.trunc(g["text"], 70))}'
           f'<span class="muted"> · score {g["prioritizedGapScore"]:g}</span>'
           for g in a.get("largestGaps", [])]),
         ("Never reviewed", "Why has nobody looked at these at all?",
-         [f'<span class="mono">{c.esc(r["subcategoryId"])}</span> {c.esc(r["text"][:70])}'
+         [f'<span class="mono">{c.esc(r["subcategoryId"])}</span> {c.esc(c.trunc(r["text"], 70))}'
           for r in a.get("neverReviewed", [])]),
         ("Stalest", "Is this rating still true, or just old?",
          [f'<span class="mono">{c.esc(r["subcategoryId"])}</span> '
-          f'<span class="muted">{c.esc(r["lastReviewed"])}</span> {c.esc(r["text"][:60])}'
+          f'<span class="muted">{c.esc(r["lastReviewed"])}</span> {c.esc(c.trunc(r["text"], 60))}'
           for r in a.get("stalest", [])]),
         ("Unowned actions", "An action without an owner is a wish.",
          [f'<span class="mono">{c.esc(i["id"])}</span> {c.esc(i["title"])}'
@@ -134,7 +134,7 @@ def attention(ctx: c.Context) -> str:
           f'<span class="muted"> · due {c.esc(i.get("targetDate"))}</span>'
           for i in a.get("pastDueActions", [])]),
         ("Accepted gaps", "Is the acceptance still valid, and who re-affirms it?",
-         [f'<span class="mono">{c.esc(r["subcategoryId"])}</span> {c.esc(r["text"][:70])}'
+         [f'<span class="mono">{c.esc(r["subcategoryId"])}</span> {c.esc(c.trunc(r["text"], 70))}'
           for r in a.get("acceptedGaps", [])]),
     ]
     cards = []
