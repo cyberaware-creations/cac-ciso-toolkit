@@ -57,6 +57,21 @@ status · last reviewed.
 - Sortable by every column; the prioritized score is the honest default because it is the only
   ordering that accounts for both size of gap and importance.
 
+### Gap drill-down
+Expanding a gap row reveals, in order: **authored guidance** (what mature looks like, next steps,
+pitfalls — or the Function slant where no deep entry exists), then the **NIST Implementation
+Examples**. Deep entries are marked with a patina left border so it is obvious which Subcategories
+carry hand-written guidance and which fall back to the template.
+
+Guidance is scale-aware: tier-transition prose appears only on the 0–4 tool scale. See
+`scale-and-scoring.md`.
+
+### Next 90 days
+A worksheet, not a plan. Top gaps by prioritized score, each with a recommended first move drawn
+from the authored guidance, and **blank Owner and Due columns** for filling in with a team. Ported
+from section 8 of the web tool's report. Once a line has an owner and a date it belongs in the
+action plan, tracked by `action add` — the blank columns are a prompt, not a record.
+
 ### Attention lists
 Six panels, from `attention`, each labeled with the question it answers:
 

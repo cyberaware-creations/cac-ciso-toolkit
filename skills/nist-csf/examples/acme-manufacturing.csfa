@@ -1,0 +1,462 @@
+{
+  "schemaVersion": 1,
+  "frameworkId": "csf-2.0",
+  "frameworkVersion": "2.0",
+  "meta": {
+    "clientName": "Acme Manufacturing Co.",
+    "assessor": "Limen Labs — Cyber Aware Creations",
+    "scopeNote": "Enterprise IT and plant-floor OT across four North American sites. Twelve months after a supplier-borne compromise; the board mandated Adaptive (Tier 4) maturity for Govern and Protect, with a Repeatable (Tier 3) baseline elsewhere. Two subcategories assessed as out of scope — see notes.",
+    "assessedAt": "2026-06-18"
+  },
+  "ratings": {
+    "PR.PS-06": {
+      "tier": null,
+      "na": true,
+      "note": "Out of scope: Acme runs no in-house software development. All plant and business applications are vendor-supplied COTS; supplier code assurance is tracked under GV.SC-07 instead."
+    },
+    "RC.CO-04": {
+      "tier": null,
+      "na": true,
+      "note": "Out of scope: privately held, no public shareholders and no consumer-facing brand. Customer and regulator notification during recovery is handled under RC.CO-03; there is no \"public update\" channel to assess."
+    },
+    "GV.OC-01": {
+      "tier": 3,
+      "na": false
+    },
+    "GV.OC-02": {
+      "tier": 3,
+      "na": false
+    },
+    "GV.OC-03": {
+      "tier": 3,
+      "na": false
+    },
+    "GV.OC-04": {
+      "tier": 2,
+      "na": false
+    },
+    "GV.OC-05": {
+      "tier": 2,
+      "na": false
+    },
+    "GV.RM-01": {
+      "tier": 3,
+      "na": false
+    },
+    "GV.RM-02": {
+      "tier": 2,
+      "na": false
+    },
+    "GV.RM-03": {
+      "tier": 2,
+      "na": false
+    },
+    "GV.RM-04": {
+      "tier": 2,
+      "na": false
+    },
+    "GV.RM-05": {
+      "tier": 2,
+      "na": false
+    },
+    "GV.RM-06": {
+      "tier": 1,
+      "na": false,
+      "note": "No standardized scoring method — each business unit rates risk on its own ad-hoc scale, so the ERM rollup is not comparable across sites."
+    },
+    "GV.RM-07": {
+      "tier": 1,
+      "na": false
+    },
+    "GV.RR-01": {
+      "tier": 3,
+      "na": false
+    },
+    "GV.RR-02": {
+      "tier": 3,
+      "na": false
+    },
+    "GV.RR-03": {
+      "tier": 2,
+      "na": false
+    },
+    "GV.RR-04": {
+      "tier": 2,
+      "na": false
+    },
+    "GV.PO-01": {
+      "tier": 3,
+      "na": false
+    },
+    "GV.PO-02": {
+      "tier": 2,
+      "na": false
+    },
+    "GV.OV-01": {
+      "tier": 2,
+      "na": false
+    },
+    "GV.OV-02": {
+      "tier": 1,
+      "na": false
+    },
+    "GV.OV-03": {
+      "tier": 1,
+      "na": false,
+      "note": "Risk-management performance is never measured, so leadership cannot tell whether the post-incident program is working."
+    },
+    "GV.SC-01": {
+      "tier": 2,
+      "na": false
+    },
+    "GV.SC-02": {
+      "tier": 2,
+      "na": false
+    },
+    "GV.SC-03": {
+      "tier": 2,
+      "na": false
+    },
+    "GV.SC-04": {
+      "tier": 3,
+      "na": false
+    },
+    "GV.SC-05": {
+      "tier": 2,
+      "na": false
+    },
+    "GV.SC-06": {
+      "tier": 2,
+      "na": false
+    },
+    "GV.SC-07": {
+      "tier": 2,
+      "na": false
+    },
+    "GV.SC-08": {
+      "tier": 1,
+      "na": false,
+      "note": "Suppliers are absent from IR planning entirely. The 2025 incident was detected by the supplier, not Acme, and there was no agreed contact path or escalation SLA."
+    },
+    "GV.SC-09": {
+      "tier": 2,
+      "na": false
+    },
+    "GV.SC-10": {
+      "tier": 1,
+      "na": false,
+      "note": "Contracts have no offboarding or end-of-life provisions: terminated suppliers retain VPN accounts and data until someone notices."
+    },
+    "ID.AM-01": {
+      "tier": 3,
+      "na": false
+    },
+    "ID.AM-02": {
+      "tier": 2,
+      "na": false
+    },
+    "ID.AM-03": {
+      "tier": 2,
+      "na": false
+    },
+    "ID.AM-04": {
+      "tier": 2,
+      "na": false
+    },
+    "ID.AM-05": {
+      "tier": 2,
+      "na": false
+    },
+    "ID.AM-07": {
+      "tier": 1,
+      "na": false,
+      "note": "No data inventory. Sensitive design files (CAD, tooling specs) live on unclassified shares alongside general business data."
+    },
+    "ID.AM-08": {
+      "tier": 2,
+      "na": false
+    },
+    "ID.RA-01": {
+      "tier": 3,
+      "na": false
+    },
+    "ID.RA-02": {
+      "tier": 2,
+      "na": false
+    },
+    "ID.RA-03": {
+      "tier": 2,
+      "na": false
+    },
+    "ID.RA-04": {
+      "tier": 2,
+      "na": false
+    },
+    "ID.RA-05": {
+      "tier": 2,
+      "na": false
+    },
+    "ID.RA-06": {
+      "tier": 2,
+      "na": false
+    },
+    "ID.RA-07": {
+      "tier": 3,
+      "na": false
+    },
+    "ID.RA-08": {
+      "tier": 1,
+      "na": false
+    },
+    "ID.RA-09": {
+      "tier": 1,
+      "na": false,
+      "note": "Hardware and software authenticity is not checked prior to acquisition — the 2025 compromise entered through a supplier-provided integration package."
+    },
+    "ID.RA-10": {
+      "tier": 2,
+      "na": false
+    },
+    "ID.IM-01": {
+      "tier": 2,
+      "na": false
+    },
+    "ID.IM-02": {
+      "tier": 1,
+      "na": false
+    },
+    "ID.IM-03": {
+      "tier": 2,
+      "na": false
+    },
+    "ID.IM-04": {
+      "tier": 3,
+      "na": false
+    },
+    "PR.AA-01": {
+      "tier": 3,
+      "na": false
+    },
+    "PR.AA-02": {
+      "tier": 2,
+      "na": false
+    },
+    "PR.AA-03": {
+      "tier": 3,
+      "na": false
+    },
+    "PR.AA-04": {
+      "tier": 2,
+      "na": false
+    },
+    "PR.AA-05": {
+      "tier": 2,
+      "na": false
+    },
+    "PR.AA-06": {
+      "tier": 4,
+      "na": false,
+      "note": "Mature: badge + turnstile at all four plants, quarterly access recertification, tailgating detection, and continuous review of anomalous badge patterns."
+    },
+    "PR.AT-01": {
+      "tier": 3,
+      "na": false
+    },
+    "PR.AT-02": {
+      "tier": 2,
+      "na": false
+    },
+    "PR.DS-01": {
+      "tier": 3,
+      "na": false
+    },
+    "PR.DS-02": {
+      "tier": 3,
+      "na": false
+    },
+    "PR.DS-10": {
+      "tier": 1,
+      "na": false,
+      "note": "Data-in-use protections are not addressed at all — engineering workstations render full CAD assemblies in the clear with no memory or session protections."
+    },
+    "PR.DS-11": {
+      "tier": 3,
+      "na": false
+    },
+    "PR.PS-01": {
+      "tier": 2,
+      "na": false
+    },
+    "PR.PS-02": {
+      "tier": 2,
+      "na": false
+    },
+    "PR.PS-03": {
+      "tier": 2,
+      "na": false
+    },
+    "PR.PS-04": {
+      "tier": 2,
+      "na": false
+    },
+    "PR.PS-05": {
+      "tier": 2,
+      "na": false
+    },
+    "PR.IR-01": {
+      "tier": 3,
+      "na": false
+    },
+    "PR.IR-02": {
+      "tier": 4,
+      "na": false,
+      "note": "Mature: plant environmental monitoring (temperature, power, water) with redundant HVAC and generator failover, tested annually."
+    },
+    "PR.IR-03": {
+      "tier": 2,
+      "na": false
+    },
+    "PR.IR-04": {
+      "tier": 2,
+      "na": false
+    },
+    "DE.CM-01": {
+      "tier": 2,
+      "na": false
+    },
+    "DE.CM-02": {
+      "tier": 3,
+      "na": false
+    },
+    "DE.CM-03": {
+      "tier": 1,
+      "na": false
+    },
+    "DE.CM-06": {
+      "tier": 1,
+      "na": false,
+      "note": "External service provider activity is not monitored — managed-service vendors have standing remote access with no session logging."
+    },
+    "DE.CM-09": {
+      "tier": 2,
+      "na": false
+    },
+    "DE.AE-02": {
+      "tier": 2,
+      "na": false
+    },
+    "DE.AE-03": {
+      "tier": 1,
+      "na": false,
+      "note": "No SIEM. Firewall, endpoint, and OT historian logs live in three separate consoles; correlation is a human reading them side by side."
+    },
+    "DE.AE-04": {
+      "tier": 2,
+      "na": false
+    },
+    "DE.AE-06": {
+      "tier": 2,
+      "na": false
+    },
+    "DE.AE-07": {
+      "tier": 1,
+      "na": false
+    },
+    "DE.AE-08": {
+      "tier": 2,
+      "na": false
+    },
+    "RS.MA-01": {
+      "tier": 2,
+      "na": false
+    },
+    "RS.MA-02": {
+      "tier": 2,
+      "na": false
+    },
+    "RS.MA-03": {
+      "tier": 2,
+      "na": false
+    },
+    "RS.MA-04": {
+      "tier": 2,
+      "na": false
+    },
+    "RS.MA-05": {
+      "tier": 1,
+      "na": false,
+      "note": "No documented criteria for initiating recovery; the call was made informally by the plant manager during the last event."
+    },
+    "RS.AN-03": {
+      "tier": 2,
+      "na": false
+    },
+    "RS.AN-06": {
+      "tier": 1,
+      "na": false
+    },
+    "RS.AN-07": {
+      "tier": 1,
+      "na": false
+    },
+    "RS.AN-08": {
+      "tier": 2,
+      "na": false
+    },
+    "RS.CO-02": {
+      "tier": 3,
+      "na": false
+    },
+    "RS.CO-03": {
+      "tier": 2,
+      "na": false
+    },
+    "RS.MI-01": {
+      "tier": 3,
+      "na": false
+    },
+    "RS.MI-02": {
+      "tier": 2,
+      "na": false
+    },
+    "RC.RP-01": {
+      "tier": 2,
+      "na": false
+    },
+    "RC.RP-02": {
+      "tier": 2,
+      "na": false
+    },
+    "RC.RP-03": {
+      "tier": 3,
+      "na": false
+    },
+    "RC.RP-04": {
+      "tier": 2,
+      "na": false
+    },
+    "RC.RP-05": {
+      "tier": 2,
+      "na": false
+    },
+    "RC.RP-06": {
+      "tier": 1,
+      "na": false,
+      "note": "No \"end of incident\" declaration criteria, so the 2025 event has never been formally closed and lessons-learned remain open."
+    },
+    "RC.CO-03": {
+      "tier": 2,
+      "na": false
+    }
+  },
+  "targets": {
+    "preset": "custom",
+    "default": 3,
+    "byFunction": {
+      "GV": 4,
+      "PR": 4
+    }
+  },
+  "createdAt": "2026-06-18T09:00:00.000Z",
+  "updatedAt": "2026-06-24T16:30:00.000Z"
+}
