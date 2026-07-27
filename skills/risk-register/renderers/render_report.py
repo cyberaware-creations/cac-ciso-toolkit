@@ -28,6 +28,11 @@ def cover(ctx: C.Context) -> str:
                  f'{" — " + ts if ts else ""}</div>')
     else:
         stamp = '<div class="snap">No prior snapshot — this is the first review point</div>'
+    # Disclosed on the cover, not buried later. This artifact gets printed and handed
+    # round a table, so a reader must not reach the risk tables before learning that some
+    # of them are unreviewed candidates.
+    note = C.provisional_note(ctx.summary)
+    prov = f'<div class="provisional-note">{note}</div>' if note else ""
     return f"""<div class="cover">
   <div class="eyebrow">Limen Labs · Risk Register</div>
   <h1>{C.esc(ctx.meta.get('clientName') or '(unnamed register)')}</h1>
@@ -35,7 +40,7 @@ def cover(ctx: C.Context) -> str:
     {C.esc(ctx.meta.get('assessor') or '—')} · As of {ctx.today}<br>
     Appetite: {C.esc(sm['appetite'])} &nbsp;·&nbsp; {sm['matrixSize']}×{sm['matrixSize']} matrix
     &nbsp;·&nbsp; {ctx.summary['total']} risks</div>
-  {stamp}</div>"""
+  {stamp}{prov}</div>"""
 
 
 def exec_summary(ctx: C.Context) -> str:
@@ -120,12 +125,20 @@ def register_table(ctx: C.Context) -> str:
     acceptance tables is now a sub-line on the risk's own row, so the board reads
     each item once, in the group that says what to do with it.
     """
-    groups = {"over": [], "accepted": [], "treated": [], "closed": []}
+    groups = {"over": [], "acceptedOver": [], "accepted": [], "treated": [], "closed": []}
     for r in ctx.risks:
         if r.get("status") == "closed":
             groups["closed"].append(r)
         elif r["overAppetite"]:
-            groups["over"].append(r)
+            # Over appetite is not the same question as undecided. A risk the board
+            # formally accepted, still current, belongs in its own group — filing it
+            # under "board decision needed" made this report contradict its own
+            # Decisions section a few pages later.
+            #
+            # Uses the same predicate as the executive dashboard so the two artifacts
+            # cannot disagree about what counts as a live acceptance.
+            key = "acceptedOver" if C.Context._accepted_and_current(r) else "over"
+            groups[key].append(r)
         elif r["acceptance"]:
             groups["accepted"].append(r)
         else:
@@ -135,7 +148,7 @@ def register_table(ctx: C.Context) -> str:
 
     def sub_lines(r, group):
         out = ""
-        if group == "over":
+        if group in ("over", "acceptedOver"):
             out += (f'<div class="tx">{C.esc(r["translation"])}</div>' if r["translation"]
                     else '<div class="tx placeholder">Business-impact line not supplied — run '
                          'ciso-board-translation.</div>')
@@ -153,7 +166,7 @@ def register_table(ctx: C.Context) -> str:
         return out
 
     def row(r, group):
-        title = (f'<b>{C.esc(r["title"])}</b>' if group == "over" else C.esc(r["title"]))
+        title = C.risk_title(r, bold=(group in ("over", "acceptedOver")))
         vel = ""
         if r["priorExposure"] is not None and r["delta"]:
             vel = (f'<span style="color:{C.VELOCITY_COLOR[r["velocity"]]}">'
@@ -170,6 +183,9 @@ def register_table(ctx: C.Context) -> str:
     sections = [
         ("over", f"Above the {appetite.lower()} appetite — board decision needed",
          "Each carries its business impact and the treatment in place.", True),
+        ("acceptedOver", f"Above the {appetite.lower()} appetite — already accepted, no decision sought",
+         "The board has formally accepted these and the acceptance is still current. Listed for "
+         "visibility; the renewal date is the only thing that needs watching.", True),
         ("accepted", "Accepted — standing board approval",
          "Within appetite because the residual risk was formally accepted; the acceptance itself "
          "is what needs renewing.", False),
@@ -221,6 +237,8 @@ h1,h2,h3{{font-family:'Space Grotesk','Manrope',sans-serif;margin:0}}
 .cover .sub{{color:{C.LIME_DIM};font-size:12px;line-height:1.6}}
 .cover .snap{{margin-top:14px;display:inline-block;background:{C.PATINA};color:{C.INK};
   font-weight:700;border-radius:6px;padding:4px 12px;font-size:11px}}
+.provisional-note{{margin-top:14px;border-left:3px solid {C.BAND["high"]};
+  background:{C.BAND["high"]}1a;padding:8px 12px;font-size:11px;line-height:1.55}}
 h2{{font-size:14px;margin:22px 0 10px;padding-bottom:5px;border-bottom:2px solid {C.INK}}}
 .lead{{font-size:12px;line-height:1.6;margin:0}}
 .grid{{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}}
@@ -272,7 +290,7 @@ def render(ctx: C.Context) -> str:
     title_tail = " · " + client if client else ""
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <title>Risk Register — Board Report{title_tail}</title>
-{C.FONTS}<style>{CSS}</style></head><body><div class="sheet">
+{C.fonts(ctx.offline)}<style>{CSS}</style></head><body><div class="sheet">
 {cover(ctx)}
 <h2>Executive summary</h2>
 {exec_summary(ctx)}

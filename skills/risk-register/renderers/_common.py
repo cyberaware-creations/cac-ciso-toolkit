@@ -39,9 +39,23 @@ SLATE = "#6A7180"; WB = "#F6F4EE"; WB_SURF = "#FFFFFF"; WB_LINE = "#D8D3C6"
 BAND = {"low": "#2e8b57", "medium": "#e8c547", "high": "#e08e0b", "critical": "#c0392b"}
 BAND_LABEL = {"low": "Low", "medium": "Medium", "high": "High", "critical": "Critical"}
 
+# Two font modes. The brand faces come from Google Fonts, which means opening a report
+# makes an outbound request — for a document full of a client's risk data, that is a real
+# (if small) disclosure, and the dashboards were documented as making "no external calls".
+#
+# `--offline` is the honest escape hatch: no request, system stack, layout unchanged
+# because the CSS already names fallbacks. Default stays branded.
 FONTS = ('<link rel="preconnect" href="https://fonts.googleapis.com">'
          '<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700'
          '&family=Space+Grotesk:wght@500;600&display=swap" rel="stylesheet">')
+FONTS_OFFLINE = ""
+
+
+def fonts(offline: bool = False) -> str:
+    """The <head> font links, or nothing at all when rendering offline."""
+    return FONTS_OFFLINE if offline else FONTS
+
+
 DISCLAIMER = "A Cyber Aware Creation · Not affiliated with NIST"
 
 UNCLASSIFIED = "Unclassified"
@@ -60,6 +74,46 @@ def chip(band: str) -> str:
             f'{BAND_LABEL[band]}</span>')
 
 
+def risk_title(r: dict, bold: bool = False) -> str:
+    """The one place a risk title becomes board-facing HTML.
+
+    A risk whose title is still CSF framework wording gets a placeholder instead. That
+    wording is a control objective phrased as a good thing — "Information is correlated
+    from multiple sources" — and printed next to a Critical chip it reads to a director
+    as the opposite of what it says.
+
+    Every renderer must go through here. This guard was originally written into the
+    executive dashboard alone, which left the printable board report — the artifact most
+    likely to be handed round a table on paper — exposing exactly what it exists to
+    prevent.
+    """
+    if r.get("provisionalTitle"):
+        return (f'<span class="placeholder">Risk statement not yet written for {esc(r["id"])} — '
+                f'imported CSF gap, still framework wording. Reword it with '
+                f'<code>set-text</code>.</span>')
+    t = esc(r.get("title", ""))
+    return f"<b>{t}</b>" if bold else t
+
+
+def provisional_note(summary: dict) -> str:
+    """One-line disclosure for any artifact whose totals include unreviewed candidates.
+
+    Returns "" when there is nothing to disclose, so it is safe to drop into any layout.
+    """
+    n = summary.get("provisional", 0)
+    if not n:
+        return ""
+    bits = []
+    if summary.get("provisionalTitle"):
+        bits.append(f'{summary["provisionalTitle"]} still carry CSF framework wording as a '
+                    f'title and appear as placeholders')
+    if summary.get("provisionalScore"):
+        bits.append(f'{summary["provisionalScore"]} still sit on the import priority seed, so '
+                    f'their scores are placeholders rather than assessments')
+    return (f'<b>{n} of {summary["total"]} risks are provisional.</b> '
+            + "; ".join(bits) + ". The figures here include them.")
+
+
 # --- CLI ---------------------------------------------------------------------
 
 
@@ -74,6 +128,9 @@ def parse_args(argv: list[str], description: str, default_out: str) -> argparse.
     p.add_argument("--translations", metavar="FILE",
                    help="board-language sidecar from the ciso-board-translation skill; "
                         "omitted means board narrative is shown as a labelled placeholder")
+    p.add_argument("--offline", action="store_true",
+                   help="omit the Google Fonts links so the file makes no external request; "
+                        "falls back to the system font stack")
     args = p.parse_args(argv)
     try:
         date.fromisoformat(args.today)
@@ -158,6 +215,7 @@ class Context:
 
     def __init__(self, args: argparse.Namespace):
         self.args = args
+        self.offline = bool(getattr(args, "offline", False))
         self.today = args.today
         self.register_path = args.register
         self.out_path = args.out

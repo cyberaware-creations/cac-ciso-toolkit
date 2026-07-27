@@ -99,8 +99,13 @@ python3 renderers/render_report.py    <register.rr> [out.html] [--today YYYY-MM-
 
 ## Rendering notes
 
-- Output **self-contained HTML** — inline CSS/JS, no external calls — so it opens anywhere and
-  respects the local-only design. Use the Limen tokens in `assets/brand.md`.
+- Output **self-contained HTML** — inline CSS and JS, no build step, no assets on disk — so it opens
+  anywhere and respects the local-only design. Use the Limen tokens in `assets/brand.md`.
+- **One external request, by default:** the brand faces load from Google Fonts, so opening a report
+  reaches out to `fonts.googleapis.com`. The register data never leaves the file, but the *fact that
+  it was opened* does. Pass `--offline` to drop the links entirely and fall back to the system font
+  stack — the layout is unchanged, since the CSS already names fallbacks. Use it for anything going
+  to a client, an air-gapped machine, or a reader whose browsing you should not be sampling.
 - Deliver the file to the user. If it's a dashboard they'll revisit or show the board, persist it as
   an artifact so it survives beyond the conversation.
 - Every deliverable carries the footer: **"A Cyber Aware Creation · Not affiliated with NIST"** and,

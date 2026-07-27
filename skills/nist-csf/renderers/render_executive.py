@@ -282,7 +282,7 @@ def main(argv):
     body = (head + "<main>" + summary + headline + rollup(ctx) + tier_block(ctx)
             + top_gaps(ctx) + what_changed(ctx) + decisions(ctx) + "</main>"
             + f'<footer>{c.esc(ctx.footer())}</footer>')
-    c.write(ctx, c.page(f'{p.get("name", "CSF Profile")} — Board View', CSS, body))
+    c.write(ctx, c.page(f'{p.get("name", "CSF Profile")} — Board View', CSS, body, ctx.offline))
     return 0
 
 
