@@ -16,22 +16,31 @@ The bundled Core is built in two passes.
 
 | Input | Where it comes from |
 |---|---|
-| `csf-2.0.xlsx` | The NIST CPRT CSF 2.0 catalog export. A copy is checked into the sibling `csf-assessment` repo at `scripts/csf-2.0.xlsx`. Originally from `https://csrc.nist.gov/extensions/nudp/services/json/csf/download?olirids=all` — despite the `/json` path it returns an XLSX. |
-| `NIST.CSWP.29.pdf` | `https://nvlpubs.nist.gov/nistpubs/CSWP/NIST.CSWP.29.pdf` — the CSF 2.0 publication. Tier text lives in Appendix B, Table 2. |
+| `tools/csf-2.0.xlsx` | **Vendored here.** The NIST CPRT CSF 2.0 catalog export, originally from `https://csrc.nist.gov/extensions/nudp/services/json/csf/download?olirids=all` — despite the `/json` path it returns an XLSX. NIST publications are US Government works and are not subject to copyright. |
+| `NIST.CSWP.29.pdf` | `https://nvlpubs.nist.gov/nistpubs/CSWP/NIST.CSWP.29.pdf` — the CSF 2.0 publication. Tier text lives in Appendix B, Table 2. Not vendored: it is a stable NIST URL and only its extracted text is needed. |
 
-Neither input is vendored here. The XLSX lives in `csf-assessment` (which checked it in for exactly
-this reason) and the PDF is a stable NIST URL. If you want this repo to be self-contained, copy the
-XLSX in and point the script at it.
+The vendored XLSX is provably the file the shipped Core was built from — its sha256 matches the
+`source.sha256` recorded inside `nist-csf-2.0-core.json`. Check it any time:
+
+```bash
+shasum -a 256 tools/csf-2.0.xlsx
+python3 -c "import json;print(json.load(open('skills/nist-csf/references/nist-csf-2.0-core.json'))['source']['sha256'])"
+```
+
+### Setup
+
+```bash
+npm install --prefix tools     # installs xlsx (SheetJS); tools/node_modules is gitignored
+```
 
 ### Pass 1 — hierarchy, examples, informative references
 
 ```bash
-# xlsx (SheetJS) is not a dependency of this repo; borrow the sibling project's install
-NODE_PATH=../csf-assessment/node_modules \
-  node tools/ingest-csf-core.js \
-    skills/nist-csf/references/nist-csf-2.0-core.json \
-    ../csf-assessment/scripts/csf-2.0.xlsx
+node tools/ingest-csf-core.js skills/nist-csf/references/nist-csf-2.0-core.json
 ```
+
+Defaults to the vendored `tools/csf-2.0.xlsx`. Pass a different path as a second argument to build
+against a newer catalog export.
 
 Parses columns A–E, excludes every `[Withdrawn:]` row (12 categories and 79 subcategories retired
 from CSF 1.1 still sit in the sheet), and asserts the known-good shape **before writing**: 6
