@@ -1,7 +1,7 @@
 {
   "name": "cyber-aware-creations",
   "displayName": "Cyber Aware Creations — CISO Toolkit",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "NIST-aligned cybersecurity skills for security leaders. Build, score, and maintain a risk register with change history and board dashboards; assess your program against the NIST CSF 2.0 as a tracked Organizational Profile with gap analysis and coverage reporting; and translate security facts into board-ready language with sourced regulatory receipts.",
   "author": {
     "name": "Cyber Aware Creations, LLC.",
