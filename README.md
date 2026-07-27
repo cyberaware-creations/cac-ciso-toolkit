@@ -67,10 +67,30 @@ skills/
     references/                four-questions, board-question bank, receipts, metric archetypes
 ```
 
+## Requirements
+
+**Python 3.9 or newer. Standard library only — no dependencies, no install step.**
+
+3.9 is the floor because it is what macOS ships at `/usr/bin/python3`, which makes the floor free to
+test on any Mac. Nothing here needs anything newer.
+
+That floor is enforced, not asserted:
+
+```bash
+./skills/risk-register/evals/python-compat.sh            # compiles every shipped file on 3.9
+PY=/usr/bin/python3 ./skills/risk-register/evals/board-safety.sh   # and runs the suite there
+```
+
+Run both before any release. v0.1.4 shipped a syntax construct that is only legal from Python 3.12,
+and every test passed because they all ran on 3.14 — on an older interpreter the module could not be
+imported at all, so a whole dashboard was missing rather than degraded. Testing on the author's
+interpreter proves nothing about the user's.
+
 ## Design principles
 
 - **Local-only, structure not data.** Everything runs on the user's own machine against the risks
-  they provide. Nothing is uploaded anywhere.
+  they provide. Nothing is uploaded anywhere. Rendered dashboards link Google Fonts by default;
+  pass `--offline` for artifacts that must make no outbound request at all.
 - **Deterministic where it must be.** Scoring and banding are scripted, never eyeballed.
 - **Composable.** Board language lives in one skill and is reused across the suite.
 
