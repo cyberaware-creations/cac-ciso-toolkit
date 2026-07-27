@@ -34,7 +34,7 @@ def cover(ctx: C.Context) -> str:
     note = C.provisional_note(ctx.summary)
     prov = f'<div class="provisional-note">{note}</div>' if note else ""
     return f"""<div class="cover">
-  <div class="eyebrow">Limen Labs · Risk Register</div>
+  <div class="eyebrow">Cyber Aware Creations · Risk Register</div>
   <h1>{C.esc(ctx.meta.get('clientName') or '(unnamed register)')}</h1>
   <div class="sub">Cybersecurity risk report · Prepared by
     {C.esc(ctx.meta.get('assessor') or '—')} · As of {ctx.today}<br>

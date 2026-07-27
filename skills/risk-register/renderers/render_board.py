@@ -238,6 +238,9 @@ def render(ctx: C.Context) -> str:
     # A register that is mostly unrefined import seeds still renders a confident band
     # mix and a headline count. Say so at the top, once, rather than letting the numbers
     # imply an assessment that has not happened.
+    # "1 of 73 risks sit above" — the subject is the count, not the noun beside it.
+    # Small, but this is the first sentence a director reads.
+    sit_verb = "sits" if sm["overAppetite"] == 1 else "sit"
     prov = sm.get("provisional", 0)
     prov_banner = (
         f'<div class="sub" style="background:{C.BAND["high"]}1a;border-bottom:1px solid '
@@ -250,7 +253,7 @@ def render(ctx: C.Context) -> str:
 <title>Risk Register — Executive{title_tail}</title>
 {C.fonts(ctx.offline)}<style>{CSS}</style></head><body>
 <header><div class="wrap"><div class="brand"><div class="mark"></div><div>
-  <div class="eyebrow">Limen Labs · Risk Register</div>
+  <div class="eyebrow">Cyber Aware Creations · Risk Register</div>
   <h1>Executive dashboard</h1></div></div>
   <div class="meta"><b>{C.esc(m.get('clientName') or '(unnamed register)')}</b><br>
   {C.esc(m.get('assessor') or '—')}<br>
@@ -262,7 +265,7 @@ def render(ctx: C.Context) -> str:
 <div class="wrap">
   <div class="section exec-top">
     <div class="big"><div class="n">{sm['overAppetite']} of {sm['total']} risks</div>
-      <div class="l">sit above the {C.esc(C.BAND_LABEL[ctx.appetite].lower())} risk appetite.
+      <div class="l">{sit_verb} above the {C.esc(C.BAND_LABEL[ctx.appetite].lower())} risk appetite.
       {C.esc(m.get('appetiteStatement') or '')}</div></div>
     <div class="big"><div class="n">{n} <span style="color:{col}">{arrow}</span></div>
       <div class="l">Over appetite<br>{cmp_txt}</div></div>

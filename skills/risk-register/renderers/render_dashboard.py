@@ -370,7 +370,7 @@ def render(ctx: C.Context) -> str:
 <title>Risk Register — Working View{title_tail}</title>
 {C.fonts(ctx.offline)}<style>{CSS}</style></head><body>
 <header><div class="wrap"><div class="brand"><div class="mark"></div><div>
-  <div class="eyebrow">Limen Labs · Risk Register</div>
+  <div class="eyebrow">Cyber Aware Creations · Risk Register</div>
   <h1>Heat map &amp; register — working view</h1></div></div>
   <div class="meta"><b>{C.esc(m.get('clientName') or '(unnamed register)')}</b><br>
   {C.esc(m.get('assessor') or '—')}<br>
