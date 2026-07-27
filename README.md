@@ -5,9 +5,9 @@ A Claude plugin of composable, NIST-aligned skills for security leaders, by
 
 ## Install
 
-This repository is itself the plugin marketplace — `.claude-plugin/marketplace.json` is the
-catalogue, so there is nothing to download by hand and no install step beyond pointing your agent at
-it.
+This repository is itself the plugin marketplace — `.claude-plugin/marketplace.json` for Claude and
+`.agents/plugins/marketplace.json` for Codex, each pointing at the repository root as the plugin. So
+there is nothing to download by hand and no install step beyond pointing your agent at it.
 
 **Claude Code**
 
