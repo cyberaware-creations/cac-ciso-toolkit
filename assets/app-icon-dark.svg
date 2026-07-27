@@ -1,0 +1,7 @@
+<svg width="120" height="120" viewBox="0 0 120 120" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>CAC icon reversed</title>
+<desc>CAC nested aperture mark for dark backgrounds: two concentric open white rings with a coral center dot.</desc>
+<path d="M89.4 77 A34 34 0 1 1 89.4 43" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round"></path>
+<path d="M74.2 71.9 A18.5 18.5 0 1 1 74.2 48.1" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round"></path>
+<circle cx="60" cy="60" r="8" fill="#FF6A45"></circle>
+</svg>

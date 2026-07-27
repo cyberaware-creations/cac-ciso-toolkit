@@ -1,0 +1,35 @@
+{
+  "name": "cyber-aware-creations",
+  "version": "0.1.8",
+  "description": "NIST-aligned cybersecurity skills for security leaders. Build, score, and maintain a risk register with change history and board dashboards; assess your program against the NIST CSF 2.0 as a tracked Organizational Profile with gap analysis and coverage reporting; and translate security facts into board-ready language with sourced regulatory receipts.",
+  "author": {
+    "name": "Cyber Aware Creations, LLC.",
+    "url": "https://cyberawarecreations.com"
+  },
+  "homepage": "https://cyberawarecreations.com",
+  "repository": "https://github.com/cyberaware-creations/cac-ciso-toolkit",
+  "license": "Apache-2.0",
+  "keywords": ["ciso", "risk-register", "nist", "nist-csf", "csf", "cybersecurity", "board", "grc", "risk-management", "framework", "maturity", "gap-analysis", "assessment"],
+  "skills": "./skills",
+  "interface": {
+    "displayName": "Cyber Aware Creations — CISO Toolkit",
+    "shortDescription": "NIST-aligned risk register, CSF 2.0 profile, and board translation",
+    "longDescription": "Three composable skills for the people accountable for security. Keep a NIST-aligned risk register that persists between sessions, with NISTIR 8286 event statements, deterministic Likelihood × Impact scoring and SP 800-30 banding, risk-appetite flagging, and an append-only change log. Track your programme against NIST CSF 2.0 as an Organizational Profile with computed gap analysis and coverage rollups. Translate any metric, risk, or quarter into board-ready language with sourced regulatory receipts. Everything runs locally against your own files. Not affiliated with or endorsed by NIST.",
+    "developerName": "Cyber Aware Creations, LLC.",
+    "category": "Security",
+    "capabilities": ["Read", "Write"],
+    "websiteURL": "https://cyberawarecreations.com",
+    "privacyPolicyURL": "https://cyberawarecreations.com/legal/privacy",
+    "termsOfServiceURL": "https://cyberawarecreations.com/legal/terms",
+    "brandColor": "#1B5E4A",
+    "composerIcon": "./assets/app-icon.svg",
+    "logo": "./assets/app-icon.svg",
+    "logoDark": "./assets/app-icon-dark.svg",
+    "defaultPrompt": [
+      "Import the gaps from my CSF profile, score them, and show me everything over appetite",
+      "Rate PR.AA-01 through PR.AA-06 for us, then snapshot the profile as our Q3 baseline",
+      "Our mean time to detect is 4.2 days, down from 9 last quarter. Make that board-ready"
+    ],
+    "screenshots": []
+  }
+}
