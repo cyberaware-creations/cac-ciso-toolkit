@@ -34,7 +34,9 @@ from pathlib import Path
 INK = "#14171C"; INK_RAISED = "#1C2026"; INK_LINE = "#2A2F36"
 LIME = "#EAE7DF"; LIME_DIM = "#9AA0A6"
 PATINA = "#2FA98C"; PATINA_H = "#279884"
-SLATE = "#6A7180"; WB = "#F6F4EE"; WB_SURF = "#FFFFFF"; WB_LINE = "#D8D3C6"
+# 4.45:1 on the workbench — just under AA, and it carries every hint, footer and
+# table header in the suite. One step darker clears them all at once.
+SLATE = "#666D7C"; WB = "#F6F4EE"; WB_SURF = "#FFFFFF"; WB_LINE = "#D8D3C6"
 
 # Coverage uses a sequential ramp, deliberately distinct from the register's risk-severity
 # RAG ramp: low coverage is not "critical", it may be a low Target that is fully met.
@@ -88,11 +90,43 @@ def cov_color(cov: dict) -> str:
     return COVERAGE_FULL
 
 
+# --- Contrast ----------------------------------------------------------------
+# Deliberately duplicated from the risk-register renderer rather than shared: a
+# skill has to stand alone. Keep the two in step.
+
+def _luminance(hex_colour: str) -> float:
+    h = hex_colour.lstrip("#")
+    if len(h) == 3:
+        h = "".join(ch * 2 for ch in h)
+    chans = []
+    for i in (0, 2, 4):
+        v = int(h[i:i + 2], 16) / 255.0
+        chans.append(v / 12.92 if v <= 0.03928 else ((v + 0.055) / 1.055) ** 2.4)
+    return 0.2126 * chans[0] + 0.7152 * chans[1] + 0.0722 * chans[2]
+
+
+def contrast_ratio(a: str, b: str) -> float:
+    """WCAG 2.x contrast ratio between two opaque colours. 1.0 … 21.0."""
+    la, lb = sorted((_luminance(a), _luminance(b)), reverse=True)
+    return (la + 0.05) / (lb + 0.05)
+
+
+def text_on(fill: str) -> str:
+    """The brand text colour with the most contrast on `fill`."""
+    return max((INK, LIME, "#FFFFFF"), key=lambda fg: contrast_ratio(fg, fill))
+
+
 def cov_text_color(cov: dict) -> str:
-    pct = cov.get("percent")
-    if pct is None:
+    """Text colour for a coverage tile — measured against the tile's own fill.
+
+    This used to be `LIME if pct < 50 else INK`, a threshold guess that put
+    limestone on #A6603A at 3.90:1 and ink on the full-coverage green at 3.69:1,
+    both under AA. Deriving it from the fill fixes every ramp value at once and
+    cannot drift when a ramp colour is retuned.
+    """
+    if cov.get("percent") is None:
         return SLATE
-    return LIME if pct < 50 else INK
+    return text_on(cov_color(cov))
 
 
 def cov_pct(cov: dict) -> str:

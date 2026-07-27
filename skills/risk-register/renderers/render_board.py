@@ -179,6 +179,11 @@ header .wrap{{padding-bottom:0;display:flex;align-items:center;justify-content:s
 .appetite{{display:inline-block;background:{C.PATINA};color:{C.INK};font-weight:700;
   border-radius:999px;padding:2px 10px;font-size:12px}}
 .sub{{background:{C.INK_RAISED};color:{C.LIME_DIM};font-size:12.5px}}
+/* `.sub` is a dark-chrome class and carries dimmed limestone text. The provisional
+   banner reuses its shape but sits on the light workbench, where that inherited
+   colour was 2.21:1 — unreadable, on the one line that says the numbers below are
+   not assessments. `.onlight` opts back into ink. */
+.sub.onlight,.sub.onlight b{{color:{C.INK}}}
 .sub .wrap{{padding-top:8px;padding-bottom:8px}}
 .section{{margin-top:28px}}
 .section h2{{font-size:15px;letter-spacing:.02em;margin-bottom:12px}}
@@ -248,7 +253,7 @@ def render(ctx: C.Context) -> str:
     sit_verb = "sits" if sm["overAppetite"] == 1 else "sit"
     prov = sm.get("provisional", 0)
     prov_banner = (
-        f'<div class="sub" style="background:{C.BAND["high"]}1a;border-bottom:1px solid '
+        f'<div class="sub onlight" style="background:{C.BAND["high"]}1a;border-bottom:1px solid '
         f'{C.BAND["high"]}55"><div class="wrap"><b>{prov} of {sm["total"]} risks are '
         f'provisional</b> — imported CSF gaps still carrying the priority seed and framework '
         f'wording. Their scores are placeholders, not assessments, and the figures below '

@@ -109,7 +109,7 @@ def gap_table(ctx: c.Context) -> str:
             f'<td>{c.esc(g["text"])}</td>'
             f'<td class="mono nowrap">{c.esc(cur)} → {c.esc(g.get("target"))}</td>'
             f'<td class="mono">{g.get("gap")}</td>'
-            f'<td><span class="chip" style="background:{pc};color:#fff">'
+            f'<td><span class="chip" style="background:{pc};color:{c.text_on(pc)}">'
             f'{c.esc(g.get("priority", ""))}</span></td>'
             f'<td class="mono"><strong>{g.get("prioritizedGapScore", 0):g}</strong></td>'
             f'<td class="muted">{c.esc(g.get("status", ""))}</td>'
@@ -232,7 +232,7 @@ def action_plan(ctx: c.Context) -> str:
 
 CSS = f"""
 .toggle{{margin-bottom:10px}}
-.toggle button{{background:{c.PATINA};color:#fff;border:0;border-radius:8px;
+.toggle button{{background:{c.PATINA};color:{c.text_on(c.PATINA)};border:0;border-radius:8px;
   padding:7px 13px;font:inherit;font-size:13px;font-weight:600;cursor:pointer}}
 .toggle button:hover{{background:{c.PATINA_H}}}
 .heat{{display:flex;flex-direction:column;gap:8px}}
@@ -246,9 +246,9 @@ CSS = f"""
 .cells{{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:6px}}
 .cell{{border-radius:7px;padding:8px;min-height:62px;display:flex;flex-direction:column;
   gap:2px;border:1px solid rgba(0,0,0,.06)}}
-.cid{{font-family:'IBM Plex Mono',monospace;font-size:11px;opacity:.85}}
+.cid{{font-family:'IBM Plex Mono',monospace;font-size:11px}}
 .cval{{font-weight:700;font-size:14px}}
-.cfrac{{font-size:11px;opacity:.8}}
+.cfrac{{font-size:11px}}
 .grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:12px}}
 .panel h3{{font-size:14px;display:flex;justify-content:space-between;align-items:center}}
 .panel .count{{background:{c.INK};color:{c.LIME};border-radius:999px;

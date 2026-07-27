@@ -70,8 +70,7 @@ def tiles(ctx: C.Context) -> str:
     out = "".join(f'<div class="tile {cls}"><div class="n">{n}</div><div class="l">{lab}</div>'
                   f'<div class="s">{sub2}</div></div>' for n, lab, sub2, cls, _ in cards)
     pills = "".join(
-        f'<div class="bandpill" style="background:{C.BAND[b]};'
-        f'color:{"#fff" if b in ("high", "critical") else C.INK}">'
+        f'<div class="bandpill" style="background:{C.BAND[b]};color:{C.BAND_ON[b]}">'
         f'<span class="bn">{s["byBand"][b]}</span>{C.BAND_LABEL[b]}</div>'
         for b in ["low", "medium", "high", "critical"])
     return f'<div class="tiles">{out}</div><div class="bandrow">{pills}</div>'
@@ -152,10 +151,15 @@ header .wrap{{display:flex;align-items:center;justify-content:space-between;gap:
 .appetite{{background:{C.PATINA};color:{C.INK};font-weight:700;border-radius:999px;
   padding:2px 10px;font-size:12px}}
 .sub{{background:{C.INK_RAISED};color:{C.LIME_DIM};font-size:12.5px}}
-.sub.provisional{{background:{C.BAND["high"]}26;color:{C.LIME};
+/* This banner sits BELOW the dark chrome, on the light workbench — but `.sub` is
+   a chrome class and brings limestone text with it. Amber at 15% over the
+   workbench is #F3E5CC; limestone on that is 1.01:1, i.e. the single most
+   important caveat on this screen was invisible. Ink on it is 14.45:1. */
+.sub.provisional{{background:{C.BAND["high"]}26;color:{C.INK};
   border-bottom:1px solid {C.BAND["high"]}66}}
+.sub.provisional b{{color:{C.INK}}}
 .placeholder{{color:{C.SLATE};font-style:italic}}
-.provtag{{display:inline-block;background:{C.BAND["high"]}2e;color:{C.BAND["high"]};
+.provtag{{display:inline-block;background:{C.BAND["high"]}2e;color:{C.BAND_TEXT["high"]};
   border-radius:999px;padding:1px 7px;font-size:10.5px;font-weight:700;white-space:nowrap}}
 .placeholder code{{font-style:normal;font-family:'IBM Plex Mono',ui-monospace,monospace;
   font-size:11px}}
@@ -193,9 +197,9 @@ header .wrap{{display:flex;align-items:center;justify-content:space-between;gap:
 .controls{{display:flex;align-items:center;gap:14px;margin-bottom:10px;flex-wrap:wrap}}
 .fbtn{{border:1px solid {C.WB_LINE};background:{C.WB_SURF};color:{C.SLATE};border-radius:8px;
   padding:6px 12px;font:inherit;font-size:12.5px;cursor:pointer}}
-.fbtn.on{{background:{C.BAND['high']};border-color:{C.BAND['high']};color:#fff;font-weight:700}}
+.fbtn.on{{background:{C.BAND['high']};border-color:{C.BAND['high']};color:{C.BAND_ON['high']};font-weight:700}}
 .filterbar{{font-size:12.5px;color:{C.SLATE}}}
-.filterbar .clear{{color:{C.PATINA};cursor:pointer;font-weight:700;text-decoration:underline;
+.filterbar .clear{{color:{C.PATINA_TEXT};cursor:pointer;font-weight:700;text-decoration:underline;
   margin-left:8px}}
 table.reg{{width:100%;border-collapse:collapse;font-size:12.5px;background:{C.WB_SURF};
   border:1px solid {C.WB_LINE};border-radius:12px;overflow:hidden}}
@@ -213,8 +217,8 @@ table.reg tr.row{{cursor:pointer}}
 table.reg tr.row:hover td{{background:#eef4f2}}
 table.reg td{{padding:8px 10px;border-top:1px solid {C.WB_LINE}}}
 .chip{{border-radius:999px;padding:2px 8px;font-size:11px;font-weight:700;white-space:nowrap}}
-.flag{{color:{C.BAND['critical']};font-weight:700}}
-.warnmark{{color:{C.BAND['high']};font-weight:700}}
+.flag{{color:{C.BAND_TEXT['critical']};font-weight:700}}
+.warnmark{{color:{C.BAND_TEXT['high']};font-weight:700}}
 .hint{{color:{C.SLATE};font-size:12px;font-style:italic;margin-top:6px}}
 .attgrid{{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;align-items:start}}
 .att{{background:{C.WB_SURF};border:1px solid {C.WB_LINE};border-left:5px solid {C.SLATE};
@@ -274,7 +278,7 @@ footer{{margin-top:32px;color:{C.SLATE};font-size:11px;border-top:1px solid {C.W
 """
 
 SCRIPT = r"""
-const DB=__DATA__;const BAND=__BAND__;const BL=__BANDLABEL__;
+const DB=__DATA__;const BAND=__BAND__;const BL=__BANDLABEL__;const BAND_ON=__BANDON__;
 const size=DB.settings.matrixSize;const appetite=DB.settings.appetite;
 const BAND_ORDER=["low","medium","high","critical"];
 const THRESH={5:{low:1,medium:5,high:10,critical:15},4:{low:1,medium:4,high:8,critical:12},
@@ -289,7 +293,7 @@ function bandOf(e){for(const b of ["critical","high","medium","low"])if(e>=THRES
 function expOf(r){return r[view].likelihood*r[view].impact;}
 function bandOfView(r){return bandOf(expOf(r));}
 function isOver(r){return BAND_ORDER.indexOf(bandOfView(r))>BAND_ORDER.indexOf(appetite);}
-function chip(b){const fg=(b==="high"||b==="critical")?"#fff":"#14171C";
+function chip(b){const fg=BAND_ON[b];
   return `<span class="chip" style="background:${BAND[b]};color:${fg}">${BL[b]}</span>`;}
 function inCell(r,l,i){return r[view].likelihood===l&&r[view].impact===i;}
 function flagsOf(r){const f=[];
@@ -317,7 +321,7 @@ function renderGrid(){let h='<table class="matrix">';
   for(let lik=1;lik<=size;lik++){const b=bandOf(lik*impact);
    const n=inRange.filter(r=>inCell(r,lik,impact)).length;
    const s=sel&&sel[0]===lik&&sel[1]===impact?" sel":(sel?" dim":"");
-   const fg=(b==="high"||b==="critical")?"#fff":"#14171C";
+   const fg=BAND_ON[b];
    h+=`<td class="cell${s}" style="background:${BAND[b]};color:${fg}" onclick="pick(${lik},${impact})">${n||""}</td>`;}
   h+="</tr>";}
  h+='<tr><td class="ax"></td>';for(let l=1;l<=size;l++)h+=`<td class="ax">${l}</td>`;
@@ -389,6 +393,7 @@ def render(ctx: C.Context) -> str:
     m, s = ctx.meta, ctx.settings
     script = (SCRIPT.replace("__DATA__", build_data(ctx))
               .replace("__BANDLABEL__", json.dumps(C.BAND_LABEL))
+              .replace("__BANDON__", json.dumps(C.BAND_ON))
               .replace("__BAND__", json.dumps(C.BAND)))
     client = C.esc(m.get("clientName") or "")
     title_tail = " · " + client if client else ""

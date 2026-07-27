@@ -36,20 +36,23 @@ def rollup(ctx: c.Context) -> str:
         cov = ctx.coverage["byFunction"].get(fid, {"percent": None, "n": 0, "d": 0})
         comp = ctx.completeness["byFunction"].get(fid, {})
         delta = (dfn.get(fid) or {}).get("delta")
-        # Direction is carried by the arrow, not by colour. A dark tile (low coverage)
-        # already uses light text, and a hardcoded dark-green delta on it was
-        # effectively unreadable — the worst-performing Function is exactly where the
-        # movement most needs to be legible.
-        dark = not c.cov_is_untargeted(cov) and (cov.get("percent") or 0) < 50
-        tone = "ondark" if dark else "onlight"
+        # Direction is carried by the arrow, not by colour, so the chip simply takes
+        # the tile's own text colour — the one already measured against this fill.
+        #
+        # Two earlier attempts split it by coverage threshold instead: first a single
+        # hardcoded dark green (unreadable on the dark low-coverage tiles), then an
+        # ondark/onlight pair that fixed those two and left the light end of the ramp
+        # at 1.57:1 on the full-coverage green. A threshold that approximates the fill
+        # will always miss somewhere; asking the fill is exact.
+        tone = "" if c.cov_is_untargeted(cov) else f' style="color:{c.cov_text_color(cov)}"'
         if delta is None:
-            move = '<span class="delta flat">—</span>'
+            move = f'<span class="delta flat"{tone}>—</span>'
         elif delta > 0:
-            move = f'<span class="delta up {tone}">▲ {delta:+.0f} pts</span>'
+            move = f'<span class="delta up"{tone}>▲ {delta:+.0f} pts</span>'
         elif delta < 0:
-            move = f'<span class="delta down {tone}">▼ {delta:+.0f} pts</span>'
+            move = f'<span class="delta down"{tone}>▼ {delta:+.0f} pts</span>'
         else:
-            move = '<span class="delta flat">no change</span>'
+            move = f'<span class="delta flat"{tone}>no change</span>'
 
         untargeted = c.cov_is_untargeted(cov)
         style = ("" if untargeted else
@@ -215,17 +218,19 @@ CSS = f"""
 .tiles{{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}}
 .tile{{border-radius:10px;padding:14px;border:1px solid rgba(0,0,0,.07);min-height:150px;
   display:flex;flex-direction:column;gap:3px}}
-.tid{{font-family:'IBM Plex Mono',monospace;font-size:11px;opacity:.8}}
+.tid{{font-family:'IBM Plex Mono',monospace;font-size:11px}}
 .tname{{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13px}}
 .tbig{{font-size:26px;font-weight:700;font-family:'Space Grotesk',sans-serif;
   line-height:1.1;margin-top:4px}}
 .tile.untargeted .tbig{{font-size:15px;font-weight:600}}
-.frac{{font-size:12px;opacity:.85}}
-.tcomp{{font-size:11px;opacity:.8;margin-top:auto}}
+/* No opacity on tile text. Opacity is invisible to a colour-pair check but not to
+   a reader: it fades the text toward the fill, so .85 and .8 were quietly pulling
+   already-marginal pairings further under AA. The tile's text colour is now
+   measured against its own fill, so it can simply be used at full strength. */
+.frac{{font-size:12px}}
+.tcomp{{font-size:11px;margin-top:auto}}
 .tmove{{font-size:12px;font-weight:600;margin-top:4px}}
-.delta.up.onlight{{color:#2f5d3f}} .delta.down.onlight{{color:#7C3A32}}
-.delta.up.ondark,.delta.down.ondark{{color:{c.LIME}}}
-.delta.flat{{opacity:.7}}
+/* .delta takes its colour inline from the tile's own text colour. */
 .tile.untargeted .delta{{color:{c.SLATE}}}
 .tierhead{{font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:600;
   margin-bottom:10px}}

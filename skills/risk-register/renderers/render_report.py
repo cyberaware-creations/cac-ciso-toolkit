@@ -68,8 +68,7 @@ def exec_summary(ctx: C.Context) -> str:
     grid = "".join(f'<div class="stat"><div class="n">{n}</div><div class="l">{lab}</div></div>'
                    for n, lab in stats)
     pills = "".join(
-        f'<div class="bandpill" style="background:{C.BAND[b]};'
-        f'color:{"#fff" if b in ("high", "critical") else C.INK}">'
+        f'<div class="bandpill" style="background:{C.BAND[b]};color:{C.BAND_ON[b]}">'
         f'<span class="bn">{s["byBand"][b]}</span>{C.BAND_LABEL[b]}</div>'
         for b in ["low", "medium", "high", "critical"])
     return f'{lead}<div class="grid">{grid}</div><div class="bandrow">{pills}</div>'
@@ -83,7 +82,7 @@ def heat(ctx: C.Context) -> str:
         for lik in range(1, ctx.size + 1):
             b = C.sr.band(C.sr.exposure(lik, impact), ctx.size)
             n = counts[impact - 1][lik - 1]
-            fg = "#fff" if b in ("high", "critical") else C.INK
+            fg = C.BAND_ON[b]
             cells += f'<td style="background:{C.BAND[b]};color:{fg}">{n or ""}</td>'
         rows += f"<tr>{cells}</tr>"
     foot = '<td class="ax"></td>' + "".join(f'<td class="ax">{l}</td>'
@@ -94,7 +93,8 @@ def heat(ctx: C.Context) -> str:
         note = (f'<div class="note">{skipped} risk{"s" if many else ""} scored above the '
                 f'{ctx.size}×{ctx.size} matrix and {"are" if many else "is"} not plotted; '
                 f'{"they remain" if many else "it remains"} counted in every total.</div>')
-    return f'<table class="heat">{rows}<tr>{foot}</tr></table>{note}'
+    return (f'<div class="tscroll"><table class="heat">{rows}<tr>{foot}</tr>'
+            f'</table></div>{note}')
 
 
 def themes(ctx: C.Context) -> str:
@@ -249,6 +249,9 @@ h2{{font-size:14px;margin:22px 0 10px;padding-bottom:5px;border-bottom:2px solid
 .bandpill{{flex:1;border-radius:6px;text-align:center;padding:6px;font-size:10px}}
 .bandpill .bn{{font-family:'Space Grotesk';font-size:16px;font-weight:600;display:block}}
 .row2{{display:flex;gap:20px;align-items:flex-start}}
+/* Flex items, like grid items, default to min-width:auto — their min-content — so
+   the themes table refused to shrink and pushed the sheet past the viewport. */
+.row2>*{{min-width:0}}
 table.heat{{border-collapse:collapse}}
 table.heat td{{width:30px;height:30px;text-align:center;font-weight:700;font-size:11px;
   border:2px solid #fff}}
@@ -282,6 +285,23 @@ ul.dec{{margin:0;padding-left:16px;font-size:10.5px;line-height:1.6}}
     border:1px solid {C.WB_LINE};border-radius:10px}}
   .stamp{{position:static;margin-top:24px;padding-top:10px;border-top:1px solid {C.WB_LINE}}}
 }}
+/* This is a print artifact — an A4 sheet with fixed geometry — but it is *delivered*
+   as HTML, so it gets opened on a phone. Everything below is screen-only and cannot
+   reach the PDF: @page and the rules above the `@media screen` block govern print.
+   The sheet keeps its shape; only the wide tables scroll inside their own box, so
+   the page itself never scrolls sideways. */
+@media screen and (max-width:860px){{
+  body{{padding:10px}}
+  .sheet{{max-width:none;padding:18px 16px}}
+  /* align-items:flex-start is a cross-axis rule: harmless while the row is
+     horizontal, but once stacked it shrink-wraps each item to its content width
+     instead of the column, which put the themes table back outside the page. */
+  .row2{{flex-direction:column;align-items:stretch}}
+  .grid{{grid-template-columns:repeat(2,1fr)}}
+  .bandrow{{flex-wrap:wrap}}
+  .tscroll{{overflow-x:auto}}
+  .tscroll>table.data{{min-width:620px}}
+}}
 """
 
 
@@ -289,6 +309,7 @@ def render(ctx: C.Context) -> str:
     client = C.esc(ctx.meta.get("clientName") or "")
     title_tail = " · " + client if client else ""
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Risk Register — Board Report{title_tail}</title>
 {C.fonts(ctx.offline)}<style>{CSS}</style></head><body><div class="sheet">
 {cover(ctx)}
@@ -300,8 +321,9 @@ def render(ctx: C.Context) -> str:
     <div class="axcap">↑ Impact</div>{heat(ctx)}
     <div class="axcap" style="text-align:right">Likelihood →</div></div>
   <div style="flex:1"><h2 style="border:none;margin-bottom:4px">Risk themes</h2>
-    <table class="data"><tr><th>Theme</th><th>Risks</th><th>Worst residual</th><th>Over</th>
-      <th>Trend</th></tr>{themes(ctx)}</table>
+    <div class="tscroll"><table class="data"><tr><th>Theme</th><th>Risks</th>
+      <th>Worst residual</th><th>Over</th>
+      <th>Trend</th></tr>{themes(ctx)}</table></div>
     <div class="note">Trend compares each theme's total residual exposure against
       {C.esc(ctx.baseline.get('label', 'the last snapshot')) if ctx.baseline else 'nothing — no snapshot exists yet'}.</div>
   </div>
@@ -309,9 +331,10 @@ def render(ctx: C.Context) -> str:
 
 <div class="page"></div>
 <h2>Risk register — grouped by the decision needed</h2>
-<table class="data"><tr><th>ID</th><th>Risk</th><th>Theme</th><th>Inh</th><th>Response</th>
+<div class="tscroll"><table class="data"><tr><th>ID</th><th>Risk</th><th>Theme</th>
+<th>Inh</th><th>Response</th>
   <th>Residual</th><th>Owner</th><th>Status</th></tr>
-{register_table(ctx)}</table>
+{register_table(ctx)}</table></div>
 <div class="note">Every risk appears once, in the group that says what the board is being asked to
 do with it; within each group, ranked by residual exposure. {register_note(ctx)}</div>
 

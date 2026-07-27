@@ -80,13 +80,16 @@ That floor is enforced, not asserted:
 ```bash
 ./skills/risk-register/evals/python-compat.sh            # compiles every shipped file on 3.9
 PY=/usr/bin/python3 ./skills/risk-register/evals/board-safety.sh   # and runs the suite there
-./skills/risk-register/evals/responsive.sh               # dashboards fit 320/375/768/1265px
+./skills/risk-register/evals/responsive.sh               # width + WCAG AA contrast, in a browser
 ```
 
 Run all three before any release. `responsive.sh` is the one check that isn't stdlib-only — it
-drives a headless Chrome over the DevTools protocol, because page width is a property of a resolved
-layout and no amount of reading the HTML as text can see it. It skips cleanly if Chrome or node is
-absent. v0.1.4 shipped a syntax construct that is only legal from Python 3.12,
+drives a headless Chrome over the DevTools protocol. Both of the things it measures are properties
+of a *resolved layout*, not of the CSS text: how wide the page actually laid out, and what colour a
+given piece of text actually ends up on once alpha fills, ancestor backgrounds and `opacity` have
+composited. Reading the stylesheet cannot answer either, which is where four shipped defects hid —
+a banner at 1.01:1, delta chips at 1.57:1, and two pages wider than the phone. It skips cleanly if
+Chrome or node is absent. v0.1.4 shipped a syntax construct that is only legal from Python 3.12,
 and every test passed because they all ran on 3.14 — on an older interpreter the module could not be
 imported at all, so a whole dashboard was missing rather than degraded. Testing on the author's
 interpreter proves nothing about the user's.
