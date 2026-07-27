@@ -172,6 +172,10 @@ header .wrap{{display:flex;align-items:center;justify-content:space-between;gap:
 .bandpill{{flex:1;border-radius:8px;padding:8px;text-align:center;font-size:12px}}
 .bandpill .bn{{font-family:'Space Grotesk';font-size:19px;font-weight:600;display:block}}
 .top{{display:grid;grid-template-columns:auto 1fr;gap:24px;align-items:start}}
+/* A grid item defaults to min-width:auto — its min-content size — so one long
+   table cell props the whole column, and the page, open. Overriding it is what
+   lets the scroll container below actually take effect. */
+.top>*,.attgrid>*,.tiles>*{{min-width:0}}
 .card{{background:{C.WB_SURF};border:1px solid {C.WB_LINE};border-radius:12px;padding:16px}}
 .toggle{{display:inline-flex;border:1px solid {C.WB_LINE};border-radius:8px;overflow:hidden;
   margin-bottom:12px}}
@@ -195,6 +199,12 @@ header .wrap{{display:flex;align-items:center;justify-content:space-between;gap:
   margin-left:8px}}
 table.reg{{width:100%;border-collapse:collapse;font-size:12.5px;background:{C.WB_SURF};
   border:1px solid {C.WB_LINE};border-radius:12px;overflow:hidden}}
+/* A wide table scrolls inside its own box. Without this the table sets the page
+   width and the whole document scrolls sideways on a phone, so sections start
+   off-screen. min-width keeps the columns legible rather than crushing them. */
+.tscroll{{overflow-x:auto}}
+.tscroll>table.reg{{min-width:620px}}
+.tscroll.slim>table.reg{{min-width:330px}}
 table.reg th{{background:{C.INK};color:{C.LIME};text-align:left;padding:9px 10px;font-size:11.5px;
   cursor:pointer;user-select:none;white-space:nowrap}}
 table.reg th:hover{{color:#fff}}
@@ -251,6 +261,16 @@ ul.plain{{list-style:none;padding:0;margin:0}}
 .hist .ev .r{{font-style:italic}}
 footer{{margin-top:32px;color:{C.SLATE};font-size:11px;border-top:1px solid {C.WB_LINE};
   padding-top:14px}}
+/* Column counts are declared here, never inline on the element — an inline
+   grid-template-columns outranks a media rule and silently defeats it. */
+@media (max-width:900px){{.top{{grid-template-columns:1fr}}}}
+@media (max-width:720px){{
+  .wrap,.sub .wrap{{padding-left:14px;padding-right:14px}}
+  .tiles{{grid-template-columns:repeat(2,1fr)}}
+  .attgrid{{grid-template-columns:1fr}}
+  .meta{{text-align:left}}
+}}
+@media (max-width:460px){{.tiles{{grid-template-columns:1fr}}.bandrow{{flex-wrap:wrap}}}}
 """
 
 SCRIPT = r"""
@@ -405,14 +425,16 @@ def render(ctx: C.Context) -> str:
         <button id="overBtn" class="fbtn" onclick="toggleOver()">⚠ Over appetite only</button>
         <span class="filterbar" id="filter"></span>
       </div>
-      <table class="reg"><thead><tr id="head"></tr></thead><tbody id="rows"></tbody></table>
+      <div class="tscroll">
+        <table class="reg"><thead><tr id="head"></tr></thead><tbody id="rows"></tbody></table></div>
       <div class="hint">Flags: ⏱ review overdue · ↻ acceptance due for re-validation ·
         ! acceptance incomplete · ◌ unowned · ↗ scored above the matrix.</div>
     </div>
   </div>
   <div class="section"><h2>Needs attention</h2>
     <div class="attgrid">{attention_lists(ctx)}</div></div>
-  <div class="section"><h2>Owner load — open risk per owner</h2>{owner_table(ctx)}</div>
+  <div class="section"><h2>Owner load — open risk per owner</h2>
+    <div class="tscroll slim">{owner_table(ctx)}</div></div>
   <footer>{C.esc(ctx.footer("operational working view"))}</footer>
 </div>
 <div class="backdrop" id="backdrop" onclick="closeDrawer()"></div>

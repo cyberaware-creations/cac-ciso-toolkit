@@ -196,7 +196,10 @@ header .wrap{{padding-bottom:0;display:flex;align-items:center;justify-content:s
 .theme .cnt{{color:{C.SLATE};font-size:12px}}
 .theme .tnarr{{font-size:12px;line-height:1.45;margin-top:8px;color:{C.INK}}}
 .chip{{border-radius:999px;padding:2px 8px;font-size:11px;font-weight:700;white-space:nowrap}}
-.grid2{{display:grid;gap:24px;align-items:start}}
+.grid2{{display:grid;gap:24px;align-items:start;grid-template-columns:1.45fr 1fr}}
+/* Grid items default to min-width:auto (min-content), so one long unbroken
+   string props the column — and the page — wider than the device. */
+.exec-top>*,.themegrid>*,.grid2>*{{min-width:0}}
 .toprisk{{display:flex;gap:12px;padding:12px 0;border-top:1px solid {C.WB_LINE}}}
 .toprisk:first-child{{border-top:none}}
 .toprisk .body{{font-size:13px;line-height:1.5}}
@@ -218,7 +221,9 @@ header .wrap{{padding-bottom:0;display:flex;align-items:center;justify-content:s
 svg text{{font-family:'Manrope',sans-serif}}
 footer{{margin-top:36px;color:{C.SLATE};font-size:11px;border-top:1px solid {C.WB_LINE};
   padding-top:14px}}
-@media (max-width:900px){{.exec-top,.themegrid{{grid-template-columns:1fr}}}}
+/* The column counts live in CSS, never inline on the element: an inline
+   grid-template-columns outranks this rule and silently defeats it. */
+@media (max-width:900px){{.exec-top,.themegrid,.grid2{{grid-template-columns:1fr}}}}
 """
 
 
@@ -278,7 +283,7 @@ def render(ctx: C.Context) -> str:
 
   <div class="section"><h2>Risk themes</h2><div class="themegrid">{themes_block(ctx)}</div></div>
 
-  <div class="section grid2" style="grid-template-columns:1.45fr 1fr">
+  <div class="section grid2">
     <div><h2>Top risks — what they mean for the business</h2>
       <div class="card">{top_risks_block(ctx)}</div></div>
     <div><h2>Trend across reviews</h2><div class="card">{trend_line(ctx)}
@@ -287,7 +292,7 @@ def render(ctx: C.Context) -> str:
       <div class="note" style="text-align:center;margin-top:0">Residual band mix</div></div></div>
   </div>
 
-  <div class="section grid2" style="grid-template-columns:1.45fr 1fr">
+  <div class="section grid2">
     <div><h2>What changed since {since}</h2>
       <div class="card">{changed_block(ctx)}</div></div>
     <div><h2>Decisions for the board</h2>{decisions}</div>

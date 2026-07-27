@@ -53,6 +53,7 @@ skills/
     references/                schema, history & review, dashboards, CSF import, fixtures
     assets/                    brand tokens, PDF report layout
     examples/                  worked v2 register
+    evals/                     board-safety, python-compat, responsive suites
   nist-csf/
     SKILL.md
     scripts/profile_analysis.py  CSF Profile engine + persistence (stdlib only)
@@ -79,9 +80,13 @@ That floor is enforced, not asserted:
 ```bash
 ./skills/risk-register/evals/python-compat.sh            # compiles every shipped file on 3.9
 PY=/usr/bin/python3 ./skills/risk-register/evals/board-safety.sh   # and runs the suite there
+./skills/risk-register/evals/responsive.sh               # dashboards fit 320/375/768/1265px
 ```
 
-Run both before any release. v0.1.4 shipped a syntax construct that is only legal from Python 3.12,
+Run all three before any release. `responsive.sh` is the one check that isn't stdlib-only — it
+drives a headless Chrome over the DevTools protocol, because page width is a property of a resolved
+layout and no amount of reading the HTML as text can see it. It skips cleanly if Chrome or node is
+absent. v0.1.4 shipped a syntax construct that is only legal from Python 3.12,
 and every test passed because they all ran on 3.14 — on an older interpreter the module could not be
 imported at all, so a whole dashboard was missing rather than degraded. Testing on the author's
 interpreter proves nothing about the user's.

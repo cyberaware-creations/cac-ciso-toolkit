@@ -79,9 +79,17 @@ python3 scripts/score_register.py import-gaps <gaps.csv> --into <existing.rr>
 python3 scripts/score_register.py import-gaps <gaps.csv> --into <existing.rr> --write
 ```
 
-Imported risks land **provisional**: seeded scores, framework wording, and held out of board-facing
-views until you reword them with `set-text` or rescore them with `set-score`. See
-`references/csf-import.md`.
+Imported risks land unreviewed in **two independent ways**, each with its own flag, because each is
+cleared by a different act:
+
+- `provisionalTitle` — the title is still framework wording ("Identities … **are managed**", a
+  control objective phrased as a good thing). Cleared **only** by `set-text`. While set, board-facing
+  renderers print a placeholder instead of the title.
+- `provisionalScore` — the scores are a seed off the gap's priority that nobody has assessed. Cleared
+  **only** by `set-score`.
+
+Rescoring does **not** authorize the wording for a board, and rewording does not make the seeded
+numbers an assessment. Details: `references/csf-import.md`.
 
 Seeds inherent scores from each gap's `priority` (critical→5, high→4, medium→3, low→2), carries the
 CSF subcategory as the dedupe key, and — with `--into` — updates matching risks instead of

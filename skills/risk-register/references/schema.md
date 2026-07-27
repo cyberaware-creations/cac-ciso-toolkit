@@ -51,11 +51,19 @@ snapshots so the register can report change over time without any external store
   "reviewDate": "2026-09-30",
   "acceptance": null,
   "csfSubcategoryId": "PR.AT-01",
+  "provisionalTitle": false,
+  "provisionalScore": false,
   "notes": "Context, caveats, progress"
 }
 ```
 
 - `theme` — optional theme id (see Themes); the board-reporting rollup axis.
+- `provisionalTitle` / `provisionalScore` — booleans, both set by `import-gaps`, and **independent**.
+  `provisionalTitle` means the title is still raw framework wording and board-facing renderers must
+  withhold it; only `set-text` clears it. `provisionalScore` means the numbers are a priority seed
+  nobody has assessed; only `set-score` clears it. They were one `provisional` field in an earlier
+  build — a register still carrying it is migrated to both on load. Full behaviour:
+  `references/csf-import.md`.
 - `acceptance` — populated when a risk is accepted (see Structured acceptance); otherwise `null`.
 - `priority` — optional manual board-ranking (NISTIR 8286 Priority). It is *not* used by scoring —
   banding is always derived from exposure — so it never affects the heat map or over-appetite flags;
