@@ -9,10 +9,5 @@
   },
   "homepage": "https://cyberawarecreations.com",
   "license": "Apache-2.0",
-  "keywords": ["ciso", "risk-register", "nist", "cybersecurity", "board", "grc", "risk-management", "csf", "nist-csf", "framework", "maturity", "gap-analysis", "assessment"],
-  "skills": [
-    "skills/risk-register",
-    "skills/nist-csf",
-    "skills/ciso-board-translation"
-  ]
+  "keywords": ["ciso", "risk-register", "nist", "nist-csf", "csf", "cybersecurity", "board", "grc", "risk-management", "framework", "maturity", "gap-analysis", "assessment"]
 }
