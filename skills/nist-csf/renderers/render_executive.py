@@ -235,8 +235,13 @@ CSS = f"""
 .tierhead{{font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:600;
   margin-bottom:10px}}
 .steps{{display:flex;gap:6px;margin-bottom:14px}}
-.step{{flex:1;border:1px solid {c.WB_LINE};border-radius:8px;padding:8px;text-align:center;
-  background:{c.WB}}}
+/* min-width:0 because a flex item defaults to min-width:auto — min-content — so the
+   longest tier label ("Risk Informed") props the row open and the page with it. Same
+   defect family as the grid fix in 0.1.6 and the report fix in 0.1.7; this row was the
+   one place it had not been applied. It only shows up where the label renders wider
+   than it does on the author's machine, which is any box without the brand fonts. */
+.step{{flex:1;min-width:0;border:1px solid {c.WB_LINE};border-radius:8px;padding:8px;
+  text-align:center;background:{c.WB}}}
 .step.on{{background:{c.INK};color:{c.LIME};border-color:{c.INK}}}
 .sn{{font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:700}}
 .sl{{font-size:11px}}
