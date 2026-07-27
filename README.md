@@ -19,6 +19,22 @@ themes, trend, and operational, executive, and printable board outputs.
   enforced by tooling, not by hand.
 - **Renderers** — self-contained, brand-consistent HTML dashboards and a printable PDF board report.
 
+### `nist-csf`
+Assess and track your program against the **NIST CSF 2.0** as an Organizational Profile that persists
+in a local `.csfp` file. Per-Subcategory Current and Target ratings on a 0–3 achievement scale,
+deterministic gap analysis and risk-weighted prioritization, coverage rollups by Function and
+Category, Tier characterization, an append-only history with rationale, named snapshots with a
+"what changed" diff, and an owned action plan — reported to both the team and the board.
+
+- **Bundled framework data** — the full CSF 2.0 Core (6 Functions / 22 Categories / 106
+  Subcategories) with all 363 Implementation Examples and the Informative References, generated from
+  the NIST CPRT catalog, plus verbatim Tier text from NIST CSWP 29.
+- **Framework-neutral engine** — a framework is data, not code. CSF 2.0 is the first one loaded;
+  ISO 27001 and CIS attach later as additional data plus crosswalks.
+- **Feeds the register** — `export-gaps` emits the gap CSV that `risk-register` imports, so a
+  framework gap becomes a scored, owned risk without retyping.
+- **Tiers are rigor, never a maturity score.** NIST is explicit about this, and the skill enforces it.
+
 ### `ciso-board-translation`
 The reusable "moat" skill. Turns a raw security fact — a metric, a risk, or a quarter of program
 work — into board-ready language a director acts on, using the four-question method, a curated
@@ -37,6 +53,15 @@ skills/
     references/                schema, history & review, dashboards, CSF import, fixtures
     assets/                    brand tokens, PDF report layout
     examples/                  worked v2 register
+  nist-csf/
+    SKILL.md
+    scripts/profile_analysis.py  CSF Profile engine + persistence (stdlib only)
+    renderers/                 render_operational / render_executive
+    references/                CSF 2.0 Core data, schema, assessment & review, dashboards,
+                               framework abstraction
+    assets/                    brand tokens
+    examples/                  worked example Profile
+    evals/                     trigger-routing checklist
   ciso-board-translation/
     SKILL.md
     references/                four-questions, board-question bank, receipts, metric archetypes
