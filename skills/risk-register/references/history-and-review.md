@@ -42,8 +42,22 @@ is what turns the log from a diff into an audit trail and a board narrative:
 - An auditor asks "on what basis was this risk accepted, and is it still valid?" → the acceptance
   rationale plus its re-validation date answer it (DORA RTS Art. 3(d), NYDFS §500).
 
-Don't invent rationales. If the user doesn't give one for a material change, record the change and
-note the rationale is missing rather than fabricating it.
+Don't invent rationales. And don't record the change without one either — for material changes the
+tooling will not let you. These refuse outright, before the file is touched, so a rejected mutation
+leaves the register byte-identical:
+
+| Command | Refuses without |
+|---|---|
+| `set-score` | `--why` |
+| `set-text` | `--why` |
+| `set-status` | `--why`, when closing a risk or reopening a closed one |
+| `accept` | `--approver`, `--justification`, `--revalidate` |
+
+So there is no "record it and mark the rationale missing" path for those. If the user can't say why
+yet, the change doesn't land yet — ask, and apply it once they can. That is the point: a score move
+or a closure with no stated basis is precisely the entry an auditor pulls on.
+
+Everything else (`add`, `set-theme`) takes an optional `--why` and is logged either way.
 
 ## Trend and velocity
 
