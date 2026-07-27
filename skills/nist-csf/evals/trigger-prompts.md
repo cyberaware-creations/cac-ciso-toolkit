@@ -9,10 +9,30 @@ should not wait on it. This checklist is executable today by a human in a fresh 
 
 ## How to run
 
-1. Install the plugin and start a **fresh session** per prompt — a warm session biases routing.
-2. Paste the prompt verbatim. Record which skill actually loads.
-3. Fill in Actual and Pass. Any miss means tuning **both** skill descriptions together, never one
-   alone: they partition one space, and widening this one silently narrows the other.
+Each prompt needs a **fresh session** — a warm one biases routing, because the model has already
+seen the skill in context.
+
+**Manually:** open a new session, paste the prompt verbatim, record which skill loads.
+
+**Headless (faster):** every `claude -p` invocation is a fresh session.
+
+```bash
+cd /path/to/cac-ciso-toolkit          # run from the repo so the skill's scripts are reachable
+claude -p "assess our NIST CSF posture" --output-format json > out.json
+```
+
+Measured cost: **~$0.42 and ~40s per prompt**, so the full 20 is roughly **$8.40 and 15 minutes**.
+
+**Detection caveat, learned the hard way.** Grepping the `result` text for the skill name is
+unreliable — in two runs of the same prompt, one named `nist-csf` explicitly and the other never did
+despite plainly having used it (it reported `self-test 79/79` and talked in Profiles). Judge by
+*behaviour*, not by name: `.csfp` / `profile_analysis.py` / Organizational Profile language means
+`nist-csf`; `.rr` / `score_register.py` / likelihood × impact means `risk-register`. For reliable
+machine detection use `--output-format stream-json` and look for `Skill` tool-use events rather than
+parsing prose.
+
+Any miss means tuning **both** skill descriptions together, never one alone: they partition one
+space, and widening this one silently narrows the other.
 
 Record the date and the plugin version each time this is run.
 
@@ -22,7 +42,7 @@ Record the date and the plugin version each time this is run.
 
 | # | Prompt | Expected | Actual | Pass |
 |---|---|---|---|---|
-| P1 | "Assess our NIST CSF posture." | nist-csf | | |
+| P1 | "Assess our NIST CSF posture." | nist-csf | **nist-csf** (2 headless runs, 2026-07-26) | **✓** |
 | P2 | "Where are our framework gaps?" | nist-csf | | |
 | P3 | "Build a CSF target profile for us." | nist-csf | | |
 | P4 | "I need a board view of our cybersecurity maturity against the framework." | nist-csf | | |
@@ -75,7 +95,7 @@ A3 and A5 test whether the skill's guardrails survive contact with the way peopl
 
 | Date | Plugin version | Positives | Negatives | Ambiguous | Notes |
 |---|---|---|---|---|---|
-| | | /8 | /7 | /5 | |
+| 2026-07-26 | 0.1.0 | 1/8 | 0/7 | 0/5 | Partial. P1 verified twice via headless probe; both runs routed to `nist-csf` and neither mentioned `risk-register`. Remaining 19 not yet run. |
 
 ## If something misroutes
 
