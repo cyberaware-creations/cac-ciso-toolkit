@@ -74,7 +74,10 @@ def tier_block(ctx: c.Context) -> str:
     tiers = ctx.tiers or {}
     levels = {int(l["tier"]): l for l in tiers.get("levels", [])}
     prof_tier = (tiers.get("profile") or {}).get("overall")
-    guardrail = tiers.get("guardrail", "")
+    # readerNote, never guardrail: guardrail is the instruction to the model that builds
+    # this page. Printing it puts "must never be rendered, averaged, or trended as one"
+    # in front of the board, in caps, which is the report talking to its author.
+    reader_note = tiers.get("readerNote", "")
 
     if not levels:
         return ""
@@ -108,7 +111,7 @@ def tier_block(ctx: c.Context) -> str:
         headline = "Not characterized"
 
     return (f'<section><h2>Rigor of risk governance and management</h2>'
-            f'<div class="hint">{c.esc(guardrail)}</div>'
+            f'<div class="hint">{c.esc(reader_note)}</div>'
             f'<div class="card"><div class="tierhead">{headline}</div>'
             f'<div class="steps">{"".join(steps)}</div>{detail}</div></section>')
 
@@ -174,15 +177,15 @@ def what_changed(ctx: c.Context) -> str:
 
 
 def decisions(ctx: c.Context) -> str:
-    """Asks, derived from the attention lists, plus anything the sidecar adds."""
+    """Asks, derived from the attention lists, plus anything the sidecar adds.
+
+    The bar for this section is that a board could *vote* on the item. Assigning an owner
+    to an action is the CISO's job, not a board decision, and putting it here trains the
+    reader to skim the one section that must not be skimmed. Owner gaps surface on the
+    operational dashboard instead.
+    """
     a = ctx.attention
     out = []
-    unowned = a.get("unownedActions", [])
-    if unowned:
-        n = len(unowned)
-        out.append(f'Assign {"an owner" if n == 1 else "owners"} to {n} commitment'
-                   f'{"" if n == 1 else "s"} that currently {"has" if n == 1 else "have"} none '
-                   f'({", ".join(i["id"] for i in unowned)}).')
     past = a.get("pastDueActions", [])
     if past:
         out.append(f'{len(past)} commitment{"s have" if len(past) != 1 else " has"} passed the '
@@ -257,10 +260,8 @@ def main(argv):
     ctx = c.build(argv, "Executive CSF Profile dashboard", "csf-executive.html")
     p, cov, comp = ctx.profile, ctx.coverage["overall"], ctx.completeness["overall"]
 
-    head = (f'<header><h1>{c.esc(p.get("name", "CSF Organizational Profile"))}</h1>'
-            f'<div class="sub">Cybersecurity programme against '
-            f'{c.esc(ctx.framework.get("name", ""))} {c.esc(ctx.framework.get("version", ""))}'
-            f' · {c.esc(ctx.as_of_line())}</div></header>')
+    head = c.header("Executive dashboard", ctx,
+                    [f'Cybersecurity programme posture · {c.esc(ctx.as_of_line())}'])
 
     summary_text = ctx.tr.executive_summary
     summary = ""

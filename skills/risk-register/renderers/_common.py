@@ -32,7 +32,11 @@ INK = "#14171C"; INK_RAISED = "#1C2026"; INK_LINE = "#2A2F36"
 LIME = "#EAE7DF"; LIME_DIM = "#9AA0A6"
 PATINA = "#2FA98C"; PATINA_H = "#279884"
 SLATE = "#6A7180"; WB = "#F6F4EE"; WB_SURF = "#FFFFFF"; WB_LINE = "#D8D3C6"
-BAND = {"low": "#2e8b57", "medium": "#7fb069", "high": "#e08e0b", "critical": "#c0392b"}
+# medium is amber, not a second green. Two adjacent greens are not separable at
+# stacked-bar size — which also made a bar full of unrefined import seeds read as
+# "we're fine" — and a ramp that runs green→green→orange→red is not the CVD-safe
+# green→red brand.md claims. Lightness now carries the step as well as hue.
+BAND = {"low": "#2e8b57", "medium": "#e8c547", "high": "#e08e0b", "critical": "#c0392b"}
 BAND_LABEL = {"low": "Low", "medium": "Medium", "high": "High", "critical": "Critical"}
 
 FONTS = ('<link rel="preconnect" href="https://fonts.googleapis.com">'
@@ -104,10 +108,32 @@ class Translations:
 
     @staticmethod
     def load(path: str | None) -> "Translations":
+        # Same handling as nist-csf's loader, deliberately. A sidecar that parses but maps
+        # nothing is the dangerous case: the render "succeeds", every narrative falls back
+        # to a placeholder, and the deck looks finished.
         if not path:
             return Translations(None)
-        with open(path, encoding="utf-8") as fh:
-            return Translations(json.load(fh))
+        try:
+            with open(path, encoding="utf-8") as fh:
+                raw = json.load(fh)
+        except FileNotFoundError:
+            raise SystemExit(f"error: --translations file not found: {path}")
+        except json.JSONDecodeError as exc:
+            raise SystemExit(f"error: --translations file {path} is not valid JSON "
+                             f"(line {exc.lineno}, column {exc.colno}): {exc.msg}")
+        if not isinstance(raw, dict):
+            raise SystemExit(f"error: --translations file {path} must contain a JSON object, "
+                             f"got {type(raw).__name__}.")
+        tr = Translations(raw)
+        if not (tr.risks or tr.themes or tr.executive_summary or tr.decisions):
+            hint = ""
+            if raw and all(isinstance(v, str) for v in raw.values()):
+                hint = ('\n  It looks like a flat {"R-001": "sentence"} map. '
+                        'Wrap it: {"risks": { ... }}.')
+            raise SystemExit(f"error: --translations file {path} contains no usable keys "
+                             f'(expected "risks", "themes", "executiveSummary" or '
+                             f'"decisions").{hint}')
+        return tr
 
 
 # --- Derivation --------------------------------------------------------------
@@ -289,10 +315,28 @@ class Context:
         changes.sort(key=lambda c: (order.get(c["kind"], 9), c["id"]))
         return {"baseline": self.baseline, "changes": changes, "added": added, "removed": removed}
 
+    @staticmethod
+    def _accepted_and_current(r: dict) -> bool:
+        """A risk the board has already decided about, and whose decision still stands.
+
+        Deliberately strict: an acceptance that is past re-validation, past expiry, or
+        missing its approver or justification is NOT a current decision, and each of those
+        already raises its own board item above.
+        """
+        return bool(r.get("acceptance")) and not (
+            r["acceptanceDue"] or r["acceptanceExpired"] or r["acceptanceIncomplete"])
+
     def _attention(self) -> dict:
         live = [r for r in self.risks if r.get("status") != "closed"]
+        over = [r for r in live if r["overAppetite"]]
         return {
-            "overAppetite": [r for r in live if r["overAppetite"]],
+            "overAppetite": over,
+            # Split so the board is asked about what it has not yet decided, and merely
+            # reminded of what it has. Asking again about a risk the audit committee
+            # formally accepted last quarter is the credibility failure that structured
+            # acceptance exists to prevent.
+            "overAppetiteOpen": [r for r in over if not self._accepted_and_current(r)],
+            "overAppetiteAccepted": [r for r in over if self._accepted_and_current(r)],
             "reviewOverdue": [r for r in self.risks if r["reviewOverdue"]],
             "acceptanceDue": [r for r in self.risks if r["acceptanceDue"]],
             "acceptanceExpired": [r for r in self.risks if r["acceptanceExpired"]],
@@ -356,11 +400,18 @@ class Context:
             out.append(f'{len(exp)} acceptance{"s have" if len(exp) > 1 else " has"} passed the '
                        f'expiry date and no longer carries approval '
                        f'({", ".join(r["id"] for r in exp)}).')
-        over = self.attention["overAppetite"]
+        over = self.attention["overAppetiteOpen"]
         if over:
             out.append(f'Board awareness: {len(over)} risk{"s remain" if len(over) > 1 else " remains"} '
-                       f'above the {BAND_LABEL[self.appetite].lower()} appetite '
-                       f'({", ".join(r["id"] for r in over)}).')
+                       f'above the {BAND_LABEL[self.appetite].lower()} appetite with no recorded '
+                       f'acceptance ({", ".join(r["id"] for r in over)}).')
+        acc = self.attention["overAppetiteAccepted"]
+        if acc:
+            # Not a decision — a reminder that one was already made. Phrased so nobody
+            # reads it as a fresh ask.
+            out.append(f'No action: {len(acc)} risk{"s sit" if len(acc) > 1 else " sits"} above '
+                       f'appetite under a current, approved acceptance '
+                       f'({", ".join(r["id"] for r in acc)}).')
         inc = self.attention["acceptanceIncomplete"]
         if inc:
             out.append(f'{len(inc)} acceptance{"s are" if len(inc) > 1 else " is"} missing an '

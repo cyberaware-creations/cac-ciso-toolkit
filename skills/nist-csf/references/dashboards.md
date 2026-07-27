@@ -121,11 +121,32 @@ no Tier set, say "not characterized" — do not infer one.
 The top five from `attention.largestGaps`, each with a **business-outcome statement** rather than
 the Subcategory text.
 
-- Translations come from the optional `--translations` JSON (`{subcategoryId: sentence}`), produced
-  by `ciso-board-translation`.
+- Translations come from the optional `--translations` JSON, produced by `ciso-board-translation`.
 - Absent a translation, render the `_common.PLACEHOLDER` prompt — a visible instruction to run the
   translation skill, never a silent fallback to raw framework language. Framework text in front of a
   board is the failure this slot exists to prevent.
+
+#### The `--translations` sidecar contract
+
+```json
+{
+  "executiveSummary": "One paragraph in the board's language. Optional.",
+  "gaps": {
+    "PR.AA-01": "Leavers keep system access for weeks, so a departing employee can still reach patient records.",
+    "GV.SC-07": "We cannot say which suppliers hold our data, so a breach at one of them would surprise us."
+  },
+  "decisions": ["Optional extra board asks, appended to the derived ones."],
+  "asOf": "2026-10-01"
+}
+```
+
+**`gaps` must be nested.** A flat `{"PR.AA-01": "..."}` map at the top level is the natural guess and
+it is wrong — it parses, the render reports success, and every narrative silently reverts to the
+placeholder, which is how a board deck ends up looking finished and saying nothing. The renderer now
+rejects a sidecar with no usable keys and names this specific mistake, but the shape above is the
+contract. `subcategories` is accepted as an alias for `gaps`.
+
+All four keys are optional individually; at least one must be present.
 
 ### What changed
 From `diff`: coverage movement overall and by Function, Subcategory changes worth board attention,

@@ -162,8 +162,30 @@ class Translations:
     def load(path: str | None) -> "Translations":
         if not path:
             return Translations(None)
-        with open(path, encoding="utf-8") as fh:
-            return Translations(json.load(fh))
+        try:
+            with open(path, encoding="utf-8") as fh:
+                raw = json.load(fh)
+        except FileNotFoundError:
+            raise SystemExit(f"error: --translations file not found: {path}")
+        except json.JSONDecodeError as exc:
+            raise SystemExit(f"error: --translations file {path} is not valid JSON "
+                             f"(line {exc.lineno}, column {exc.colno}): {exc.msg}")
+        if not isinstance(raw, dict):
+            raise SystemExit(f"error: --translations file {path} must contain a JSON object, "
+                             f"got {type(raw).__name__}.")
+        tr = Translations(raw)
+        # A sidecar that parses but maps nothing is the dangerous case: the render
+        # "succeeds", every narrative silently falls back to a placeholder, and the board
+        # deck looks finished. The most likely cause is the flat {id: sentence} shape,
+        # which reads as correct and is not.
+        if not (tr.gaps or tr.executive_summary or tr.decisions):
+            hint = ""
+            if raw and all(isinstance(v, str) for v in raw.values()):
+                hint = ('\n  It looks like a flat {"SUBCATEGORY-ID": "sentence"} map. '
+                        'Wrap it: {"gaps": { ... }}.')
+            raise SystemExit(f"error: --translations file {path} contains no usable keys "
+                             f'(expected "gaps", "executiveSummary" or "decisions").{hint}')
+        return tr
 
 
 class Context:
@@ -254,9 +276,23 @@ BASE_CSS = f"""
 body{{margin:0;background:{WB};color:{INK};
   font-family:'Manrope',system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.5}}
 h1,h2,h3{{font-family:'Space Grotesk',system-ui,sans-serif;font-weight:600;margin:0}}
-header{{background:{INK};color:{LIME};padding:22px 28px}}
-header h1{{font-size:21px;letter-spacing:-.01em}}
-header .sub{{color:{LIME_DIM};font-size:13px;margin-top:6px}}
+header{{background:{INK};color:{LIME};padding:20px 28px}}
+header .hwrap{{display:flex;align-items:center;justify-content:space-between;
+  gap:16px;flex-wrap:wrap}}
+.brand{{display:flex;align-items:center;gap:12px}}
+.mark{{width:30px;height:30px;border-radius:7px;
+  background:linear-gradient(135deg,{PATINA},{PATINA_H});position:relative;flex:0 0 auto}}
+.mark::after{{content:"";position:absolute;inset:9px 8px;background:{INK};
+  clip-path:polygon(0 40%,100% 0,100% 60%,0 100%)}}
+.eyebrow{{color:{PATINA};font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  font-weight:700}}
+header h1{{font-size:19px;line-height:1.1;letter-spacing:-.01em}}
+.hmeta{{text-align:right;font-size:12.5px;color:{LIME_DIM};line-height:1.5}}
+.hmeta b{{color:{LIME}}}
+.hmeta .tag{{display:inline-block;background:{PATINA};color:{INK};font-weight:700;
+  border-radius:999px;padding:2px 10px;font-size:12px}}
+header .sub{{color:{LIME_DIM};font-size:13px;margin-top:10px}}
+@media (max-width:760px){{.hmeta{{text-align:left}}}}
 main{{padding:24px 28px 40px;max-width:1280px;margin:0 auto}}
 section{{margin-bottom:32px}}
 section>h2{{font-size:16px;margin-bottom:4px}}
@@ -280,6 +316,35 @@ footer{{background:{INK};color:{LIME_DIM};padding:16px 28px;font-size:12px}}
 @media print{{body{{background:#fff}} header,footer{{-webkit-print-color-adjust:exact;
   print-color-adjust:exact}}}}
 """
+
+
+def header(artifact: str, ctx, sub_lines: list[str]) -> str:
+    """The shared header for every nist-csf artifact.
+
+    Built here rather than in each renderer so the two views cannot drift apart — which
+    is exactly how these dashboards ended up looking like a different product from the
+    risk register's, despite both skills declaring the same brand tokens.
+
+    The `h1` is the **artifact type**, not the client. A board member holding two reports
+    needs to know which one this is at a glance; whose it is belongs in the meta block,
+    the way a letterhead works.
+    """
+    p = ctx.profile
+    scope = p.get("scope") or {}
+    owner = (scope.get("owner") or "").strip()
+    fw = f'{ctx.framework.get("name", "")} {ctx.framework.get("version", "")}'.strip()
+    meta_bits = [f'<b>{esc(p.get("name") or "(unnamed Profile)")}</b>']
+    if owner:
+        meta_bits.append(esc(owner))
+    if fw:
+        meta_bits.append(f'<span class="tag">{esc(fw)}</span>')
+    subs = "".join(f'<div class="sub">{s}</div>' for s in sub_lines if s)
+    return (f'<header><div class="hwrap">'
+            f'<div class="brand"><div class="mark"></div><div>'
+            f'<div class="eyebrow">Cyber Aware Creations · NIST CSF</div>'
+            f'<h1>{esc(artifact)}</h1></div></div>'
+            f'<div class="hmeta">{"<br>".join(meta_bits)}</div>'
+            f'</div>{subs}</header>')
 
 
 def page(title: str, head_extra: str, body: str) -> str:

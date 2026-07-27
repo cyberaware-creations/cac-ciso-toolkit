@@ -56,9 +56,10 @@ reports to the board). Most sessions are one or the other. Workflow B is in
 ## Build workflow
 
 ```
-- [ ] 1. Set up: client, assessor, matrix size (default 5×5), appetite (default medium)
+- [ ] 1. Set up: `init` — client, assessor, matrix size (default 5×5), appetite (default medium)
 - [ ] 2. Intake risks — from a CSF gap CSV (run the import) or elicited in conversation
-- [ ] 3. Draft each risk as a NISTIR 8286 event statement; set owner, category, theme, response
+- [ ] 3. Draft each risk as a NISTIR 8286 event statement (`set-text` for imported ones);
+         set owner, category, theme, response
 - [ ] 4. Assign inherent + residual likelihood × impact (1..matrixSize)
 - [ ] 5. Score with scripts/score_register.py — never band by hand
 - [ ] 6. Log every material change with a rationale; write the file back
@@ -67,13 +68,20 @@ reports to the board). Most sessions are one or the other. Workflow B is in
 
 ### Step 2 — Intake
 
-**From a CSF gap assessment (common path).** The `csf-assessment` tool exports a gap CSV
+**From a CSF gap assessment (common path).** The `nist-csf` skill's `export-gaps` writes a gap CSV
 (`subcategory_id, function_id, category_id, current_tier, target_tier, priority, subcategory_text,
 note`). Map it to candidate risks:
 
 ```bash
-python3 scripts/score_register.py import-gaps <gaps.csv> [--into <existing.rr>]
+# Preview first — --into alone writes nothing.
+python3 scripts/score_register.py import-gaps <gaps.csv> --into <existing.rr>
+# Then apply.
+python3 scripts/score_register.py import-gaps <gaps.csv> --into <existing.rr> --write
 ```
+
+Imported risks land **provisional**: seeded scores, framework wording, and held out of board-facing
+views until you reword them with `set-text` or rescore them with `set-score`. See
+`references/csf-import.md`.
 
 Seeds inherent scores from each gap's `priority` (critical→5, high→4, medium→3, low→2), carries the
 CSF subcategory as the dedupe key, and — with `--into` — updates matching risks instead of
@@ -121,8 +129,11 @@ writes a schema-valid file for you, so append-only history and determinism are e
 not by memory:
 
 ```bash
+python3 scripts/score_register.py init <reg.rr> --client 'Acme Corp' --assessor 'CISO' \
+    --matrix 5 --appetite medium --scope-note '...'
 python3 scripts/score_register.py add <reg.rr> --title '...' --il 4 --ii 5 --rl 2 --ri 4 \
     --category PR --owner '...' --theme identity --response mitigate --why '...'
+python3 scripts/score_register.py set-text <reg.rr> <id> --title '...' --description '...' --why '...'
 python3 scripts/score_register.py set-score <reg.rr> <id> --residual L I --why '...'
 python3 scripts/score_register.py accept <reg.rr> <id> --approver '...' --justification '...' \
     --revalidate 2027-01-31 --expiry 2027-07-31 --why '...'
