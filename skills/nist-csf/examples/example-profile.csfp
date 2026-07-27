@@ -1,0 +1,251 @@
+{
+  "schemaVersion": "1.0",
+  "profile": {
+    "id": "example-2026",
+    "name": "Example Manufacturing Co — Enterprise Profile",
+    "frameworkRef": "nist-csf-2.0",
+    "scope": {
+      "purpose": "Fixture Profile used by self-test and as a worked example. Deliberately small: 10 tracked Subcategories across 4 Functions, chosen so every branch of the engine math has signal.",
+      "orgUnits": ["Corporate IT", "Plant OT"],
+      "threatTypes": ["ransomware", "supply chain compromise"],
+      "owner": "CISO",
+      "assumptions": "Plant OT identity systems are managed separately from corporate IdP. Physical security is out of scope for this Profile."
+    },
+    "tier": {
+      "overall": 2,
+      "byFunction": { "GV": 2, "ID": 2, "PR": 2, "DE": 1, "RS": null, "RC": null }
+    },
+    "settings": {
+      "scale": {
+        "type": "ordinal",
+        "min": 0,
+        "max": 3,
+        "labels": {
+          "0": "Not Achieved",
+          "1": "Partially Achieved",
+          "2": "Largely Achieved",
+          "3": "Fully Achieved"
+        }
+      },
+      "priorityWeights": { "low": 1, "medium": 2, "high": 3, "critical": 4 },
+      "functionWeights": { "GV": 1, "ID": 1, "PR": 1, "DE": 1, "RS": 1, "RC": 1 }
+    },
+    "created": "2026-01-15T00:00:00Z",
+    "updated": "2026-07-01T00:00:00Z"
+  },
+  "assessments": [
+    {
+      "subcategoryId": "GV.OC-01",
+      "applicability": "in-scope",
+      "current": 2,
+      "target": 3,
+      "priority": "high",
+      "status": "in-progress",
+      "notes": "Mission statement informs the risk register; not yet reflected in OT risk decisions.",
+      "evidenceRefs": ["risk-strategy-2026.pdf"],
+      "lastReviewed": "2026-06-01"
+    },
+    {
+      "subcategoryId": "GV.RM-01",
+      "applicability": "in-scope",
+      "current": 1,
+      "target": 3,
+      "priority": "critical",
+      "status": "in-progress",
+      "notes": "Risk objectives drafted, not yet approved by the board.",
+      "evidenceRefs": [],
+      "lastReviewed": "2026-05-01"
+    },
+    {
+      "subcategoryId": "GV.SC-01",
+      "applicability": "in-scope",
+      "current": 0,
+      "target": 2,
+      "priority": "medium",
+      "status": "not-started",
+      "notes": "No supply chain risk management programme yet.",
+      "evidenceRefs": [],
+      "lastReviewed": null
+    },
+    {
+      "subcategoryId": "ID.AM-01",
+      "applicability": "in-scope",
+      "current": 3,
+      "target": 3,
+      "priority": "low",
+      "status": "met",
+      "notes": "CMDB covers corporate and plant hardware; reconciled monthly.",
+      "evidenceRefs": ["cmdb-export-2026-06.csv"],
+      "lastReviewed": "2026-07-01"
+    },
+    {
+      "subcategoryId": "ID.RA-01",
+      "applicability": "in-scope",
+      "current": null,
+      "target": 2,
+      "priority": "high",
+      "status": "not-started",
+      "notes": "Targeted but never assessed — exercises the null-current path.",
+      "evidenceRefs": [],
+      "lastReviewed": null
+    },
+    {
+      "subcategoryId": "PR.AA-01",
+      "applicability": "in-scope",
+      "current": 1,
+      "target": 3,
+      "priority": "critical",
+      "status": "in-progress",
+      "notes": "SSO covers corporate apps; OT identities still local accounts.",
+      "evidenceRefs": ["iam-policy-v4.pdf"],
+      "lastReviewed": "2026-04-01"
+    },
+    {
+      "subcategoryId": "PR.AA-02",
+      "applicability": "in-scope",
+      "current": 2,
+      "target": 2,
+      "priority": "medium",
+      "status": "met",
+      "notes": "Target deliberately set below maximum — proportionate to assessed risk.",
+      "evidenceRefs": [],
+      "lastReviewed": "2026-06-15"
+    },
+    {
+      "subcategoryId": "PR.DS-01",
+      "applicability": "in-scope",
+      "current": 0,
+      "target": 3,
+      "priority": "high",
+      "status": "accepted-gap",
+      "notes": "Legacy plant historian cannot encrypt at rest; gap accepted until 2027 platform replacement.",
+      "evidenceRefs": ["risk-acceptance-2026-03.pdf"],
+      "lastReviewed": "2026-03-01"
+    },
+    {
+      "subcategoryId": "DE.CM-01",
+      "applicability": "in-scope",
+      "current": 1,
+      "target": null,
+      "priority": "medium",
+      "status": "not-started",
+      "notes": "Assessed but not yet targeted — exercises the null-target path.",
+      "evidenceRefs": [],
+      "lastReviewed": "2026-06-20"
+    },
+    {
+      "subcategoryId": "DE.AE-02",
+      "applicability": "not-applicable",
+      "current": null,
+      "target": null,
+      "priority": "low",
+      "status": "not-started",
+      "notes": "No in-house SOC analysis capability; function contracted to MSSP and assessed under their profile.",
+      "evidenceRefs": ["mssp-contract-2025.pdf"],
+      "lastReviewed": null
+    }
+  ],
+  "history": [
+    {
+      "ts": "2026-01-15T00:00:00Z",
+      "actor": "CISO",
+      "type": "profile-created",
+      "rationale": "Initial Profile scoped to corporate IT and plant OT."
+    },
+    {
+      "ts": "2026-03-01T00:00:00Z",
+      "actor": "CISO",
+      "subcategoryId": "PR.DS-01",
+      "type": "status-changed",
+      "field": "status",
+      "from": "in-progress",
+      "to": "accepted-gap",
+      "rationale": "Legacy historian cannot support encryption at rest; compensating network segmentation in place. Accepted until the 2027 platform replacement."
+    },
+    {
+      "ts": "2026-06-01T00:00:00Z",
+      "actor": "CISO",
+      "subcategoryId": "GV.OC-01",
+      "type": "rating-changed",
+      "field": "current",
+      "from": 1,
+      "to": 2,
+      "rationale": "Risk strategy published and referenced in the corporate risk register."
+    }
+  ],
+  "snapshots": [
+    {
+      "id": "q1-2026-baseline",
+      "label": "Q1 2026 Baseline",
+      "ts": "2026-03-31T00:00:00Z",
+      "note": "First full assessment.",
+      "assessments": [
+        { "subcategoryId": "GV.OC-01", "applicability": "in-scope", "current": 1, "target": 3, "priority": "high", "status": "in-progress", "notes": "", "evidenceRefs": [], "lastReviewed": "2026-03-01" },
+        { "subcategoryId": "GV.RM-01", "applicability": "in-scope", "current": 1, "target": 3, "priority": "critical", "status": "in-progress", "notes": "", "evidenceRefs": [], "lastReviewed": "2026-03-01" },
+        { "subcategoryId": "GV.SC-01", "applicability": "in-scope", "current": 0, "target": 2, "priority": "medium", "status": "not-started", "notes": "", "evidenceRefs": [], "lastReviewed": null },
+        { "subcategoryId": "ID.AM-01", "applicability": "in-scope", "current": 2, "target": 3, "priority": "low", "status": "in-progress", "notes": "", "evidenceRefs": [], "lastReviewed": "2026-03-01" },
+        { "subcategoryId": "ID.RA-01", "applicability": "in-scope", "current": null, "target": 2, "priority": "high", "status": "not-started", "notes": "", "evidenceRefs": [], "lastReviewed": null },
+        { "subcategoryId": "PR.AA-01", "applicability": "in-scope", "current": 1, "target": 3, "priority": "critical", "status": "in-progress", "notes": "", "evidenceRefs": [], "lastReviewed": "2026-03-01" },
+        { "subcategoryId": "PR.AA-02", "applicability": "in-scope", "current": 2, "target": 2, "priority": "medium", "status": "met", "notes": "", "evidenceRefs": [], "lastReviewed": "2026-03-01" },
+        { "subcategoryId": "PR.DS-01", "applicability": "in-scope", "current": 0, "target": 3, "priority": "high", "status": "accepted-gap", "notes": "", "evidenceRefs": [], "lastReviewed": "2026-03-01" },
+        { "subcategoryId": "DE.CM-01", "applicability": "in-scope", "current": 1, "target": null, "priority": "medium", "status": "not-started", "notes": "", "evidenceRefs": [], "lastReviewed": "2026-03-01" },
+        { "subcategoryId": "DE.AE-02", "applicability": "not-applicable", "current": null, "target": null, "priority": "low", "status": "not-started", "notes": "", "evidenceRefs": [], "lastReviewed": null }
+      ],
+      "actionItems": [
+        { "id": "A-001", "title": "Extend SSO to plant OT identity stores", "linkedSubcategoryIds": ["PR.AA-01"], "owner": "Head of Infrastructure", "milestone": "Q4 2026", "targetDate": "2026-12-15", "status": "open", "notes": "" },
+        { "id": "A-003", "title": "Stand up a cyber threat intelligence feed", "linkedSubcategoryIds": ["ID.RA-01"], "owner": "SecOps Lead", "milestone": "Q2 2026", "targetDate": "2026-06-30", "status": "open", "notes": "" },
+        { "id": "A-004", "title": "Document the asset inventory reconciliation process", "linkedSubcategoryIds": ["ID.AM-01"], "owner": "IT Operations", "milestone": "Q2 2026", "targetDate": "2026-05-01", "status": "open", "notes": "" }
+      ],
+      "rollups": {
+        "coverage": {
+          "overall": { "percent": 33.33333333333333, "n": 7, "d": 21 }
+        },
+        "completeness": {
+          "overall": { "total": 10, "inScope": 9, "notApplicable": 1, "assessed": 7, "targeted": 8 }
+        }
+      }
+    }
+  ],
+  "actionItems": [
+    {
+      "id": "A-001",
+      "title": "Extend SSO to plant OT identity stores",
+      "linkedSubcategoryIds": ["PR.AA-01"],
+      "owner": "Head of Infrastructure",
+      "milestone": "Q4 2026",
+      "targetDate": "2026-12-15",
+      "status": "open",
+      "notes": "Blocked on the historian upgrade window."
+    },
+    {
+      "id": "A-002",
+      "title": "Encrypt data at rest in the plant historian",
+      "linkedSubcategoryIds": ["PR.DS-01"],
+      "owner": "",
+      "milestone": "Q3 2026",
+      "targetDate": "2026-09-30",
+      "status": "open",
+      "notes": "Unowned — exercises the unowned attention list."
+    },
+    {
+      "id": "A-003",
+      "title": "Stand up a cyber threat intelligence feed",
+      "linkedSubcategoryIds": ["ID.RA-01"],
+      "owner": "SecOps Lead",
+      "milestone": "Q2 2026",
+      "targetDate": "2026-06-30",
+      "status": "open",
+      "notes": "Past due — exercises the past-due attention list."
+    },
+    {
+      "id": "A-004",
+      "title": "Document the asset inventory reconciliation process",
+      "linkedSubcategoryIds": ["ID.AM-01"],
+      "owner": "IT Operations",
+      "milestone": "Q2 2026",
+      "targetDate": "2026-05-01",
+      "status": "closed",
+      "notes": "Closed after the target date — must NOT appear as past due."
+    }
+  ]
+}
