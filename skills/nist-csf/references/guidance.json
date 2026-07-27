@@ -1,0 +1,190 @@
+{
+  "source": {
+    "repo": "csf-assessment",
+    "files": [
+      "src/lib/assessment/guidance-deep.ts",
+      "src/lib/assessment/guidance.data.ts",
+      "src/lib/frameworks/csf-2.0-context.ts"
+    ],
+    "note": "Authored guidance harvested from the csf-assessment web tool. Function `definition` strings are NIST CSWP 29 text (public domain, 17 U.S.C. §105); `whyItMatters`, the deep guidance, the function slants and the tier-transition paragraphs are original authored content by Cyber Aware Creations."
+  },
+  "deepGuidance": {
+    "GV.OC-01": {
+      "whatMatureLooksLike": "Cybersecurity considerations are explicitly named as inputs to strategy discussions, and executive leadership can articulate how cyber protects the mission in plain language.",
+      "nextSteps": [
+        "Draft a one-page cybersecurity charter linking cyber posture to the top three business objectives.",
+        "Add a standing cyber briefing to the quarterly leadership agenda.",
+        "Document the two most likely cyber events that would materially disrupt the mission."
+      ],
+      "commonPitfalls": "Charter written but never referenced in strategic decisions; cyber team treated as IT infrastructure rather than a mission enabler."
+    },
+    "GV.OC-02": {
+      "whatMatureLooksLike": "A named stakeholder map identifies who cares about cyber outcomes (board, regulators, customers, partners) and what each expects; those expectations feed the risk register.",
+      "nextSteps": [
+        "List stakeholders and their cyber expectations in a two-column table.",
+        "Map each expectation to a control or a measurement.",
+        "Reconcile conflicting stakeholder expectations explicitly (e.g. customer transparency vs. attacker deception)."
+      ],
+      "commonPitfalls": "Board expectations are inferred rather than asked. Regulator requirements handled reactively at audit time."
+    },
+    "GV.OC-03": {
+      "whatMatureLooksLike": "A living matrix maps each applicable regulation (GDPR, HIPAA, SOX, state privacy laws, contract clauses) to the controls that satisfy it and the owner of each control.",
+      "nextSteps": [
+        "Inventory regulations and contract clauses that constrain cyber posture.",
+        "Assign an owner to each obligation.",
+        "Review the matrix at the same cadence as the risk register (typically quarterly)."
+      ]
+    },
+    "GV.RM-01": {
+      "whatMatureLooksLike": "Written risk tolerance statements express the organization's appetite in each risk category, signed off by the accountable executive.",
+      "nextSteps": [
+        "Draft risk tolerance statements per category (financial, reputational, operational, regulatory).",
+        "Present to the executive team for ratification.",
+        "Reference tolerance explicitly in every subsequent risk decision."
+      ]
+    },
+    "GV.RM-02": {
+      "whatMatureLooksLike": "Appetite and tolerance are documented, referenced during risk decisions, and revisited on a set cadence at least annually.",
+      "nextSteps": [
+        "Publish the appetite statement to leadership and management.",
+        "Include it in onboarding for management-level hires.",
+        "Set an annual calendar review with the accountable executive."
+      ]
+    },
+    "GV.RR-01": {
+      "whatMatureLooksLike": "A named executive (CISO, CIO, or equivalent) holds ownership of cyber risk with a documented reporting line to the board, and this is explicit in written role descriptions.",
+      "nextSteps": [
+        "Update job descriptions to name cyber accountability by role.",
+        "Add cyber risk to the standing board agenda.",
+        "Publish the reporting line in the org chart."
+      ],
+      "commonPitfalls": "Cyber accountability implied to be everyone's job in general terms, and therefore no one's specifically."
+    },
+    "GV.PO-01": {
+      "whatMatureLooksLike": "Approved cybersecurity policy exists, is versioned, is reviewed on a set cadence, and is referenced in enforcement actions.",
+      "nextSteps": [
+        "Adopt or adapt a written policy from a reputable template (NIST SP 800-53, CIS Controls).",
+        "Get executive sponsor sign-off before publishing.",
+        "Communicate to the workforce via portal + acknowledgement flow."
+      ]
+    },
+    "GV.SC-01": {
+      "whatMatureLooksLike": "Third-party cyber risk is treated as an explicit program with a supplier inventory, risk tiering, and periodic reassessment.",
+      "nextSteps": [
+        "Inventory current suppliers by criticality.",
+        "Adopt a vendor questionnaire aligned to your risk tier levels.",
+        "Add cyber clauses to standard contract templates."
+      ]
+    },
+    "ID.AM-01": {
+      "whatMatureLooksLike": "An accurate, automated inventory covers all hardware connecting to organizational networks, updated in near real time from an authoritative source.",
+      "nextSteps": [
+        "Deploy a discovery tool if no automated inventory exists.",
+        "Establish an authoritative source and a reconciliation cadence.",
+        "Retire the manual spreadsheet."
+      ],
+      "commonPitfalls": "Inventory is treated as an IT ops artifact rather than a security control; unmanaged assets accumulate on the network."
+    },
+    "ID.RA-01": {
+      "whatMatureLooksLike": "Vulnerability scanning is scheduled, results are triaged against asset criticality, and remediation is tracked to closure with owners and due dates.",
+      "nextSteps": [
+        "Establish a scanning cadence for critical assets.",
+        "Define a severity-to-SLA mapping.",
+        "Track vulnerabilities in a shared queue with owners and due dates."
+      ]
+    },
+    "PR.AA-01": {
+      "whatMatureLooksLike": "Every human and machine account has a lifecycle (join / move / leave), MFA is enforced for privileged and remote access, and shared accounts are eliminated or explicitly tracked.",
+      "nextSteps": [
+        "Enforce MFA on all privileged and remote access paths.",
+        "Establish a quarterly access review with data owners.",
+        "Automate the joiner-mover-leaver flow with an HR feed."
+      ],
+      "commonPitfalls": "Access reviews performed as a paper exercise without follow-through on revocations."
+    },
+    "PR.AT-01": {
+      "whatMatureLooksLike": "Awareness training is mandatory annually, role-based for high-risk roles (finance, executives, developers), and includes measurable outcomes such as phishing simulation and quiz scores.",
+      "nextSteps": [
+        "Adopt a training platform if none exists.",
+        "Set completion targets and track against them.",
+        "Add role-based modules for finance and privileged users."
+      ]
+    },
+    "DE.CM-01": {
+      "whatMatureLooksLike": "Continuous network monitoring feeds a SIEM or equivalent detection platform; alerts are triaged 24/7 or on a documented on-call schedule.",
+      "nextSteps": [
+        "Establish minimum log sources (identity, endpoint, network egress).",
+        "Deploy a SIEM or a lightweight detection tool.",
+        "Document the on-call rotation and alert triage runbook."
+      ]
+    },
+    "RS.MA-01": {
+      "whatMatureLooksLike": "A written incident response plan names roles, communication channels, and third-party contacts, and is exercised at least annually via tabletop or simulation.",
+      "nextSteps": [
+        "Document IR roles (incident commander, communications lead, technical lead).",
+        "Draft communication templates for internal, customer, and regulator audiences.",
+        "Run a tabletop exercise this quarter."
+      ],
+      "commonPitfalls": "Plan exists in a document repository but is never rehearsed; roles are ambiguous under pressure."
+    },
+    "RC.RP-01": {
+      "whatMatureLooksLike": "Recovery playbooks exist for each critical service, restore procedures are validated periodically, and recovery time objectives are agreed with business owners.",
+      "nextSteps": [
+        "Define a recovery time objective (RTO) per critical service.",
+        "Test a restore for at least one critical service per quarter.",
+        "Document the handoff between response and recovery teams."
+      ]
+    }
+  },
+  "tierTransitions": {
+    "0": "Moving from Not Implemented to Partial is about establishing the practice at all, in one place, for one system or team — not about doing it well everywhere. Name an owner, pick the narrowest scope that would still be meaningful, write down what you did, and accept that it will be inconsistent. Consistency is the next step, not this one.",
+    "1": "Moving from Partial to Risk Informed typically requires articulating the risk objectives that justify prioritization, getting management approval for the risk-management approach, and beginning to record informed decisions even if they are not yet repeated on a cadence.",
+    "2": "Moving from Risk Informed to Repeatable typically requires elevating the practice to organization-wide policy with defined ownership, publishing repeatable processes and procedures, sharing cybersecurity information routinely, and establishing an internal review cadence.",
+    "3": "Moving from Repeatable to Adaptive typically requires instrumenting the practice with quantitative indicators, integrating lessons-learned and predictive signals into decisions, and treating cybersecurity risk as one dimension of enterprise-risk decisions."
+  },
+  "functionSlants": {
+    "GV": "Govern gaps close through executive engagement, policy formalization, and clear role and responsibility assignments. Look for missing charters, undefined risk appetite, gaps in supplier management, or unassigned accountability.",
+    "ID": "Identify gaps close through inventory rigor and risk-assessment cadence. Look for outdated asset inventories, undocumented external dependencies, or infrequent threat and impact analysis.",
+    "PR": "Protect gaps close through control implementation and workforce enablement. Look for missing baseline configurations, inconsistent identity and access practice, gaps in data protection, or shortfalls in security training and awareness.",
+    "DE": "Detect gaps close through monitoring coverage and analysis capability. Look for blind spots in log collection, alerting thresholds that miss real signals, or missing runbooks for anomaly triage.",
+    "RS": "Respond gaps close through tested playbooks and coordinated communications. Look for undocumented incident-response steps, unclear escalation paths, or lack of post-incident review.",
+    "RC": "Recover gaps close through restoration testing and stakeholder communication plans. Look for missing recovery-time objectives, untested backups, or unclear recovery-communications protocols."
+  },
+  "tierNames": {
+    "0": "Not Implemented",
+    "1": "Partial",
+    "2": "Risk Informed",
+    "3": "Repeatable",
+    "4": "Adaptive"
+  },
+  "functionContext": {
+    "GV": {
+      "definition": "The organization's cybersecurity risk management strategy, expectations, and policy are established, communicated, and monitored.",
+      "whyItMatters": "Govern is where accountability, risk appetite, and policy live. Without it the other five functions operate in a vacuum — controls exist but no one owns them and there is no way to prioritize."
+    },
+    "ID": {
+      "definition": "The organization's current cybersecurity risks are understood.",
+      "whyItMatters": "Identify establishes what you have, what depends on it, and what could go wrong. You cannot defend or restore what you do not know about."
+    },
+    "PR": {
+      "definition": "Safeguards to manage the organization's cybersecurity risks are used.",
+      "whyItMatters": "Protect implements the controls — access, training, data safeguards, resilient infrastructure. This is where policy meets practice."
+    },
+    "DE": {
+      "definition": "Possible cybersecurity attacks and compromises are found and analyzed.",
+      "whyItMatters": "Detect covers monitoring and analysis. If Protect fails silently, Detect is your only warning that something is wrong."
+    },
+    "RS": {
+      "definition": "Actions regarding a detected cybersecurity incident are taken.",
+      "whyItMatters": "Respond is the playbook when something goes wrong. Documented, tested procedures beat panicked improvisation every time."
+    },
+    "RC": {
+      "definition": "Assets and operations affected by a cybersecurity incident are restored.",
+      "whyItMatters": "Recover restores operations and communicates outward. Untested backups are not backups; recovery time is a business decision made before the event."
+    }
+  },
+  "added": {
+    "tierTransitions.0": "Authored for this skill; the web tool had no 0 level.",
+    "tierNames.0": "Authored for this skill; the web tool had no 0 level."
+  }
+}

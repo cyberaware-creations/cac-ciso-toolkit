@@ -84,6 +84,25 @@ def gap_table(ctx: c.Context) -> str:
         ex = "".join(f"<li>{c.esc(e)}</li>" for e in g.get("examples", []))
         pc = c.PRIORITY_COLOR.get(g.get("priority", "medium"), c.SLATE)
         cur = c.rating(g.get("current"))
+        gd = g.get("guidance") or {}
+        gbits = []
+        if gd.get("header"):
+            gbits.append(f'<div class="ghead">{c.esc(gd["header"])}</div>')
+        if gd.get("whatMatureLooksLike"):
+            gbits.append(f'<p><strong>What mature looks like.</strong> '
+                         f'{c.esc(gd["whatMatureLooksLike"])}</p>')
+        if gd.get("nextSteps"):
+            steps = "".join(f"<li>{c.esc(s)}</li>" for s in gd["nextSteps"])
+            gbits.append(f'<p><strong>Next steps</strong></p><ol>{steps}</ol>')
+        if gd.get("transition"):
+            gbits.append(f'<p class="muted">{c.esc(gd["transition"])}</p>')
+        if gd.get("functionSlant"):
+            gbits.append(f'<p class="muted">{c.esc(gd["functionSlant"])}</p>')
+        if gd.get("commonPitfalls"):
+            gbits.append(f'<p class="pitfall"><strong>Watch for.</strong> '
+                         f'{c.esc(gd["commonPitfalls"])}</p>')
+        guidance_block = (f'<div class="guidance{" deep" if gd.get("source") == "deep" else ""}">'
+                          f'{"".join(gbits)}</div>') if gbits else ""
         rows.append(
             f'<tr class="grow" data-i="{i}">'
             f'<td class="mono">{c.esc(g["subcategoryId"])}</td>'
@@ -97,7 +116,8 @@ def gap_table(ctx: c.Context) -> str:
             f'<td class="muted mono">{c.esc(g.get("lastReviewed") or "never")}</td>'
             f'</tr>'
             f'<tr class="exrow" id="ex{i}"><td colspan="8">'
-            f'<div class="exwrap"><strong>Implementation Examples</strong>'
+            f'<div class="exwrap">{guidance_block}'
+            f'<strong>NIST Implementation Examples</strong>'
             f'<ul>{ex}</ul></div></td></tr>')
 
     return (f'<section><h2>Gaps <span class="muted">({len(ctx.gaps)})</span></h2>'
@@ -148,6 +168,35 @@ def attention(ctx: c.Context) -> str:
             f'<div class="hint">Never-reviewed and stalest are separate lists on purpose — '
             f'"nobody ever looked" is a different problem from "nobody looked lately".</div>'
             f'<div class="grid">{"".join(cards)}</div></section>')
+
+
+def playbook(ctx: c.Context) -> str:
+    """The Next-90-Days worksheet, from the web tool's report section 8.
+
+    Owner and Due are intentionally blank. This is a page to sit in front of a team
+    and fill in together; once a line has an owner and a date it belongs in the
+    action plan below, tracked by `action add`.
+    """
+    rows = ctx.a.get("playbook") or []
+    if not rows:
+        return ""
+    out = []
+    for r in rows:
+        move = r.get("recommendedFirstMove") or "—"
+        out.append(
+            f'<tr><td class="mono">{c.esc(r["subcategoryId"])}</td>'
+            f'<td>{c.esc(c.trunc(r["text"], 90))}</td>'
+            f'<td class="mono nowrap">{c.esc(c.rating(r.get("current")))} → {c.esc(r.get("target"))}</td>'
+            f'<td>{c.esc(move)}</td>'
+            f'<td class="fill"></td><td class="fill"></td></tr>')
+    return (f'<section><h2>Next 90 days</h2>'
+            f'<div class="hint">The highest-priority shortfalls with a recommended first move. '
+            f'Owner and due date are blank on purpose — fill them in with the team, then track '
+            f'them as action items so they show up on the attention lists.</div>'
+            f'<div class="scroll"><table class="playbook"><thead><tr>'
+            f'<th>Subcategory</th><th>Outcome</th><th>Current → Target</th>'
+            f'<th>Recommended first move</th><th>Owner</th><th>Due</th>'
+            f'</tr></thead><tbody>{"".join(out)}</tbody></table></div></section>')
 
 
 def action_plan(ctx: c.Context) -> str:
@@ -218,6 +267,15 @@ th[data-sort]:hover{{color:{c.INK}}}
 .exwrap{{background:{c.WB};padding:10px 12px;border-radius:8px}}
 .exwrap ul{{margin:6px 0 0;padding-left:18px}}
 .exwrap li{{font-size:12.5px;margin-bottom:4px}}
+.guidance{{background:#FFFDF7;border:1px solid {c.WB_LINE};border-left:3px solid {c.SLATE};
+  border-radius:8px;padding:10px 12px;margin-bottom:10px}}
+.guidance.deep{{border-left-color:{c.PATINA}}}
+.guidance .ghead{{font-weight:700;font-size:12.5px;margin-bottom:6px}}
+.guidance p{{font-size:12.5px;margin:0 0 6px}}
+.guidance ol{{margin:4px 0 6px;padding-left:18px}}
+.guidance li{{font-size:12.5px;margin-bottom:3px}}
+.guidance .pitfall{{color:#7C3A32}}
+.playbook td.fill{{background:{c.WB};min-width:110px}}
 .flag{{display:inline-block;background:#7C3A32;color:#fff;border-radius:4px;
   padding:1px 6px;font-size:10.5px;font-weight:700;margin-left:6px}}
 """
@@ -290,7 +348,7 @@ def main(argv):
                + f'</div></section>')
 
     body = (head + "<main>" + overall + heatmap(ctx) + gap_table(ctx) + attention(ctx)
-            + action_plan(ctx) + "</main>"
+            + playbook(ctx) + action_plan(ctx) + "</main>"
             + f'<footer>{c.esc(ctx.footer())}</footer>'
             + f"<script>{JS}</script>")
     c.write(ctx, c.page(f'{p.get("name", "CSF Profile")} — Coverage', CSS, body))

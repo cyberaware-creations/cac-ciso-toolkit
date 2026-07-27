@@ -113,6 +113,41 @@ rather than putting raw framework wording in front of a board.
 
 Deliver dashboards as files. Persist board-facing views as artifacts.
 
+## Coming from the csf-assessment web tool
+
+Existing `.csfa` assessments are first-class inputs, handled by `scripts/csfa_compat.py`:
+
+```bash
+# Migrate an assessment into a tracked Profile (history, snapshots, per-Subcategory targets)
+python3 scripts/csfa_compat.py convert assessment.csfa --out profile.csfp
+
+# Or just reproduce the tool's gaps CSV, byte-for-byte
+python3 scripts/csfa_compat.py gaps assessment.csfa --out gaps.csv
+```
+
+Conversion **keeps the source 0–4 scale** rather than rescaling — a "2" on that scale is not a "2"
+on the native 0–3 scale, and silently converting would change what every rating asserts. Read
+`references/scale-and-scoring.md` before discussing a converted Profile: its 1–4 labels borrow NIST
+Tier vocabulary, which is a practical convention and **not** NIST doctrine. Say so if it goes near an
+assessor.
+
+That module is a frozen port of the web tool's engine, kept separate from `profile_analysis.py` on
+purpose. Byte-parity on the gaps CSV is a contract — don't "improve" the ported functions.
+
+## Closing gaps: authored guidance
+
+`analyze` attaches guidance to every gap row from `references/guidance.json`:
+
+- **15 Subcategories** carry hand-authored deep guidance — what mature looks like, concrete next
+  steps, and common pitfalls.
+- The rest get a Function-level slant describing where gaps in that Function usually hide.
+- Both sit alongside the NIST Implementation Examples, which all 106 Subcategories have.
+
+`analyze` also emits a **`playbook`** block: the top gaps with a recommended first move and blank
+Owner/Due, rendered as the "Next 90 days" worksheet on the operational dashboard. Fill it in with the
+team, then promote each line to a tracked action with `action add` — an item without an owner and a
+date will still be there next quarter.
+
 ## Handing gaps to the risk register
 
 ```bash
@@ -166,6 +201,8 @@ crosswalks. See `references/framework-abstraction.md`.
 | File | What it covers |
 |---|---|
 | `references/schema.md` | The `.csfp` contract, coverage arithmetic, material-change rules |
+| `references/scale-and-scoring.md` | The two scales, the Tier-vocabulary caveat, both scoring models |
+| `references/guidance.json` | Authored guidance: 15 deep entries, Function slants, tier transitions |
 | `references/assessment-and-review.md` | Workflows A and B, command by command |
 | `references/dashboards.md` | What each dashboard must contain, and the rules binding both |
 | `references/framework-abstraction.md` | The multi-framework seam and the crosswalk plan |

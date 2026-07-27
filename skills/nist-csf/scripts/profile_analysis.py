@@ -97,6 +97,7 @@ CORE_EXPECTED = {
 
 _SKILL_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_CORE = os.path.join(_SKILL_ROOT, "references", "nist-csf-2.0-core.json")
+DEFAULT_GUIDANCE = os.path.join(_SKILL_ROOT, "references", "guidance.json")
 FIXTURE = os.path.join(_SKILL_ROOT, "examples", "example-profile.csfp")
 
 
@@ -427,6 +428,87 @@ def compute_completeness(assessments: list[dict], index: dict, core: dict) -> di
         "byFunction": {fid: _completeness_of(by_fn.get(fid, [])) for fid in function_ids(core)},
         "byCategory": {cid: _completeness_of(subset) for cid, subset in sorted(by_cat.items())},
     }
+
+
+# --- Authored guidance -------------------------------------------------------
+
+def load_guidance(path: str | None = None) -> dict:
+    """Load the harvested authored guidance. Absent is fine — guidance is additive."""
+    try:
+        with open(path or DEFAULT_GUIDANCE, encoding="utf-8") as fh:
+            return json.load(fh)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+def render_guidance(row: dict, settings: dict, guidance: dict) -> dict | None:
+    """Assemble 'how to close this' for one gap row.
+
+    Ported from the web tool's renderGuidance, with one deliberate restriction.
+    The tool's tier-transition paragraphs name specific levels ("Partial to Risk
+    Informed") and only make sense on its own 0-4 scale. A Profile using the
+    default 0-3 achievement scale means something different by "1", so the
+    transition text is included only when the scale actually matches. The deep
+    entries and function slants describe practice rather than levels, so they
+    apply on any scale.
+    """
+    if not guidance:
+        return None
+    deep = (guidance.get("deepGuidance") or {}).get(row["subcategoryId"])
+    out = {"subcategoryId": row["subcategoryId"], "source": "deep" if deep else "template"}
+
+    if deep:
+        out["whatMatureLooksLike"] = deep.get("whatMatureLooksLike")
+        out["nextSteps"] = list(deep.get("nextSteps") or [])
+        if deep.get("commonPitfalls"):
+            out["commonPitfalls"] = deep["commonPitfalls"]
+    else:
+        slant = (guidance.get("functionSlants") or {}).get(row["functionId"])
+        if slant:
+            out["functionSlant"] = slant
+
+    scale = settings.get("scale", {})
+    tool_scale = scale.get("max") == 4 and scale.get("labels", {}).get("2") == "Risk Informed"
+    if tool_scale:
+        cur = row.get("current")
+        transition = (guidance.get("tierTransitions") or {}).get(str(cur if cur is not None else 0))
+        if transition:
+            out["transition"] = transition
+        names = guidance.get("tierNames") or {}
+        if names:
+            out["header"] = (f"{names.get(str(cur if cur is not None else 0), cur)} → "
+                             f"{names.get(str(row.get('target')), row.get('target'))}.")
+    else:
+        labels = scale.get("labels", {})
+        cur = row.get("current")
+        out["header"] = (f"{labels.get(str(cur), 'unassessed') if cur is not None else 'unassessed'} → "
+                         f"{labels.get(str(row.get('target')), row.get('target'))}.")
+    return out if len(out) > 2 else None
+
+
+def build_playbook(gaps: list[dict], settings: dict, guidance: dict, top: int = 10) -> list[dict]:
+    """The Next-90-Days worksheet: top gaps, each with a recommended first move.
+
+    Owner and due date are deliberately blank — this is a worksheet to be filled in
+    with a team, not a plan to be handed down. Once an item has an owner and a date
+    it belongs in the action plan, tracked by `action add`.
+    """
+    rows = []
+    for g in gaps[:top]:
+        gd = render_guidance(g, settings, guidance) or {}
+        first = (gd.get("nextSteps") or [None])[0] or gd.get("functionSlant")
+        rows.append({
+            "subcategoryId": g["subcategoryId"],
+            "functionId": g["functionId"],
+            "text": g["text"],
+            "current": g.get("current"),
+            "target": g.get("target"),
+            "priority": g.get("priority"),
+            "prioritizedGapScore": g.get("prioritizedGapScore"),
+            "recommendedFirstMove": first,
+            "owner": "", "due": "",
+        })
+    return rows
 
 
 def attention_lists(store: dict, index: dict, today: str, top: int = 10) -> dict:
@@ -1004,6 +1086,13 @@ def _cmd_analyze(args):
     tiers = copy.deepcopy(core.get("tiers") or {})
     tiers["profile"] = prof.get("tier", {})
 
+    guidance = load_guidance()
+    gaps = compute_gaps(store["assessments"], settings, index)
+    for row in gaps:
+        g = render_guidance(row, settings, guidance)
+        if g:
+            row["guidance"] = g
+
     out = {
         "generated": {"today": today, "engine": "profile_analysis.py", "schemaVersion": SCHEMA_VERSION},
         "profile": {
@@ -1022,7 +1111,8 @@ def _cmd_analyze(args):
         "tracked": len(store["assessments"]),
         "coverage": compute_coverage(store["assessments"], index, core),
         "completeness": compute_completeness(store["assessments"], index, core),
-        "gaps": compute_gaps(store["assessments"], settings, index),
+        "gaps": gaps,
+        "playbook": build_playbook(gaps, settings, guidance, top),
         "attention": attention_lists(store, index, today, top),
         "actionItems": {
             "items": store["actionItems"],
