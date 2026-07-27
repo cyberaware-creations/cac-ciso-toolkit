@@ -1,0 +1,69 @@
+# The three suites README.md says to "run all three before any release", run on every push
+# instead — because that instruction was already in the README when v0.1.4 shipped a
+# Python-3.12-only construct that made a whole dashboard fail to import. A release checklist
+# a human has to remember is not a check.
+name: evals
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  floor:
+    # Pinned to 3.9 deliberately. A green run on a newer interpreter proves nothing about
+    # the floor we publish — that is the entire lesson of v0.1.4/v0.1.5. Raise this only
+    # together with FLOOR_MINOR in python-compat.sh and the Requirements section of README.md.
+    name: Python floor (3.9)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+
+      - name: Every shipped .py compiles on the floor
+        run: ./skills/risk-register/evals/python-compat.sh "$(command -v python3)"
+
+      - name: Deterministic engines agree with their fixtures
+        run: |
+          python3 skills/risk-register/scripts/score_register.py self-test
+          python3 skills/nist-csf/scripts/profile_analysis.py validate
+          python3 skills/nist-csf/scripts/profile_analysis.py self-test
+          python3 skills/nist-csf/scripts/csfa_compat.py self-test
+
+      - name: Board-safety suite, on the floor
+        run: PY="$(command -v python3)" ./skills/risk-register/evals/board-safety.sh
+
+  rendered:
+    # Width and WCAG AA contrast are properties of a *resolved layout*, so they need a real
+    # layout engine. Four shipped defects lived in this blind spot.
+    name: Rendered artifacts (width + contrast)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-node@v4
+        with:
+          # contrast-check.mjs speaks CDP over Node's global WebSocket, which lands in 22.
+          node-version: '22'
+
+      - name: Require the tools responsive.sh would otherwise skip on
+        # responsive.sh exits 0 when node or Chrome is missing, which is right for a laptop
+        # and wrong for CI: a silently skipped check reports as a green tick. Fail loudly here
+        # so the job can never pass without having actually measured anything.
+        run: |
+          command -v google-chrome >/dev/null || { echo "::error::google-chrome not on this runner; responsive.sh would skip and report a false green"; exit 1; }
+          node -e 'if (+process.versions.node.split(".")[0] < 22) { console.error("::error::Node " + process.versions.node + " has no global WebSocket"); process.exit(1) }'
+
+      - name: Width at 320/375/768/1265px, and AA contrast at 390/768/1280px
+        run: ./skills/risk-register/evals/responsive.sh
