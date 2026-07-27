@@ -56,6 +56,7 @@ import json
 import os
 import re
 import sys
+import tempfile
 from datetime import datetime, timezone
 
 # Behave like a normal Unix filter: on a closed pipe (e.g. `... | head`), exit
@@ -68,7 +69,8 @@ except (ImportError, AttributeError, ValueError):
 
 # --- Constants ---------------------------------------------------------------
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "2.0"          # current write version
+SUPPORTED_SCHEMA = {"1.0", "2.0"}   # v1 files load and normalize to v2 shape in memory
 FRAMEWORK_REF = "nist-csf-2.0"
 
 APPLICABILITY = ("in-scope", "not-applicable")
@@ -84,6 +86,17 @@ DEFAULT_SETTINGS = {
     },
     "priorityWeights": {"low": 1, "medium": 2, "high": 3, "critical": 4},
     "functionWeights": {},   # filled per framework at init; equal by default
+    # Reporting thresholds. Both are user-set with a shipped default; neither
+    # changes a score, only whether a number is presented and what is flagged.
+    "reporting": {
+        # Below this share of in-scope Subcategories assessed, the headline
+        # programme figure is SUPPRESSED, not caveated. A number with a warning
+        # beside it is still a number, and people read the number.
+        "scopeThresholdPct": 60,
+        # A rating older than this is counted and reported. Ratings never expire:
+        # age is reported and the human judges. See references/schema.md.
+        "ageThresholdDays": 180,
+    },
 }
 
 QUICKSTART_DEFAULT_LEVEL = 2   # "Largely Achieved" — a defensible baseline, not a maximum.
@@ -219,10 +232,10 @@ def load_store(path: str) -> dict:
     except json.JSONDecodeError as exc:
         raise ValueError(f"{path} is not a valid Profile file (invalid JSON): {exc}") from exc
 
-    if store.get("schemaVersion") != SCHEMA_VERSION:
+    if store.get("schemaVersion") not in SUPPORTED_SCHEMA:
         raise ValueError(
-            f"Unsupported schemaVersion {store.get('schemaVersion')!r} (this engine writes "
-            f"{SCHEMA_VERSION!r})."
+            f"Unsupported schemaVersion {store.get('schemaVersion')!r} "
+            f"(supported: {', '.join(sorted(SUPPORTED_SCHEMA))})."
         )
     if not isinstance(store.get("profile"), dict):
         raise ValueError("Invalid Profile file: missing 'profile' object.")
@@ -236,6 +249,25 @@ def load_store(path: str) -> dict:
     prof.setdefault("scope", {})
     prof.setdefault("tier", {"overall": None, "byFunction": {}})
     prof["settings"] = {**copy.deepcopy(DEFAULT_SETTINGS), **prof.get("settings", {})}
+
+    # Nested settings survive the shallow merge above: a v1 file has no
+    # `reporting` key at all, and a v2 file may carry only one of the two.
+    prof["settings"]["reporting"] = {
+        **copy.deepcopy(DEFAULT_SETTINGS["reporting"]),
+        **(prof["settings"].get("reporting") or {}),
+    }
+
+    # v1 -> v2 normalization, in memory. No data loss; the write path stamps 2.0.
+    #
+    # confirmedAt is deliberately NOT seeded from lastReviewed. "A human looked at
+    # this outcome" and "a human decided this rating, from this source, on this
+    # date" are different claims, and inventing the second from the first would
+    # fabricate exactly the attribution this schema exists to make honest.
+    store.setdefault("intake", [])
+    for a in store["assessments"]:
+        a.setdefault("confirmedAt", None)
+        a.setdefault("confirmedBy", None)
+        a.setdefault("source", None)
     return store
 
 
@@ -1465,6 +1497,40 @@ def _cmd_self_test(_args):
     except ValueError as exc:
         ok("applicability" in str(exc), "'N/A' error points at --applicability")
     checks += 1
+
+    # --- Schema v2: normalization and attribution defaults ---
+    v1 = {
+        "schemaVersion": "1.0",
+        "profile": {"id": "t", "name": "T", "frameworkRef": FRAMEWORK_REF,
+                    "created": "2026-01-01T00:00:00Z", "updated": "2026-01-01T00:00:00Z"},
+        "assessments": [{"subcategoryId": "ID.AM-01", "applicability": "in-scope",
+                         "current": 2, "target": 3, "priority": "medium",
+                         "status": "in-progress", "notes": "", "evidenceRefs": [],
+                         "lastReviewed": "2026-01-01"}],
+        "history": [], "snapshots": [], "actionItems": [],
+    }
+    with tempfile.TemporaryDirectory() as _d:
+        _p = os.path.join(_d, "v1.csfp")
+        with open(_p, "w", encoding="utf-8") as _fh:
+            json.dump(v1, _fh)
+        s = load_store(_p)
+        eq(s["intake"], [], "v1 normalizes with an empty intake list")
+        a0 = s["assessments"][0]
+        eq(a0["confirmedAt"], None, "v1 rating normalizes with confirmedAt null")
+        eq(a0["confirmedBy"], None, "v1 rating normalizes with confirmedBy null")
+        eq(a0["source"], None, "v1 rating normalizes with source null")
+        eq(a0["current"], 2, "v1 normalization does not touch the rating itself")
+        eq(s["profile"]["settings"]["reporting"]["scopeThresholdPct"], 60,
+           "reporting defaults are seeded on normalization")
+        eq(s["profile"]["settings"]["reporting"]["ageThresholdDays"], 180,
+           "age threshold default is 180 days")
+        save_store(s, _p, "2026-07-27T00:00:00Z")
+        with open(_p, encoding="utf-8") as _fh:
+            back = json.load(_fh)
+        eq(back["schemaVersion"], "2.0", "first write stamps schemaVersion 2.0")
+        eq(load_store(_p)["assessments"][0]["current"], 2, "a v2 file round-trips")
+    ok("2.0" in SUPPORTED_SCHEMA and "1.0" in SUPPORTED_SCHEMA,
+       "both schema versions load")
 
     # --- Export contract ---
     eq(EXPORT_COLUMNS,
