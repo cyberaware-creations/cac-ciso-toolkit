@@ -2800,6 +2800,65 @@ def _cmd_self_test(_args):
         eq(len(_an_qtop3["queue"]), 3, "--queue-top bounds the queue emitted by analyze")
         eq(len(_an_qtop3["playbook"]), 10, "--top keeps its own default of 10, unmoved by --queue-top")
 
+    # --- The shipped v2 fixture exercises every new state at once ---
+    fx2 = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "examples",
+                       "example-profile-v2.csfp")
+    s2 = load_store(fx2)
+    eq(s2["schemaVersion"], "2.0", "v2 fixture is schema 2.0")
+    eq(len(s2["intake"]), 4, "v2 fixture carries four intake records")
+    eq(check_store(s2, index), [], "v2 fixture passes structural validation")
+    rep2 = s2["profile"]["settings"]["reporting"]
+    ev2 = derive_evidence(s2["assessments"], s2["intake"], index, core, "2026-07-27",
+                          rep2["scopeThresholdPct"], rep2["ageThresholdDays"])
+    cov2 = ev2["coverage"]["overall"]
+    eq(cov2["confirmed"], 4, "v2 fixture: four confirmed ratings")
+    eq(cov2["attributed"], 4, "v2 fixture: every confirmation is attributed")
+    eq(cov2["unattributed"], 0, "v2 fixture: nothing confirmed without a source")
+    eq(cov2["evidencePending"], 5, "v2 fixture: five Subcategories have material, no rating")
+    eq(cov2["unrated"], 96, "v2 fixture: the rest have nothing recorded")
+    eq(cov2["notApplicable"], 1, "v2 fixture: one Subcategory scoped out")
+    eq(cov2["confirmed"] + cov2["evidencePending"] + cov2["unrated"] + cov2["notApplicable"],
+       106, "v2 fixture: the four buckets partition all 106")
+
+    eq([r["subcategoryId"] for r in ev2["revisit"]], ["RC.RP-01"],
+       "v2 fixture: the DR walkthrough questions the January recovery rating")
+    eq(ev2["revisit"][0]["confirmedAt"], "2026-01-10", "revisit names the confirmation it questions")
+    eq(ev2["revisit"][0]["newestSourceDate"], "2026-06-30", "and the material that questions it")
+
+    age2 = ev2["age"]["overall"]
+    eq(age2["dated"], 4, "v2 fixture: four dated confirmations")
+    eq(age2["oldestDays"], 420, "v2 fixture: oldest is 2025-06-02 to 2026-07-27")
+    eq(age2["medianDays"], 309, "v2 fixture: median of 198, 198, 420, 420")
+    eq(age2["olderThanThreshold"], 4, "v2 fixture: all four are older than the 180-day default")
+    ok(age2["oldestDays"] > 365, "v2 fixture: ratings span more than twelve months")
+
+    eq(ev2["scopeGuard"]["assessed"], 4, "v2 fixture: four of 105 in-scope assessed")
+    eq(ev2["scopeGuard"]["inScope"], 105, "v2 fixture: the n/a Subcategory is out of the denominator")
+    ok(ev2["scopeGuard"]["suppressed"], "v2 fixture sits below the scope threshold")
+
+    _rank2 = resolve_rank(index, core, load_cold_start_rank())
+    q2_all = build_queue(s2["assessments"], s2["intake"], ev2, index, _rank2)
+    bands2 = [r["band"] for r in q2_all]
+    eq(bands2[:5], ["evidence-pending"] * 5, "the five pending items lead the queue")
+    eq(bands2[5], "revisit", "the revisit follows them, before any cold start")
+    eq(q2_all[5]["subcategoryId"], "RC.RP-01", "and it is the recovery rating")
+    ok(all(b == "cold-start" for b in bands2[6:]), "cold-start fills the tail")
+
+    # A full batch of pending material pushes the revisit to the next session. That is
+    # the anti-rubber-stamping cap working, not a defect — five is a deliberate limit.
+    q2 = build_queue(s2["assessments"], s2["intake"], ev2, index, _rank2, 5)
+    eq(len(q2), 5, "the default batch is five")
+    ok(all(r["band"] == "evidence-pending" for r in q2),
+       "five pending items fill the first batch, so the revisit waits for the next")
+    ok(all(r["tier"] is None for r in q2), "v2 fixture queue carries no pre-filled ratings")
+
+    bysrc2 = coverage_by_source(s2["intake"], ev2["states"], index)
+    eq([r["id"] for r in bysrc2], ["in-0004", "in-0003", "in-0002", "in-0001"],
+       "v2 fixture sources are newest-first by sourceDate")
+    eq([r["confirmed"] for r in bysrc2 if r["id"] == "in-0001"][0], 2,
+       "the asset workshop confirmed two of its four subjects")
+    eq(len(s2["snapshots"]), 1, "v2 fixture carries a snapshot, so diff has something to compare")
+
     # --- Export contract ---
     eq(EXPORT_COLUMNS,
        ["subcategory_id", "function_id", "category_id", "current_tier", "target_tier",
