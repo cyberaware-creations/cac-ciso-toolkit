@@ -230,6 +230,42 @@ def convert_to_csfp(assessment: dict, core: dict, ts: str, scale_max: int = 3) -
             "lastReviewed": (meta.get("assessedAt") or ts[:10]) if rt.get("tier") is not None else None,
         })
 
+    # A converted assessment IS a source: it happened on a date, a named assessor ran
+    # it, and it bears on exactly the Subcategories it rated. Recording it as intake
+    # means every imported rating answers "how do you know?" from day one, instead of
+    # arriving as anonymous numbers the CLI would have refused to write.
+    imported_by = meta.get("assessor") or "csf-assessment import"
+    raw_assessed_at = meta.get("assessedAt")
+    assessed_at = str(raw_assessed_at).strip() if raw_assessed_at else None
+    if assessed_at and pa._is_iso_date(assessed_at):
+        source_date = assessed_at
+    else:
+        created_at = assessment.get("createdAt")
+        candidate = str(created_at)[:10] if created_at else None
+        source_date = candidate if candidate and pa._is_iso_date(candidate) else ts[:10]
+
+    rated = [x["subcategoryId"] for x in assessments if x["current"] is not None]
+    intake = []
+    if rated:
+        intake_id = "in-0001"
+        intake.append({
+            "id": intake_id,
+            "label": f"csf-assessment import ({meta.get('clientName') or 'Imported Profile'})",
+            "sourceDate": source_date,
+            "recordedAt": ts[:10],
+            "subjects": list(rated),
+            "recordedBy": imported_by,
+        })
+        rated_set = set(rated)
+        for x in assessments:
+            if x["subcategoryId"] in rated_set:
+                x["confirmedAt"], x["confirmedBy"], x["source"] = source_date, imported_by, intake_id
+            else:
+                x["confirmedAt"] = x["confirmedBy"] = x["source"] = None
+    else:
+        for x in assessments:
+            x["confirmedAt"] = x["confirmedBy"] = x["source"] = None
+
     name = meta.get("clientName") or "Imported Profile"
     store = {
         "schemaVersion": pa.SCHEMA_VERSION,
@@ -252,12 +288,18 @@ def convert_to_csfp(assessment: dict, core: dict, ts: str, scale_max: int = 3) -
         },
         "assessments": assessments,
         "history": [], "snapshots": [], "actionItems": [],
+        "intake": intake,
     }
     pa.append_history(store, "profile-imported",
                       rationale=f"Imported from csf-assessment .csfa "
                                 f"(assessed {meta.get('assessedAt') or 'date unknown'}, "
                                 f"targets preset '{targets.get('preset')}').",
                       actor=meta.get("assessor"), ts=ts)
+    if intake:
+        pa.append_history(store, "intake-recorded", intakeId="in-0001", ts=ts,
+                          actor=imported_by,
+                          rationale=f"Imported from a csf-assessment export; "
+                                    f"{len(rated)} ratings attributed to that assessment.")
     return store
 
 
@@ -373,6 +415,65 @@ def _cmd_self_test(_args):
             byfn.setdefault(pa.index_subcategories(core)[x["subcategoryId"]]["functionId"], set()).add(x["target"])
     eq(byfn.get("GV"), {4}, "GV Subcategory targets expanded from the Function target")
     eq(byfn.get("DE"), {3}, "DE Subcategory targets expanded from the default")
+
+    # --- Conversion lands as v2 with the source assessment as its own intake record ---
+    conv = convert_to_csfp(a, core, ts="2026-07-27T00:00:00Z")
+    eq(conv["schemaVersion"], "2.0", "convert writes schema 2.0")
+    eq(len(conv["intake"]), 1, "convert synthesises one intake record for the source file")
+    rec = conv["intake"][0]
+    eq(rec["id"], "in-0001", "the synthesised record is in-0001")
+    ok("csf-assessment" in rec["label"], "the label names where the ratings came from")
+    ok(pa._is_iso_date(rec["sourceDate"]), "sourceDate is a zero-padded ISO date")
+    ok(pa._is_iso_date(rec["recordedAt"]), "recordedAt is a zero-padded ISO date")
+    rated = sorted(x["subcategoryId"] for x in conv["assessments"] if x["current"] is not None)
+    eq(sorted(rec["subjects"]), rated,
+       "the record bears on exactly the Subcategories the source rated")
+    ok(len(rated) > 0, "the fixture actually rates something, so this test means something")
+
+    # The source's conversion loop is a single membership test plus an unconditional
+    # triple-assignment applied uniformly across all 106 rows — there is no per-row
+    # branching for row 12 to pass while row 87 fails. So assert the aggregate: four
+    # list-valued checks mirroring the source's two branches, not 106 near-identical
+    # ones. eq(bad, [], ...) still prints the offending ids if the property ever breaks.
+    rated_rows = [x for x in conv["assessments"] if x["current"] is not None]
+    unrated_rows = [x for x in conv["assessments"] if x["current"] is None]
+    eq([x["subcategoryId"] for x in rated_rows if x["source"] != "in-0001"], [],
+       "every rated row is attributed to the import")
+    eq([x["subcategoryId"] for x in rated_rows if not x["confirmedBy"]], [],
+       "every rated row names a confirmer")
+    eq([x["subcategoryId"] for x in rated_rows if not pa._is_iso_date(x["confirmedAt"])], [],
+       "every rated row carries a zero-padded ISO confirmation date")
+    eq([x["subcategoryId"] for x in unrated_rows
+        if x["source"] or x["confirmedBy"] or x["confirmedAt"]], [],
+       "no unrated or not-applicable row carries attribution")
+
+    ev = [e for e in conv["history"] if e.get("type") == "intake-recorded"]
+    eq(len(ev), 1, "the import appends exactly one intake-recorded event")
+    eq(ev[0].get("intakeId"), "in-0001", "the event names the intake id")
+
+    # The converted Profile must survive the engine's own validation, which now
+    # checks date shape on both attribution and intake.
+    eq(pa.check_store(conv, pa.index_subcategories(core)), [],
+       "a converted Profile passes check_store with no problems")
+
+    # A .csfa with no ratings at all must not fabricate an empty source.
+    empty = convert_to_csfp({"meta": {"clientName": "Empty Co"}, "ratings": {}},
+                            core, ts="2026-07-27T00:00:00Z")
+    eq(empty["intake"], [], "an assessment that rated nothing records no source")
+    ok(all(x["source"] is None for x in empty["assessments"]),
+       "and attributes nothing")
+
+    # The fixture always supplies meta.assessor, so the fallback literal is never
+    # exercised there. Cover it directly: a rated Subcategory with no assessor named.
+    no_assessor = convert_to_csfp(
+        {"meta": {"clientName": "No Assessor Co"},
+         "ratings": {"GV.OC-01": {"tier": 2, "na": False}}},
+        core, ts="2026-07-27T00:00:00Z")
+    eq(no_assessor["intake"][0]["recordedBy"], "csf-assessment import",
+       "with no assessor named, the intake record falls back to the literal")
+    rated_row = next(x for x in no_assessor["assessments"] if x["subcategoryId"] == "GV.OC-01")
+    eq(rated_row["confirmedBy"], "csf-assessment import",
+       "and the rated row's confirmedBy falls back to the same literal")
 
     print(f"csfa-compat self-test: {checks - len(failures)}/{checks} checks passed")
     if failures:
