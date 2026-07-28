@@ -216,7 +216,30 @@ anywhere else does not belong in this file.
 
 Filled in after each real run. Newest first.
 
-### 2026-07-28 · plugin 0.3.2 · V4 fixed, 3/3
+### 2026-07-28 · plugin 0.3.2 · **6/6** · $3.68, slowest case 92s
+
+Six cases, one version, tools permitted. No inconclusive cases, no advisories.
+
+```
+V1 | PASS  intake+1 ratings+0 actions+0
+V2 | PASS  intake+0 ratings+0 actions+0
+V3 | PASS  intake+0 ratings+0 actions+0
+V4 | PASS  intake+0 ratings+0 actions+1
+V5 | PASS  intake+0 ratings+1 actions+0  (attributed 1)
+V6 | PASS  intake+0 ratings+0 actions+0
+```
+
+This is the regression run the entry below flagged as pending. **V1 held at
+`actionsAdded: 0`**, which is the number that mattered: the V4 fix makes the skill more
+willing to record a question as an action, and V1 is the case that would have caught that
+spilling into a workflow where no action belongs.
+
+Read this as six cases passing on one run, not as a settled property. V4 was intermittent
+across 0.3.0 and 0.3.1 before it was diagnosed, so a single green run of any case is weaker
+evidence than it looks. What is better established here is V4 specifically — 3/3 in the
+repeat runs below, plus this one.
+
+### 2026-07-28 · plugin 0.3.2 · V4 fixed, 3/3 (repeat runs)
 
 V4 was the open finding from 0.3.1 and it was intermittent, so one green run would not have
 settled it. Three independent runs, all PASS, all recording the action **unowned** — which is
@@ -229,10 +252,10 @@ The cause was in both places that teach the affordance: rule 3 did not say an ow
 optional, and Workflow C's only worked example passed `--owner` and `--target-date`, which
 reads as the required shape. The model was following the example.
 
-**Full six-case regression run at 0.3.2 pending.** It matters specifically because the fix
-makes the skill *more* willing to record actions, and V1 asserts `actionsAdded: 0` — a change
-that trades one failure for another is not a fix, and three green runs of the case that was
-changed would not catch it. Recorded here as pending rather than assumed.
+A full six-case regression run followed, because the fix makes the skill *more* willing to
+record actions and V1 asserts `actionsAdded: 0` — a change that trades one failure for another
+is not a fix, and three green runs of the case that was changed would not catch it. Result is
+the 6/6 entry above.
 
 ### 2026-07-28 · plugin 0.3.1 · 5/6 · $3.63, slowest case 80s
 
