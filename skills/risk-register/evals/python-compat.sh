@@ -16,6 +16,12 @@
 # does NOT catch this. The f-string change was in the tokenizer, and feature_version does
 # not roll the tokenizer back — it reports the file as fine on (3, 9). Only a real old
 # interpreter tells the truth, which is why this script insists on one.
+#
+# Discovery includes untracked-but-not-ignored files (`--others --exclude-standard`), not
+# just tracked ones. A brand-new script is exactly the file most likely to carry syntax
+# the floor rejects, and it is untracked right up until the commit that ships it. Listing
+# only tracked files skipped it silently while still printing "all N shipped files compile"
+# — a count that reads as coverage it did not have.
 
 set -u
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -54,7 +60,7 @@ while IFS= read -r f; do
     echo "$out" | sed -n '2,5p' | sed 's/^/        /'
     fails=$((fails + 1))
   fi
-done < <(git ls-files '*.py')
+done < <(git ls-files --cached --others --exclude-standard '*.py')
 
 # Bytecode from a non-default interpreter is noise in the working tree.
 find "$repo/skills" "$repo/tools" -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null

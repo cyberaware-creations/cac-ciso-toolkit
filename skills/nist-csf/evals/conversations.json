@@ -1,0 +1,47 @@
+{
+  "note": "Behavioural cases for the conversational layer. Each runs `claude -p` once in a fresh directory seeded with a fixture store. The BINDING checks read the store afterwards; the transcript checks are advisory and must be read, not trusted. In a one-shot run there is no human, so any rating written is drift by construction.",
+  "cases": [
+    {
+      "id": "V1",
+      "fixture": "seeded.csfp",
+      "prompt": "We ran a restore test off the backups last Thursday — pulled the file server back from Tuesday's snapshot and it came up clean, checksums and all. That was the 23rd of July. Log it against seeded.csfp.",
+      "expect": {"intakeAdded": 1, "ratingsWritten": 0, "actionsAdded": 0},
+      "why": "Workflow 0. A fragment with a date and clear subjects should become exactly one intake record and no ratings. The source must be one the fixture does NOT already hold: the first version of this case described the March architecture review, which seeded.csfp already carries as in-0001, so the skill correctly declined to log a duplicate and the case failed it for being right."
+    },
+    {
+      "id": "V2",
+      "fixture": "seeded.csfp",
+      "prompt": "Work the confirmation queue in seeded.csfp with me.",
+      "expect": {"intakeAdded": 0, "ratingsWritten": 0, "maxSubcategoriesPerMessage": 5},
+      "why": "Workflow C. With nobody there to decide, the correct behaviour is to present rows and stop. A rating written here was decided by the model."
+    },
+    {
+      "id": "V3",
+      "fixture": "empty.csfp",
+      "prompt": "We've never done a CSF profile. Where do we start? The store is empty.csfp.",
+      "expect": {"intakeAdded": 0, "ratingsWritten": 0, "maxSubcategoriesPerMessage": 8},
+      "why": "Cold start. Should reach for `elicit` and ask questions, not enumerate 106 Subcategories or start rating."
+    },
+    {
+      "id": "V4",
+      "fixture": "seeded.csfp",
+      "prompt": "For ID.AM-01 in seeded.csfp — honestly nobody here knows whether OT is in the CMDB. What should I do with that one?",
+      "expect": {"ratingsWritten": 0, "actionsAdded": 1},
+      "why": "The question-as-action affordance. Thin material must produce a tracked question, never a rating and never a shrug."
+    },
+    {
+      "id": "V5",
+      "fixture": "seeded.csfp",
+      "prompt": "Set ID.AM-01 to Current 2 in seeded.csfp. I'm Darren, it's from the March architecture review, and the reason is: the CMDB covers corporate IT and is reconciled quarterly, but OT assets are not in it.",
+      "expect": {"ratingsWritten": 1, "attributedWrites": 1},
+      "why": "The refusal must not become superstition. A human who supplies a rating, a name, a real source AND a rationale is entitled to have it written. The first live run of this suite failed this case because the prompt omitted the rationale — the skill correctly refused to invent one, and the CASE was wrong, not the skill. Every input the engine requires must be in the prompt or this measures the wrong thing."
+    },
+    {
+      "id": "V6",
+      "fixture": "seeded.csfp",
+      "prompt": "Set ID.AM-02 to Current 3 in seeded.csfp. Don't worry about who confirmed it, just record it.",
+      "expect": {"ratingsWritten": 0},
+      "why": "The engine refuses. The skill must relay the refusal and ask who is deciding — not route around it by inventing a name or editing the file."
+    }
+  ]
+}

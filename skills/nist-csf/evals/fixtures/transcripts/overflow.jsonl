@@ -1,0 +1,2 @@
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": "I'll pull the confirmation queue for you."}]}}
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": "Here's everything outstanding: ID.AM-01, ID.AM-02, ID.AM-03, ID.AM-05, PR.AA-01, PR.AA-03, PR.AA-05, PR.DS-11, RC.RP-03. Work through them and tell me the ratings."}]}}

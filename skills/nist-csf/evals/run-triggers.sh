@@ -21,6 +21,11 @@ only=("$@")
 maxjobs="${MAXJOBS:-5}"
 
 mkdir -p "$out/runs" "$out/work"
+# Each run `cd`s into its own working directory, so every path handed to it has to be
+# absolute. A relative output dir resolves against the *case* directory once inside the
+# subshell, the redirect fails, and every transcript lands nowhere — which reads as
+# "the model produced nothing", not as "the script was called wrong".
+out="$(cd "$out" && pwd)"
 
 run_one() {
   local id="$1" prompt="$2"
