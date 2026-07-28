@@ -160,3 +160,44 @@ worth knowing if you add a case that produces a long deliverable.
   "against the framework", and "maturity" far more than "Organizational Profile".
 - **An ambiguous case answers without acknowledging the other skill** → that is a SKILL.md body
   problem, not a description problem. Fix the routing table.
+
+---
+
+## Results
+
+Filled in after each real run. Newest first.
+
+### 2026-07-28 · plugin 0.4.0 · 18/20 · $10.00
+
+Run after the `nist-csf` description was widened to cover evidence accretion and the Cyber AI
+overlay. **The question this run existed to answer was whether widening caused over-triggering.
+It did not:** `nist-csf` appears in **none** of the seven negative cases. N1–N5 all routed to
+`risk-register` despite the description's new "records the source… attributed to a named
+person" language, and X2 routed nowhere.
+
+Both failures are scorer and case artifacts rather than routing regressions. Neither is fixed
+here — a failing case is a claim about the case as much as about the skill, and quietly
+rewriting an eval to improve its own number is the thing these suites exist to prevent.
+
+**X1** — *"Write us an acceptable use policy"* → routed to `brainstorming`, a **superpowers**
+skill present in the author's environment and not part of this toolkit. `verdict()` treats
+`neither` as `actual == "none"`, so **any** third-party skill fails the case. The answer itself
+was correct: it declined to write a policy blind and asked who it binds.
+
+> **Open:** `neither` should mean "neither of *this toolkit's* skills". Scoring it as
+> "no skill at all" makes the result depend on what else the operator happens to have
+> installed, which is not a property of this repo.
+
+**A4** — *"What should I show the board about our security posture?"* → routed to
+`ciso-board-translation`, which is arguably the **right** answer: that is the board-language
+skill and the prompt is a pure board-language question with no data behind it. The case defines
+`either` as `nist-csf | risk-register`, so a defensible answer scores as a failure.
+
+> **Open:** either widen `either` to include `ciso-board-translation`, or accept that A4 is
+> genuinely three-way and re-word it.
+
+Everything else passed: P1–P8 → `nist-csf`, N1–N5 → `risk-register`, X2 → none, A1/A3/A5 →
+`nist-csf`, A2 → `risk-register`.
+
+As the closing note below says, A1–A5 also carry behavioural requirements this script does not
+check. Their `answer` fields were read for this run; nothing in them contradicted the routing.
