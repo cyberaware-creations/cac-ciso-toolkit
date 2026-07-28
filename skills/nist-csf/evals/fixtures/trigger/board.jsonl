@@ -1,0 +1,2 @@
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "t1", "name": "Skill", "input": {"skill": "cyber-aware-creations:ciso-board-translation"}}]}}
+{"type": "result", "total_cost_usd": 0.5, "duration_ms": 40000, "result": "Four to six items, each answering the same four questions."}
