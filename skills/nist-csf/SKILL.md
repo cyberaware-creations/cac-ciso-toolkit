@@ -132,7 +132,19 @@ python3 scripts/profile_analysis.py intake add acme.csfp \
 python3 scripts/profile_analysis.py queue acme.csfp
 python3 scripts/profile_analysis.py set acme.csfp ID.AM-01 --current 2 \
   --source in-0001 --confirmed-by "Darren" --rationale "..."
+
+# When nobody knows the answer yet, that IS the outcome — record the question and move on
+python3 scripts/profile_analysis.py action add acme.csfp \
+  --title "Confirm whether OT assets are in the CMDB (ID.AM-01)"
 ```
+
+**When the answer is "nobody knows", write the action in the same turn.** Only `--title` is
+required. Do not ask who owns it or when it is due first — an unowned action lands in the
+Unowned actions panel, which exists for exactly this, and the tool's own warning that an
+unowned action is a wish is a prompt to go find an owner, not a reason to withhold the
+record. A question you asked about instead of recording is a question that turns back into
+prose in a chat log. Add the owner later with `action update <id> --owner ...` when you
+have one.
 
 `set --current` **refuses without `--source` and `--confirmed-by`** — a rating needs a named source
 and a named person, not a memory of a conversation. The tool can enforce that both are *present*; it

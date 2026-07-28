@@ -169,6 +169,11 @@ python3 skills/nist-csf/evals/score-triggers.py self-test         # routing scor
 Each prints its own count. Don't pin those counts in prose — three of them have already gone
 stale here, and a number nobody maintains stops being true silently.
 
+Run them from a **clone**, not from the installed plugin. `python-compat.sh` discovers files
+through git and now exits 2 rather than reporting "all 0 shipped files compile" when it cannot
+— which is what it did, and exited 0, for anyone who followed this instruction from
+`~/.claude/plugins/`.
+
 Run all of these before any release. `responsive.sh` is the one check that isn't stdlib-only — it
 drives a headless Chrome over the DevTools protocol. Both of the things it measures are properties
 of a *resolved layout*, not of the CSS text: how wide the page actually laid out, and what colour a

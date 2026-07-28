@@ -209,7 +209,24 @@ def parse_args(argv: list[str], description: str, default_out: str) -> argparse.
     p.add_argument("--offline", action="store_true",
                    help="omit the Google Fonts links so the file makes no external request; "
                         "falls back to the system font stack")
-    return p.parse_args(argv)
+    # The risk-register renderers are positional (`render_board.py reg.rr out.html`) and
+    # these are flag-based over the derived JSON. Both are documented, but someone moving
+    # between the two skills in one session will type the other form, and argparse's bare
+    # "unrecognized arguments" does not tell them which two files it wanted or why.
+    args, extra = p.parse_known_args(argv)
+    if extra:
+        looks_like_io = [a for a in extra if not a.startswith("-")]
+        hint = ""
+        if len(looks_like_io) == 2:
+            hint = (f"\n  Did you mean:  --in {looks_like_io[0]} --out {looks_like_io[1]}")
+        elif len(looks_like_io) == 1:
+            hint = f"\n  Did you mean:  --in {looks_like_io[0]}"
+        raise SystemExit(
+            f"error: unexpected argument(s): {' '.join(extra)}\n"
+            f"  These renderers take flags over the JSON that `profile_analysis.py analyze`\n"
+            f"  emits, not positional paths -- the risk-register renderers are the "
+            f"positional ones.{hint}")
+    return args
 
 
 class Translations:
