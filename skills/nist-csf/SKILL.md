@@ -63,7 +63,7 @@ must get the same numbers from the same Profile.
 
 ```bash
 python3 scripts/profile_analysis.py validate     # confirm the bundled Core is intact
-python3 scripts/profile_analysis.py self-test     # 304 checks against a fixed fixture
+python3 scripts/profile_analysis.py self-test     # assert the engine against a fixed fixture
 ```
 
 Every mutating command appends a history event and rewrites a schema-valid file, so the audit trail

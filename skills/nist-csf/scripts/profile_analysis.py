@@ -2528,7 +2528,7 @@ def _cmd_self_test(_args):
             ok("must be integers" in str(exc), f"{why} refusal names the actual problem")
         checks += 1
 
-    # The shipped file is already dense 1..32, so compaction must be an identity on
+    # The shipped file is already dense, so compaction must be an identity on
     # it — verified directly, since that is exactly the case the bug hid in.
     shipped = load_cold_start_rank()
     ok(all(order[sid] == v for sid, v in shipped["rank"].items()),
