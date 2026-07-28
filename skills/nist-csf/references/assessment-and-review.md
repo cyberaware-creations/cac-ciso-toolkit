@@ -414,16 +414,30 @@ python3 scripts/profile_analysis.py queue acme.csfp --top 3
 ### When the material is thin
 
 Sometimes the honest answer to a queue row is that nobody knows yet. Do not rate it. Record what
-needs asking, so it is tracked rather than remembered:
+needs asking, so it is tracked rather than remembered. **Record it now, with whatever you have** —
+only `--title` is required:
 
 ```bash
 python3 scripts/profile_analysis.py action add acme.csfp \
   --title "Confirm whether OT assets are in the CMDB or only corporate IT" \
-  --linked ID.AM-01 --owner "Infra lead" --target-date 2026-08-15
+  --linked ID.AM-01
+```
+
+That prints `Warning: unowned. An action without an owner is a wish.` The warning is correct and it
+is not a refusal. An unowned action lands in the **Unowned actions** panel on the operational
+dashboard, where the missing owner is the thing being reported — so recording it unowned does not
+bury the gap, it surfaces it. Asking who owns it before writing anything is how the question ends up
+in a chat log instead of the Profile.
+
+Fill in the owner and date once they exist:
+
+```bash
+python3 scripts/profile_analysis.py action update acme.csfp A-001 \
+  --owner "Infra lead" --target-date 2026-08-15
 ```
 
 The Subcategory stays evidence-pending and stays in the queue. That is a **result**, not a failure to
-reach one — an unrated Subcategory with a dated question against it is worth more than a rating
+reach one — an unrated Subcategory with a tracked question against it is worth more than a rating
 nobody can defend.
 
 ---

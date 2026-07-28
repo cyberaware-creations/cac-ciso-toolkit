@@ -149,7 +149,12 @@ between a Profile that records judgment and one that launders inference:
    whom. Summarising what it "suggests" is the same failure in prose.
 3. **Where the material is thin, propose a question, not a rating.** Leaving a Subcategory
    evidence-pending is a legitimate outcome — record what still needs asking with
-   `action add` so it is tracked rather than remembered.
+   `action add` so it is tracked rather than remembered. **Record it even with no owner
+   and no date.** Only `--title` is required; the tool warns that an unowned action is a
+   wish, and it is right, but that warning is a prompt to find an owner, not a reason to
+   withhold the record. An unowned action shows up in the Unowned actions panel, which
+   exists precisely for this. Waiting to be told who owns it is how a tracked question
+   turns back into prose in a chat log.
 4. **Batches of at most five.** Long confirmation runs are where rubber-stamping happens,
    and a rubber-stamped rating is worse than an unrated one because it looks like evidence.
 5. **Propose subjects the source actually spoke to.** Over-attaching Subcategories to an
