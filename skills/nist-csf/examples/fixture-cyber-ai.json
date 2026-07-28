@@ -1,0 +1,40 @@
+{
+  "datasetVersion": "fixture-1",
+  "sourceStatus": "Fixture — not NIST content",
+  "sourcePublished": "2026-07-28",
+  "sourceUrl": "https://example.invalid/fixture",
+  "note": "Test fixture for the overlay engine. Priorities here are invented and bear no relation to NIST IR 8596. The shipped dataset is references/cyber-ai-profile.json.",
+  "focusAreas": ["secure", "defend", "thwart"],
+  "subcategories": {
+    "ID.AM-01": {
+      "secure": {"priority": 1, "standardPracticesApply": false},
+      "defend": {"priority": 2, "standardPracticesApply": false},
+      "thwart": {"priority": 3, "standardPracticesApply": true}
+    },
+    "ID.AM-02": {
+      "secure": {"priority": 2, "standardPracticesApply": false},
+      "defend": {"priority": 3, "standardPracticesApply": true},
+      "thwart": {"priority": 3, "standardPracticesApply": true}
+    },
+    "PR.AA-01": {
+      "secure": {"priority": 3, "standardPracticesApply": true},
+      "defend": {"priority": 1, "standardPracticesApply": false},
+      "thwart": {"priority": 2, "standardPracticesApply": false}
+    },
+    "PR.DS-01": {
+      "secure": {"priority": 1, "standardPracticesApply": false},
+      "defend": {"priority": 3, "standardPracticesApply": true},
+      "thwart": {"priority": 3, "standardPracticesApply": true}
+    },
+    "DE.CM-01": {
+      "secure": {"priority": 3, "standardPracticesApply": true},
+      "defend": {"priority": 1, "standardPracticesApply": false},
+      "thwart": {"priority": 1, "standardPracticesApply": false}
+    },
+    "GV.OC-01": {
+      "secure": {"priority": 3, "standardPracticesApply": true},
+      "defend": {"priority": 3, "standardPracticesApply": true},
+      "thwart": {"priority": 3, "standardPracticesApply": true}
+    }
+  }
+}

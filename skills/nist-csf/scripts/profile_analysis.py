@@ -121,6 +121,7 @@ DEFAULT_CORE = os.path.join(_SKILL_ROOT, "references", "nist-csf-2.0-core.json")
 DEFAULT_GUIDANCE = os.path.join(_SKILL_ROOT, "references", "guidance.json")
 DEFAULT_COLD_START_RANK = os.path.join(_SKILL_ROOT, "references", "cold-start-rank.json")
 DEFAULT_ELICITATION = os.path.join(_SKILL_ROOT, "references", "elicitation.json")
+DEFAULT_CYBER_AI = os.path.join(_SKILL_ROOT, "references", "cyber-ai-profile.json")
 FIXTURE = os.path.join(_SKILL_ROOT, "examples", "example-profile.csfp")
 
 
@@ -859,6 +860,69 @@ def load_elicitation(path: str | None = None) -> dict:
     """
     with open(path or DEFAULT_ELICITATION, encoding="utf-8") as fh:
         return json.load(fh)
+
+
+OVERLAY_FOCUS_AREAS = ("secure", "defend", "thwart")
+OVERLAY_MODES = ("advisory", "reorder")   # `floor` is deliberately absent; see
+                                          # references/cyber-ai-overlay.md
+
+
+def validate_overlay_dataset(data: dict, index: dict) -> dict:
+    """Assert a Cyber AI Profile dataset is well formed. Raises ValueError on any defect.
+
+    Well formed is not the same as correct. This catches an extraction that
+    dropped a cell or mangled a number; it cannot catch a priority transcribed
+    as 2 when the source says 1. That is what the hand spot-check is for.
+    """
+    for field in ("datasetVersion", "sourceStatus", "sourcePublished", "sourceUrl"):
+        if not str(data.get(field) or "").strip():
+            raise ValueError(
+                f"overlay dataset is missing {field!r}. Every artifact carrying "
+                f"overlay output has to state where the data came from and what "
+                f"status it has; a dataset that cannot say is not usable.")
+    if list(data.get("focusAreas") or []) != list(OVERLAY_FOCUS_AREAS):
+        raise ValueError(
+            f"overlay dataset focusAreas must be exactly "
+            f"{list(OVERLAY_FOCUS_AREAS)}, got {data.get('focusAreas')!r}.")
+    subs = data.get("subcategories")
+    if not isinstance(subs, dict) or not subs:
+        raise ValueError("overlay dataset has no subcategories.")
+    for sid, areas in sorted(subs.items()):
+        if sid not in index:
+            raise ValueError(
+                f"overlay dataset references {sid!r}, which is not a Subcategory "
+                f"of {FRAMEWORK_REF}.")
+        for area in OVERLAY_FOCUS_AREAS:
+            cell = areas.get(area)
+            if not isinstance(cell, dict):
+                raise ValueError(f"{sid} has no {area!r} entry.")
+            pri = cell.get("priority")
+            # isinstance(pri, bool) must be rejected first — True == 1 in Python,
+            # so a JSON `true` would pass `in (1, 2, 3)` and then read as High
+            # priority everywhere downstream. Same trap as the cold-start ranks.
+            if isinstance(pri, bool) or pri not in (1, 2, 3):
+                raise ValueError(
+                    f"{sid}.{area}.priority is {pri!r}; NIST proposes 1 (High), "
+                    f"2 (Moderate) or 3 (Foundational) and nothing else.")
+            if not isinstance(cell.get("standardPracticesApply"), bool):
+                raise ValueError(
+                    f"{sid}.{area}.standardPracticesApply must be true or false, "
+                    f"got {cell.get('standardPracticesApply')!r}.")
+    return data
+
+
+def load_overlay_dataset(path: str | None = None, index: dict | None = None) -> dict:
+    """Load and validate the Cyber AI Profile dataset.
+
+    Does NOT degrade when the file is missing, unlike load_cold_start_rank. An
+    absent rank means the queue falls back to framework order and is still
+    correct; an absent overlay dataset means the overlay silently annotates
+    nothing while reporting itself enabled, which is a lie about the Profile.
+    """
+    with open(path or DEFAULT_CYBER_AI, encoding="utf-8") as fh:
+        data = json.load(fh)
+    return validate_overlay_dataset(data, index if index is not None
+                                    else index_subcategories(load_core()))
 
 
 def _settled_subjects(store: dict) -> set:
@@ -2668,6 +2732,43 @@ def _cmd_self_test(_args):
        "elicitation questions are ordered by their highest-ranked subject — "
        "a bank that asks rank-27 material before rank-1 contradicts the rank "
        "it is built from")
+
+    # --- cyber-ai overlay dataset -----------------------------------------
+    # Validated before it is populated, so an extraction defect surfaces here
+    # rather than as a wrong priority in a board pack.
+    _ds = load_overlay_dataset(os.path.join(_SKILL_ROOT, "examples",
+                                            "fixture-cyber-ai.json"), index)
+    eq(_ds["datasetVersion"], "fixture-1", "the fixture dataset loads")
+    eq(sorted(_ds["focusAreas"]), ["defend", "secure", "thwart"],
+       "three focus areas, always")
+
+    def _bad(mutate, label):
+        broken = copy.deepcopy(_ds)
+        mutate(broken)
+        try:
+            validate_overlay_dataset(broken, index)
+        except ValueError:
+            ok(True, label)
+        else:
+            ok(False, label)
+
+    _bad(lambda d: d.pop("datasetVersion"), "a dataset with no version is refused")
+    _bad(lambda d: d.pop("sourceStatus"), "a dataset with no source status is refused")
+    _bad(lambda d: d["subcategories"]["ID.AM-01"]["secure"].__setitem__("priority", 0),
+         "priority 0 is refused")
+    _bad(lambda d: d["subcategories"]["ID.AM-01"]["secure"].__setitem__("priority", 4),
+         "priority 4 is refused")
+    _bad(lambda d: d["subcategories"].__setitem__("XX.YY-99", {}),
+         "a Subcategory outside the Core is refused")
+    _bad(lambda d: d["subcategories"]["ID.AM-01"].pop("defend"),
+         "a Subcategory missing a focus area is refused")
+    _bad(lambda d: d["subcategories"]["ID.AM-01"]["secure"]
+         .__setitem__("standardPracticesApply", "yes"),
+         "a non-boolean sentinel is refused")
+    # True == 1 in Python, so a JSON `true` would satisfy a naive `in (1, 2, 3)`
+    # check and then behave as High priority everywhere downstream.
+    _bad(lambda d: d["subcategories"]["ID.AM-01"]["secure"].__setitem__("priority", True),
+         "a boolean priority is refused, not silently read as 1")
 
     # --- elicit ------------------------------------------------------------
     # Settled = rated, scoped out, or already carrying intake. The third
