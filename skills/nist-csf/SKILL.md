@@ -74,10 +74,11 @@ is enforced by tooling rather than by discipline.
 **A — Build or extend the Profile** (scope, seed Targets, assess Current).
 **B — Run an assessment review** (the recurring ritual: update, surface, decide, snapshot, report).
 **0 — Record a source**, mid-conversation, whenever one comes up (seconds, writes no ratings).
+**C0 — Cold start**, when the Profile is empty: nine batched questions, not 106.
 **C — Confirm from the queue**, its own session, working what 0 accreted.
 
-All four are in `references/assessment-and-review.md`, with the exact command for every step. Most
-sessions are A, B, or C. Start by asking which.
+All five are in `references/assessment-and-review.md`, with the exact command for every step.
+Most sessions are A, B, or C. Start by asking which.
 
 Quick shape of A:
 
@@ -96,6 +97,17 @@ and reports how many it left alone. Pass `--force` to reset those too.
 `--rationale` is **required** on material changes — rating moves, target moves, accepting a gap,
 claiming an outcome met, and scoping something out. The tool refuses without it. That refusal is a
 feature; don't route around it by editing the file directly.
+
+An empty Profile does not need 106 questions. Nine will reach a credible partial Profile:
+
+```bash
+python3 scripts/profile_analysis.py elicit acme.csfp          # next three, in rank order
+```
+
+Each question resolves several Subcategories at once — that is where the time saving comes
+from, not from a shorter list. An answer becomes **one** intake record naming the
+Subcategories it actually spoke to. It does not become four ratings; those are still four
+decisions, made in Workflow C.
 
 ## Building a Profile from fragments
 
@@ -122,6 +134,29 @@ that doesn't reflect what actually happened, just to get past the refusal — as
 and log the source for real first if it isn't recorded yet. `--target` is not gated the same way: a
 Target is a risk decision already covered by `--rationale`, and `quickstart-target` needs to seed it
 in bulk. Full workflows: 0 and C in `references/assessment-and-review.md`.
+
+## Anti-drift rules for conversation
+
+The engine can enforce that a rating *has* attribution. It cannot enforce that a human
+decided it. These rules are the part that is behavioural, and they are the difference
+between a Profile that records judgment and one that launders inference:
+
+1. **Never pre-fill a rating.** Ask *"the March review mentioned quarterly discovery scans —
+   what's Current for ID.AM-01?"*, never *"this looks like a 2, confirm?"*. A number offered
+   for confirmation is almost always accepted, and what gets recorded is then the model's
+   inference wearing the user's name in `--confirmed-by`.
+2. **Present the source, not a conclusion.** A queue row is what was recorded, when, and by
+   whom. Summarising what it "suggests" is the same failure in prose.
+3. **Where the material is thin, propose a question, not a rating.** Leaving a Subcategory
+   evidence-pending is a legitimate outcome — record what still needs asking with
+   `action add` so it is tracked rather than remembered.
+4. **Batches of at most five.** Long confirmation runs are where rubber-stamping happens,
+   and a rubber-stamped rating is worse than an unrated one because it looks like evidence.
+5. **Propose subjects the source actually spoke to.** Over-attaching Subcategories to an
+   intake record inflates evidence-pending and makes the queue promise material that is not
+   there. "We have a CMDB" bears on ID.AM-01 and ID.AM-02; it says nothing about ID.AM-05.
+6. **The label is the user's words.** Propose one, but it is theirs to accept or rewrite,
+   and it is a note *about* the source — never an excerpt from it.
 
 ## Reporting
 
@@ -250,11 +285,12 @@ crosswalks. See `references/framework-abstraction.md`.
 | `references/schema.md` | The `.csfp` contract, attribution and intake, evidence states, coverage arithmetic, material-change rules |
 | `references/scale-and-scoring.md` | The two scales, the Tier-vocabulary caveat, both scoring models |
 | `references/guidance.json` | Authored guidance: 15 deep entries, Function slants, tier transitions |
-| `references/assessment-and-review.md` | Workflows 0, A, B, and C, command by command |
+| `references/assessment-and-review.md` | Workflows 0, A, B, C0, and C, command by command |
 | `references/dashboards.md` | What each dashboard must contain, and the rules binding both |
 | `references/framework-abstraction.md` | The multi-framework seam and the crosswalk plan |
 | `references/nist-csf-2.0-core.json` | The bundled Core — read-only framework data |
 | `references/cold-start-rank.json` | 37 Subcategories ranked for the queue's cold-start band — CAC editorial judgment, not NIST's; carries its own record of what informed it |
+| `references/elicitation.json` | Nine batched cold-start questions covering the ranked 37 — what to ask, and what to listen for |
 | `assets/brand.md` | Limen tokens, the coverage ramp, and the mandatory footer |
 | `examples/example-profile.csfp` | A small worked Profile, used by `self-test` |
 | `examples/example-profile-v2.csfp` | A Profile exercising every v2 state: intake, attribution, a revisit, an age spread, below-threshold scope |
