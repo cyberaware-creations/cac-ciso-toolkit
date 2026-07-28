@@ -24,6 +24,7 @@ Read-only:
   diff         <store.csfp> [--label L] [--json]   Compare current state to a snapshot.
   export-gaps  <store.csfp> [--out F]              Gap CSV for `risk-register import-gaps`.
   queue        <store.csfp> [--top N] [--json]      What to confirm next, ranked.
+  elicit       <store.csfp> [--top N] [--json]      Cold-start questions still worth asking.
   self-test                                        Assert engine math against the fixture.
 
 Mutations (each appends an append-only history event and rewrites the store):
@@ -845,6 +846,55 @@ def resolve_rank(index: dict, core: dict, rank_data: dict) -> dict:
                     pos += 1
                     out[s["id"]] = n + pos
     return out
+
+
+def load_elicitation(path: str | None = None) -> dict:
+    """The cold-start question bank.
+
+    Unlike load_cold_start_rank, this does NOT degrade to an empty default when
+    the file is missing. An absent rank means the queue falls back to framework
+    order and is still correct. An absent bank would make `elicit` report that
+    every question is settled, which is a lie about the Profile rather than a
+    degraded ordering.
+    """
+    with open(path or DEFAULT_ELICITATION, encoding="utf-8") as fh:
+        return json.load(fh)
+
+
+def _settled_subjects(store: dict) -> set:
+    """Subcategories that no longer need a cold-start question asked about them.
+
+    Rated, scoped out, or already carrying recorded material. The last clause
+    is deliberate: once a source names a Subcategory it is queue work, and
+    asking the opening question again would collect the same material twice.
+    """
+    settled = set()
+    for a in store.get("assessments", []):
+        if a.get("current") is not None or a.get("applicability") == "not-applicable":
+            settled.add(a["subcategoryId"])
+    for rec in store.get("intake", []):
+        settled.update(rec.get("subjects", []))
+    return settled
+
+
+def _elicit_rows(store: dict, top: int | None = 3, bank: dict | None = None) -> list:
+    """Unsettled elicitation questions in bank order, with their open subjects.
+
+    A row carries the question and what is still open under it — never a rating,
+    proposed or otherwise. The same anti-drift rule the queue lives under: this
+    command presents a question, and a human presents the answer.
+    """
+    bank = bank or load_elicitation()
+    settled = _settled_subjects(store)
+    rows = []
+    for q in bank["questions"]:
+        unsettled = [s for s in q["resolves"] if s not in settled]
+        if not unsettled:
+            continue
+        rows.append({"id": q["id"], "ask": q["ask"],
+                     "listenFor": q["listenFor"], "unsettled": unsettled,
+                     "resolves": list(q["resolves"])})
+    return rows[:top] if top is not None else rows
 
 
 def render_guidance(row: dict, settings: dict, guidance: dict) -> dict | None:
@@ -1753,6 +1803,57 @@ def _cmd_queue(args):
     return 0
 
 
+def _cmd_elicit(args):
+    pos, opt = parse_flags(args)
+    path = _require_store(pos, "usage: elicit <store.csfp> [--top N] [--json]")
+    # Three questions by default. This is a conversation opener, not a
+    # questionnaire; handing over nine at once turns it back into one.
+    top = int(_s(opt.get("top"))) if isinstance(opt.get("top"), (str, list)) else 3
+    if top < 0:
+        raise ValueError("--top must be zero or greater.")
+    store = load_store(path)
+    bank = load_elicitation()
+    # Slice only for display. Every "nothing left" claim below is made against
+    # all_rows, never rows — the same defect --top 0 once produced in the queue.
+    all_rows = _elicit_rows(store, top=None, bank=bank)
+    rows = all_rows[:top]
+
+    if opt.get("json"):
+        sys.stdout.write(json.dumps(
+            {"disclaimer": bank["disclaimer"], "rule": bank["theRule"],
+             "remaining": len(all_rows), "questions": rows},
+            indent=2, ensure_ascii=False) + "\n")
+        return 0
+
+    if not all_rows:
+        print("Every Subcategory in the cold-start bank is settled — rated, scoped "
+              "out, or already carrying recorded material.")
+        print("That is not the same as finished. `queue` is where the remaining "
+              "work is.")
+        return 0
+
+    if not rows:
+        print(f"{len(all_rows)} questions still open, but --top {top} is showing "
+              "none of them.")
+        return 0
+
+    print(f"Cold-start elicitation — {len(all_rows)} of {len(bank['questions'])} "
+          f"questions still open (showing {len(rows)})\n")
+    for r in rows:
+        print(f"{r['id']}  {r['ask']}")
+        print(f"    Still open: {', '.join(r['unsettled'])}")
+        print(f"    Listen for: {r['listenFor']}")
+        print()
+    print(bank["theRule"])
+    print()
+    print("Record an answer as one source:")
+    print(f"  python3 scripts/profile_analysis.py intake add {path} \\")
+    print("    --label '<what the conversation was, in their words>' \\")
+    print("    --subjects <only the ids the answer actually spoke to> \\")
+    print("    --source-date <when it happened> --recorded-by <name>")
+    return 0
+
+
 def _next_action_id(store) -> str:
     used = [int(m.group(1)) for i in store["actionItems"]
             if (m := re.match(r"A-(\d+)$", str(i.get("id", ""))))]
@@ -2568,6 +2669,50 @@ def _cmd_self_test(_args):
        "a bank that asks rank-27 material before rank-1 contradicts the rank "
        "it is built from")
 
+    # --- elicit ------------------------------------------------------------
+    # Settled = rated, scoped out, or already carrying intake. The third
+    # clause is the one that makes this a cold-start tool rather than a
+    # second queue.
+    with tempfile.TemporaryDirectory() as _tmp:
+        _el_store = os.path.join(_tmp, "elicit.csfp")
+        _cmd_init(["--name", "Elicit Fixture", "--out", _el_store,
+                   "--ts", "2026-01-01T00:00:00Z"])
+
+        _e0 = _elicit_rows(load_store(_el_store), top=99)
+        eq(len(_e0), 9, "a Profile with nothing in it is unsettled on all nine questions")
+        eq(_e0[0]["id"], "q1", "elicit leads with q1 on an empty Profile")
+        eq(len(_e0[0]["unsettled"]), 4, "q1 starts with all four subjects unsettled")
+
+        _cmd_intake(["add", _el_store, "--label", "fixture source",
+                     "--subjects", "ID.AM-01", "--source-date", "2026-01-02",
+                     "--recorded-by", "Fixture", "--ts", "2026-01-02T00:00:00Z"])
+        _cmd_set([_el_store, "ID.AM-01", "--current", "2", "--source", "in-0001",
+                  "--confirmed-by", "Fixture", "--rationale", "fixture",
+                  "--ts", "2026-01-03T00:00:00Z"])
+        _e1 = _elicit_rows(load_store(_el_store), top=99)
+        eq(_e1[0]["id"], "q1", "q1 survives while any subject is unsettled")
+        ok("ID.AM-01" not in _e1[0]["unsettled"], "a rated subject leaves the question")
+
+        _cmd_intake(["add", _el_store, "--label", "second source",
+                     "--subjects", "ID.AM-02", "ID.AM-03", "ID.AM-05",
+                     "--source-date", "2026-01-04", "--recorded-by", "Fixture",
+                     "--ts", "2026-01-04T00:00:00Z"])
+        _e2 = _elicit_rows(load_store(_el_store), top=99)
+        eq(len(_e2), 8, "a question whose every subject carries intake drops out entirely")
+        eq(_e2[0]["id"], "q2", "the next unsettled question leads")
+
+        _cmd_set([_el_store, "PR.AA-06", "--applicability", "not-applicable",
+                  "--rationale", "fixture: no premises", "--ts", "2026-01-05T00:00:00Z"])
+        _e3 = _elicit_rows(load_store(_el_store), top=99)
+        _q3row = [r for r in _e3 if r["id"] == "q3"][0]
+        ok("PR.AA-06" not in _q3row["unsettled"],
+           "a not-applicable subject is settled, not pending forever")
+
+        eq(len(_elicit_rows(load_store(_el_store), top=3)), 3, "--top bounds the batch")
+        ok(all("proposed" not in r and "current" not in r for r in _e3),
+           "an elicit row never carries a proposed rating — the same rule the "
+           "queue lives under")
+
     # --- Derivation layer: derived, never stored ---
     fx_assess = [
         {"subcategoryId": "ID.AM-01", "applicability": "in-scope", "current": 2, "target": 3,
@@ -3040,7 +3185,7 @@ COMMANDS = {
     "init": _cmd_init, "set": _cmd_set, "set-tier": _cmd_set_tier,
     "quickstart-target": _cmd_quickstart_target,
     "snapshot": _cmd_snapshot, "diff": _cmd_diff, "action": _cmd_action,
-    "intake": _cmd_intake, "queue": _cmd_queue,
+    "intake": _cmd_intake, "queue": _cmd_queue, "elicit": _cmd_elicit,
     "analyze": _cmd_analyze, "export-gaps": _cmd_export_gaps,
 }
 
