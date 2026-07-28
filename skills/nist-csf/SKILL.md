@@ -9,14 +9,21 @@ description: >-
   by Function and Category, characterizes CSF Tiers, keeps an append-only history
   with rationale, takes named review snapshots with a what-changed diff, and
   tracks an owned action plan — reported as operational and executive dashboards.
+  Builds a Profile from evidence arriving over time rather than one sitting:
+  records the source a review, audit finding or conversation came from, keeps
+  every confirmed rating attributed to a named person and source, and ranks what
+  to confirm or ask next. Applies the NIST Cyber AI Profile (IR 8596) as an
+  optional overlay that reweights the same Subcategories for AI relevance.
   Bundles the full CSF 2.0 Core with all 363 Implementation Examples. Use
   whenever the user mentions NIST CSF, CSF 2.0, a Current or Target Profile, an
   Organizational Profile, framework coverage or gaps, a cybersecurity framework
   assessment, security programme maturity or posture, CSF Tiers, where the
-  programme stands against a standard, or reporting framework progress to a
-  board — even if they don't say "NIST". Not for scoring individual risks,
-  likelihood and impact, or risk appetite (use risk-register), and not for
-  writing policies.
+  programme stands against a standard, building up a CSF picture from audit
+  findings or reviews over time, the NIST Cyber AI Profile, or reporting
+  framework progress to a board — even if they don't say "NIST". Not for scoring
+  individual risks, likelihood and impact, or risk appetite (use risk-register),
+  not for writing policies, and not for assessing an individual AI system — the
+  Cyber AI overlay is organization-level only.
 ---
 
 # NIST CSF Organizational Profile
@@ -306,6 +313,8 @@ crosswalks. See `references/framework-abstraction.md`.
 | `assets/brand.md` | Limen tokens, the coverage ramp, and the mandatory footer |
 | `examples/example-profile.csfp` | A small worked Profile, used by `self-test` |
 | `examples/example-profile-v2.csfp` | A Profile exercising every v2 state: intake, attribution, a revisit, an age spread, below-threshold scope |
+| `examples/acme-manufacturing.csfa` | A worked web-tool assessment — the input `csfa_compat.py convert` and `gaps` are tested against |
+| `examples/acme-manufacturing-gaps.csv` | That assessment's gaps CSV, byte-parity reference for the frozen port |
 
 Every generated deliverable carries the footer **"A Cyber Aware Creation · Not affiliated with
 NIST"**. This skill renders NIST-derived content; that line is what keeps a coverage report from
