@@ -318,6 +318,16 @@ def check_store(store: dict, index: dict) -> list[str]:
             lo, hi = prof["settings"]["scale"]["min"], prof["settings"]["scale"]["max"]
             if not isinstance(v, int) or not (lo <= v <= hi):
                 problems.append(f"{sid}: {field} {v!r} outside scale {lo}..{hi}")
+        # The write path always produces ts[:10], but this file defends against a
+        # hand-edited or externally-converted store elsewhere, and an unvalidated
+        # confirmedAt would crash _days_between's strptime with a bare ValueError
+        # instead of a labelled problem here.
+        for field in ("confirmedAt",):
+            v = a.get(field)
+            if v is None:
+                continue
+            if not _is_iso_date(v):
+                problems.append(f"{sid}: {field} {v!r} is not a zero-padded ISO date (YYYY-MM-DD)")
 
     for item in store["actionItems"]:
         if item.get("status") not in ACTION_STATUSES:
@@ -325,6 +335,17 @@ def check_store(store: dict, index: dict) -> list[str]:
         for sid in item.get("linkedSubcategoryIds", []):
             if sid not in index:
                 problems.append(f"action {item.get('id')}: unknown Subcategory {sid!r}")
+
+    # sourceDate and recordedAt are guarded by _iso_date on the write path, but this
+    # loop is what protects a store that arrived some other way — and the revisit
+    # comparison in derive_evidence depends on sourceDate being lexically sortable.
+    for r in store.get("intake", []):
+        for field in ("sourceDate", "recordedAt"):
+            v = r.get(field)
+            if v is None:
+                continue
+            if not _is_iso_date(v):
+                problems.append(f"intake {r.get('id')}: {field} {v!r} is not a zero-padded ISO date (YYYY-MM-DD)")
     return problems
 
 
@@ -474,6 +495,194 @@ def compute_completeness(assessments: list[dict], index: dict, core: dict) -> di
         "byFunction": {fid: _completeness_of(by_fn.get(fid, [])) for fid in function_ids(core)},
         "byCategory": {cid: _completeness_of(subset) for cid, subset in sorted(by_cat.items())},
     }
+
+
+# --- Evidence accretion: derived, never stored ---------------------------------
+#
+# Every state below is computed from `assessments` + `intake` on demand. None of it
+# is written back. `derived-not-stored` in references/schema.md is the contract;
+# a stored `evidence-pending` flag would go stale the moment a rating moved.
+
+def _median_int(nums: list[int]) -> int | None:
+    if not nums:
+        return None
+    s = sorted(nums)
+    mid = len(s) // 2
+    return s[mid] if len(s) % 2 else (s[mid - 1] + s[mid]) // 2
+
+
+def _days_between(start: str, end: str) -> int:
+    a = datetime.strptime(start, "%Y-%m-%d")
+    b = datetime.strptime(end, "%Y-%m-%d")
+    return (b - a).days
+
+
+def intake_by_subject(intake: list[dict]) -> dict:
+    """Subcategory id -> the intake records bearing on it, oldest sourceDate first."""
+    out: dict[str, list] = {}
+    for r in intake or []:
+        for sid in r.get("subjects", []):
+            out.setdefault(sid, []).append(r)
+    for sid in out:
+        out[sid].sort(key=lambda r: (r.get("sourceDate") or "", r.get("id") or ""))
+    return out
+
+
+def derive_evidence(assessments: list[dict], intake: list[dict], index: dict, core: dict,
+                    today: str, threshold_pct: int, age_days: int) -> dict:
+    """The whole derivation layer, as one pure function. No IO, no clock.
+
+    Four states partition every tracked Subcategory:
+      not-applicable   scoped out
+      confirmed        in-scope, has a Current rating
+      evidence-pending in-scope, no Current rating, some intake bears on it
+      unrated          in-scope, no Current rating, nothing bears on it
+
+    `revisit` is a fifth, orthogonal flag: confirmed, and some intake bearing on it
+    has a sourceDate later than its confirmedAt. It is a reporting flag and a queue
+    input only — it does NOT affect scoring. Ratings never expire; new material is
+    what questions a rating, not the passage of time.
+    """
+    by_subject = intake_by_subject(intake)
+    states, revisit, pending = {}, [], []
+
+    for a in assessments:
+        sid = a["subcategoryId"]
+        bearing = by_subject.get(sid, [])
+        if a.get("applicability", "in-scope") != "in-scope":
+            states[sid] = "not-applicable"
+            continue
+        if a.get("current") is not None:
+            states[sid] = "confirmed"
+            confirmed_at = a.get("confirmedAt")
+            # No exception for the record cited as this rating's own source: in a
+            # coherent store its sourceDate is never after confirmedAt (you cannot
+            # decide a rating from a conversation that hasn't happened yet), so the
+            # comparison is a no-op there. If it DOES fire on the cited source, that
+            # means the store holds an impossible date pair, and surfacing it as a
+            # revisit — go look at this again — is correct; suppressing it would
+            # hide the only signal a user gets that something is wrong.
+            newer = [r for r in bearing
+                     if confirmed_at and (r.get("sourceDate") or "") > confirmed_at]
+            if newer:
+                revisit.append({
+                    "subcategoryId": sid,
+                    "text": (index.get(sid) or {}).get("text", ""),
+                    "confirmedAt": confirmed_at,
+                    "newestSourceDate": max(r["sourceDate"] for r in newer),
+                    "intakeIds": [r["id"] for r in newer],
+                })
+        elif bearing:
+            states[sid] = "evidence-pending"
+            pending.append({
+                "subcategoryId": sid,
+                "text": (index.get(sid) or {}).get("text", ""),
+                "intakeIds": [r["id"] for r in bearing],
+                "newestSourceDate": max(r.get("sourceDate") or "" for r in bearing),
+            })
+        else:
+            states[sid] = "unrated"
+
+    # Newest material first, then id ascending. Two passes because the primary key
+    # is a date string and cannot be negated — and a single reverse=True over the
+    # tuple would reverse the tie-break too, handing a user ID.AM-03 before ID.AM-01.
+    for rows in (revisit, pending):
+        rows.sort(key=lambda r: r["subcategoryId"])
+        rows.sort(key=lambda r: r["newestSourceDate"], reverse=True)
+
+    def _split(subset: list[dict]) -> dict:
+        out = {"confirmed": 0, "evidencePending": 0, "unrated": 0, "notApplicable": 0,
+               "attributed": 0, "unattributed": 0, "total": len(subset)}
+        key = {"confirmed": "confirmed", "evidence-pending": "evidencePending",
+               "unrated": "unrated", "not-applicable": "notApplicable"}
+        for a in subset:
+            state = states[a["subcategoryId"]]
+            out[key[state]] += 1
+            if state == "confirmed":
+                # Confirmed means a rating exists. Attributed means we also know who
+                # decided it, when, and from what. A v1 rating is the first without
+                # the second, and reporting them as one number is the failure this
+                # whole schema exists to prevent.
+                full = a.get("confirmedAt") and a.get("confirmedBy") and a.get("source")
+                out["attributed" if full else "unattributed"] += 1
+        return out
+
+    def _age(subset: list[dict]) -> dict:
+        ages = [_days_between(a["confirmedAt"], today) for a in subset
+                if states[a["subcategoryId"]] == "confirmed" and a.get("confirmedAt")]
+        undated = sum(1 for a in subset
+                      if states[a["subcategoryId"]] == "confirmed" and not a.get("confirmedAt"))
+        return {
+            "dated": len(ages),
+            # A rating carried over from a v1 Profile has no confirmation date. It is
+            # counted here rather than guessed at: age reporting begins when ratings
+            # are confirmed under v2, and saying so is the honest version.
+            "undated": undated,
+            "medianDays": _median_int(ages),
+            "oldestDays": max(ages) if ages else None,
+            "olderThanThreshold": sum(1 for d in ages if d > age_days),
+        }
+
+    by_fn = _group(assessments, index, "functionId")
+    fids = function_ids(core)
+
+    scoped = in_scope(assessments)
+    assessed = sum(1 for a in scoped if a.get("current") is not None)
+    pct = (assessed / len(scoped) * 100) if scoped else 0.0
+    suppressed = pct < threshold_pct
+    statement = (
+        f"No headline coverage figure is reported: {assessed} of {len(scoped)} in-scope "
+        f"Subcategories have been assessed ({pct:.0f}%), below the {threshold_pct}% this "
+        f"Profile requires. A programme mean drawn from a minority of Subcategories "
+        f"describes the minority, not the programme."
+        if suppressed else
+        f"{assessed} of {len(scoped)} in-scope Subcategories assessed ({pct:.0f}%), "
+        f"at or above the {threshold_pct}% this Profile requires for a headline figure."
+    )
+
+    return {
+        "states": states,
+        "coverage": {
+            "overall": _split(assessments),
+            "byFunction": {fid: _split(by_fn.get(fid, [])) for fid in fids},
+        },
+        "age": {
+            "thresholdDays": age_days,
+            "overall": _age(assessments),
+            "byFunction": {fid: _age(by_fn.get(fid, [])) for fid in fids},
+        },
+        "revisit": revisit,
+        "pending": pending,
+        "scopeGuard": {
+            "assessed": assessed, "inScope": len(scoped),
+            "assessedPct": pct, "thresholdPct": threshold_pct,
+            "suppressed": suppressed, "statement": statement,
+        },
+    }
+
+
+def coverage_by_source(intake: list[dict], states: dict, index: dict) -> list[dict]:
+    """Each intake record and what it bore on — the payoff of the source-keyed model.
+
+    Answers "what did that review actually cover?", which a per-Subcategory pointer
+    list structurally cannot.
+    """
+    rows = []
+    for r in sorted(intake or [], key=lambda x: (x.get("sourceDate") or "", x.get("id") or ""),
+                    reverse=True):
+        subjects = [{"subcategoryId": sid,
+                     "text": (index.get(sid) or {}).get("text", ""),
+                     "state": states.get(sid, "unrated")}
+                    for sid in r.get("subjects", [])]
+        rows.append({
+            "id": r.get("id"), "label": r.get("label"),
+            "sourceDate": r.get("sourceDate"), "recordedAt": r.get("recordedAt"),
+            "recordedBy": r.get("recordedBy"),
+            "subjects": subjects,
+            "confirmed": sum(1 for s in subjects if s["state"] == "confirmed"),
+            "pending": sum(1 for s in subjects if s["state"] == "evidence-pending"),
+        })
+    return rows
 
 
 # --- Authored guidance -------------------------------------------------------
@@ -1226,6 +1435,21 @@ def _next_intake_id(store) -> str:
     return f"in-{max(used, default=0) + 1:04d}"
 
 
+def _is_iso_date(value) -> bool:
+    """True only for a zero-padded YYYY-MM-DD.
+
+    strptime alone is lenient about padding, so '2026-3-1' parses — and then sorts
+    after '2026-12-01', because every date in this store is compared as a string.
+    One predicate, used by both the write path (_iso_date) and the read path
+    (check_store), so the two cannot drift apart.
+    """
+    text = str(value).strip()
+    try:
+        return datetime.strptime(text, "%Y-%m-%d").strftime("%Y-%m-%d") == text
+    except ValueError:
+        return False
+
+
 def _iso_date(raw, label: str) -> str:
     """Validate an ISO date, zero-padding included.
 
@@ -1235,15 +1459,15 @@ def _iso_date(raw, label: str) -> str:
     every revisit flag and age figure downstream quietly false.
     """
     text = str(_s(raw)).strip()
+    if _is_iso_date(text):
+        return text
     try:
         parsed = datetime.strptime(text, "%Y-%m-%d")
     except ValueError:
         raise ValueError(f"{label} must be an ISO date (YYYY-MM-DD), got {text!r}") from None
-    if parsed.strftime("%Y-%m-%d") != text:
-        raise ValueError(f"{label} must be zero-padded (YYYY-MM-DD), got {text!r} — "
-                         f"try {parsed.strftime('%Y-%m-%d')!r}. Dates here are sorted as "
-                         f"strings, so an unpadded month or day compares wrong.") from None
-    return text
+    raise ValueError(f"{label} must be zero-padded (YYYY-MM-DD), got {text!r} — "
+                     f"try {parsed.strftime('%Y-%m-%d')!r}. Dates here are sorted as "
+                     f"strings, so an unpadded month or day compares wrong.") from None
 
 
 def _cmd_intake(args):
@@ -1604,6 +1828,43 @@ def _cmd_self_test(_args):
     # --- Fixture loads and validates ---
     store = load_store(FIXTURE)
     eq(check_store(store, index), [], "fixture validates")
+
+    # A hand-edited or externally-converted store can carry a malformed date where
+    # the write path never would. check_store is the gate analyze already calls
+    # before computing anything, so this is where it must be caught.
+    bad_confirmed = copy.deepcopy(store)
+    bad_confirmed["assessments"][0]["confirmedAt"] = "14 March 2026"
+    ok(any("confirmedAt" in p for p in check_store(bad_confirmed, index)),
+       "check_store reports a malformed confirmedAt")
+
+    # Unpadded — '2026-3-1' parses fine under plain strptime, but sorts AFTER
+    # '2026-12-01' as a string, which is exactly the failure _iso_date's round-trip
+    # exists to catch on the write path. check_store is the read-path equivalent
+    # and must share the same predicate, or a hand-edited store slips through here.
+    unpadded_confirmed = copy.deepcopy(store)
+    unpadded_confirmed["assessments"][0]["confirmedAt"] = "2026-3-1"
+    ok(any("confirmedAt" in p for p in check_store(unpadded_confirmed, index)),
+       "check_store reports an unpadded confirmedAt")
+
+    bad_intake = copy.deepcopy(store)
+    bad_intake["intake"] = [{"id": "in-0001", "label": "x", "sourceDate": "14 March 2026",
+                              "recordedAt": "2026-03-16", "subjects": [], "recordedBy": "Darren"}]
+    ok(any("sourceDate" in p for p in check_store(bad_intake, index)),
+       "check_store reports a malformed intake sourceDate")
+
+    unpadded_source = copy.deepcopy(store)
+    unpadded_source["intake"] = [{"id": "in-0001", "label": "x", "sourceDate": "2026-3-1",
+                                   "recordedAt": "2026-03-16", "subjects": [], "recordedBy": "Darren"}]
+    ok(any("sourceDate" in p for p in check_store(unpadded_source, index)),
+       "check_store reports an unpadded intake sourceDate")
+
+    unpadded_recorded = copy.deepcopy(store)
+    unpadded_recorded["intake"] = [{"id": "in-0001", "label": "x", "sourceDate": "2026-03-01",
+                                     "recordedAt": "2026-3-2", "subjects": [], "recordedBy": "Darren"}]
+    ok(any("recordedAt" in p for p in check_store(unpadded_recorded, index)),
+       "check_store reports an unpadded intake recordedAt")
+
+    eq(check_store(store, index), [], "the well-formed store still reports neither")
     settings = store["profile"]["settings"]
     A = {a["subcategoryId"]: a for a in store["assessments"]}
     eq(len(A), 10, "fixture assessment count")
@@ -2063,6 +2324,129 @@ def _cmd_self_test(_args):
     shipped = load_cold_start_rank()
     ok(all(order[sid] == v for sid, v in shipped["rank"].items()),
        "compaction is an identity on the shipped table — every ranked id keeps its authored position")
+
+    # --- Derivation layer: derived, never stored ---
+    fx_assess = [
+        {"subcategoryId": "ID.AM-01", "applicability": "in-scope", "current": 2, "target": 3,
+         "confirmedAt": "2026-03-20", "confirmedBy": "Darren", "source": "in-0001"},
+        {"subcategoryId": "ID.AM-02", "applicability": "in-scope", "current": 1, "target": 3,
+         "confirmedAt": "2025-06-01", "confirmedBy": "Darren", "source": "in-0001"},
+        {"subcategoryId": "ID.AM-03", "applicability": "in-scope", "current": None, "target": 3,
+         "confirmedAt": None, "confirmedBy": None, "source": None},
+        {"subcategoryId": "PR.AA-01", "applicability": "in-scope", "current": None, "target": 3,
+         "confirmedAt": None, "confirmedBy": None, "source": None},
+        {"subcategoryId": "PR.AA-03", "applicability": "not-applicable", "current": None,
+         "target": None, "confirmedAt": None, "confirmedBy": None, "source": None},
+        {"subcategoryId": "PR.DS-11", "applicability": "in-scope", "current": 3, "target": 3,
+         "confirmedAt": "2026-01-10", "confirmedBy": "Darren", "source": "in-0002"},
+    ]
+    fx_intake = [
+        {"id": "in-0001", "label": "architecture review", "sourceDate": "2025-05-20",
+         "recordedAt": "2026-03-16", "subjects": ["ID.AM-01", "ID.AM-02", "ID.AM-03"],
+         "recordedBy": "Darren"},
+        {"id": "in-0002", "label": "backup restore test", "sourceDate": "2026-01-08",
+         "recordedAt": "2026-01-09", "subjects": ["PR.DS-11"], "recordedBy": "Darren"},
+        {"id": "in-0003", "label": "vendor DR conversation", "sourceDate": "2026-06-02",
+         "recordedAt": "2026-06-03", "subjects": ["PR.DS-11"], "recordedBy": "Darren"},
+    ]
+    ev = derive_evidence(fx_assess, fx_intake, index, core, today="2026-07-27",
+                         threshold_pct=60, age_days=180)
+
+    st = ev["states"]
+    eq(st["ID.AM-01"], "confirmed", "rated with material is confirmed")
+    eq(st["ID.AM-03"], "evidence-pending", "unrated with material is evidence-pending")
+    eq(st["PR.AA-01"], "unrated", "unrated with no material is unrated")
+    eq(st["PR.AA-03"], "not-applicable", "scoped out is its own state")
+
+    cov = ev["coverage"]["overall"]
+    eq(cov["confirmed"], 3, "four-way: confirmed count")
+    eq(cov["evidencePending"], 1, "four-way: evidence-pending count")
+    eq(cov["unrated"], 1, "four-way: unrated count")
+    eq(cov["notApplicable"], 1, "four-way: not-applicable count")
+    eq(cov["confirmed"] + cov["evidencePending"] + cov["unrated"] + cov["notApplicable"],
+       len(fx_assess), "the four buckets partition every tracked Subcategory")
+    eq(cov["attributed"], 3, "attributed = confirmed with source and confirmer")
+    eq(cov["unattributed"], 0, "unattributed = confirmed without all three")
+
+    eq([r["subcategoryId"] for r in ev["revisit"]], ["PR.DS-11"],
+       "revisit: material newer than the confirmation")
+    eq(ev["revisit"][0]["newestSourceDate"], "2026-06-02", "revisit names the newer source date")
+    ok("ID.AM-01" not in {r["subcategoryId"] for r in ev["revisit"]},
+       "material older than the confirmation is not a revisit")
+
+    # A cited source dated after its own confirmation is incoherent data, and the
+    # right response is to surface it for a human, not to special-case it away.
+    incoherent = [dict(a) for a in fx_assess]
+    for a in incoherent:
+        if a["subcategoryId"] == "ID.AM-01":
+            a["confirmedAt"] = "2025-01-01"      # before in-0001's sourceDate
+    ev_inc = derive_evidence(incoherent, fx_intake, index, core, today="2026-07-27",
+                             threshold_pct=60, age_days=180)
+    ok("ID.AM-01" in {r["subcategoryId"] for r in ev_inc["revisit"]},
+       "a source dated after the confirmation it grounds still raises a revisit")
+
+    age = ev["age"]["overall"]
+    eq(age["dated"], 3, "age counts only dated confirmations")
+    eq(age["oldestDays"], 421, "oldest: 2025-06-01 to 2026-07-27")
+    eq(age["medianDays"], 198, "median of 129, 198, 421")
+    eq(age["olderThanThreshold"], 2, "two ratings older than 180 days")
+    eq(ev["age"]["thresholdDays"], 180, "the threshold is reported with the counts")
+
+    g = ev["scopeGuard"]
+    eq(g["assessed"], 3, "scope guard numerator is assessed in-scope")
+    eq(g["inScope"], 5, "scope guard denominator excludes not-applicable")
+    eq(g["thresholdPct"], 60, "scope guard reports its threshold")
+    eq(g["assessedPct"], 60.0, "3 of 5 in-scope assessed is exactly 60%")
+    # The boundary is inclusive: AT the threshold the figure is reported.
+    ok(not g["suppressed"], "exactly at the threshold, the headline is NOT suppressed")
+    ok("60%" in g["statement"] and "3 of 5" in g["statement"],
+       "the scope statement carries both the fraction and the threshold")
+    ev70 = derive_evidence(fx_assess, fx_intake, index, core, today="2026-07-27",
+                           threshold_pct=70, age_days=180)
+    ok(ev70["scopeGuard"]["suppressed"], "one point below the threshold suppresses the headline")
+    ok("No headline coverage figure is reported" in ev70["scopeGuard"]["statement"],
+       "the suppressed statement replaces the number rather than caveating it")
+
+    ok(all("state" not in a and "age" not in a for a in fx_assess),
+       "derivation mutates nothing on the assessments it reads")
+
+    # Per-Function derivation uses framework ids, never hardcoded names.
+    eq(set(ev["coverage"]["byFunction"]), set(function_ids(core)),
+       "four-way coverage covers every Function in the framework")
+    eq(set(ev["age"]["byFunction"]), set(function_ids(core)),
+       "age is reported per Function")
+    eq(ev["coverage"]["byFunction"]["ID"]["confirmed"], 2, "ID has two confirmed")
+    eq(ev["coverage"]["byFunction"]["RC"]["total"], 0, "an untouched Function reports zeros")
+
+    # Coverage by source: what did that review actually cover?
+    bysrc = coverage_by_source(fx_intake, ev["states"], index)
+    eq([r["id"] for r in bysrc], ["in-0003", "in-0002", "in-0001"],
+       "sources are newest-first by sourceDate")
+    first = [r for r in bysrc if r["id"] == "in-0001"][0]
+    eq(first["confirmed"], 2, "in-0001 confirmed two of its three subjects")
+    eq(first["pending"], 1, "in-0001 has one subject still pending")
+    eq(len(first["subjects"]), 3, "every subject is listed, with its state")
+    ok(all(s.get("text") is not None for s in first["subjects"]),
+       "each subject carries its outcome text for rendering")
+
+    # Tie-break: three pending Subcategories sharing one sourceDate. A single
+    # reverse=True over the (date, id) tuple would hand these out id-descending —
+    # this is the case that shipped silently because the earlier fixture had no tie.
+    tie_assess = [
+        {"subcategoryId": "ID.AM-03", "applicability": "in-scope", "current": None, "target": 3,
+         "confirmedAt": None, "confirmedBy": None, "source": None},
+        {"subcategoryId": "ID.AM-02", "applicability": "in-scope", "current": None, "target": 3,
+         "confirmedAt": None, "confirmedBy": None, "source": None},
+        {"subcategoryId": "ID.AM-01", "applicability": "in-scope", "current": None, "target": 3,
+         "confirmedAt": None, "confirmedBy": None, "source": None},
+    ]
+    tie_intake = [{"id": "in-tie", "label": "one review, three subjects",
+                   "sourceDate": "2026-05-01", "recordedAt": "2026-05-02",
+                   "subjects": ["ID.AM-03", "ID.AM-02", "ID.AM-01"], "recordedBy": "Darren"}]
+    ev_tie = derive_evidence(tie_assess, tie_intake, index, core, today="2026-07-27",
+                             threshold_pct=60, age_days=180)
+    eq([r["subcategoryId"] for r in ev_tie["pending"]], ["ID.AM-01", "ID.AM-02", "ID.AM-03"],
+       "tied newestSourceDate breaks by ascending Subcategory id, not descending")
 
     # --- Export contract ---
     eq(EXPORT_COLUMNS,
