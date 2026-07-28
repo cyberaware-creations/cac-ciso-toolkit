@@ -23,6 +23,7 @@ Read-only:
   analyze      <store.csfp> [--today D] [--top N] [--out F]   Emit the complete derived JSON.
   diff         <store.csfp> [--label L] [--json]   Compare current state to a snapshot.
   export-gaps  <store.csfp> [--out F]              Gap CSV for `risk-register import-gaps`.
+  queue        <store.csfp> [--top N] [--json]      What to confirm next, ranked.
   self-test                                        Assert engine math against the fixture.
 
 Mutations (each appends an append-only history event and rewrites the store):
@@ -685,6 +686,71 @@ def coverage_by_source(intake: list[dict], states: dict, index: dict) -> list[di
     return rows
 
 
+def build_queue(assessments: list[dict], intake: list[dict], evidence: dict,
+                index: dict, rank: dict, top: int | None = None) -> list[dict]:
+    """What to confirm next, in three bands.
+
+    Band order is fixed: evidence-pending, then revisit, then cold-start rank.
+    Material you already have beats material you have to go find, and a rating a
+    new conversation has called into question beats one nobody has looked at.
+
+    A queue item carries the SOURCE and the DATE and nothing else. It must never
+    carry a tier, a proposed tier, or a confidence — presenting a conclusion and
+    asking for confirmation is how inference gets laundered as judgment, and a
+    rubber-stamped rating is worse than an unrated one because it looks like
+    evidence. The absence of a rating here is the feature.
+    """
+    by_subject = intake_by_subject(intake)
+    states = evidence["states"]
+    by_id = {a["subcategoryId"]: a for a in assessments}
+
+    def _sources(sid):
+        # Newest first: the most recent conversation is the one a human can still recall.
+        return [{"id": r["id"], "label": r["label"], "sourceDate": r["sourceDate"],
+                 "recordedBy": r.get("recordedBy", "")}
+                for r in reversed(by_subject.get(sid, []))]
+
+    def _row(sid, band):
+        return {
+            "subcategoryId": sid,
+            "text": (index.get(sid) or {}).get("text", ""),
+            "functionId": (index.get(sid) or {}).get("functionId", ""),
+            "band": band,
+            "coldStartRank": rank.get(sid),
+            "sources": _sources(sid),
+            "confirmedAt": by_id.get(sid, {}).get("confirmedAt"),
+            "target": by_id.get(sid, {}).get("target"),
+            # Explicitly null, and asserted by the tests. The confirmation session
+            # asks a question; it does not present an answer for ratification.
+            "tier": None,
+        }
+
+    # Two-pass stable sorts throughout. A single reverse=True over a (date, id)
+    # tuple would reverse the tie-break too — see the same fix in derive_evidence.
+    #
+    # rank[sid], not rank.get(sid, ...): resolve_rank positions every id in index,
+    # and every sid reaching this point came from an assessment check_store already
+    # validated against index. A missing rank is an internal invariant broken, not
+    # a case to paper over with a fallback — the same call this file already made
+    # for _split's key[state] lookup. A silent default would sort the row to the
+    # bottom with no signal, far from wherever the real bug is.
+    pending = list(evidence["pending"])
+    pending.sort(key=lambda r: (rank[r["subcategoryId"]], r["subcategoryId"]))
+    pending.sort(key=lambda r: r["newestSourceDate"], reverse=True)
+
+    revisit = list(evidence["revisit"])
+    revisit.sort(key=lambda r: (rank[r["subcategoryId"]], r["subcategoryId"]))
+    revisit.sort(key=lambda r: r["newestSourceDate"], reverse=True)
+
+    cold = sorted((sid for sid, s in states.items() if s == "unrated"),
+                  key=lambda sid: (rank[sid], sid))
+
+    rows = ([_row(r["subcategoryId"], "evidence-pending") for r in pending]
+            + [_row(r["subcategoryId"], "revisit") for r in revisit]
+            + [_row(sid, "cold-start") for sid in cold])
+    return rows if top is None else rows[:top]
+
+
 # --- Authored guidance -------------------------------------------------------
 
 def load_guidance(path: str | None = None) -> dict:
@@ -928,6 +994,15 @@ def _today() -> str:
 def _s(v):
     """Coerce a possibly-multi-token flag value back to a string."""
     return " ".join(v) if isinstance(v, list) else v
+
+
+def trunc_plain(text: str, n: int) -> str:
+    text = (text or "").strip()
+    if len(text) <= n:
+        return text
+    cut = text[:n]
+    space = cut.rfind(" ")
+    return (cut[:space] if space > n * 0.6 else cut).rstrip() + "…"
 
 
 def _list(v):
@@ -1568,6 +1643,71 @@ def _cmd_intake(args):
         return 0
 
     raise ValueError(usage)
+
+
+def _cmd_queue(args):
+    pos, opt = parse_flags(args)
+    path = _require_store(pos, "usage: queue <store.csfp> [--top N] [--json]")
+    core = load_core(); index = index_subcategories(core)
+    store = load_store(path)
+    rep = store["profile"]["settings"]["reporting"]
+    # today is needed by derive_evidence for the age block, which the queue does not
+    # read. It is deliberately NOT a flag here: nothing observable in the queue
+    # depends on it, and a flag that accepts a value and changes nothing is worse
+    # than no flag.
+    today = _today()
+    # Batches of at most five by default. Long confirmation runs are where
+    # rubber-stamping happens, and a rubber-stamped rating is worse than none.
+    top = int(_s(opt.get("top"))) if isinstance(opt.get("top"), (str, list)) else 5
+    if top < 0:
+        raise ValueError("--top must be zero or greater.")
+
+    ev = derive_evidence(store["assessments"], store.get("intake", []), index, core,
+                         today, rep["scopeThresholdPct"], rep["ageThresholdDays"])
+    all_rows = build_queue(store["assessments"], store.get("intake", []), ev, index,
+                           resolve_rank(index, core, load_cold_start_rank()))
+    rows = all_rows[:top]
+
+    if opt.get("json"):
+        sys.stdout.write(json.dumps(rows, indent=2, ensure_ascii=False) + "\n")
+        return 0
+
+    if not all_rows:
+        # "Confirmed" is only true if something was in scope to confirm. Scoping
+        # everything out and reading "confirmed" back is how a CISO concludes their
+        # programme is current when it was never assessed at all — the exact
+        # conclusion-laundering this command exists to refuse.
+        scoped = in_scope(store["assessments"])
+        if not scoped:
+            print("Queue is empty because nothing is in scope — all "
+                  f"{len(store['assessments'])} Subcategories are marked not-applicable. "
+                  "That is a scoping position, not an assessment result.")
+        else:
+            print(f"Queue is empty — all {len(scoped)} in-scope Subcategories are "
+                  "confirmed and nothing newer has arrived.")
+        return 0
+
+    if not rows:
+        print(f"{len(all_rows)} to confirm, but --top {top} is showing none of them.")
+        return 0
+
+    print(f"Next {len(rows)} to confirm ({len(all_rows)} in the queue):\n")
+    for r in rows:
+        print(f"  {r['subcategoryId']}  [{r['band']}]")
+        print(f"    {trunc_plain(r['text'], 110)}")
+        for s in r["sources"]:
+            print(f"    source {s['id']} · {s['sourceDate']} · {s['label']}")
+        if r["band"] == "revisit":
+            print(f"    confirmed {r['confirmedAt']}; newer material has arrived since")
+        if not r["sources"]:
+            print("    no material recorded — this is a cold start, go and ask")
+        print()
+    print("Confirm one with:")
+    print(f"  set {path} <id> --current N --source in-NNNN --confirmed-by NAME "
+          f"--rationale '...'")
+    print("If the material is thin, the right outcome is a question to go ask — "
+          "not a rating.")
+    return 0
 
 
 def _next_action_id(store) -> str:
@@ -2448,6 +2588,127 @@ def _cmd_self_test(_args):
     eq([r["subcategoryId"] for r in ev_tie["pending"]], ["ID.AM-01", "ID.AM-02", "ID.AM-03"],
        "tied newestSourceDate breaks by ascending Subcategory id, not descending")
 
+    # --- Queue order: evidence-pending -> revisit -> cold-start rank ---
+    _rank = resolve_rank(index, core, load_cold_start_rank())
+    q = build_queue(fx_assess, fx_intake, ev, index, _rank)
+    eq([r["subcategoryId"] for r in q], ["ID.AM-03", "PR.DS-11", "PR.AA-01"],
+       "bands run pending, then revisit, then cold-start")
+    eq([r["band"] for r in q], ["evidence-pending", "revisit", "cold-start"],
+       "each row names its band")
+    ok("PR.AA-03" not in {r["subcategoryId"] for r in q},
+       "not-applicable never enters the queue")
+    ok("ID.AM-01" not in {r["subcategoryId"] for r in q},
+       "a confirmed rating with no newer material is not queued")
+
+    # The anti-drift rule: a queue item presents a question, never an answer.
+    for r in q:
+        ok(r.get("tier") is None, f"{r['subcategoryId']}: queue row carries no tier")
+        ok(not any(k in r for k in ("proposedTier", "suggested", "confidence", "current")),
+           f"{r['subcategoryId']}: queue row carries no proposed rating of any kind")
+
+    eq(q[0]["sources"][0]["label"], "architecture review",
+       "a pending row carries its source label")
+    eq(q[0]["sources"][0]["sourceDate"], "2025-05-20", "and the date the source is from")
+    eq(q[1]["confirmedAt"], "2026-01-10", "a revisit row carries the confirmation it questions")
+    eq(q[2]["sources"], [], "a cold-start row has no material — that is what makes it cold")
+    ok(all(r.get("coldStartRank") for r in q), "every row carries its cold-start rank")
+    eq(build_queue(fx_assess, fx_intake, ev, index, _rank, top=2), q[:2],
+       "top=N truncates after ordering, not before")
+
+    # Ties must break on id ASCENDING. reverse=True over a (date, id) tuple would
+    # reverse the tie-break too and hand a user ID.AM-03 before ID.AM-01.
+    tie_assess = [{"subcategoryId": s, "applicability": "in-scope", "current": None,
+                   "target": 3, "confirmedAt": None, "confirmedBy": None, "source": None}
+                  for s in ("ID.AM-03", "ID.AM-01", "ID.AM-02")]
+    tie_intake = [{"id": "in-0009", "label": "one workshop", "sourceDate": "2026-05-01",
+                   "recordedAt": "2026-05-02",
+                   "subjects": ["ID.AM-03", "ID.AM-01", "ID.AM-02"], "recordedBy": "D"}]
+    tie_ev = derive_evidence(tie_assess, tie_intake, index, core, today="2026-07-27",
+                             threshold_pct=60, age_days=180)
+    tie_q = build_queue(tie_assess, tie_intake, tie_ev, index, _rank)
+    eq([r["subcategoryId"] for r in tie_q], ["ID.AM-01", "ID.AM-02", "ID.AM-03"],
+       "within one source date, pending rows order by cold-start rank then id")
+
+    # An empty queue is a real state, not an error.
+    eq(build_queue([], [], derive_evidence([], [], index, core, "2026-07-27", 60, 180),
+                   index, _rank), [],
+       "a Profile with nothing to confirm yields an empty queue")
+
+    # --- queue CLI: --top must truncate the display, never lie about what exists ---
+    with tempfile.TemporaryDirectory() as _dq:
+        _pq = os.path.join(_dq, "q.csfp")
+        _cmd_init(["--name", "Queue Co", "--out", _pq, "--owner", "CISO",
+                   "--ts", "2026-01-01T00:00:00Z"])
+        # Fresh store: 106 unrated Subcategories, all cold-start, so the full queue
+        # is non-empty. --top 0 must not claim otherwise.
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = _cmd_queue([_pq, "--top", "0"])
+        out = buf.getvalue()
+        eq(rc, 0, "queue --top 0 returns 0")
+        ok("Queue is empty" not in out,
+           "--top 0 truncates the view; it must not claim the queue itself is empty")
+        ok("to confirm, but --top 0 is showing none of them" in out,
+           "--top 0 says what it is doing instead")
+
+        # A normal, non-zero --top folds the total into the header, ahead of the
+        # listing — not as an afterthought below the call to action.
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = _cmd_queue([_pq, "--top", "3"])
+        out = buf.getvalue()
+        eq(rc, 0, "queue --top 3 returns 0")
+        eq(out.count("[cold-start]"), 3, "--top 3 lists exactly three rows")
+        ok("Next 3 to confirm (106 in the queue):" in out,
+           "a truncated queue tells the reader how much more there is, in the header")
+
+        # --json must be pinned to the exact same rows the plain-text path would
+        # list, truncated the same way — a future edit that swaps all_rows/rows in
+        # one branch but not the other must fail here.
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = _cmd_queue([_pq, "--top", "3", "--json"])
+        eq(rc, 0, "queue --top 3 --json returns 0")
+        core_q = load_core(); index_q = index_subcategories(core_q)
+        store_q = load_store(_pq)
+        ev_q = derive_evidence(store_q["assessments"], store_q.get("intake", []), index_q,
+                               core_q, _today(), 60, 180)
+        expected_q = build_queue(store_q["assessments"], store_q.get("intake", []), ev_q,
+                                 index_q, resolve_rank(index_q, core_q, load_cold_start_rank()),
+                                 top=3)
+        eq(json.loads(buf.getvalue()), expected_q,
+           "--json emits exactly build_queue's own output, truncated the same way")
+
+        # A negative --top would slice from the end and silently show the wrong
+        # rows — refuse it outright rather than let Python's slicing paper over it.
+        try:
+            _cmd_queue([_pq, "--top", "-1"])
+            failures.append("queue --top -1 should have been refused")
+        except ValueError as exc:
+            ok("--top must be zero or greater" in str(exc),
+               "a negative --top names the actual problem")
+        checks += 1
+
+        # A genuinely empty queue has two distinct causes, and conflating them is
+        # exactly the overclaim this command exists to refuse: scoping everything
+        # out is a scoping position, not an assessment result, and must never read
+        # back as "confirmed".
+        s_empty = load_store(_pq)
+        for a in s_empty["assessments"]:
+            a["applicability"] = "not-applicable"
+            a["current"] = None
+            a["target"] = None
+        save_store(s_empty, _pq, "2026-01-02T00:00:00Z")
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = _cmd_queue([_pq, "--top", "5"])
+        out = buf.getvalue()
+        eq(rc, 0, "queue on a fully scoped-out store returns 0")
+        ok("Queue is empty because nothing is in scope" in out,
+           "a fully scoped-out store gets the SCOPING message, not the confirmed one")
+        ok("confirmed" not in out,
+           "the scoping message never uses the word that would claim an assessment happened")
+
     # --- Export contract ---
     eq(EXPORT_COLUMNS,
        ["subcategory_id", "function_id", "category_id", "current_tier", "target_tier",
@@ -2468,7 +2729,7 @@ COMMANDS = {
     "init": _cmd_init, "set": _cmd_set, "set-tier": _cmd_set_tier,
     "quickstart-target": _cmd_quickstart_target,
     "snapshot": _cmd_snapshot, "diff": _cmd_diff, "action": _cmd_action,
-    "intake": _cmd_intake,
+    "intake": _cmd_intake, "queue": _cmd_queue,
     "analyze": _cmd_analyze, "export-gaps": _cmd_export_gaps,
 }
 
