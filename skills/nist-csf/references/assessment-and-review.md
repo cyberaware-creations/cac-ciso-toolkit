@@ -196,10 +196,19 @@ Use the Implementation Examples as the prompt — `analyze` attaches them to eve
 
 ### 6. Characterize Tiers (optional, and separate)
 
-Tiers are set on the Profile, not per Subcategory, by editing `profile.tier` (`overall`, and
-optionally `byFunction`). They characterize the **rigor** of risk governance and management
-practices — read the verbatim NIST text in the Core's `tiers` block with the user and let them
-place themselves.
+Tiers are set on the Profile, not per Subcategory. They characterize the **rigor** of risk
+governance and management practices — read the verbatim NIST text in the Core's `tiers` block with
+the user and let them place themselves, then record the judgment:
+
+```bash
+python3 scripts/profile_analysis.py set-tier acme.csfp --overall 2 --function GV=3 PR=2 \
+  --rationale "Board review: governance is repeatable; delivery is inconsistent across units."
+```
+
+Use the command, never a hand edit. `set-tier` requires `--rationale`, refuses a fractional Tier,
+and appends a history event — the three things that make a Tier a recorded judgment rather than a
+number that appeared in the file. It never reads the ratings; there is no code path from coverage to
+a Tier, by design.
 
 > **Never** compute a Tier from the ratings, average Tiers, trend them as a maturity score, or
 > report "Tier 2.4". NIST calls Table 2 a *notional illustration*. Conflating Tiers with maturity is
