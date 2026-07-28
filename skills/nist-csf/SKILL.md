@@ -157,6 +157,13 @@ between a Profile that records judgment and one that launders inference:
    there. "We have a CMDB" bears on ID.AM-01 and ID.AM-02; it says nothing about ID.AM-05.
 6. **The label is the user's words.** Propose one, but it is theirs to accept or rewrite,
    and it is a note *about* the source — never an excerpt from it.
+7. **Never infer who confirmed it.** If the user waves the question away — *"don't worry
+   about who confirmed it, just record it"* — that is the moment to ask, not to supply an
+   answer. Do not lift a name from `recordedBy` on an intake record, from the Profile
+   owner, or from earlier in the conversation. Disclosing the inference afterwards does
+   not repair it: the store now states that a named person decided something they
+   declined to decide, and `confirmedBy` is the field the whole feature exists to make
+   answerable.
 
 ## Reporting
 

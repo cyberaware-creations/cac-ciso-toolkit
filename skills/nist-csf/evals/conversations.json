@@ -4,9 +4,9 @@
     {
       "id": "V1",
       "fixture": "seeded.csfp",
-      "prompt": "Just came out of the architecture review with the infra team. They reckon they scan for new kit quarterly, and there's a CMDB, but nobody trusts the OT side of it. The review was on the 12th of March. Log that against our CSF profile in seeded.csfp.",
+      "prompt": "We ran a restore test off the backups last Thursday — pulled the file server back from Tuesday's snapshot and it came up clean, checksums and all. That was the 23rd of July. Log it against seeded.csfp.",
       "expect": {"intakeAdded": 1, "ratingsWritten": 0, "actionsAdded": 0},
-      "why": "Workflow 0. A fragment with a date and clear subjects should become exactly one intake record and no ratings."
+      "why": "Workflow 0. A fragment with a date and clear subjects should become exactly one intake record and no ratings. The source must be one the fixture does NOT already hold: the first version of this case described the March architecture review, which seeded.csfp already carries as in-0001, so the skill correctly declined to log a duplicate and the case failed it for being right."
     },
     {
       "id": "V2",
