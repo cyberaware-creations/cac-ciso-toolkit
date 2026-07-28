@@ -34,30 +34,45 @@ yn() { [ "$1" -eq 0 ] && echo PASS || echo FAIL; }
 
 echo "Building a fixture: CSF Profile -> gap export -> register import"
 "$PY" "$CSF/scripts/profile_analysis.py" init --name "Regression Co" \
-  --out "$work/p.csfp" --owner CISO >/dev/null
-"$PY" "$CSF/scripts/profile_analysis.py" quickstart-target "$work/p.csfp" >/dev/null
-for s in PR.AA-01 GV.SC-07 DE.AE-03; do
+  --out "$work/p.csfp" --owner CISO >/dev/null || {
+    echo "board-safety: FIXTURE FAILED — profile init errored"; exit 1; }
+"$PY" "$CSF/scripts/profile_analysis.py" quickstart-target "$work/p.csfp" >/dev/null || {
+    echo "board-safety: FIXTURE FAILED — quickstart-target errored"; exit 1; }
+"$PY" "$CSF/scripts/profile_analysis.py" intake add "$work/p.csfp" \
+  --label "regression fixture seed" \
+  --subjects PR.AA-01 GV.SC-07 DE.AE-03 ID.AM-01 RS.MA-01 RC.RP-01 >/dev/null || {
+    echo "board-safety: FIXTURE FAILED — intake add errored"; exit 1; }
+for s in PR.AA-01 GV.SC-07 DE.AE-03 ID.AM-01 RS.MA-01 RC.RP-01; do
   "$PY" "$CSF/scripts/profile_analysis.py" set "$work/p.csfp" "$s" \
-    --current 0 --target 3 --rationale "fixture" >/dev/null
+    --current 0 --target 3 --source in-0001 --confirmed-by fixture \
+    --rationale fixture >/dev/null || {
+      echo "board-safety: FIXTURE FAILED — could not rate $s"; exit 1; }
 done
-"$PY" "$CSF/scripts/profile_analysis.py" export-gaps "$work/p.csfp" --out "$work/gaps.csv" >/dev/null
+"$PY" "$CSF/scripts/profile_analysis.py" export-gaps "$work/p.csfp" --out "$work/gaps.csv" >/dev/null || {
+  echo "board-safety: FIXTURE FAILED — export-gaps errored"; exit 1; }
 rm -f "$work/r.rr"
 "$PY" "$RR/scripts/score_register.py" init "$work/r.rr" --client "Regression Co" \
-  --assessor CISO >/dev/null
+  --assessor CISO >/dev/null || {
+    echo "board-safety: FIXTURE FAILED — register init errored"; exit 1; }
 "$PY" "$RR/scripts/score_register.py" import-gaps "$work/gaps.csv" \
-  --into "$work/r.rr" --write >/dev/null 2>&1
+  --into "$work/r.rr" --write >/dev/null 2>&1 || {
+    echo "board-safety: FIXTURE FAILED — import-gaps errored"; exit 1; }
 
 # A score-only review: the path that used to authorise framework wording for a board.
 "$PY" "$RR/scripts/score_register.py" set-score "$work/r.rr" R-001 --residual 5 5 \
-  --why "scored, not reworded" >/dev/null
+  --why "scored, not reworded" >/dev/null || {
+    echo "board-safety: FIXTURE FAILED — could not score R-001"; exit 1; }
 # An over-appetite risk the board formally accepted, still current.
-"$PY" "$RR/scripts/score_register.py" set-score "$work/r.rr" R-002 --residual 5 5 --why x >/dev/null
+"$PY" "$RR/scripts/score_register.py" set-score "$work/r.rr" R-002 --residual 5 5 --why x >/dev/null || {
+  echo "board-safety: FIXTURE FAILED — could not score R-002"; exit 1; }
 "$PY" "$RR/scripts/score_register.py" accept "$work/r.rr" R-002 --approver "Audit Committee" \
   --justification "compensating controls; remediation funded" --revalidate 2099-01-31 \
-  --why "board decision" >/dev/null
+  --why "board decision" >/dev/null || {
+    echo "board-safety: FIXTURE FAILED — could not accept R-002"; exit 1; }
 
 for r in render_board render_dashboard render_report; do
-  "$PY" "$RR/renderers/$r.py" "$work/r.rr" "$work/$r.html" >/dev/null || exit 1
+  "$PY" "$RR/renderers/$r.py" "$work/r.rr" "$work/$r.html" >/dev/null || {
+    echo "board-safety: FIXTURE FAILED — $r.py errored"; exit 1; }
 done
 echo
 
@@ -107,7 +122,8 @@ chk 5 "provisional disclosure present in board + report" \
        grep -q 'risks are provisional' "$work/render_report.html" && echo PASS || echo FAIL)"
 
 # 6. --offline makes the promise in dashboards.md literally true.
-"$PY" "$RR/renderers/render_board.py" "$work/r.rr" "$work/off.html" --offline >/dev/null
+"$PY" "$RR/renderers/render_board.py" "$work/r.rr" "$work/off.html" --offline >/dev/null || {
+  echo "board-safety: FIXTURE FAILED — offline render_board errored"; exit 1; }
 # Passes only when the file contains no absolute URL at all — not merely no font link.
 grep -q 'https\?://' "$work/off.html"
 chk 6 "--offline emits no external request" "$([ $? -ne 0 ] && echo PASS || echo FAIL)"
