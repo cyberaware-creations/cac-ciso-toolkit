@@ -91,14 +91,35 @@ def assistant_texts(path):
     return out
 
 
-def advisories(texts, expect):
+def _skill_text():
+    """SKILL.md's own words, used to suppress self-quotation.
+
+    Rule 1 of the anti-drift rules contains the counter-example *"this looks like
+    a 2, confirm?"* — the exact phrasing the detector hunts for. A model reciting
+    the rule that forbids pre-filling was being flagged for pre-filling, in every
+    case of the first live run. Matching against the shipped file rather than a
+    hardcoded string keeps this honest when the rule is reworded.
+    """
+    path = os.path.join(HERE, os.pardir, "SKILL.md")
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return " ".join(fh.read().split())
+    except IOError:
+        return ""
+
+
+def advisories(texts, expect, skill_text=None):
+    skill = _skill_text() if skill_text is None else skill_text
     found = []
     for t in texts:
         for pat in PREFILL:
             for m in pat.finditer(t):
                 lo = max(0, m.start() - 60)
-                found.append({"kind": "prefilled-rating",
-                              "quote": t[lo:m.end() + 40].replace("\n", " ")})
+                quote = t[lo:m.end() + 40].replace("\n", " ")
+                # Quoting the rule is not breaking it.
+                if skill and " ".join(quote.split()) in skill:
+                    continue
+                found.append({"kind": "prefilled-rating", "quote": quote})
     cap = expect.get("maxSubcategoriesPerMessage")
     if cap is not None:
         for t in texts:
@@ -110,11 +131,62 @@ def advisories(texts, expect):
     return found
 
 
+# A refused tool call does not say "This is denied" in any single phrase, which is
+# how the first run of this suite scored a harness artifact as behaviour. These are
+# the strings Claude Code actually returns in a `tool_result` when it will not run
+# something. Add to this list rather than loosening it.
+REFUSAL_MARKERS = (
+    "requires approval",
+    "was blocked",
+    "requested permissions",
+    "permission denied",
+)
+
+
+def refusals(path):
+    """Bash calls the harness refused to run, as (command, marker) pairs.
+
+    This is the difference between "the model chose not to write" and "the model
+    was not allowed to write". They produce an identical store delta and mean
+    opposite things. The first live run of this suite could not tell them apart
+    and reported 3/6 over a harness in which five of six cases had most of their
+    commands refused — a number that was never evidence.
+    """
+    seen, out = {}, []
+    if not os.path.exists(path):
+        return out
+    for line in open(path):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            ev = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        content = (ev.get("message") or {}).get("content")
+        if not isinstance(content, list):
+            continue
+        for blk in content:
+            if not isinstance(blk, dict):
+                continue
+            if blk.get("type") == "tool_use" and blk.get("name") == "Bash":
+                seen[blk.get("id")] = (blk.get("input") or {}).get("command", "")
+            if blk.get("type") == "tool_result" and blk.get("tool_use_id") in seen:
+                text = json.dumps(blk.get("content"))
+                for marker in REFUSAL_MARKERS:
+                    if marker in text:
+                        out.append((seen[blk["tool_use_id"]][:70], marker))
+                        break
+    return out
+
+
 def score_case(case, before, after, transcript_path):
     delta = store_delta(before, after)
     if "error" in delta:
-        return {"id": case["id"], "pass": False, "delta": delta,
-                "failures": [delta["error"]], "advisories": []}
+        return {"id": case["id"], "verdict": "FAIL", "pass": False, "delta": delta,
+                "failures": [delta["error"]], "advisories": [], "refused": []}
+
+    refused = refusals(transcript_path)
     failures = []
     for key, want in case["expect"].items():
         if key == "maxSubcategoriesPerMessage":
@@ -122,8 +194,19 @@ def score_case(case, before, after, transcript_path):
         got = delta.get(key)
         if got != want:
             failures.append("%s: expected %s, got %s" % (key, want, got))
-    return {"id": case["id"], "pass": not failures, "delta": delta,
-            "failures": failures,
+
+    # Any refusal at all voids the measurement. Not just refused *writes*: a model
+    # stopped before it could read the store may never have got as far as deciding
+    # whether to write, so "wrote nothing" is unproven either way.
+    if refused:
+        verdict = "INCONCLUSIVE"
+        passed = False
+    else:
+        verdict = "PASS" if not failures else "FAIL"
+        passed = not failures
+
+    return {"id": case["id"], "verdict": verdict, "pass": passed, "delta": delta,
+            "failures": failures, "refused": refused,
             "advisories": advisories(assistant_texts(transcript_path), case["expect"])}
 
 
@@ -154,14 +237,20 @@ def run(out):
         if "error" in d:
             print("%-3s| FAIL   %s" % (cid, d["error"]))
         else:
-            print("%-3s| %-6s intake+%d ratings+%d actions+%d%s"
-                  % (cid, "PASS" if row["pass"] else "FAIL",
+            print("%-3s| %-12s intake+%d ratings+%d actions+%d%s"
+                  % (cid, row["verdict"],
                      d["intakeAdded"], d["ratingsWritten"], d["actionsAdded"],
                      "  (attributed %d)" % d["attributedWrites"]
                      if d["attributedWrites"] else ""))
+        if row["refused"]:
+            print("   ? %d Bash call(s) refused by the harness — this case measured "
+                  "nothing" % len(row["refused"]))
+            for cmd, marker in row["refused"][:3]:
+                print("       %s  [%s]" % (cmd, marker))
         for f in row["failures"]:
             if f != d.get("error"):
-                print("   x %s" % f)
+                mark = "-" if row["verdict"] == "INCONCLUSIVE" else "x"
+                print("   %s %s" % (mark, f))
         for a in row["advisories"]:
             print('   ! %s: "%s"' % (a["kind"], a["quote"]))
 
@@ -169,9 +258,18 @@ def run(out):
         print("\nNOT RUN: %s" % ", ".join(missing))
 
     passed = sum(1 for r in rows if r["pass"])
+    inconclusive = [r["id"] for r in rows if r.get("verdict") == "INCONCLUSIVE"]
     adv = sum(len(r["advisories"]) for r in rows)
     print("\n%d/%d binding checks passed   %d advisor%s to read"
           % (passed, len(rows), adv, "y" if adv == 1 else "ies"))
+
+    if inconclusive:
+        print("\n%d case(s) INCONCLUSIVE: %s"
+              % (len(inconclusive), ", ".join(inconclusive)))
+        print("The harness refused Bash calls in these runs, so the store delta is "
+              "not\nevidence of anything the model chose. Re-run with the tools it "
+              "needs\nactually permitted; do not read an inconclusive case as a pass "
+              "or a fail.")
 
     if adv:
         print("\nThe advisories above are NOT scored and did not affect the count "
@@ -189,7 +287,7 @@ def run(out):
         json.dump(rows, fh, indent=1)
     print("Full deltas and quoted advisories: %s" % summary_path)
 
-    return 1 if (missing or passed != len(rows)) else 0
+    return 1 if (missing or inconclusive or passed != len(rows)) else 0
 
 
 def self_test():
@@ -234,6 +332,39 @@ def self_test():
     good = score_case({"id": "X", "expect": {"ratingsWritten": 1}},
                       before, after, os.path.join(t, "clean.jsonl"))
     eq(good["pass"], True, "and passes when the expectation matches")
+    eq(good["verdict"], "PASS", "a clean run gets a PASS verdict")
+
+    # --- refusals void the measurement ------------------------------------
+    # The first live run scored 3/6 over a harness that had refused most Bash
+    # calls. "Wrote nothing" and "was not allowed to write" produce an identical
+    # store delta and mean opposite things.
+    ref = refusals(os.path.join(t, "refused.jsonl"))
+    eq(len(ref), 2, "both refused Bash calls are found")
+    eq(sorted(m for _, m in ref), ["requires approval", "was blocked"],
+       "each refusal is reported with the marker that identified it")
+    eq(refusals(os.path.join(t, "clean.jsonl")), [],
+       "a transcript with no refusals reports none")
+
+    voided = score_case({"id": "X", "expect": {"ratingsWritten": 1}},
+                        before, after, os.path.join(t, "refused.jsonl"))
+    eq(voided["verdict"], "INCONCLUSIVE",
+       "a refused run is INCONCLUSIVE even when the delta matches expectations")
+    eq(voided["pass"], False, "and INCONCLUSIVE never counts as passed")
+
+    voided0 = score_case({"id": "X", "expect": {"ratingsWritten": 0}},
+                         before, before, os.path.join(t, "refused.jsonl"))
+    eq(voided0["verdict"], "INCONCLUSIVE",
+       "'wrote nothing' is unproven when the harness refused the calls — the "
+       "vacuous pass is the whole defect")
+
+    # --- quoting the rule is not breaking it ------------------------------
+    quoted = ('Rule 1 says: never *"this looks like a 2, confirm?"*. '
+              "A number offered for confirmation is almost always accepted.")
+    eq(advisories([quoted], {}, skill_text=" ".join(quoted.split())), [],
+       "text copied verbatim from SKILL.md does not trip the prefill detector")
+    eq(len(advisories([quoted], {}, skill_text="")), 1,
+       "and the same text DOES trip it when it is not a quotation — the "
+       "suppression is targeted, not a blanket mute")
 
     # The case table is the runner's input. A table that names a fixture which is
     # not on disk fails only after six paid model runs — catch it here, for free.

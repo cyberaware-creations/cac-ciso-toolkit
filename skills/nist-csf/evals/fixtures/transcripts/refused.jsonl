@@ -1,0 +1,5 @@
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "t1", "name": "Bash", "input": {"command": "python3 scripts/profile_analysis.py intake add seeded.csfp --label x"}}]}}
+{"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "t1", "content": "This command requires approval"}]}}
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "t2", "name": "Bash", "input": {"command": "find / -name '*.csfp'"}}]}}
+{"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "t2", "content": "find in '/' was blocked. For security, Claude Code may only search within the working directory."}]}}
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": "I can't complete the write \u2014 the calls are hitting a permission gate."}]}}

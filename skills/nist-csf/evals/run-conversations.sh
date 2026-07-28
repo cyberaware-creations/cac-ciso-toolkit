@@ -58,7 +58,15 @@ run_one() {
   # before-image the scorer diffs against.
   cp "$here/fixtures/stores/$fixture" "$wd/$fixture"
   cp "$here/fixtures/stores/$fixture" "$out/before/$id.csfp"
+  # --allowedTools is load-bearing, not convenience. Without it the harness refuses
+  # every `python3` call with "This command requires approval", the store is never
+  # written, and a case expecting no writes passes for the wrong reason. The first
+  # live run of this suite scored 3/6 that way. Scoped to the tools the skill needs
+  # rather than --dangerously-skip-permissions: each case runs in its own scratch
+  # directory against a COPY of a fixture, and what we are measuring is what the
+  # model chooses to do when it *can* act.
   ( cd "$wd" && claude -p "$prompt" \
+      --allowedTools Bash Read Glob Grep Skill \
       --output-format stream-json --verbose --max-turns 20 \
       > "$out/runs/$id.jsonl" 2> "$out/runs/$id.err" </dev/null )
   echo "  $id done"
