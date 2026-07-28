@@ -44,6 +44,8 @@ Mutations (each appends an append-only history event and rewrites the store):
   intake add        <store.csfp> --label '...' --subjects ID.AM-01 ID.AM-02
                     [--source-date D] [--recorded-by NAME] [--ts TS]
   intake list       <store.csfp> [--json]
+  overlay           list|enable|disable <store.csfp> [--focus A B] [--mode advisory|reorder]
+                    (list is read-only; enable and disable rewrite the store)
 
 Usage:
   python3 profile_analysis.py init --name "Acme Corp" --out acme.csfp --owner CISO
@@ -1811,6 +1813,128 @@ def _cmd_intake(args):
     raise ValueError(usage)
 
 
+def _cmd_overlay(argv):
+    """Turn the NIST Cyber AI Profile overlay on or off for this Profile.
+
+    The overlay reweights the same 106 Subcategories and adds none, so enabling
+    it adds no assessment work — it changes the order in which existing work is
+    presented, and it says so on every surface that reports it.
+
+    Every validation happens before `cfg` is touched, so a refused enable leaves
+    the stored selection exactly as it was rather than half-written.
+    """
+    usage = ("usage: overlay list <store.csfp>\n"
+             "       overlay enable <store.csfp> --focus secure defend thwart "
+             "[--mode advisory|reorder]\n"
+             "       overlay disable <store.csfp>")
+    if not argv:
+        raise ValueError(usage)
+    sub, rest = argv[0], argv[1:]
+    if sub not in ("list", "enable", "disable"):
+        raise ValueError(usage)
+    pos, opt = parse_flags(rest)
+    path = _require_store(pos, usage)
+    store = load_store(path)
+    index = index_subcategories(load_core())
+    # --dataset is undocumented in the usage banner on purpose: it exists so the
+    # tests can run against examples/fixture-cyber-ai.json, not as a way to point
+    # a Profile at an unvetted priority table.
+    dataset = load_overlay_dataset(
+        _s(opt["dataset"]) if isinstance(opt.get("dataset"), (str, list)) else None,
+        index)
+    cfg = store["overlays"]["cyberAi"]
+
+    if sub == "list":
+        print("cyber-ai — NIST Cyber AI Profile overlay")
+        print(f"  dataset      {dataset['datasetVersion']}")
+        print(f"  source       {dataset['sourceStatus']}, published "
+              f"{dataset['sourcePublished']}")
+        print(f"  {dataset['sourceUrl']}")
+        print(f"  focus areas  {', '.join(dataset['focusAreas'])}")
+        print("")
+        if cfg["enabled"]:
+            print(f"  ENABLED  areas: {', '.join(cfg['focusAreas']) or 'none'}  "
+                  f"mode: {cfg['mode']}  dataset in force: {cfg['datasetVersion']}")
+        else:
+            print("  disabled. This Profile is not affected by the overlay.")
+        print("")
+        print("Priority indicates sequencing, not required maturity. Enabling adds "
+              "no assessment work — the overlay reweights the existing 106 "
+              "Subcategories and adds none.")
+        return 0
+
+    ts = _s(opt["ts"]) if isinstance(opt.get("ts"), (str, list)) else _now()
+    actor = _s(opt["actor"]) if isinstance(opt.get("actor"), (str, list)) else None
+
+    if sub == "disable":
+        was = cfg["enabled"]
+        cfg["enabled"] = False
+        if was:
+            append_history(store, "overlay-disabled", ts=ts, actor=actor,
+                           rationale="cyber-ai overlay disabled")
+        save_store(store, path, ts)
+        print("cyber-ai overlay disabled. Focus areas and mode kept, so re-enabling "
+              "is one command.")
+        return 0
+
+    focus = _list(opt.get("focus"))
+    if not focus:
+        raise ValueError(
+            "--focus is required. Which Focus Areas apply?\n"
+            "  secure  — you build or deploy AI systems\n"
+            "  defend  — your security programme uses AI\n"
+            "  thwart  — attackers use AI against you. This applies whether or not "
+            "you use AI at all.\n\n" + usage)
+    bad = [f for f in focus if f not in OVERLAY_FOCUS_AREAS]
+    if bad:
+        # parse_flags splits on spaces and never on commas, so `--focus a,b`
+        # arrives as one unrecognised token. Name that specifically: a bare
+        # "unknown focus area" reads as a typo and sends people looking for one.
+        hint = ""
+        if any("," in b for b in bad):
+            hint = ("\nFocus areas are separated by spaces, not commas: "
+                    "--focus secure thwart")
+        raise ValueError(
+            f"Unknown focus area(s) {', '.join(repr(b) for b in bad)}. "
+            f"Valid: {', '.join(OVERLAY_FOCUS_AREAS)}.{hint}")
+
+    mode = _s(opt["mode"]) if isinstance(opt.get("mode"), (str, list)) else "reorder"
+    if mode == "floor":
+        # Refused with its reason, not as an unknown value. `floor` was in the
+        # original design and was cut; anyone working from that design will type
+        # it, and "unknown mode" would send them hunting for a typo.
+        raise ValueError(
+            "--mode floor is not available. It would map NIST proposed priority "
+            "onto a raised target, and that mapping is scale-dependent: the rating "
+            "scale is a per-Profile setting, native Profiles run 0-3 while Profiles "
+            "converted from the web tool run 0-4, and there is no honest mapping "
+            "between them (references/scale-and-scoring.md). A fixed "
+            "priority-to-target table would mean different things on two Profiles "
+            "that both load here.\n\n"
+            "Use --mode reorder, which sequences the work without asserting a "
+            "maturity level NIST does not claim.")
+    if mode not in OVERLAY_MODES:
+        raise ValueError(f"--mode must be one of {', '.join(OVERLAY_MODES)}, "
+                         f"got {mode!r}.")
+
+    cfg["enabled"] = True
+    cfg["focusAreas"] = [a for a in OVERLAY_FOCUS_AREAS if a in focus]
+    cfg["mode"] = mode
+    cfg["datasetVersion"] = dataset["datasetVersion"]
+    append_history(store, "overlay-enabled", ts=ts, actor=actor,
+                   rationale=f"cyber-ai overlay enabled: "
+                             f"{', '.join(cfg['focusAreas'])}, mode {mode}")
+    save_store(store, path, ts)
+    print(f"cyber-ai overlay enabled — {', '.join(cfg['focusAreas'])}, mode {mode}, "
+          f"dataset {cfg['datasetVersion']}.")
+    print("No assessment work is added. The overlay reweights the existing 106 "
+          "Subcategories.")
+    if mode == "reorder":
+        print("The gap table will be ordered by AI priority. Scores, targets, gaps "
+              "and coverage are unchanged.")
+    return 0
+
+
 def _cmd_queue(args):
     pos, opt = parse_flags(args)
     path = _require_store(pos, "usage: queue <store.csfp> [--top N] [--json]")
@@ -2825,6 +2949,76 @@ def _cmd_self_test(_args):
                    "datasetVersion": "fixture-1"},
            "an explicitly set overlay block round-trips unchanged")
 
+        # --- overlay commands ----------------------------------------------
+        _fx_path = os.path.join(_SKILL_ROOT, "examples", "fixture-cyber-ai.json")
+        _ov2 = os.path.join(_tmp, "cmds.csfp")
+        _cmd_init(["--name", "Overlay Cmds", "--out", _ov2,
+                   "--ts", "2026-01-01T00:00:00Z"])
+
+        _cmd_overlay(["enable", _ov2, "--focus", "secure", "thwart",
+                      "--dataset", _fx_path, "--ts", "2026-01-02T00:00:00Z"])
+        _en = load_store(_ov2)["overlays"]["cyberAi"]
+        eq(_en["enabled"], True, "enable turns the overlay on")
+        eq(_en["focusAreas"], ["secure", "thwart"], "and records the selected areas")
+        eq(_en["mode"], "reorder",
+           "defaulting to reorder — the honest use of a sequencing signal")
+        eq(_en["datasetVersion"], "fixture-1",
+           "and stamps the dataset version in force")
+        eq(load_store(_ov2)["history"][-1]["type"], "overlay-enabled",
+           "enabling writes a history event; it changes what every report says")
+
+        # Focus areas are stored in canonical order, not the order they were typed.
+        _cmd_overlay(["enable", _ov2, "--focus", "thwart", "secure",
+                      "--dataset", _fx_path, "--ts", "2026-01-02T01:00:00Z"])
+        eq(load_store(_ov2)["overlays"]["cyberAi"]["focusAreas"], ["secure", "thwart"],
+           "focus areas are canonicalised, so two equivalent commands agree")
+
+        try:
+            _cmd_overlay(["enable", _ov2, "--focus", "secure", "--mode", "floor",
+                          "--dataset", _fx_path, "--ts", "2026-01-03T00:00:00Z"])
+            ok(False, "floor mode is refused")
+        except ValueError as _e:
+            ok("floor" in str(_e) and "scale" in str(_e),
+               "floor is refused NAMING THE SCALE — anyone who read the original "
+               "design will type it, and 'unknown mode' sends them hunting a typo")
+
+        try:
+            _cmd_overlay(["enable", _ov2, "--focus", "secure,thwart",
+                          "--dataset", _fx_path, "--ts", "2026-01-03T00:00:00Z"])
+            ok(False, "a comma-joined focus list is refused")
+        except ValueError as _e:
+            ok("secure,thwart" in str(_e) and "space" in str(_e).lower(),
+               "a comma-joined focus list is refused by name and says to use spaces")
+
+        try:
+            _cmd_overlay(["enable", _ov2, "--dataset", _fx_path,
+                          "--ts", "2026-01-03T00:00:00Z"])
+            ok(False, "enable with no --focus is refused")
+        except ValueError as _e:
+            ok("thwart" in str(_e),
+               "and the refusal explains the three areas, including that thwart "
+               "applies whether or not you use AI")
+
+        try:
+            _cmd_overlay(["enable", _ov2, "--focus", "sekure",
+                          "--dataset", _fx_path, "--ts", "2026-01-03T00:00:00Z"])
+            ok(False, "an unknown focus area is refused")
+        except ValueError as _e:
+            ok("sekure" in str(_e), "and names the value it did not recognise")
+
+        # A refused enable must not have half-written the store.
+        eq(load_store(_ov2)["overlays"]["cyberAi"]["focusAreas"], ["secure", "thwart"],
+           "a refused enable leaves the previous state intact")
+
+        _cmd_overlay(["disable", _ov2, "--dataset", _fx_path,
+                      "--ts", "2026-01-04T00:00:00Z"])
+        _dis = load_store(_ov2)["overlays"]["cyberAi"]
+        eq(_dis["enabled"], False, "disable turns it off")
+        eq(_dis["focusAreas"], ["secure", "thwart"],
+           "and preserves the selection, so re-enabling is one command")
+        eq(load_store(_ov2)["history"][-1]["type"], "overlay-disabled",
+           "and writes its own history event")
+
     # --- elicit ------------------------------------------------------------
     # Settled = rated, scoped out, or already carrying intake. The third
     # clause is the one that makes this a cold-start tool rather than a
@@ -3341,7 +3535,8 @@ COMMANDS = {
     "init": _cmd_init, "set": _cmd_set, "set-tier": _cmd_set_tier,
     "quickstart-target": _cmd_quickstart_target,
     "snapshot": _cmd_snapshot, "diff": _cmd_diff, "action": _cmd_action,
-    "intake": _cmd_intake, "queue": _cmd_queue, "elicit": _cmd_elicit,
+    "intake": _cmd_intake, "overlay": _cmd_overlay,
+    "queue": _cmd_queue, "elicit": _cmd_elicit,
     "analyze": _cmd_analyze, "export-gaps": _cmd_export_gaps,
 }
 
