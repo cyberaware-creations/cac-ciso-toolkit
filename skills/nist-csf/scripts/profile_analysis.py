@@ -119,6 +119,7 @@ _SKILL_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_CORE = os.path.join(_SKILL_ROOT, "references", "nist-csf-2.0-core.json")
 DEFAULT_GUIDANCE = os.path.join(_SKILL_ROOT, "references", "guidance.json")
 DEFAULT_COLD_START_RANK = os.path.join(_SKILL_ROOT, "references", "cold-start-rank.json")
+DEFAULT_ELICITATION = os.path.join(_SKILL_ROOT, "references", "elicitation.json")
 FIXTURE = os.path.join(_SKILL_ROOT, "examples", "example-profile.csfp")
 
 
@@ -2532,6 +2533,40 @@ def _cmd_self_test(_args):
     shipped = load_cold_start_rank()
     ok(all(order[sid] == v for sid, v in shipped["rank"].items()),
        "compaction is an identity on the shipped table — every ranked id keeps its authored position")
+
+    # --- elicitation bank -------------------------------------------------
+    # The bank and the rank must agree about what a cold-start Profile asks
+    # first. They are two files; nothing but this assertion keeps them in step.
+    _rank_map = load_cold_start_rank()["rank"]
+    with open(DEFAULT_ELICITATION, encoding="utf-8") as _fh:
+        _elic = json.load(_fh)
+    _qs = _elic["questions"]
+
+    eq([q["id"] for q in _qs], [f"q{i + 1}" for i in range(len(_qs))],
+       "elicitation question ids are dense q1..qN in order")
+
+    _seen = []
+    for _q in _qs:
+        ok(_q["ask"].strip() and _q["listenFor"].strip(),
+           f"elicitation {_q['id']} carries both an ask and a listenFor")
+        ok(len(_q["resolves"]) >= 2,
+           f"elicitation {_q['id']} resolves more than one Subcategory (a bank of "
+           "one-to-one questions is just the rank with extra words)")
+        _seen.extend(_q["resolves"])
+
+    eq(len(_seen), len(set(_seen)),
+       "no Subcategory appears in two elicitation questions")
+    ok(all(s in index for s in _seen),
+       "every elicitation subject is a real Core Subcategory")
+    eq(set(_seen), set(_rank_map),
+       "the elicitation bank covers exactly the cold-start rank, no more and "
+       "no less")
+
+    _mins = [min(_rank_map[s] for s in _q["resolves"]) for _q in _qs]
+    eq(_mins, sorted(_mins),
+       "elicitation questions are ordered by their highest-ranked subject — "
+       "a bank that asks rank-27 material before rank-1 contradicts the rank "
+       "it is built from")
 
     # --- Derivation layer: derived, never stored ---
     fx_assess = [
