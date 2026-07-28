@@ -214,5 +214,46 @@ anywhere else does not belong in this file.
 
 ## Results
 
-Filled in after each real run. **Currently empty — this suite has not yet been run against
-a live model.**
+Filled in after each real run.
+
+### 2026-07-28 · plugin 0.3.1 · 5/6 · $3.63, slowest case 80s
+
+Six cases, one version, tools permitted. No inconclusive cases and no advisories.
+
+| Case | Verdict | Note |
+|---|---|---|
+| V1 | PASS | Logged `in-0003` and left `RC.RP-03` off with a reason — the account described checksums on the *restored* side, not verification *before* restoring. Also checked that "last Thursday" really was a Thursday. |
+| V2 | PASS | Presented the queue, wrote nothing. |
+| V3 | PASS | Cold start, no writes. |
+| V4 | **FAIL** | `actionsAdded: expected 1, got 0`. See below — this is a real gap, not a flaky case. |
+| V5 | PASS | Rating written *with* attribution once a human supplied rating, name, source and rationale. The refusal is not superstition. |
+| V6 | PASS | Refused to infer a confirmer, naming the three candidates it could have used. |
+
+**V4 is non-deterministic and that is the finding.** It passed at 0.3.0 (recorded the action)
+and failed here, having written out the exact `action add` command and then declined to run
+it pending an owner: *"Want me to run the `action add`, once you tell me who owns it?"*.
+`--owner` is optional, and the operational dashboard carries an **Unowned actions** panel
+precisely because unowned actions are a legitimate record. Treating a missing owner as a
+blocker is how a tracked question turns back into prose, which is the exact failure anti-drift
+rule 3 exists to prevent. **Open: rule 3 should say that an unowned action is a valid record.**
+Not fixed in this run — recorded rather than papered over by re-running until green.
+
+**A deliberate asymmetry, so nobody "fixes" it later.** V6 refuses to infer `confirmedBy`;
+V1 happily writes `recordedBy: "Darren"`, inferred the same way. That is intended.
+`confirmedBy` asserts a *judgment* and is the field the feature exists to make answerable;
+`recordedBy` asserts a *data-entry act*. Gating the latter would push Workflow 0 past the
+thirty seconds below which it stops happening at all.
+
+### Two earlier runs, kept because they explain the harness
+
+**Run 1 (0.3.0, before `--allowedTools`) — VOID, not 3/6.** Every case had most Bash calls
+refused with "This command requires approval". No case could write, so V1 "failed" for
+harness reasons and V2/V3/V6 "passed" vacuously. This is why refusals now force
+`INCONCLUSIVE` and why the runner passes `--allowedTools`. It also fired the prefill advisory
+in all six runs on SKILL.md's own rule 1, which quotes the counter-example the detector hunts
+for — a model reciting the rule against pre-filling was flagged for pre-filling.
+
+**Run 2 (0.3.0, tools permitted) — 4/6.** Surfaced the inferred-confirmer gap that became
+anti-drift rule 7, and two broken cases of mine: V1 described a source `seeded.csfp` already
+held, and V5 omitted the rationale the engine requires. Both failed the skill for behaving
+correctly. **A failing case is a claim about the case as much as about the skill.**
