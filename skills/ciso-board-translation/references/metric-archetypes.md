@@ -68,9 +68,12 @@ nights and weekends when attackers prefer to move.
 **The board ask.** Fund 24/7 detection coverage, or accept the off-hours
 detection gap on the record.
 
-**Receipt angle.** Detection speed drives disclosure timeliness (SEC Item 1.05,
-DORA incident reporting), and a documented monitoring capability is the kind of
-"minimal reporting system" that wins Caremark dismissals.
+**Receipt angle.** Detection speed drives disclosure timeliness (SEC Item 1.05
+runs a four-business-day clock from the materiality determination; DORA incident
+reporting), and a documented monitoring capability is the kind of board-level
+reporting whose *absence* is what Caremark claims survive on. Do not put it the
+other way round — see regulatory-receipts.md on *Bingle*, where the reporting
+system was called "subpar" and the claim was dismissed anyway.
 
 **Grade-A one-liner.** "Mean time to detect is 8 hours — but that's a business-
 hours average that only counts what we caught, and we don't watch nights or

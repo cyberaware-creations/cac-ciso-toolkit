@@ -32,13 +32,18 @@ oversight, not to be perfect.
 **Supporting cases.**
 - *Firemen's Retirement System v. Sorenson* (Marriott, Del. Ch. 2021) — board
   was "routinely apprised" of cyber risk via enterprise risk reporting →
-  dismissed.
+  dismissed. Note the posture: dismissal was under Rule 23.1 for failure to
+  plead demand futility, not a merits holding that the oversight was adequate.
 - *Construction Industry Laborers v. Bingle* (SolarWinds derivative, Del. Ch.
-  2022) — even "at least a minimal reporting system about corporate risk,
-  including cybersecurity" sufficed; liability requires bad faith.
+  2022; **affirmed**, Del. Supr. No. 411, 2022, 17 May 2023) — the Chancery
+  court called SolarWinds' reporting system **"subpar"**, and dismissed anyway:
+  a subpar system is not an "utter failure to attempt to assure" that a system
+  exists, so it is not bad faith. Cite it for *inadequacy alone is not
+  liability* — **not** for the proposition that a minimal system is sufficient.
 - Contrast *In re Boeing* (2021, aircraft safety) — *no* documented board
-  reporting system → motion to dismiss denied → $237.5M settlement. The absence
-  of a system, not the presence of risk, is what created liability.
+  reporting system → motion to dismiss **substantially** denied → $237.5M
+  settlement. The absence of a system, not the presence of risk, is what
+  created liability.
 
 **Translation implication.** An answer that names the exposure and forces a
 *recorded* board decision manufactures the documented, decision-ready oversight
@@ -49,9 +54,13 @@ it produces the governance artifact that wins dismissal.
 the **oversight / board level** — not to accumulating granular internal risk
 records. Candid internal risk documents can cut the *other* way when they
 contradict public statements: internal SolarWinds risk docs helped sustain the
-SEC's claims at the motion-to-dismiss stage (2024). So the goal is **board-level
-decision records, not a sprawling internal confessional**. More internal
-documentation is not automatically safer.
+one SEC claim that survived the motion to dismiss (S.D.N.Y., 18 July 2024, which
+dismissed most of the action). **That case no longer exists** — the SEC
+dismissed it with prejudice by joint stipulation on 20 November 2025 — so cite
+this as an illustration of *litigation risk*, never as standing precedent. The
+illustration survives the dismissal: candid internal documents were what carried
+a claim that far. So the goal is **board-level decision records, not a sprawling
+internal confessional**. More internal documentation is not automatically safer.
 
 ## DORA RTS 2024/1774 (EU financial entities)
 
@@ -73,8 +82,10 @@ narrative matters.
 
 **HONEST LIMIT (load-bearing).** The RTS specifies **no structure** — a
 spreadsheet cell with a justification satisfies it; do not imply a heavyweight
-system is required. Entities using the **Art. 16 simplified framework** are
-exempt from these specific provisions. And cite the mandate to the **RTS
+system is required. Entities on the **DORA Art. 16 simplified framework** are
+outside these particular provisions and subject to the RTS's own simplified
+regime instead — say that, rather than "exempt", which a regulator will read as
+claiming they have no equivalent obligation. And cite the mandate to the **RTS
 (2024/1774)**, never to DORA Level 1 itself — attributing the residual-risk
 inventory requirement to DORA Level 1 is an overclaim that was refuted in
 research.
@@ -83,11 +94,24 @@ research.
 
 **What it says.**
 - **Item 106(b) of Reg S-K** requires a *description* of the registrant's
-  processes for assessing, identifying, and managing material cybersecurity
-  risk — "if any" — and the SEC was explicit it is "not mandating any particular
-  cybersecurity practices."
-- **Item 1.05 (8-K)** governs disclosure of **material** cybersecurity incidents
-  "without unreasonable delay" once materiality is determined.
+  processes "for assessing, identifying, and managing material risks from
+  cybersecurity threats", **in sufficient detail for a reasonable investor to
+  understand those processes**. Board oversight of those risks is **Item
+  106(c)**, not (b) — do not attribute it to (b) in the room.
+- The SEC was explicit that it is not prescribing controls. Quote it accurately
+  or not at all: Erik Gerding, Director of Corporation Finance, 14 December
+  2023 — *"The Commission is not seeking to prescribe particular cybersecurity
+  defenses, practices, technologies, risk management, governance, or strategy."*
+  (sec.gov, "Cybersecurity Disclosure"). The looser paraphrase "not mandating
+  any particular cybersecurity practices" is **not** a quotation from the
+  adopting release; do not present it as one.
+- **Item 1.05 (8-K)** governs disclosure of **material** cybersecurity
+  incidents. Two distinct obligations, and conflating them understates a hard
+  deadline: the materiality determination must be made **without unreasonable
+  delay** after discovery, and the Item 1.05 8-K must then be filed **within
+  four business days of that determination** (subject to the Attorney General
+  national-security delay). "Without unreasonable delay" alone describes only
+  the first half, and an audit committee's counsel will correct it.
 
 **Translation implication.** The board governs the *materiality judgment* and
 the adequacy of the *process* — and a translation that surfaces business
