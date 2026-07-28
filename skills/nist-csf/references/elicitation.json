@@ -1,0 +1,63 @@
+{
+  "id": "cac-elicitation-1",
+  "basis": "Cyber Aware Creations editorial judgment, partitioning the 37 Subcategories in cold-start-rank.json into nine questions a CISO can answer from what they already know. NIST publishes no such elicitation order; this is ours, not NIST's.",
+  "disclaimer": "These are conversation openers, not an assessment instrument. An answer to one of them is a source to record, never a set of ratings to write.",
+  "theRule": "One answered question becomes ONE intake record naming the subjects the answer actually bore on. It does not become four confirmed ratings. The whole point of asking four Subcategories' worth of material in one question is to save the human's time collecting evidence — not to save them the four decisions.",
+  "subjectDiscipline": "Attach a Subcategory to the intake record only if the answer said something about it. 'We have a CMDB' bears on ID.AM-01 and ID.AM-02; it says nothing about ID.AM-05 unless criticality came up. Over-attaching inflates evidence-pending and makes the queue promise material that is not there.",
+  "questions": [
+    {
+      "id": "q1",
+      "ask": "Walk me through how you know what is on your network — machines, software, and what talks to what.",
+      "resolves": ["ID.AM-01", "ID.AM-02", "ID.AM-03", "ID.AM-05"],
+      "listenFor": "A named system of record and how it is kept current (ID.AM-01 hardware, ID.AM-02 software and services). Whether network flows are documented anywhere, or only known to individuals (ID.AM-03). Whether anything distinguishes a critical asset from an ordinary one (ID.AM-05) — this one usually does not come up unless asked directly, so do not attach it on the strength of an inventory answer alone."
+    },
+    {
+      "id": "q2",
+      "ask": "What data would hurt most to lose or leak, and do you know where it lives?",
+      "resolves": ["ID.AM-07", "PR.DS-01", "PR.DS-02"],
+      "listenFor": "Whether data types are inventoried and classified at all, or whether 'important data' is a shared intuition (ID.AM-07). Encryption at rest, and whether it is universal or per-system (PR.DS-01). Encryption in transit, internal as well as external (PR.DS-02) — 'we're TLS everywhere externally' is a partial answer, not a whole one."
+    },
+    {
+      "id": "q3",
+      "ask": "How does someone get an account here, what can they reach once they have one, and what happens the day they leave?",
+      "resolves": ["PR.AA-01", "PR.AA-03", "PR.AA-05", "PR.AA-06"],
+      "listenFor": "Joiner-mover-leaver as a process versus as a favour (PR.AA-01). Multi-factor authentication: on what, for whom, and whether it can be bypassed (PR.AA-03). Whether permissions are reviewed by anyone after they are granted (PR.AA-05). Physical access usually needs a direct follow-up (PR.AA-06); an answer about accounts is not an answer about doors."
+    },
+    {
+      "id": "q4",
+      "ask": "How does a machine get built here, and how does it get patched?",
+      "resolves": ["PR.PS-01", "PR.PS-02", "ID.RA-01"],
+      "listenFor": "A build standard or golden image versus per-machine improvisation (PR.PS-01). Patch cadence, and what falls outside it — appliances, OT, that one server (PR.PS-02). Whether anything scans for vulnerabilities and whether the findings are recorded anywhere durable (ID.RA-01)."
+    },
+    {
+      "id": "q5",
+      "ask": "Suppose a file server is encrypted by ransomware tonight. Talk me through what actually happens.",
+      "resolves": ["PR.DS-11", "RC.RP-01", "RC.RP-03", "RS.MA-01", "RS.MI-01"],
+      "listenFor": "Backups exist, are protected from the same event, and are tested (PR.DS-11). A recovery plan someone has read (RC.RP-01). Whether a restore is ever verified before it is trusted (RC.RP-03) — this is the step almost nobody volunteers. An incident response plan that has been exercised (RS.MA-01). Containment as a decided move rather than an improvised one (RS.MI-01)."
+    },
+    {
+      "id": "q6",
+      "ask": "If something bad started on Tuesday, who or what would notice, and when?",
+      "resolves": ["DE.CM-01", "DE.CM-09", "DE.AE-02", "DE.AE-06"],
+      "listenFor": "Network monitoring and whether anyone reads it (DE.CM-01). Endpoint protection coverage and gaps (DE.CM-09). Whether alerts are analysed or only counted (DE.AE-02). Whether what is found reaches the people who could act on it (DE.AE-06). 'We have a SIEM' answers none of these on its own — ask who looks at it."
+    },
+    {
+      "id": "q7",
+      "ask": "Who owns security here, and what are you obliged to do — by law, by contract, or by a customer?",
+      "resolves": ["GV.RR-02", "GV.OC-01", "GV.OC-02", "GV.OC-03", "GV.PO-01"],
+      "listenFor": "Named roles with authority, not just job titles (GV.RR-02). What the organisation is actually for, in the answerer's words (GV.OC-01). Who cares about the answer — customers, regulators, insurers, the board (GV.OC-02). Specific obligations, named (GV.OC-03). Whether a cybersecurity policy exists and when it was last opened (GV.PO-01)."
+    },
+    {
+      "id": "q8",
+      "ask": "How does a cyber risk reach the people who decide the budget?",
+      "resolves": ["GV.RM-01", "GV.RM-03", "GV.OV-01", "ID.RA-05", "RS.CO-02"],
+      "listenFor": "Agreed risk objectives, or an unstated appetite (GV.RM-01). Whether cyber risk sits in the enterprise risk process or beside it (GV.RM-03). Whether the strategy is ever reviewed against outcomes (GV.OV-01). Whether risks are prioritised by anything more than volume (ID.RA-05). Who gets told when something goes wrong, and how fast (RS.CO-02)."
+    },
+    {
+      "id": "q9",
+      "ask": "Who else touches your systems or your data, and what do your own people know about security?",
+      "resolves": ["GV.SC-04", "GV.SC-07", "PR.AT-01", "ID.IM-01"],
+      "listenFor": "Whether the supplier list exists and is ranked by criticality rather than spend (GV.SC-04). Whether supplier risk is monitored after onboarding (GV.SC-07). Training that is more than an annual click-through (PR.AT-01). Whether anything the organisation learns — from an incident, an audit, an exercise — turns into a recorded improvement (ID.IM-01)."
+    }
+  ]
+}

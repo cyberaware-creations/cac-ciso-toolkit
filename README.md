@@ -67,6 +67,11 @@ against that log as evidence arrives.
   recorded and no rating, then ratings due a second look, then a cold-start order for a Profile with
   nothing in it (37 Subcategories, our editorial judgment, informed by NIST SP 1300 — see
   `references/cold-start-rank.json`, which records what the research actually changed).
+- **Cold start is nine questions, not 106.** `elicit` asks what a CISO can already answer — *"suppose
+  a file server is encrypted tonight, talk me through what actually happens"* — each question
+  resolving several Subcategories at once. One answer becomes one recorded source, never several
+  ratings: gathering four Subcategories' worth of material in one question saves evidence
+  collection, not the four decisions.
 - **The scope guard suppresses rather than caveats.** Below 60% of in-scope Subcategories assessed,
   the headline coverage figure does not render at all. A percentage with a warning beside it is still
   a percentage, and people read the number. This binds *both* dashboards — otherwise the suppressed
@@ -116,7 +121,7 @@ skills/
                                framework abstraction
     assets/                    brand tokens
     examples/                  worked Profiles (v1 and v2), worked .csfa + gap CSV
-    evals/                     trigger-routing suite
+    evals/                     trigger-routing and conversational-behaviour suites
   ciso-board-translation/
     SKILL.md
     references/                four-questions, board-question bank, receipts, metric archetypes
@@ -139,6 +144,7 @@ PY=/usr/bin/python3 ./skills/risk-register/evals/board-safety.sh   # and runs th
 python3 skills/risk-register/scripts/score_register.py self-test   # 34/34 parity checks
 python3 skills/nist-csf/scripts/profile_analysis.py self-test      # 318/318
 python3 skills/nist-csf/scripts/csfa_compat.py self-test           # 47/47
+python3 skills/nist-csf/evals/score-conversations.py self-test     # the eval scorer's own tests
 ```
 
 Run all of these before any release. `responsive.sh` is the one check that isn't stdlib-only — it
