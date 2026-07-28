@@ -65,32 +65,47 @@ def evidence_block(ctx: c.Context) -> str:
     thr = (ev.get("age") or {}).get("thresholdDays")
     revisit = ev.get("revisit") or []
 
+    # The revisit count must never be gated on age.dated. A rating with no
+    # confirmedAt at all — every rating carried over from a v1 Profile, by design —
+    # can still be flagged revisit (reason undated-confirmation): confirmedAt unset
+    # is not the same fact as "nothing to revisit". Nesting the revisit cell inside
+    # the dated-only branch was a second instance of the falsehood a final review
+    # caught: a Profile with zero dated confirmations — a fresh v1 import, exactly
+    # the audience this feature exists to onboard — could carry a real, non-zero
+    # revisit count and the board would see no cell for it at all.
+    #
+    # Every value here is optional on a partially-populated payload — .get()
+    # throughout, and a cell whose value is missing is dropped rather than
+    # rendered blank or defaulted. The "older than N days" cell in particular only
+    # appears when BOTH the threshold and the count are present: printing one
+    # without the other would put a count on screen next to a threshold it was
+    # never counted against.
+    cells = []
     if age.get("dated"):
-        # Every value here is optional on a partially-populated payload — .get()
-        # throughout, and a cell whose value is missing is dropped rather than
-        # rendered blank or defaulted. The "older than N days" cell in particular
-        # only appears when BOTH the threshold and the count are present: printing
-        # one without the other would put a count on screen next to a threshold it
-        # was never counted against.
-        cells = []
         if age.get("medianDays") is not None:
             cells.append(("median age", f'{age["medianDays"]} days'))
         if age.get("oldestDays") is not None:
             cells.append(("oldest", f'{age["oldestDays"]} days'))
         if thr is not None and age.get("olderThanThreshold") is not None:
             cells.append((f"older than {thr} days", f'{age["olderThanThreshold"]}'))
-        cells.append(("ratings questioned by newer material", f'{len(revisit)}'))
-        age_html = ('<div class="agegrid">' + "".join(
-            f'<div class="agecell"><div class="an">{c.esc(v)}</div>'
-            f'<div class="muted">{c.esc(k)}</div></div>' for k, v in cells) + '</div>')
+    # Counts both revisit reasons (derive_evidence): confirmedAt set with newer
+    # material against it, and confirmedAt unset (a v1-migrated rating) with any
+    # material against it at all — "newer" would overclaim the second, so the
+    # label says "new" rather than "newer".
+    cells.append(("ratings questioned by new material", f'{len(revisit)}'))
+    age_html = ('<div class="agegrid">' + "".join(
+        f'<div class="agecell"><div class="an">{c.esc(v)}</div>'
+        f'<div class="muted">{c.esc(k)}</div></div>' for k, v in cells) + '</div>')
+    if age.get("dated"):
         if age.get("undated"):
             age_html += (f'<div class="muted" style="margin-top:8px">'
                          f'{age["undated"]} confirmed ratings carry no confirmation date and '
                          f'are excluded from these figures.</div>')
     else:
-        age_html = ('<div class="muted" style="margin-top:10px">No rating in this Profile '
-                    'carries a confirmation date yet, so there is no age to report. Age '
-                    'reporting begins as ratings are confirmed with a source and a date.</div>')
+        age_html += (f'<div class="muted" style="margin-top:10px">No rating in this Profile '
+                     'carries a confirmation date yet, so there is no age to report beyond the '
+                     'revisit count above. Age reporting begins as ratings are confirmed with a '
+                     'source and a date.</div>')
 
     return (f'<section><h2>How much of this is known, and how old is it</h2>'
             f'<div class="hint">Ratings do not expire. Age is reported and the reader '

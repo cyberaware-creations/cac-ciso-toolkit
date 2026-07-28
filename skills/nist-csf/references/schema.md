@@ -353,10 +353,25 @@ of four states:
 | `unrated` | in scope, `current is None`, and nothing in `intake` bears on it. |
 
 `revisit` is a fifth, *orthogonal* flag, not a fifth state: a Subcategory that is `confirmed`, where
-some bearing intake record has a `sourceDate` later than its `confirmedAt`. It answers "has anything
-arrived since this was decided?" It is a reporting flag and a `queue` input only — **it does not
-affect scoring**. A `confirmed` rating flagged `revisit` still counts in coverage exactly as before
-the newer material arrived; only a human choosing to re-confirm it changes the number.
+the rating cannot be shown to predate material that bears on it. It answers "has anything arrived
+that this rating cannot be shown to predate?" It is a reporting flag and a `queue` input only — **it
+does not affect scoring**. A `confirmed` rating flagged `revisit` still counts in coverage exactly as
+before the material arrived; only a human choosing to re-confirm it changes the number.
+
+There are two distinct reasons a `confirmed` rating lands in `revisit`, carried as `reason`:
+
+| `reason` | Condition |
+|---|---|
+| `newer-material` | `confirmedAt` is set, and some bearing intake record has a `sourceDate` later than it. |
+| `undated-confirmation` | `confirmedAt` is `null`, and some intake record bears on the Subcategory at all. |
+
+The two are not interchangeable. `newer-material` is a comparison: the rating names the date it was
+decided, and something newer has since arrived. `undated-confirmation` is not a comparison at all —
+with no `confirmedAt` there is no date to compare against, so there is no basis to claim the rating
+predates the material sitting next to it. Guessing a `confirmedAt` to make the comparison possible,
+or treating the absence of a date as "nothing to flag," would both fabricate a claim this schema
+exists to avoid. For `undated-confirmation`, `confirmedAt` stays `null` in the `revisit` row and
+`newestSourceDate` is the newest bearing record's `sourceDate`.
 
 ## Ratings never expire
 
@@ -371,7 +386,14 @@ reaching for, without the arbitrary interval: **a rating is questioned when new 
 about it, not when time passes.**
 
 A rating carried over from a v1 Profile has no `confirmedAt` and is reported as `undated` rather
-than guessed at — age reporting begins when ratings are confirmed under v2.
+than guessed at — age reporting begins when ratings are confirmed under v2. That same absence of a
+`confirmedAt` is exactly why `revisit` must not require one: a rating with no confirmation date has
+no basis to claim it predates anything, so a v1 rating with intake bearing on it is flagged
+`revisit` with `reason: "undated-confirmation"` the moment that intake is recorded — not left
+silent until someone confirms it and gives it a date to compare against. An implementation that
+guards the `revisit` check on `confirmedAt` being set silently drops every v1 rating from the queue
+and from both dashboards' revisit counts, which is precisely the false "nothing to revisit" this
+flag exists to prevent.
 
 ## Derived-not-stored rule
 

@@ -215,26 +215,40 @@ def evidence_detail(ctx: c.Context) -> str:
     revisit = ctx.evidence.get("revisit") or []
     if not revisit:
         revisit_html = ('<div class="card muted">Nothing is flagged for revisit — no confirmed '
-                        'rating in this Profile has newer material recorded against it.</div>')
+                        'rating in this Profile has material recorded against it that it cannot '
+                        'be shown to predate.</div>')
     else:
         rrows = []
         for r in revisit:
+            # Two distinct reasons land a row here (derive_evidence, reason field):
+            # newer-material (confirmedAt is set and some intake postdates it) and
+            # undated-confirmation (a v1-migrated rating with no confirmedAt at all,
+            # so there is no basis to claim it predates the material next to it). A
+            # bare "—" for the second would read as a data gap rather than the
+            # honest reason it is; naming it is why the Why column exists.
+            if r.get("reason") == "undated-confirmation":
+                confirmed_cell = '<span class="muted">undated</span>'
+                why = "no confirmation date recorded — cannot be shown to predate this material"
+            else:
+                confirmed_cell = c.esc(r.get("confirmedAt") or "—")
+                why = "material recorded after the confirmation date"
             rrows.append(
                 f'<tr><td class="mono">{c.esc(r.get("subcategoryId"))}</td>'
                 f'<td>{c.esc(c.trunc(r.get("text", ""), 90))}</td>'
-                f'<td class="mono">{c.esc(r.get("confirmedAt") or "—")}</td>'
+                f'<td class="mono">{confirmed_cell}</td>'
                 f'<td class="mono">{c.esc(r.get("newestSourceDate") or "—")}</td>'
-                f'<td class="mono">{c.esc(", ".join(r.get("intakeIds", [])))}</td></tr>')
+                f'<td class="mono">{c.esc(", ".join(r.get("intakeIds", [])))}</td>'
+                f'<td>{c.esc(why)}</td></tr>')
         revisit_html = (f'<div class="scroll"><table><thead><tr>'
                         f'<th>Subcategory</th><th>Outcome</th><th>Confirmed</th>'
-                        f'<th>Newer material</th><th>Source</th>'
+                        f'<th>Material recorded</th><th>Source</th><th>Why</th>'
                         f'</tr></thead><tbody>{"".join(rrows)}</tbody></table></div>')
 
     return (f'<section><h2>Age and revisits</h2>'
             f'<div class="hint">{c.esc(hint)}</div>'
             f'<h3 class="subhead">Age of confirmed ratings, by Function</h3>'
             f'{age_table}'
-            f'<h3 class="subhead" style="margin-top:20px">Revisit — newer material than the '
+            f'<h3 class="subhead" style="margin-top:20px">Revisit — material that questions a '
             f'confirmed rating <span class="muted">({len(revisit)})</span></h3>'
             f'{revisit_html}</section>')
 

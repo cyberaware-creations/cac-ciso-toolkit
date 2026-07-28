@@ -539,10 +539,24 @@ def derive_evidence(assessments: list[dict], intake: list[dict], index: dict, co
       evidence-pending in-scope, no Current rating, some intake bears on it
       unrated          in-scope, no Current rating, nothing bears on it
 
-    `revisit` is a fifth, orthogonal flag: confirmed, and some intake bearing on it
-    has a sourceDate later than its confirmedAt. It is a reporting flag and a queue
-    input only — it does NOT affect scoring. Ratings never expire; new material is
-    what questions a rating, not the passage of time.
+    `revisit` is a fifth, orthogonal flag: confirmed, and material has arrived that the
+    rating cannot be shown to predate. It is a reporting flag and a queue input only —
+    it does NOT affect scoring. Ratings never expire; new material is what questions a
+    rating, not the passage of time. There are two distinct reasons a confirmed rating
+    lands in `revisit`, each carried as `reason`:
+      newer-material        confirmedAt is set, and some bearing intake has a
+                             sourceDate later than it
+      undated-confirmation  confirmedAt is None (every rating carried over from a v1
+                             Profile, by design — see references/schema.md), and some
+                             intake bears on it at all
+
+    The second reason exists because `confirmed_at and ...` — the original guard —
+    silently swallowed every v1 rating: with confirmedAt None, the comparison never
+    fired, so a v1 rating with fresh material against it scored `revisit == []` and
+    dropped out of the queue and both dashboards as if nothing had arrived. There is
+    no date to guess and confirmedAt is never backfilled (that would fabricate the
+    attribution this schema exists to make honest) — so the honest answer for an
+    undated confirmed rating with bearing material is "look again," not silence.
     """
     by_subject = intake_by_subject(intake)
     states, revisit, pending = {}, [], []
@@ -563,15 +577,33 @@ def derive_evidence(assessments: list[dict], intake: list[dict], index: dict, co
             # means the store holds an impossible date pair, and surfacing it as a
             # revisit — go look at this again — is correct; suppressing it would
             # hide the only signal a user gets that something is wrong.
-            newer = [r for r in bearing
-                     if confirmed_at and (r.get("sourceDate") or "") > confirmed_at]
-            if newer:
+            if confirmed_at:
+                newer = [r for r in bearing
+                         if (r.get("sourceDate") or "") > confirmed_at]
+                if newer:
+                    revisit.append({
+                        "subcategoryId": sid,
+                        "text": (index.get(sid) or {}).get("text", ""),
+                        "confirmedAt": confirmed_at,
+                        "newestSourceDate": max(r["sourceDate"] for r in newer),
+                        "intakeIds": [r["id"] for r in newer],
+                        "reason": "newer-material",
+                    })
+            elif bearing:
+                # No confirmedAt means no basis to claim this rating predates the
+                # material sitting right next to it — that is a fact about the
+                # rating, not a guess about a date, so every bearing record counts
+                # (there is nothing to filter "newer" against). This is the v1
+                # migration path: confirmedAt is deliberately never backfilled from
+                # lastReviewed (schema.md, "Attribution"), so every carried-over
+                # rating reaches this branch the first time intake bears on it.
                 revisit.append({
                     "subcategoryId": sid,
                     "text": (index.get(sid) or {}).get("text", ""),
-                    "confirmedAt": confirmed_at,
-                    "newestSourceDate": max(r["sourceDate"] for r in newer),
-                    "intakeIds": [r["id"] for r in newer],
+                    "confirmedAt": None,
+                    "newestSourceDate": max(r.get("sourceDate") or "" for r in bearing),
+                    "intakeIds": [r["id"] for r in bearing],
+                    "reason": "undated-confirmation",
                 })
         elif bearing:
             states[sid] = "evidence-pending"
@@ -713,7 +745,7 @@ def build_queue(assessments: list[dict], intake: list[dict], evidence: dict,
                  "recordedBy": r.get("recordedBy", "")}
                 for r in reversed(by_subject.get(sid, []))]
 
-    def _row(sid, band):
+    def _row(sid, band, reason=None):
         return {
             "subcategoryId": sid,
             "text": (index.get(sid) or {}).get("text", ""),
@@ -726,6 +758,9 @@ def build_queue(assessments: list[dict], intake: list[dict], evidence: dict,
             # Explicitly null, and asserted by the tests. The confirmation session
             # asks a question; it does not present an answer for ratification.
             "tier": None,
+            # Only revisit rows carry a reason (newer-material or
+            # undated-confirmation, from derive_evidence). None elsewhere.
+            "reason": reason,
         }
 
     # Two-pass stable sorts throughout. A single reverse=True over a (date, id)
@@ -749,7 +784,7 @@ def build_queue(assessments: list[dict], intake: list[dict], evidence: dict,
                   key=lambda sid: (rank[sid], sid))
 
     rows = ([_row(r["subcategoryId"], "evidence-pending") for r in pending]
-            + [_row(r["subcategoryId"], "revisit") for r in revisit]
+            + [_row(r["subcategoryId"], "revisit", r.get("reason")) for r in revisit]
             + [_row(sid, "cold-start") for sid in cold])
     return rows if top is None else rows[:top]
 
@@ -1701,7 +1736,11 @@ def _cmd_queue(args):
         for s in r["sources"]:
             print(f"    source {s['id']} · {s['sourceDate']} · {s['label']}")
         if r["band"] == "revisit":
-            print(f"    confirmed {r['confirmedAt']}; newer material has arrived since")
+            if r.get("reason") == "undated-confirmation":
+                print("    this rating carries no confirmation date, so it cannot be "
+                      "shown to predate this material")
+            else:
+                print(f"    confirmed {r['confirmedAt']}; newer material has arrived since")
         if not r["sources"]:
             print("    no material recorded — this is a cold start, go and ask")
         print()
@@ -2535,6 +2574,8 @@ def _cmd_self_test(_args):
     eq([r["subcategoryId"] for r in ev["revisit"]], ["PR.DS-11"],
        "revisit: material newer than the confirmation")
     eq(ev["revisit"][0]["newestSourceDate"], "2026-06-02", "revisit names the newer source date")
+    eq(ev["revisit"][0]["reason"], "newer-material",
+       "a dated confirmation with newer intake against it is reason newer-material")
     ok("ID.AM-01" not in {r["subcategoryId"] for r in ev["revisit"]},
        "material older than the confirmation is not a revisit")
 
@@ -2548,6 +2589,84 @@ def _cmd_self_test(_args):
                              threshold_pct=60, age_days=180)
     ok("ID.AM-01" in {r["subcategoryId"] for r in ev_inc["revisit"]},
        "a source dated after the confirmation it grounds still raises a revisit")
+
+    # --- revisit reason: newer-material vs undated-confirmation ---
+    #
+    # This is the exact defect a final whole-branch review caught: derive_evidence
+    # used to guard the whole revisit check on `confirmed_at and ...`, so a rating
+    # with confirmedAt None — every rating carried over from a v1 Profile, by
+    # design — could never raise a revisit no matter what material arrived against
+    # it. These three fixtures pin the two honest reasons and the one non-reason.
+    reason_assess = [
+        # Confirmed, no confirmedAt (the v1-migrated shape), material bears on it:
+        # there is no date to compare against, so every bearing record counts.
+        {"subcategoryId": "GV.OC-01", "applicability": "in-scope", "current": 1, "target": 2,
+         "confirmedAt": None, "confirmedBy": None, "source": None},
+        # Confirmed, dated, and intake postdates the confirmation.
+        {"subcategoryId": "GV.OC-02", "applicability": "in-scope", "current": 1, "target": 2,
+         "confirmedAt": "2026-01-01", "confirmedBy": "Darren", "source": "in-r02"},
+        # Confirmed, dated, and every bearing record predates the confirmation.
+        {"subcategoryId": "GV.OC-03", "applicability": "in-scope", "current": 1, "target": 2,
+         "confirmedAt": "2026-06-01", "confirmedBy": "Darren", "source": "in-r03"},
+    ]
+    reason_intake = [
+        {"id": "in-r01", "label": "control walkthrough", "sourceDate": "2026-05-01",
+         "recordedAt": "2026-05-02", "subjects": ["GV.OC-01"], "recordedBy": "Darren"},
+        {"id": "in-r02", "label": "policy review", "sourceDate": "2026-03-01",
+         "recordedAt": "2026-03-02", "subjects": ["GV.OC-02"], "recordedBy": "Darren"},
+        {"id": "in-r03", "label": "prior review", "sourceDate": "2026-01-01",
+         "recordedAt": "2026-01-02", "subjects": ["GV.OC-03"], "recordedBy": "Darren"},
+    ]
+    ev_reason = derive_evidence(reason_assess, reason_intake, index, core, today="2026-07-27",
+                                threshold_pct=0, age_days=180)
+    by_reason_sid = {r["subcategoryId"]: r for r in ev_reason["revisit"]}
+    eq(set(by_reason_sid), {"GV.OC-01", "GV.OC-02"},
+       "undated-confirmation and newer-material both raise a revisit; fully-predated "
+       "material raises neither")
+    eq(by_reason_sid["GV.OC-01"]["reason"], "undated-confirmation",
+       "confirmed, no confirmedAt, bearing material: reason is undated-confirmation")
+    eq(by_reason_sid["GV.OC-01"]["confirmedAt"], None,
+       "undated-confirmation carries confirmedAt None — never a guessed date")
+    eq(by_reason_sid["GV.OC-01"]["newestSourceDate"], "2026-05-01",
+       "undated-confirmation still names the newest bearing source")
+    eq(by_reason_sid["GV.OC-02"]["reason"], "newer-material",
+       "confirmed, dated, intake postdates it: reason is newer-material")
+
+    q_reason = build_queue(reason_assess, reason_intake, ev_reason, index,
+                           resolve_rank(index, core, load_cold_start_rank()))
+    q_reason_revisit = {r["subcategoryId"]: r for r in q_reason if r["band"] == "revisit"}
+    eq(q_reason_revisit["GV.OC-01"]["reason"], "undated-confirmation",
+       "build_queue threads the reason through to the row for undated-confirmation")
+    eq(q_reason_revisit["GV.OC-02"]["reason"], "newer-material",
+       "build_queue threads the reason through to the row for newer-material")
+
+    # --- Reproduction: the shipped v1 fixture must not swallow new material ---
+    #
+    # GV.OC-01 in the v1 fixture is confirmed (current=2) and, being schema v1,
+    # carries no confirmedAt at all (load_store normalizes it to None in memory —
+    # never backfilled from lastReviewed). Before the fix this intake vanished:
+    # `analyze` reported revisit == [] and `queue` offered an unrelated cold-start
+    # item instead, exactly the silent drop the review reproduced.
+    v1_store = load_store(FIXTURE)
+    eq(v1_store["assessments"][
+           [a["subcategoryId"] for a in v1_store["assessments"]].index("GV.OC-01")
+       ]["confirmedAt"], None, "the v1 fixture's GV.OC-01 carries no confirmedAt")
+    v1_intake = [{"id": "in-0001", "label": "audit found the asset inventory is stale",
+                  "sourceDate": "2026-07-20", "recordedAt": "2026-07-27",
+                  "subjects": ["GV.OC-01"], "recordedBy": "Darren"}]
+    ev_v1 = derive_evidence(v1_store["assessments"], v1_intake, index, core, today="2026-07-27",
+                            threshold_pct=60, age_days=180)
+    v1_revisit = {r["subcategoryId"]: r for r in ev_v1["revisit"]}
+    ok("GV.OC-01" in v1_revisit,
+       "reproduction: a v1 rating with fresh intake against it must raise a revisit, "
+       "not be silently dropped (the exact defect the final review caught)")
+    eq(v1_revisit.get("GV.OC-01", {}).get("reason"), "undated-confirmation",
+       "reproduction: the reason names why — no confirmation date to compare against")
+    q_v1 = build_queue(v1_store["assessments"], v1_intake, ev_v1, index,
+                       resolve_rank(index, core, load_cold_start_rank()))
+    ok(any(r["subcategoryId"] == "GV.OC-01" and r["band"] == "revisit" for r in q_v1),
+       "reproduction: GV.OC-01 surfaces in the queue as a revisit rather than vanishing "
+       "behind an unrelated cold-start item")
 
     age = ev["age"]["overall"]
     eq(age["dated"], 3, "age counts only dated confirmations")
@@ -2824,6 +2943,8 @@ def _cmd_self_test(_args):
        "v2 fixture: the DR walkthrough questions the January recovery rating")
     eq(ev2["revisit"][0]["confirmedAt"], "2026-01-10", "revisit names the confirmation it questions")
     eq(ev2["revisit"][0]["newestSourceDate"], "2026-06-30", "and the material that questions it")
+    eq(ev2["revisit"][0]["reason"], "newer-material",
+       "v2 fixture: RC.RP-01 is dated, so its revisit reason is newer-material")
 
     age2 = ev2["age"]["overall"]
     eq(age2["dated"], 4, "v2 fixture: four dated confirmations")
