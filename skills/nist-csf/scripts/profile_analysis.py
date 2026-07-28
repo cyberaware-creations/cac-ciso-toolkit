@@ -31,6 +31,7 @@ Mutations (each appends an append-only history event and rewrites the store):
   set               <store.csfp> <subcategoryId> [--current N|null] [--target N|null]
                     [--priority P] [--status S] [--applicability A] [--notes ...]
                     [--evidence A B] [--reviewed] [--rationale ...] [--actor A] [--ts TS]
+                    [--source in-NNNN] [--confirmed-by NAME]   (both REQUIRED with --current)
   set-tier          <store.csfp> [--overall N] [--function GV=N ...] --rationale ... [--actor A]
   quickstart-target <store.csfp> [--level N] [--force] [--rationale ...] [--actor A] [--ts TS]
   snapshot          <store.csfp> --label 'Q2 2026 Assessment' [--note ...] [--ts TS]
@@ -342,7 +343,8 @@ def is_material(field: str, old, new) -> bool:
 
 
 def append_history(store, etype, *, subcategoryId=None, field=None, frm=None, to=None,
-                   rationale=None, actor=None, ts=None, actionId=None, intakeId=None):
+                   rationale=None, actor=None, ts=None, actionId=None, intakeId=None,
+                   source=None, confirmedBy=None):
     ev = {"ts": ts, "actor": actor or store["profile"]["scope"].get("owner") or "unknown", "type": etype}
     if subcategoryId is not None:
         ev["subcategoryId"] = subcategoryId
@@ -356,6 +358,10 @@ def append_history(store, etype, *, subcategoryId=None, field=None, frm=None, to
         ev["to"] = to
     if rationale:
         ev["rationale"] = rationale
+    if source:
+        ev["source"] = source
+    if confirmedBy:
+        ev["confirmedBy"] = confirmedBy
     store["history"].append(ev)
     return ev
 
@@ -818,7 +824,7 @@ def _cmd_set(args):
     pos, opt = parse_flags(args)
     usage = ("usage: set <store.csfp> <subcategoryId> [--current N|null] [--target N|null] "
              "[--priority P] [--status S] [--applicability A] [--notes ...] [--evidence A B] "
-             "[--reviewed] [--rationale '...']")
+             "[--reviewed] [--rationale '...'] [--source in-NNNN] [--confirmed-by NAME]")
     if len(pos) < 2:
         raise ValueError(usage)
     path, sid = pos[0], pos[1]
@@ -829,6 +835,9 @@ def _cmd_set(args):
     ts = _s(opt.get("ts")) if isinstance(opt.get("ts"), (str, list)) else _now()
     actor = _s(opt.get("actor")) if isinstance(opt.get("actor"), (str, list)) else None
     rationale = _s(opt.get("rationale")) if isinstance(opt.get("rationale"), (str, list)) else None
+    source = _s(opt.get("source")) if isinstance(opt.get("source"), (str, list)) else None
+    confirmed_by = (_s(opt.get("confirmed-by"))
+                    if isinstance(opt.get("confirmed-by"), (str, list)) else None)
 
     if sid not in index:
         raise ValueError(f"Unknown Subcategory {sid!r} for framework {FRAMEWORK_REF}.")
@@ -876,21 +885,70 @@ def _cmd_set(args):
             f"gap acceptances, closure claims, and scoping a Subcategory out."
         )
 
+    # A Current rating is the claim the whole report rests on, so it does not exist
+    # without a named source and a named person. The CLI cannot prove a human typed
+    # the number; what it enforces is that no rating exists that nobody will claim.
+    # The confirmation discipline itself is a behavioural rule in SKILL.md.
+    #
+    # Target is deliberately NOT gated: it is a risk-based decision, already covered
+    # by --rationale, and quickstart-target seeds it in bulk across ~106 Subcategories.
+    #
+    # Computed once, here, and reused below for the apply/skip decision on the same
+    # field — so the gate's "is Current actually moving?" and the apply loop's cannot
+    # independently drift out of agreement.
+    current_update = next(((f, n) for f, n in updates if f == "current"), None)
+    new_current = current_update[1] if current_update else None
+    current_changing = current_update is not None and a.get("current") != new_current
+    if current_changing and new_current is not None:
+        if not source or not confirmed_by:
+            raise ValueError(
+                "--source and --confirmed-by are required for a Current rating. "
+                "A rating nobody will claim is a rating nobody can defend. "
+                "Record where it came from first:\n"
+                f"  intake add <store.csfp> --label '...' --subjects {sid}\n"
+                f"  then: set <store.csfp> {sid} --current N --source <the id it prints> "
+                f"--confirmed-by <you> --rationale '...'"
+            )
+        known = {r.get("id") for r in store.get("intake", [])}
+        if source not in known:
+            raise ValueError(
+                f"--source {source!r} is not an intake record in this Profile. "
+                f"Known: {', '.join(sorted(known)) or '(none)'}. "
+                f"List them with: intake list <store.csfp>"
+            )
+
     applied = 0
     for field, new in updates:
         old = a.get(field)
-        if old == new:
+        if field == "current":
+            if not current_changing:
+                continue
+        elif old == new:
             continue
         a[field] = new
         etype = {"current": "rating-changed", "target": "target-changed",
                  "status": "status-changed", "applicability": "applicability-changed"}.get(field, "field-changed")
+        # A cleared rating (new is None) carries no attribution even if stray --source /
+        # --confirmed-by flags were passed alongside it — the clear itself is ungated
+        # (see above), so those flags are meaningless here and must not be recorded as
+        # if they justified a rating that, after this call, does not exist.
+        attributed = field == "current" and new is not None
         append_history(store, etype, subcategoryId=sid, field=field, frm=old, to=new,
-                       rationale=rationale, actor=actor, ts=ts)
+                       rationale=rationale, actor=actor, ts=ts,
+                       source=source if attributed else None,
+                       confirmedBy=confirmed_by if attributed else None)
         applied += 1
         # lastReviewed tracks "when did a human last look at this outcome" — only a
         # Current move (or an explicit --reviewed) affirms that. Notes edits must not.
         if field == "current":
             a["lastReviewed"] = ts[:10]
+            # Attribution travels with the rating, not beside it — and it leaves with
+            # it too. All three clear together on a withdrawal, or the assessment ends
+            # up naming a source for a rating that no longer exists.
+            if new is not None:
+                a["confirmedAt"], a["confirmedBy"], a["source"] = ts[:10], confirmed_by, source
+            else:
+                a["confirmedAt"] = a["confirmedBy"] = a["source"] = None
 
     if opt.get("reviewed"):
         a["lastReviewed"] = ts[:10]
@@ -1735,6 +1793,25 @@ def _cmd_self_test(_args):
         eq(r3["subjects"], ["PR.DS-11", "ID.AM-01"],
            "duplicate --subjects entries are deduped, first-seen order preserved")
 
+        # A source nobody recorded is a source nobody can be asked about. The warning
+        # fires only when BOTH --recorded-by and a profile --owner are absent.
+        _p_nowarn = os.path.join(_d, "no-owner.csfp")
+        _cmd_init(["--name", "No Owner Co", "--out", _p_nowarn, "--ts", "2026-01-01T00:00:00Z"])
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            _cmd_intake(["add", _p_nowarn, "--label", "unattributed note",
+                         "--subjects", "ID.AM-01", "--ts", "2026-01-02T00:00:00Z"])
+        ok("Warning: no recorder" in buf.getvalue(),
+           "no --recorded-by and no profile owner triggers the recorder warning")
+
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            _cmd_intake(["add", _p_nowarn, "--label", "attributed note",
+                         "--subjects", "ID.AM-02", "--recorded-by", "Darren",
+                         "--ts", "2026-01-03T00:00:00Z"])
+        ok("Warning: no recorder" not in buf.getvalue(),
+           "--recorded-by suppresses the recorder warning")
+
         for bad, why, expect in (
             (["add", _p, "--subjects", "ID.AM-01"], "no --label", "--label is required"),
             (["add", _p, "--label", "x"], "no --subjects", "--subjects is required"),
@@ -1790,6 +1867,97 @@ def _cmd_self_test(_args):
         eq(rc, 0, "intake list --json returns 0")
         eq(json.loads(buf.getvalue()), load_store(_p2)["intake"],
            "--json emits the stored intake records verbatim")
+
+    # --- Attribution enforcement on a Current rating ---
+    # This asserts FAILURE. A test that only exercised the happy path would pass
+    # against an engine that enforces nothing.
+    with tempfile.TemporaryDirectory() as _d:
+        _p = os.path.join(_d, "a.csfp")
+        _cmd_init(["--name", "Attr Co", "--out", _p, "--owner", "CISO",
+                   "--ts", "2026-01-01T00:00:00Z"])
+        _cmd_intake(["add", _p, "--label", "architecture review with infra team",
+                     "--subjects", "ID.AM-01", "ID.AM-02",
+                     "--source-date", "2026-03-14", "--recorded-by", "Darren",
+                     "--ts", "2026-03-16T00:00:00Z"])
+        for bad, why in (
+            (["--current", "2", "--rationale", "x"], "no attribution at all"),
+            (["--current", "2", "--rationale", "x", "--source", "in-0001"], "no --confirmed-by"),
+            (["--current", "2", "--rationale", "x", "--confirmed-by", "Darren"], "no --source"),
+        ):
+            try:
+                _cmd_set([_p, "ID.AM-01"] + bad + ["--ts", "2026-03-20T00:00:00Z"])
+                failures.append(f"set --current with {why} should have been refused")
+            except ValueError as exc:
+                # Assert on text unique to the attribution gate, NOT on "--source" /
+                # "--confirmed-by" alone — the usage banner also names both flags, so
+                # a regression that routed this call into the generic usage error
+                # (raise ValueError(usage)) would pass that weaker assertion silently.
+                ok("required for a Current rating" in str(exc)
+                   and "nobody can defend" in str(exc),
+                   f"refusal for {why} names the attribution gate, not generic usage")
+            checks += 1
+        try:
+            _cmd_set([_p, "ID.AM-01", "--current", "2", "--rationale", "x",
+                      "--source", "in-9999", "--confirmed-by", "Darren",
+                      "--ts", "2026-03-20T00:00:00Z"])
+            failures.append("set --source with an unknown intake id should have been refused")
+        except ValueError as exc:
+            ok("in-9999" in str(exc) and "not an intake record" in str(exc),
+               "unknown --source names the id and the actual problem, not generic usage")
+        checks += 1
+
+        # Target is NOT gated: it is a risk-based decision, already covered by --rationale.
+        _cmd_set([_p, "ID.AM-01", "--target", "3", "--rationale", "risk-based target",
+                  "--ts", "2026-03-20T00:00:00Z"])
+        eq([a for a in load_store(_p)["assessments"]
+            if a["subcategoryId"] == "ID.AM-01"][0]["target"], 3,
+           "target writes without attribution")
+
+        _cmd_set([_p, "ID.AM-01", "--current", "2", "--rationale", "confirmed at review",
+                  "--source", "in-0001", "--confirmed-by", "Darren",
+                  "--ts", "2026-03-20T00:00:00Z"])
+        st = load_store(_p)
+        a = [x for x in st["assessments"] if x["subcategoryId"] == "ID.AM-01"][0]
+        eq(a["current"], 2, "attributed current rating is written")
+        eq(a["source"], "in-0001", "source is recorded on the assessment")
+        eq(a["confirmedBy"], "Darren", "confirmedBy is recorded on the assessment")
+        eq(a["confirmedAt"], "2026-03-20", "confirmedAt is the date of the decision")
+        eq(a["lastReviewed"], "2026-03-20", "a Current move still refreshes lastReviewed")
+        ev = [e for e in st["history"] if e.get("type") == "rating-changed"][-1]
+        eq(ev.get("source"), "in-0001", "the history event carries the source")
+        eq(ev.get("confirmedBy"), "Darren", "the history event carries the confirmer")
+
+        # Clearing a rating is not a claim, so it needs no attribution.
+        _cmd_set([_p, "ID.AM-01", "--current", "null", "--rationale", "withdrawn: source disputed",
+                  "--ts", "2026-03-21T00:00:00Z"])
+        a2 = [x for x in load_store(_p)["assessments"]
+              if x["subcategoryId"] == "ID.AM-01"][0]
+        eq(a2["current"], None, "a rating can be cleared without attribution")
+        eq(a2["confirmedAt"], None, "confirmedAt clears along with the rating")
+
+        # CRITICAL (caught in review): a clear passed WITH stray --source/--confirmed-by
+        # flags must still end up fully unattributed. The clear itself is ungated — the
+        # flags are simply irrelevant to it — but they must not be recorded anyway, or
+        # the assessment ends up naming a source and a confirmer for a rating that, after
+        # this call, does not exist.
+        _cmd_set([_p, "ID.AM-01", "--current", "2", "--rationale", "re-confirmed",
+                  "--source", "in-0001", "--confirmed-by", "Darren",
+                  "--ts", "2026-03-22T00:00:00Z"])
+        _cmd_set([_p, "ID.AM-01", "--current", "null", "--rationale", "withdrawn again",
+                  "--source", "in-0001", "--confirmed-by", "Darren",
+                  "--ts", "2026-03-23T00:00:00Z"])
+        a3 = [x for x in load_store(_p)["assessments"]
+              if x["subcategoryId"] == "ID.AM-01"][0]
+        eq(a3["current"], None, "current clears even with stray attribution flags present")
+        eq(a3["confirmedAt"], None, "confirmedAt clears despite stray --source/--confirmed-by")
+        eq(a3["confirmedBy"], None, "confirmedBy clears despite stray --source/--confirmed-by")
+        eq(a3["source"], None, "source clears despite stray --source/--confirmed-by")
+
+        # An unchanged value is a no-op, not a new claim — it must not demand attribution.
+        _cmd_set([_p, "ID.AM-02", "--priority", "high", "--ts", "2026-03-22T00:00:00Z"])
+        eq([x for x in load_store(_p)["assessments"]
+            if x["subcategoryId"] == "ID.AM-02"][0]["priority"], "high",
+           "a non-rating field still writes without attribution")
 
     # --- Export contract ---
     eq(EXPORT_COLUMNS,
