@@ -47,6 +47,23 @@ NA_FILL = WB
 
 PRIORITY_COLOR = {"low": "#6A7180", "medium": "#5F7A8A", "high": "#A6603A", "critical": "#7C3A32"}
 
+# Evidence states are STATES, not measurements, so they must not sit on the coverage
+# ramp and must not use patina. Text on any of them comes from text_on(fill) — never
+# hand-picked. See assets/brand.md, "Text on a coverage swatch — do not hand-pick it".
+EVIDENCE_FILL = {
+    "confirmed":        INK,        # 17.96:1 with white
+    "evidence-pending": "#526A78",  #  5.69:1 with white
+    "unrated":          WB_LINE,    # 12.02:1 with ink
+    "not-applicable":   WB,         # 16.33:1 with ink, plus a WB_LINE border
+}
+EVIDENCE_LABEL = {
+    "confirmed": "confirmed", "evidence-pending": "material, not yet confirmed",
+    "unrated": "not looked at", "not-applicable": "not applicable",
+}
+EVIDENCE_ORDER = ["confirmed", "evidence-pending", "unrated", "not-applicable"]
+EVIDENCE_KEY = {"confirmed": "confirmed", "evidence-pending": "evidencePending",
+                "unrated": "unrated", "not-applicable": "notApplicable"}
+
 # Two font modes. The brand faces come from Google Fonts, which means opening a report
 # makes an outbound request — for a document full of a client's risk data, that is a real
 # (if small) disclosure, and the dashboards were documented as making "no external calls".
@@ -283,6 +300,11 @@ class Context:
         self.actions = self.a.get("actionItems", {"items": [], "summary": {}})
         self.tiers = self.a.get("tiers", {})
         self.diff = self.a.get("diff")
+        # Absent on analyze output from a v1 engine — every consumer must degrade,
+        # not crash, so a dashboard built from an older JSON still renders.
+        self.evidence = self.a.get("evidence") or {}
+        self.intake = self.a.get("intake") or {"records": [], "bySource": []}
+        self.queue = self.a.get("queue") or []
         self.today = self.a.get("generated", {}).get("today", "")
         self.scale_max = self.profile.get("settings", {}).get("scale", {}).get("max", 3)
         self.tr = Translations.load(args.translations)
@@ -404,3 +426,50 @@ def page(title: str, head_extra: str, body: str, offline: bool = False) -> str:
             f"<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
             f"<title>{esc(title)}</title>{fonts(offline)}"
             f"<style>{BASE_CSS}{head_extra}</style></head><body>{body}</body></html>")
+
+
+# --- Evidence: four-way coverage bar ------------------------------------------
+# Shared by both renderers so the two views cannot render this differently.
+
+def evidence_bar(split: dict) -> str:
+    """The four-way coverage strip. 'Material on 41, confirmed on 24' is what makes a
+    partial profile read as progress rather than abandonment."""
+    total = split.get("total") or 0
+    if not total:
+        return ""
+    segs, legend = [], []
+    for state in EVIDENCE_ORDER:
+        n = split.get(EVIDENCE_KEY[state], 0)
+        if not n:
+            continue
+        fill = EVIDENCE_FILL[state]
+        fg = text_on(fill)
+        border = f";border:1px solid {WB_LINE}" if state == "not-applicable" else ""
+        segs.append(f'<div class="eseg" style="flex:{n};background:{fill};color:{fg}{border}" '
+                    f'title="{esc(EVIDENCE_LABEL[state])}: {n}">{n}</div>')
+        legend.append(f'<span class="eleg"><i style="background:{fill}{border}"></i>'
+                      f'{esc(EVIDENCE_LABEL[state])} {n}</span>')
+    unatt = split.get("unattributed", 0)
+    note = ("" if not unatt else
+            f'<div class="muted" style="margin-top:6px">{unatt} of '
+            f'{split.get("confirmed", 0)} confirmed ratings carry no source or confirmer. '
+            f'They still count toward coverage — they simply cannot answer how they '
+            f'were arrived at.</div>')
+    return (f'<div class="ebar">{"".join(segs)}</div>'
+            f'<div class="elegend">{"".join(legend)}</div>{note}')
+
+
+EVIDENCE_CSS = f"""
+.ebar{{display:flex;height:34px;border-radius:6px;overflow:hidden;margin-top:10px}}
+.eseg{{display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;
+      min-width:0;overflow:hidden}}
+.elegend{{display:flex;flex-wrap:wrap;gap:14px;margin-top:10px;font-size:13px;color:{SLATE}}}
+.eleg{{display:inline-flex;align-items:center;gap:6px}}
+.eleg i{{width:12px;height:12px;border-radius:3px;display:inline-block;flex:none}}
+.guard{{border-left:4px solid {EVIDENCE_FILL["evidence-pending"]};padding:14px 16px}}
+.guard .gh{{font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:600}}
+.agegrid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;
+         margin-top:10px;min-width:0}}
+.agecell{{border:1px solid {WB_LINE};border-radius:6px;padding:10px;min-width:0}}
+.agecell .an{{font-size:20px;font-weight:700;font-family:'Space Grotesk',sans-serif}}
+"""
