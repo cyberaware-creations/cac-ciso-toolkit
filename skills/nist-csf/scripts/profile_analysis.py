@@ -20,7 +20,7 @@ Design anchors:
 
 Read-only:
   validate     [--core PATH]                       Assert the bundled Core is intact (6/22/106).
-  analyze      <store.csfp> [--today D] [--top N] [--out F]   Emit the complete derived JSON.
+  analyze      <store.csfp> [--today D] [--top N] [--queue-top N] [--out F]   Emit the complete derived JSON.
   diff         <store.csfp> [--label L] [--json]   Compare current state to a snapshot.
   export-gaps  <store.csfp> [--out F]              Gap CSV for `risk-register import-gaps`.
   queue        <store.csfp> [--top N] [--json]      What to confirm next, ranked.
@@ -667,13 +667,16 @@ def coverage_by_source(intake: list[dict], states: dict, index: dict) -> list[di
 
     Answers "what did that review actually cover?", which a per-Subcategory pointer
     list structurally cannot.
+
+    Subjects carry an id and a state, deliberately not the outcome text. This is the
+    one block that grows without bound — intake accretes for the life of the Profile
+    and is never pruned — and the text is duplicated from `gaps`/`queue` anyway. A
+    renderer that later needs it should get a lookup map, not a copy per subject.
     """
     rows = []
     for r in sorted(intake or [], key=lambda x: (x.get("sourceDate") or "", x.get("id") or ""),
                     reverse=True):
-        subjects = [{"subcategoryId": sid,
-                     "text": (index.get(sid) or {}).get("text", ""),
-                     "state": states.get(sid, "unrated")}
+        subjects = [{"subcategoryId": sid, "state": states.get(sid, "unrated")}
                     for sid in r.get("subjects", [])]
         rows.append({
             "id": r.get("id"), "label": r.get("label"),
@@ -1806,7 +1809,8 @@ def _cmd_action(args):
 
 def _cmd_analyze(args):
     pos, opt = parse_flags(args)
-    path = _require_store(pos, "usage: analyze <store.csfp> [--today YYYY-MM-DD] [--top N] [--out F]")
+    path = _require_store(pos, "usage: analyze <store.csfp> [--today YYYY-MM-DD] [--top N] "
+                                "[--queue-top N] [--out F]")
     core = load_core(); index = index_subcategories(core)
     store = load_store(path)
 
@@ -1816,6 +1820,11 @@ def _cmd_analyze(args):
 
     today = _s(opt.get("today")) if isinstance(opt.get("today"), (str, list)) else _today()
     top = int(_s(opt.get("top"))) if isinstance(opt.get("top"), (str, list)) else 10
+    # The playbook and the queue answer different questions and have different safe
+    # batch sizes. --top governs the playbook, as it always has; the queue keeps the
+    # cap the `queue` command chose for it, because a long confirmation run is where
+    # rubber-stamping happens no matter which surface presents it.
+    queue_top = int(_s(opt.get("queue-top"))) if isinstance(opt.get("queue-top"), (str, list)) else 5
     settings = store["profile"]["settings"]
     prof = store["profile"]
 
@@ -1823,6 +1832,10 @@ def _cmd_analyze(args):
     tiers["profile"] = prof.get("tier", {})
 
     guidance = load_guidance()
+    rep = settings["reporting"]
+    evidence = derive_evidence(store["assessments"], store.get("intake", []), index, core,
+                               today, rep["scopeThresholdPct"], rep["ageThresholdDays"])
+    rank = resolve_rank(index, core, load_cold_start_rank())
     gaps = compute_gaps(store["assessments"], settings, index)
     for row in gaps:
         g = render_guidance(row, settings, guidance)
@@ -1847,6 +1860,17 @@ def _cmd_analyze(args):
         "tracked": len(store["assessments"]),
         "coverage": compute_coverage(store["assessments"], index, core),
         "completeness": compute_completeness(store["assessments"], index, core),
+        # Derived on demand, never stored. The store holds intake records and the
+        # attribution on each assessment; everything below is computed from them at
+        # read time. A renderer must never recompute any of it — two views of one
+        # Profile disagreeing is the failure this rule exists to prevent.
+        "evidence": evidence,
+        "intake": {
+            "records": store.get("intake", []),
+            "bySource": coverage_by_source(store.get("intake", []), evidence["states"], index),
+        },
+        "queue": build_queue(store["assessments"], store.get("intake", []), evidence,
+                             index, rank, queue_top),
         "gaps": gaps,
         "playbook": build_playbook(gaps, settings, guidance, top),
         "attention": attention_lists(store, index, today, top),
@@ -2566,8 +2590,8 @@ def _cmd_self_test(_args):
     eq(first["confirmed"], 2, "in-0001 confirmed two of its three subjects")
     eq(first["pending"], 1, "in-0001 has one subject still pending")
     eq(len(first["subjects"]), 3, "every subject is listed, with its state")
-    ok(all(s.get("text") is not None for s in first["subjects"]),
-       "each subject carries its outcome text for rendering")
+    ok(all(set(s) == {"subcategoryId", "state"} for s in first["subjects"]),
+       "each subject carries only an id and a state — no per-subject text to accrete")
 
     # Tie-break: three pending Subcategories sharing one sourceDate. A single
     # reverse=True over the (date, id) tuple would hand these out id-descending —
@@ -2708,6 +2732,73 @@ def _cmd_self_test(_args):
            "a fully scoped-out store gets the SCOPING message, not the confirmed one")
         ok("confirmed" not in out,
            "the scoping message never uses the word that would claim an assessment happened")
+
+    # --- analyze carries every derived block, and the store carries none of them ---
+    with tempfile.TemporaryDirectory() as _d:
+        _p = os.path.join(_d, "an.csfp")
+        _out = os.path.join(_d, "an.json")
+        _cmd_init(["--name", "Analyze Co", "--out", _p, "--owner", "CISO",
+                   "--ts", "2026-01-01T00:00:00Z"])
+        _cmd_quickstart_target([_p, "--rationale", "baseline", "--ts", "2026-01-02T00:00:00Z"])
+        _cmd_intake(["add", _p, "--label", "architecture review", "--subjects",
+                     "ID.AM-01", "ID.AM-02", "--source-date", "2026-03-14",
+                     "--ts", "2026-03-16T00:00:00Z"])
+        _cmd_set([_p, "ID.AM-01", "--current", "2", "--rationale", "confirmed",
+                  "--source", "in-0001", "--confirmed-by", "Darren",
+                  "--ts", "2026-03-20T00:00:00Z"])
+        _cmd_analyze([_p, "--today", "2026-07-27", "--out", _out])
+        with open(_out, encoding="utf-8") as _fh:
+            an = json.load(_fh)
+
+        for key in ("evidence", "intake", "queue"):
+            ok(key in an, f"analyze emits {key!r}")
+        eq(an["evidence"]["coverage"]["overall"]["confirmed"], 1, "analyze counts confirmations")
+        eq(an["evidence"]["coverage"]["overall"]["evidencePending"], 1,
+           "analyze counts evidence-pending")
+        eq(an["evidence"]["coverage"]["overall"]["attributed"], 1,
+           "analyze reports attribution as its own axis")
+        ok(an["evidence"]["scopeGuard"]["suppressed"],
+           "1 of 106 assessed suppresses the headline")
+        eq(an["evidence"]["age"]["thresholdDays"], 180,
+           "analyze reports the age threshold in force")
+        eq(len(an["intake"]["records"]), 1, "analyze carries the intake records")
+        eq(an["intake"]["bySource"][0]["confirmed"], 1, "coverage-by-source counts confirmations")
+        eq(an["intake"]["bySource"][0]["pending"], 1, "coverage-by-source counts pending")
+        eq(an["queue"][0]["subcategoryId"], "ID.AM-02", "the queue leads with the pending item")
+        eq(an["queue"][0]["band"], "evidence-pending", "and names its band")
+        ok(all(r.get("tier") is None for r in an["queue"]),
+           "no queue row in analyze output carries a rating")
+        eq(an["generated"]["schemaVersion"], "2.0", "analyze stamps the schema version")
+
+        raw = json.load(open(_p, encoding="utf-8"))
+        ok("evidence" not in raw and "queue" not in raw,
+           "no derived block is persisted to the store")
+        ok(all("state" not in a for a in raw["assessments"]),
+           "no derived state is persisted onto an assessment")
+
+        # The existing scoring path is untouched by any of this.
+        eq(an["coverage"]["overall"]["d"], 212, "quickstart target of 2 across 106 in-scope")
+        eq(an["coverage"]["overall"]["n"], 2, "one Subcategory at Current 2")
+        eq(an["completeness"]["overall"]["assessed"], 1, "completeness still counts assessed")
+
+        # analyze must not mutate the store it reads.
+        _before = open(_p, encoding="utf-8").read()
+        _cmd_analyze([_p, "--today", "2026-07-27", "--out", _out])
+        eq(open(_p, encoding="utf-8").read(), _before, "analyze does not rewrite the store")
+
+        # --top governs the playbook, as it always has; the queue is a different
+        # question with its own safe batch size and does not move with it.
+        _cmd_analyze([_p, "--today", "2026-07-27", "--top", "3", "--out", _out])
+        _an_top3 = json.load(open(_out, encoding="utf-8"))
+        eq(len(_an_top3["playbook"]), 3, "--top bounds the playbook emitted by analyze")
+        eq(len(_an_top3["queue"]), 5,
+           "the queue keeps its own default of 5, unmoved by --top")
+
+        # --queue-top governs the queue independently, leaving --top's default alone.
+        _cmd_analyze([_p, "--today", "2026-07-27", "--queue-top", "3", "--out", _out])
+        _an_qtop3 = json.load(open(_out, encoding="utf-8"))
+        eq(len(_an_qtop3["queue"]), 3, "--queue-top bounds the queue emitted by analyze")
+        eq(len(_an_qtop3["playbook"]), 10, "--top keeps its own default of 10, unmoved by --queue-top")
 
     # --- Export contract ---
     eq(EXPORT_COLUMNS,
