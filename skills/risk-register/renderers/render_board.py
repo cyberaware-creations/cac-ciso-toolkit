@@ -25,7 +25,7 @@ W, H, PAD = 340, 130, 30
 
 def posture(ctx: C.Context) -> tuple[str, str, str, str]:
     """Headline over-appetite figure, arrow, colour and comparison — all derived."""
-    s = ctx.summary
+    s = ctx.live
     if len(ctx.trend) < 2:
         return str(s["overAppetite"]), "", C.LIME_DIM, "no snapshot to compare against"
     prev = ctx.trend[-2]
@@ -144,7 +144,7 @@ def changed_block(ctx: C.Context) -> str:
                else '<div class="why placeholder">No rationale recorded for this change.</div>')
         out += (f'<div class="chg"><span class="tag" style="background:'
                 f'{colour.get(c["kind"], C.SLATE)}">{c["kind"]}</span>'
-                f'<span><b>{c["id"]}</b> {C.esc(c["title"])} — {C.esc(c["detail"])}{why}</span>'
+                f'<span><b>{c["id"]}</b> {C.risk_title(c)} — {C.esc(c["detail"])}{why}</span>'
                 f'</div>')
     return out
 
@@ -233,10 +233,10 @@ footer{{margin-top:36px;color:{C.SLATE};font-size:11px;border-top:1px solid {C.W
 
 
 def render(ctx: C.Context) -> str:
-    m, s, sm = ctx.meta, ctx.settings, ctx.summary
+    m, s, sm = ctx.meta, ctx.settings, ctx.live
     n, arrow, col, cmp_txt = posture(ctx)
     due = len(ctx.attention["acceptanceDue"])
-    live = sm["total"] - sm["closed"]
+    live = sm["total"]
     decisions = ("".join(f'<div class="decision">{C.esc(d)}</div>' for d in ctx.decisions)
                  or '<p class="note">No decisions are outstanding from the data.</p>')
     client = C.esc(m.get("clientName") or "")
@@ -251,6 +251,10 @@ def render(ctx: C.Context) -> str:
     # "1 of 73 risks sit above" — the subject is the count, not the noun beside it.
     # Small, but this is the first sentence a director reads.
     sit_verb = "sits" if sm["overAppetite"] == 1 else "sit"
+    # Only say "live" where it distinguishes something. On a register with no closures
+    # the word is noise; on one with closures it is the difference between a headline
+    # that improves as risks are treated out and one that never moves.
+    live_word = " live" if sm["closed"] else ""
     prov = sm.get("provisional", 0)
     prov_banner = (
         f'<div class="sub onlight" style="background:{C.BAND["high"]}1a;border-bottom:1px solid '
@@ -269,12 +273,12 @@ def render(ctx: C.Context) -> str:
   {C.esc(m.get('assessor') or '—')}<br>
   <span class="appetite">Appetite: {C.esc(s['appetite'])}</span>
   &nbsp;{s['matrixSize']}×{s['matrixSize']} matrix</div></div></header>
-<div class="sub"><div class="wrap">{C.esc(ctx.as_of_line())} · {sm['total']} risks tracked
+<div class="sub"><div class="wrap">{C.esc(ctx.as_of_line())} · {sm['registerTotal']} risks tracked
   ({live} live, {sm['closed']} closed)</div></div>
 {prov_banner}
 <div class="wrap">
   <div class="section exec-top">
-    <div class="big"><div class="n">{sm['overAppetite']} of {sm['total']} risks</div>
+    <div class="big"><div class="n">{sm['overAppetite']} of {sm['total']}{live_word} risks</div>
       <div class="l">{sit_verb} above the {C.esc(C.BAND_LABEL[ctx.appetite].lower())} risk appetite.
       {C.esc(m.get('appetiteStatement') or '')}</div></div>
     <div class="big"><div class="n">{n} <span style="color:{col}">{arrow}</span></div>
