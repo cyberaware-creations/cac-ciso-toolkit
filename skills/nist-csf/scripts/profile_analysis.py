@@ -940,6 +940,38 @@ def load_overlay_dataset(path: str | None = None, index: dict | None = None) -> 
                                     else index_subcategories(load_core()))
 
 
+def resolve_overlay(sub_id: str, cfg: dict | None, dataset: dict) -> dict | None:
+    """What the overlay says about one Subcategory, or None if it says nothing.
+
+    Returns None — never a default — when the overlay is disabled, no areas are
+    selected, or the Subcategory is absent from the dataset. A default would let
+    an absent entry silently participate in ordering as though the dataset had
+    spoken about it.
+
+    effectivePriority is the MINIMUM across selected areas because NIST's 1/2/3
+    is High/Moderate/Foundational: 1 is the most urgent. Minimum therefore means
+    "the most urgent selected area wins", and deselecting an area can only relax
+    the result, never tighten it.
+    """
+    if not cfg or not cfg.get("enabled"):
+        return None
+    areas = [a for a in cfg.get("focusAreas") or [] if a in OVERLAY_FOCUS_AREAS]
+    if not areas:
+        return None
+    entry = (dataset.get("subcategories") or {}).get(sub_id)
+    if not entry:
+        return None
+    per_area = {a: entry[a]["priority"] for a in areas if a in entry}
+    if not per_area:
+        return None
+    return {
+        "effectivePriority": min(per_area.values()),
+        "perArea": per_area,
+        "sentinelAreas": [a for a in areas
+                          if entry.get(a, {}).get("standardPracticesApply")],
+    }
+
+
 def _settled_subjects(store: dict) -> set:
     """Subcategories that no longer need a cold-start question asked about them.
 
@@ -3018,6 +3050,59 @@ def _cmd_self_test(_args):
            "and preserves the selection, so re-enabling is one command")
         eq(load_store(_ov2)["history"][-1]["type"], "overlay-disabled",
            "and writes its own history event")
+
+    # --- overlay resolution ------------------------------------------------
+    # Effective priority is the MINIMUM across selected areas because NIST's
+    # 1/2/3 is High/Moderate/Foundational — 1 is the most urgent. That gives
+    # the property that matters: deselecting an area can only relax.
+    _fx = load_overlay_dataset(os.path.join(_SKILL_ROOT, "examples",
+                                            "fixture-cyber-ai.json"), index)
+    _on = {"enabled": True, "focusAreas": ["secure", "thwart"], "mode": "reorder"}
+
+    eq(resolve_overlay("ID.AM-01", _on, _fx)["effectivePriority"], 1,
+       "effective priority is the minimum across selected areas")
+    eq(resolve_overlay("DE.CM-01", _on, _fx)["effectivePriority"], 1,
+       "and finds the urgent one whichever area carries it")
+    eq(resolve_overlay("GV.OC-01", _on, _fx)["effectivePriority"], 3,
+       "a Subcategory foundational everywhere resolves to 3")
+
+    _one = {"enabled": True, "focusAreas": ["thwart"], "mode": "reorder"}
+    eq(resolve_overlay("ID.AM-01", _one, _fx)["effectivePriority"], 3,
+       "deselecting an area relaxes — ID.AM-01 is 1 in secure, 3 in thwart")
+
+    # The invariant, over every Subcategory in the dataset rather than one.
+    for _sid in _fx["subcategories"]:
+        _all3 = resolve_overlay(_sid, {"enabled": True, "mode": "reorder",
+                                       "focusAreas": list(OVERLAY_FOCUS_AREAS)}, _fx)
+        for _area in OVERLAY_FOCUS_AREAS:
+            _fewer = resolve_overlay(_sid, {"enabled": True, "mode": "reorder",
+                                            "focusAreas": [a for a in OVERLAY_FOCUS_AREAS
+                                                           if a != _area]}, _fx)
+            ok(_fewer["effectivePriority"] >= _all3["effectivePriority"],
+               f"deselecting {_area} never tightens {_sid}")
+
+    ok(resolve_overlay("ID.AM-01", {"enabled": False, "focusAreas": ["secure"],
+                                    "mode": "reorder"}, _fx) is None,
+       "disabled resolves to None, never to a default priority")
+    ok(resolve_overlay("ID.AM-01", {"enabled": True, "focusAreas": [],
+                                    "mode": "reorder"}, _fx) is None,
+       "no areas selected resolves to None")
+    ok(resolve_overlay("RC.RP-01", _on, _fx) is None,
+       "a Subcategory absent from the dataset resolves to None")
+    ok(resolve_overlay("ID.AM-01", None, _fx) is None,
+       "a missing config resolves to None rather than raising")
+
+    eq(resolve_overlay("GV.OC-01", _on, _fx)["sentinelAreas"], ["secure", "thwart"],
+       "the 'standard practices apply' sentinel is reported per selected area")
+    eq(resolve_overlay("ID.AM-01", _on, _fx)["sentinelAreas"], ["thwart"],
+       "and only for the areas where the source said it")
+    eq(resolve_overlay("ID.AM-01", _on, _fx)["perArea"], {"secure": 1, "thwart": 3},
+       "per-area priorities carry through for display, selected areas only")
+
+    _res = resolve_overlay("ID.AM-01", _on, _fx)
+    ok("target" not in _res and "effectiveTarget" not in _res
+       and "targetRaisedBy" not in _res,
+       "resolution never touches targets — floor mode is not in this increment")
 
     # --- elicit ------------------------------------------------------------
     # Settled = rated, scoped out, or already carrying intake. The third
