@@ -110,6 +110,31 @@ brand. Both passed, so it does.
 N4 and N5 are the trap cases: both involve security posture reporting, and neither belongs here.
 Neither leaked.
 
+## How an expectation is written
+
+`prompts.tsv` column 2 is either the keyword **`neither`**, or one or more of **this repo's**
+skill names separated by `|`:
+
+```
+X1	neither	Write us an acceptable use policy.
+A4	nist-csf|risk-register|ciso-board-translation	What should I show the board…
+```
+
+Two rules follow from that, and both were learned the expensive way in the 0.4.0 run:
+
+- **`neither` means none of *ours*** — `nist-csf`, `risk-register`, `ciso-board-translation`.
+  A skill from some other plugin the operator has installed is reported beside the verdict as
+  `[non-toolkit: …]` and never decides it. A score that changes with someone's plugin list is
+  not measuring this repo.
+- **A pipe list is how ambiguity gets written down.** There is no `either` keyword any more.
+  It silently meant "the first two skills", so A4 — which this document's own table already
+  described as *"Either, plus `ciso-board-translation`"* — scored a correct answer as a
+  failure. The prose was right and the machine-readable table was wrong; naming every
+  acceptable skill explicitly keeps them from diverging again.
+
+`score-triggers.py self-test` asserts both, plus that every expectation in the shipped table
+names only skills this repo actually ships.
+
 ## Negative — must load neither
 
 | # | Prompt | Expected | Actual | Pass |
@@ -167,7 +192,7 @@ worth knowing if you add a case that produces a long deliverable.
 
 Filled in after each real run. Newest first.
 
-### 2026-07-28 · plugin 0.4.0 · 18/20 · $10.00
+### 2026-07-28 · plugin 0.4.0 · 18/20 as scored at the time · **20/20 re-scored**
 
 Run after the `nist-csf` description was widened to cover evidence accretion and the Cyber AI
 overlay. **The question this run existed to answer was whether widening caused over-triggering.
@@ -184,20 +209,28 @@ skill present in the author's environment and not part of this toolkit. `verdict
 `neither` as `actual == "none"`, so **any** third-party skill fails the case. The answer itself
 was correct: it declined to write a policy blind and asked who it binds.
 
-> **Open:** `neither` should mean "neither of *this toolkit's* skills". Scoring it as
-> "no skill at all" makes the result depend on what else the operator happens to have
-> installed, which is not a property of this repo.
+>  **Fixed.** `neither` now means "none of *this toolkit's* skills". The scorer knows
+> which three it ships (`OURS`) and picks `actual` from those; anything else is reported
+> alongside as `[non-toolkit: …]` but never decides a verdict. A result that changed with
+> the operator's plugin list was not measuring this repo.
 
 **A4** — *"What should I show the board about our security posture?"* → routed to
 `ciso-board-translation`, which is arguably the **right** answer: that is the board-language
 skill and the prompt is a pure board-language question with no data behind it. The case defines
 `either` as `nist-csf | risk-register`, so a defensible answer scores as a failure.
 
-> **Open:** either widen `either` to include `ciso-board-translation`, or accept that A4 is
-> genuinely three-way and re-word it.
+>  **Fixed.** A4 is genuinely three-way and now says so:
+> `nist-csf|risk-register|ciso-board-translation`. The magic `either` keyword is gone —
+> expectations are pipe-separated lists of real skill names, so an ambiguous case documents
+> its own ambiguity instead of hiding it behind a word that silently meant two.
 
 Everything else passed: P1–P8 → `nist-csf`, N1–N5 → `risk-register`, X2 → none, A1/A3/A5 →
 `nist-csf`, A2 → `risk-register`.
 
 As the closing note below says, A1–A5 also carry behavioural requirements this script does not
 check. Their `answer` fields were read for this run; nothing in them contradicted the routing.
+
+**Re-scored 2026-07-28 after both scorer fixes: 20/20**, over the *same* transcripts — no
+model was re-run. Both failures were in the scoring, and the routing had been correct all
+along. `score-triggers.py self-test` (31 checks) now guards this; it did not exist before
+this run, which is why two scoring defects reached a paid run undetected.

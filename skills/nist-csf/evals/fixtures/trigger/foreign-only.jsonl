@@ -1,0 +1,2 @@
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "t1", "name": "Skill", "input": {"skill": "superpowers:brainstorming"}}]}}
+{"type": "result", "total_cost_usd": 0.5, "duration_ms": 40000, "result": "Who does this policy bind?"}
