@@ -20,9 +20,10 @@ Design anchors:
 
 Read-only:
   validate     [--core PATH]                       Assert the bundled Core is intact (6/22/106).
-  analyze      <store.csfp> [--today D] [--top N] [--out F]   Emit the complete derived JSON.
+  analyze      <store.csfp> [--today D] [--top N] [--queue-top N] [--out F]   Emit the complete derived JSON.
   diff         <store.csfp> [--label L] [--json]   Compare current state to a snapshot.
   export-gaps  <store.csfp> [--out F]              Gap CSV for `risk-register import-gaps`.
+  queue        <store.csfp> [--top N] [--json]      What to confirm next, ranked.
   self-test                                        Assert engine math against the fixture.
 
 Mutations (each appends an append-only history event and rewrites the store):
@@ -31,6 +32,7 @@ Mutations (each appends an append-only history event and rewrites the store):
   set               <store.csfp> <subcategoryId> [--current N|null] [--target N|null]
                     [--priority P] [--status S] [--applicability A] [--notes ...]
                     [--evidence A B] [--reviewed] [--rationale ...] [--actor A] [--ts TS]
+                    [--source in-NNNN] [--confirmed-by NAME]   (both REQUIRED with --current)
   set-tier          <store.csfp> [--overall N] [--function GV=N ...] --rationale ... [--actor A]
   quickstart-target <store.csfp> [--level N] [--force] [--rationale ...] [--actor A] [--ts TS]
   snapshot          <store.csfp> --label 'Q2 2026 Assessment' [--note ...] [--ts TS]
@@ -38,6 +40,9 @@ Mutations (each appends an append-only history event and rewrites the store):
                     [--target-date D] [--notes ...]
   action update     <store.csfp> <id> [--title ...] [--owner ...] [--target-date ...] ...
   action close      <store.csfp> <id> --rationale ...
+  intake add        <store.csfp> --label '...' --subjects ID.AM-01 ID.AM-02
+                    [--source-date D] [--recorded-by NAME] [--ts TS]
+  intake list       <store.csfp> [--json]
 
 Usage:
   python3 profile_analysis.py init --name "Acme Corp" --out acme.csfp --owner CISO
@@ -49,6 +54,7 @@ Usage:
 
 from __future__ import annotations
 
+import contextlib
 import copy
 import csv
 import io
@@ -56,6 +62,7 @@ import json
 import os
 import re
 import sys
+import tempfile
 from datetime import datetime, timezone
 
 # Behave like a normal Unix filter: on a closed pipe (e.g. `... | head`), exit
@@ -68,7 +75,8 @@ except (ImportError, AttributeError, ValueError):
 
 # --- Constants ---------------------------------------------------------------
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "2.0"          # current write version
+SUPPORTED_SCHEMA = {"1.0", "2.0"}   # v1 files load and normalize to v2 shape in memory
 FRAMEWORK_REF = "nist-csf-2.0"
 
 APPLICABILITY = ("in-scope", "not-applicable")
@@ -84,6 +92,17 @@ DEFAULT_SETTINGS = {
     },
     "priorityWeights": {"low": 1, "medium": 2, "high": 3, "critical": 4},
     "functionWeights": {},   # filled per framework at init; equal by default
+    # Reporting thresholds. Both are user-set with a shipped default; neither
+    # changes a score, only whether a number is presented and what is flagged.
+    "reporting": {
+        # Below this share of in-scope Subcategories assessed, the headline
+        # programme figure is SUPPRESSED, not caveated. A number with a warning
+        # beside it is still a number, and people read the number.
+        "scopeThresholdPct": 60,
+        # A rating older than this is counted and reported. Ratings never expire:
+        # age is reported and the human judges. See references/schema.md.
+        "ageThresholdDays": 180,
+    },
 }
 
 QUICKSTART_DEFAULT_LEVEL = 2   # "Largely Achieved" — a defensible baseline, not a maximum.
@@ -99,6 +118,7 @@ CORE_EXPECTED = {
 _SKILL_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_CORE = os.path.join(_SKILL_ROOT, "references", "nist-csf-2.0-core.json")
 DEFAULT_GUIDANCE = os.path.join(_SKILL_ROOT, "references", "guidance.json")
+DEFAULT_COLD_START_RANK = os.path.join(_SKILL_ROOT, "references", "cold-start-rank.json")
 FIXTURE = os.path.join(_SKILL_ROOT, "examples", "example-profile.csfp")
 
 
@@ -219,10 +239,10 @@ def load_store(path: str) -> dict:
     except json.JSONDecodeError as exc:
         raise ValueError(f"{path} is not a valid Profile file (invalid JSON): {exc}") from exc
 
-    if store.get("schemaVersion") != SCHEMA_VERSION:
+    if store.get("schemaVersion") not in SUPPORTED_SCHEMA:
         raise ValueError(
-            f"Unsupported schemaVersion {store.get('schemaVersion')!r} (this engine writes "
-            f"{SCHEMA_VERSION!r})."
+            f"Unsupported schemaVersion {store.get('schemaVersion')!r} "
+            f"(supported: {', '.join(sorted(SUPPORTED_SCHEMA))})."
         )
     if not isinstance(store.get("profile"), dict):
         raise ValueError("Invalid Profile file: missing 'profile' object.")
@@ -236,6 +256,25 @@ def load_store(path: str) -> dict:
     prof.setdefault("scope", {})
     prof.setdefault("tier", {"overall": None, "byFunction": {}})
     prof["settings"] = {**copy.deepcopy(DEFAULT_SETTINGS), **prof.get("settings", {})}
+
+    # Nested settings survive the shallow merge above: a v1 file has no
+    # `reporting` key at all, and a v2 file may carry only one of the two.
+    prof["settings"]["reporting"] = {
+        **copy.deepcopy(DEFAULT_SETTINGS["reporting"]),
+        **(prof["settings"].get("reporting") or {}),
+    }
+
+    # v1 -> v2 normalization, in memory. No data loss; the write path stamps 2.0.
+    #
+    # confirmedAt is deliberately NOT seeded from lastReviewed. "A human looked at
+    # this outcome" and "a human decided this rating, from this source, on this
+    # date" are different claims, and inventing the second from the first would
+    # fabricate exactly the attribution this schema exists to make honest.
+    store.setdefault("intake", [])
+    for a in store["assessments"]:
+        a.setdefault("confirmedAt", None)
+        a.setdefault("confirmedBy", None)
+        a.setdefault("source", None)
     return store
 
 
@@ -280,6 +319,16 @@ def check_store(store: dict, index: dict) -> list[str]:
             lo, hi = prof["settings"]["scale"]["min"], prof["settings"]["scale"]["max"]
             if not isinstance(v, int) or not (lo <= v <= hi):
                 problems.append(f"{sid}: {field} {v!r} outside scale {lo}..{hi}")
+        # The write path always produces ts[:10], but this file defends against a
+        # hand-edited or externally-converted store elsewhere, and an unvalidated
+        # confirmedAt would crash _days_between's strptime with a bare ValueError
+        # instead of a labelled problem here.
+        for field in ("confirmedAt",):
+            v = a.get(field)
+            if v is None:
+                continue
+            if not _is_iso_date(v):
+                problems.append(f"{sid}: {field} {v!r} is not a zero-padded ISO date (YYYY-MM-DD)")
 
     for item in store["actionItems"]:
         if item.get("status") not in ACTION_STATUSES:
@@ -287,6 +336,17 @@ def check_store(store: dict, index: dict) -> list[str]:
         for sid in item.get("linkedSubcategoryIds", []):
             if sid not in index:
                 problems.append(f"action {item.get('id')}: unknown Subcategory {sid!r}")
+
+    # sourceDate and recordedAt are guarded by _iso_date on the write path, but this
+    # loop is what protects a store that arrived some other way — and the revisit
+    # comparison in derive_evidence depends on sourceDate being lexically sortable.
+    for r in store.get("intake", []):
+        for field in ("sourceDate", "recordedAt"):
+            v = r.get(field)
+            if v is None:
+                continue
+            if not _is_iso_date(v):
+                problems.append(f"intake {r.get('id')}: {field} {v!r} is not a zero-padded ISO date (YYYY-MM-DD)")
     return problems
 
 
@@ -306,18 +366,25 @@ def is_material(field: str, old, new) -> bool:
 
 
 def append_history(store, etype, *, subcategoryId=None, field=None, frm=None, to=None,
-                   rationale=None, actor=None, ts=None, actionId=None):
+                   rationale=None, actor=None, ts=None, actionId=None, intakeId=None,
+                   source=None, confirmedBy=None):
     ev = {"ts": ts, "actor": actor or store["profile"]["scope"].get("owner") or "unknown", "type": etype}
     if subcategoryId is not None:
         ev["subcategoryId"] = subcategoryId
     if actionId is not None:
         ev["actionId"] = actionId
+    if intakeId is not None:
+        ev["intakeId"] = intakeId
     if field is not None:
         ev["field"] = field
         ev["from"] = frm
         ev["to"] = to
     if rationale:
         ev["rationale"] = rationale
+    if source:
+        ev["source"] = source
+    if confirmedBy:
+        ev["confirmedBy"] = confirmedBy
     store["history"].append(ev)
     return ev
 
@@ -431,6 +498,297 @@ def compute_completeness(assessments: list[dict], index: dict, core: dict) -> di
     }
 
 
+# --- Evidence accretion: derived, never stored ---------------------------------
+#
+# Every state below is computed from `assessments` + `intake` on demand. None of it
+# is written back. `derived-not-stored` in references/schema.md is the contract;
+# a stored `evidence-pending` flag would go stale the moment a rating moved.
+
+def _median_int(nums: list[int]) -> int | None:
+    if not nums:
+        return None
+    s = sorted(nums)
+    mid = len(s) // 2
+    return s[mid] if len(s) % 2 else (s[mid - 1] + s[mid]) // 2
+
+
+def _days_between(start: str, end: str) -> int:
+    a = datetime.strptime(start, "%Y-%m-%d")
+    b = datetime.strptime(end, "%Y-%m-%d")
+    return (b - a).days
+
+
+def intake_by_subject(intake: list[dict]) -> dict:
+    """Subcategory id -> the intake records bearing on it, oldest sourceDate first."""
+    out: dict[str, list] = {}
+    for r in intake or []:
+        for sid in r.get("subjects", []):
+            out.setdefault(sid, []).append(r)
+    for sid in out:
+        out[sid].sort(key=lambda r: (r.get("sourceDate") or "", r.get("id") or ""))
+    return out
+
+
+def derive_evidence(assessments: list[dict], intake: list[dict], index: dict, core: dict,
+                    today: str, threshold_pct: int, age_days: int) -> dict:
+    """The whole derivation layer, as one pure function. No IO, no clock.
+
+    Four states partition every tracked Subcategory:
+      not-applicable   scoped out
+      confirmed        in-scope, has a Current rating
+      evidence-pending in-scope, no Current rating, some intake bears on it
+      unrated          in-scope, no Current rating, nothing bears on it
+
+    `revisit` is a fifth, orthogonal flag: confirmed, and material has arrived that the
+    rating cannot be shown to predate. It is a reporting flag and a queue input only —
+    it does NOT affect scoring. Ratings never expire; new material is what questions a
+    rating, not the passage of time. There are two distinct reasons a confirmed rating
+    lands in `revisit`, each carried as `reason`:
+      newer-material        confirmedAt is set, and some bearing intake has a
+                             sourceDate later than it
+      undated-confirmation  confirmedAt is None (every rating carried over from a v1
+                             Profile, by design — see references/schema.md), and some
+                             intake bears on it at all
+
+    The second reason exists because `confirmed_at and ...` — the original guard —
+    silently swallowed every v1 rating: with confirmedAt None, the comparison never
+    fired, so a v1 rating with fresh material against it scored `revisit == []` and
+    dropped out of the queue and both dashboards as if nothing had arrived. There is
+    no date to guess and confirmedAt is never backfilled (that would fabricate the
+    attribution this schema exists to make honest) — so the honest answer for an
+    undated confirmed rating with bearing material is "look again," not silence.
+    """
+    by_subject = intake_by_subject(intake)
+    states, revisit, pending = {}, [], []
+
+    for a in assessments:
+        sid = a["subcategoryId"]
+        bearing = by_subject.get(sid, [])
+        if a.get("applicability", "in-scope") != "in-scope":
+            states[sid] = "not-applicable"
+            continue
+        if a.get("current") is not None:
+            states[sid] = "confirmed"
+            confirmed_at = a.get("confirmedAt")
+            # No exception for the record cited as this rating's own source: in a
+            # coherent store its sourceDate is never after confirmedAt (you cannot
+            # decide a rating from a conversation that hasn't happened yet), so the
+            # comparison is a no-op there. If it DOES fire on the cited source, that
+            # means the store holds an impossible date pair, and surfacing it as a
+            # revisit — go look at this again — is correct; suppressing it would
+            # hide the only signal a user gets that something is wrong.
+            if confirmed_at:
+                newer = [r for r in bearing
+                         if (r.get("sourceDate") or "") > confirmed_at]
+                if newer:
+                    revisit.append({
+                        "subcategoryId": sid,
+                        "text": (index.get(sid) or {}).get("text", ""),
+                        "confirmedAt": confirmed_at,
+                        "newestSourceDate": max(r["sourceDate"] for r in newer),
+                        "intakeIds": [r["id"] for r in newer],
+                        "reason": "newer-material",
+                    })
+            elif bearing:
+                # No confirmedAt means no basis to claim this rating predates the
+                # material sitting right next to it — that is a fact about the
+                # rating, not a guess about a date, so every bearing record counts
+                # (there is nothing to filter "newer" against). This is the v1
+                # migration path: confirmedAt is deliberately never backfilled from
+                # lastReviewed (schema.md, "Attribution"), so every carried-over
+                # rating reaches this branch the first time intake bears on it.
+                revisit.append({
+                    "subcategoryId": sid,
+                    "text": (index.get(sid) or {}).get("text", ""),
+                    "confirmedAt": None,
+                    "newestSourceDate": max(r.get("sourceDate") or "" for r in bearing),
+                    "intakeIds": [r["id"] for r in bearing],
+                    "reason": "undated-confirmation",
+                })
+        elif bearing:
+            states[sid] = "evidence-pending"
+            pending.append({
+                "subcategoryId": sid,
+                "text": (index.get(sid) or {}).get("text", ""),
+                "intakeIds": [r["id"] for r in bearing],
+                "newestSourceDate": max(r.get("sourceDate") or "" for r in bearing),
+            })
+        else:
+            states[sid] = "unrated"
+
+    # Newest material first, then id ascending. Two passes because the primary key
+    # is a date string and cannot be negated — and a single reverse=True over the
+    # tuple would reverse the tie-break too, handing a user ID.AM-03 before ID.AM-01.
+    for rows in (revisit, pending):
+        rows.sort(key=lambda r: r["subcategoryId"])
+        rows.sort(key=lambda r: r["newestSourceDate"], reverse=True)
+
+    def _split(subset: list[dict]) -> dict:
+        out = {"confirmed": 0, "evidencePending": 0, "unrated": 0, "notApplicable": 0,
+               "attributed": 0, "unattributed": 0, "total": len(subset)}
+        key = {"confirmed": "confirmed", "evidence-pending": "evidencePending",
+               "unrated": "unrated", "not-applicable": "notApplicable"}
+        for a in subset:
+            state = states[a["subcategoryId"]]
+            out[key[state]] += 1
+            if state == "confirmed":
+                # Confirmed means a rating exists. Attributed means we also know who
+                # decided it, when, and from what. A v1 rating is the first without
+                # the second, and reporting them as one number is the failure this
+                # whole schema exists to prevent.
+                full = a.get("confirmedAt") and a.get("confirmedBy") and a.get("source")
+                out["attributed" if full else "unattributed"] += 1
+        return out
+
+    def _age(subset: list[dict]) -> dict:
+        ages = [_days_between(a["confirmedAt"], today) for a in subset
+                if states[a["subcategoryId"]] == "confirmed" and a.get("confirmedAt")]
+        undated = sum(1 for a in subset
+                      if states[a["subcategoryId"]] == "confirmed" and not a.get("confirmedAt"))
+        return {
+            "dated": len(ages),
+            # A rating carried over from a v1 Profile has no confirmation date. It is
+            # counted here rather than guessed at: age reporting begins when ratings
+            # are confirmed under v2, and saying so is the honest version.
+            "undated": undated,
+            "medianDays": _median_int(ages),
+            "oldestDays": max(ages) if ages else None,
+            "olderThanThreshold": sum(1 for d in ages if d > age_days),
+        }
+
+    by_fn = _group(assessments, index, "functionId")
+    fids = function_ids(core)
+
+    scoped = in_scope(assessments)
+    assessed = sum(1 for a in scoped if a.get("current") is not None)
+    pct = (assessed / len(scoped) * 100) if scoped else 0.0
+    suppressed = pct < threshold_pct
+    statement = (
+        f"No headline coverage figure is reported: {assessed} of {len(scoped)} in-scope "
+        f"Subcategories have been assessed ({pct:.0f}%), below the {threshold_pct}% this "
+        f"Profile requires. A programme mean drawn from a minority of Subcategories "
+        f"describes the minority, not the programme."
+        if suppressed else
+        f"{assessed} of {len(scoped)} in-scope Subcategories assessed ({pct:.0f}%), "
+        f"at or above the {threshold_pct}% this Profile requires for a headline figure."
+    )
+
+    return {
+        "states": states,
+        "coverage": {
+            "overall": _split(assessments),
+            "byFunction": {fid: _split(by_fn.get(fid, [])) for fid in fids},
+        },
+        "age": {
+            "thresholdDays": age_days,
+            "overall": _age(assessments),
+            "byFunction": {fid: _age(by_fn.get(fid, [])) for fid in fids},
+        },
+        "revisit": revisit,
+        "pending": pending,
+        "scopeGuard": {
+            "assessed": assessed, "inScope": len(scoped),
+            "assessedPct": pct, "thresholdPct": threshold_pct,
+            "suppressed": suppressed, "statement": statement,
+        },
+    }
+
+
+def coverage_by_source(intake: list[dict], states: dict, index: dict) -> list[dict]:
+    """Each intake record and what it bore on — the payoff of the source-keyed model.
+
+    Answers "what did that review actually cover?", which a per-Subcategory pointer
+    list structurally cannot.
+
+    Subjects carry an id and a state, deliberately not the outcome text. This is the
+    one block that grows without bound — intake accretes for the life of the Profile
+    and is never pruned — and the text is duplicated from `gaps`/`queue` anyway. A
+    renderer that later needs it should get a lookup map, not a copy per subject.
+    """
+    rows = []
+    for r in sorted(intake or [], key=lambda x: (x.get("sourceDate") or "", x.get("id") or ""),
+                    reverse=True):
+        subjects = [{"subcategoryId": sid, "state": states.get(sid, "unrated")}
+                    for sid in r.get("subjects", [])]
+        rows.append({
+            "id": r.get("id"), "label": r.get("label"),
+            "sourceDate": r.get("sourceDate"), "recordedAt": r.get("recordedAt"),
+            "recordedBy": r.get("recordedBy"),
+            "subjects": subjects,
+            "confirmed": sum(1 for s in subjects if s["state"] == "confirmed"),
+            "pending": sum(1 for s in subjects if s["state"] == "evidence-pending"),
+        })
+    return rows
+
+
+def build_queue(assessments: list[dict], intake: list[dict], evidence: dict,
+                index: dict, rank: dict, top: int | None = None) -> list[dict]:
+    """What to confirm next, in three bands.
+
+    Band order is fixed: evidence-pending, then revisit, then cold-start rank.
+    Material you already have beats material you have to go find, and a rating a
+    new conversation has called into question beats one nobody has looked at.
+
+    A queue item carries the SOURCE and the DATE and nothing else. It must never
+    carry a tier, a proposed tier, or a confidence — presenting a conclusion and
+    asking for confirmation is how inference gets laundered as judgment, and a
+    rubber-stamped rating is worse than an unrated one because it looks like
+    evidence. The absence of a rating here is the feature.
+    """
+    by_subject = intake_by_subject(intake)
+    states = evidence["states"]
+    by_id = {a["subcategoryId"]: a for a in assessments}
+
+    def _sources(sid):
+        # Newest first: the most recent conversation is the one a human can still recall.
+        return [{"id": r["id"], "label": r["label"], "sourceDate": r["sourceDate"],
+                 "recordedBy": r.get("recordedBy", "")}
+                for r in reversed(by_subject.get(sid, []))]
+
+    def _row(sid, band, reason=None):
+        return {
+            "subcategoryId": sid,
+            "text": (index.get(sid) or {}).get("text", ""),
+            "functionId": (index.get(sid) or {}).get("functionId", ""),
+            "band": band,
+            "coldStartRank": rank.get(sid),
+            "sources": _sources(sid),
+            "confirmedAt": by_id.get(sid, {}).get("confirmedAt"),
+            "target": by_id.get(sid, {}).get("target"),
+            # Explicitly null, and asserted by the tests. The confirmation session
+            # asks a question; it does not present an answer for ratification.
+            "tier": None,
+            # Only revisit rows carry a reason (newer-material or
+            # undated-confirmation, from derive_evidence). None elsewhere.
+            "reason": reason,
+        }
+
+    # Two-pass stable sorts throughout. A single reverse=True over a (date, id)
+    # tuple would reverse the tie-break too — see the same fix in derive_evidence.
+    #
+    # rank[sid], not rank.get(sid, ...): resolve_rank positions every id in index,
+    # and every sid reaching this point came from an assessment check_store already
+    # validated against index. A missing rank is an internal invariant broken, not
+    # a case to paper over with a fallback — the same call this file already made
+    # for _split's key[state] lookup. A silent default would sort the row to the
+    # bottom with no signal, far from wherever the real bug is.
+    pending = list(evidence["pending"])
+    pending.sort(key=lambda r: (rank[r["subcategoryId"]], r["subcategoryId"]))
+    pending.sort(key=lambda r: r["newestSourceDate"], reverse=True)
+
+    revisit = list(evidence["revisit"])
+    revisit.sort(key=lambda r: (rank[r["subcategoryId"]], r["subcategoryId"]))
+    revisit.sort(key=lambda r: r["newestSourceDate"], reverse=True)
+
+    cold = sorted((sid for sid, s in states.items() if s == "unrated"),
+                  key=lambda sid: (rank[sid], sid))
+
+    rows = ([_row(r["subcategoryId"], "evidence-pending") for r in pending]
+            + [_row(r["subcategoryId"], "revisit", r.get("reason")) for r in revisit]
+            + [_row(sid, "cold-start") for sid in cold])
+    return rows if top is None else rows[:top]
+
+
 # --- Authored guidance -------------------------------------------------------
 
 def load_guidance(path: str | None = None) -> dict:
@@ -440,6 +798,52 @@ def load_guidance(path: str | None = None) -> dict:
             return json.load(fh)
     except (FileNotFoundError, json.JSONDecodeError):
         return {}
+
+
+def load_cold_start_rank(path: str | None = None) -> dict:
+    """Load the CAC cold-start ordering. Absent is fine — the queue falls back to
+    framework order, which is still deterministic."""
+    try:
+        with open(path or DEFAULT_COLD_START_RANK, encoding="utf-8") as fh:
+            return json.load(fh)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {"rank": {}, "basis": "", "disclaimer": ""}
+
+
+def resolve_rank(index: dict, core: dict, rank_data: dict) -> dict:
+    """Map every Subcategory to a total-order position, ranked ids first.
+
+    Used only when NO intake exists for a Subcategory. The queue mechanism is
+    indifferent to what fills the table; this is where the editorial judgment
+    lives, and it is labelled as CAC's in the reference file itself.
+    """
+    ranked = rank_data.get("rank") or {}
+    # Rank values must be numbers. A hand-edited file that quotes them sorts
+    # lexicographically instead — "10" before "2" — which loads, passes every
+    # structural check, and silently produces a wrong queue order. Fail loudly.
+    bad = sorted(sid for sid, v in ranked.items() if not isinstance(v, int) or isinstance(v, bool))
+    if bad:
+        raise ValueError(f"cold-start rank values must be integers; {', '.join(bad)} "
+                         f"are not. Quoted numbers sort as text and would silently "
+                         f"reorder the queue.")
+    # Compact to 1..n rather than trusting the file's numbers. A gap, a tie, or an
+    # id the framework no longer has would otherwise collide with the tail offset
+    # below and silently break the total order the queue sorts on. Relative order
+    # is what the editorial judgment actually encodes; the absolute values are not
+    # load-bearing, so normalising them costs nothing and removes a whole failure mode.
+    present = sorted((v, sid) for sid, v in ranked.items() if sid in index)
+    out = {sid: i for i, (_, sid) in enumerate(present, start=1)}
+    n = len(out)
+    # Framework order for the tail: Function order as the Core defines it, then
+    # Category, then id. Never hardcode the six CSF Function names.
+    pos = 0
+    for f in core["hierarchy"]:
+        for cat in f.get("categories", []):
+            for s in cat.get("subcategories", []):
+                if s["id"] in index and s["id"] not in ranked:
+                    pos += 1
+                    out[s["id"]] = n + pos
+    return out
 
 
 def render_guidance(row: dict, settings: dict, guidance: dict) -> dict | None:
@@ -630,6 +1034,15 @@ def _s(v):
     return " ".join(v) if isinstance(v, list) else v
 
 
+def trunc_plain(text: str, n: int) -> str:
+    text = (text or "").strip()
+    if len(text) <= n:
+        return text
+    cut = text[:n]
+    space = cut.rfind(" ")
+    return (cut[:space] if space > n * 0.6 else cut).rstrip() + "…"
+
+
 def _list(v):
     if v is None or v is True:
         return []
@@ -741,6 +1154,11 @@ def _cmd_init(args):
         "notes": "",
         "evidenceRefs": [],
         "lastReviewed": None,
+        # Null because nobody has confirmed anything yet — set --source populates
+        # these on the first confirmed rating (see Task 2's attribution enforcement).
+        "confirmedAt": None,
+        "confirmedBy": None,
+        "source": None,
     } for sid in index]
 
     store = {
@@ -759,6 +1177,7 @@ def _cmd_init(args):
             "created": ts, "updated": ts,
         },
         "assessments": assessments, "history": [], "snapshots": [], "actionItems": [],
+        "intake": [],
     }
     append_history(store, "profile-created", rationale=f"Profile '{name}' initialised.",
                    actor=_s(opt.get("actor")) if isinstance(opt.get("actor"), (str, list)) else None, ts=ts)
@@ -774,7 +1193,7 @@ def _cmd_set(args):
     pos, opt = parse_flags(args)
     usage = ("usage: set <store.csfp> <subcategoryId> [--current N|null] [--target N|null] "
              "[--priority P] [--status S] [--applicability A] [--notes ...] [--evidence A B] "
-             "[--reviewed] [--rationale '...']")
+             "[--reviewed] [--rationale '...'] [--source in-NNNN] [--confirmed-by NAME]")
     if len(pos) < 2:
         raise ValueError(usage)
     path, sid = pos[0], pos[1]
@@ -785,6 +1204,9 @@ def _cmd_set(args):
     ts = _s(opt.get("ts")) if isinstance(opt.get("ts"), (str, list)) else _now()
     actor = _s(opt.get("actor")) if isinstance(opt.get("actor"), (str, list)) else None
     rationale = _s(opt.get("rationale")) if isinstance(opt.get("rationale"), (str, list)) else None
+    source = _s(opt.get("source")) if isinstance(opt.get("source"), (str, list)) else None
+    confirmed_by = (_s(opt.get("confirmed-by"))
+                    if isinstance(opt.get("confirmed-by"), (str, list)) else None)
 
     if sid not in index:
         raise ValueError(f"Unknown Subcategory {sid!r} for framework {FRAMEWORK_REF}.")
@@ -832,21 +1254,70 @@ def _cmd_set(args):
             f"gap acceptances, closure claims, and scoping a Subcategory out."
         )
 
+    # A Current rating is the claim the whole report rests on, so it does not exist
+    # without a named source and a named person. The CLI cannot prove a human typed
+    # the number; what it enforces is that no rating exists that nobody will claim.
+    # The confirmation discipline itself is a behavioural rule in SKILL.md.
+    #
+    # Target is deliberately NOT gated: it is a risk-based decision, already covered
+    # by --rationale, and quickstart-target seeds it in bulk across ~106 Subcategories.
+    #
+    # Computed once, here, and reused below for the apply/skip decision on the same
+    # field — so the gate's "is Current actually moving?" and the apply loop's cannot
+    # independently drift out of agreement.
+    current_update = next(((f, n) for f, n in updates if f == "current"), None)
+    new_current = current_update[1] if current_update else None
+    current_changing = current_update is not None and a.get("current") != new_current
+    if current_changing and new_current is not None:
+        if not source or not confirmed_by:
+            raise ValueError(
+                "--source and --confirmed-by are required for a Current rating. "
+                "A rating nobody will claim is a rating nobody can defend. "
+                "Record where it came from first:\n"
+                f"  intake add <store.csfp> --label '...' --subjects {sid}\n"
+                f"  then: set <store.csfp> {sid} --current N --source <the id it prints> "
+                f"--confirmed-by <you> --rationale '...'"
+            )
+        known = {r.get("id") for r in store.get("intake", [])}
+        if source not in known:
+            raise ValueError(
+                f"--source {source!r} is not an intake record in this Profile. "
+                f"Known: {', '.join(sorted(known)) or '(none)'}. "
+                f"List them with: intake list <store.csfp>"
+            )
+
     applied = 0
     for field, new in updates:
         old = a.get(field)
-        if old == new:
+        if field == "current":
+            if not current_changing:
+                continue
+        elif old == new:
             continue
         a[field] = new
         etype = {"current": "rating-changed", "target": "target-changed",
                  "status": "status-changed", "applicability": "applicability-changed"}.get(field, "field-changed")
+        # A cleared rating (new is None) carries no attribution even if stray --source /
+        # --confirmed-by flags were passed alongside it — the clear itself is ungated
+        # (see above), so those flags are meaningless here and must not be recorded as
+        # if they justified a rating that, after this call, does not exist.
+        attributed = field == "current" and new is not None
         append_history(store, etype, subcategoryId=sid, field=field, frm=old, to=new,
-                       rationale=rationale, actor=actor, ts=ts)
+                       rationale=rationale, actor=actor, ts=ts,
+                       source=source if attributed else None,
+                       confirmedBy=confirmed_by if attributed else None)
         applied += 1
         # lastReviewed tracks "when did a human last look at this outcome" — only a
         # Current move (or an explicit --reviewed) affirms that. Notes edits must not.
         if field == "current":
             a["lastReviewed"] = ts[:10]
+            # Attribution travels with the rating, not beside it — and it leaves with
+            # it too. All three clear together on a withdrawal, or the assessment ends
+            # up naming a source for a rating that no longer exists.
+            if new is not None:
+                a["confirmedAt"], a["confirmedBy"], a["source"] = ts[:10], confirmed_by, source
+            else:
+                a["confirmedAt"] = a["confirmedBy"] = a["source"] = None
 
     if opt.get("reviewed"):
         a["lastReviewed"] = ts[:10]
@@ -1071,6 +1542,216 @@ def _cmd_diff(args):
     return 0
 
 
+def _next_intake_id(store) -> str:
+    used = [int(m.group(1)) for r in store.get("intake", [])
+            if (m := re.match(r"in-(\d+)$", str(r.get("id", ""))))]
+    return f"in-{max(used, default=0) + 1:04d}"
+
+
+def _is_iso_date(value) -> bool:
+    """True only for a zero-padded YYYY-MM-DD.
+
+    strptime alone is lenient about padding, so '2026-3-1' parses — and then sorts
+    after '2026-12-01', because every date in this store is compared as a string.
+    One predicate, used by both the write path (_iso_date) and the read path
+    (check_store), so the two cannot drift apart.
+    """
+    text = str(value).strip()
+    try:
+        return datetime.strptime(text, "%Y-%m-%d").strftime("%Y-%m-%d") == text
+    except ValueError:
+        return False
+
+
+def _iso_date(raw, label: str) -> str:
+    """Validate an ISO date, zero-padding included.
+
+    Dates in this store are compared and sorted as plain strings — `revisit` asks
+    whether a source is newer than a confirmation by comparing them directly. So
+    '2026-3-14' is not merely untidy: it sorts after '2026-12-01' and would make
+    every revisit flag and age figure downstream quietly false.
+    """
+    text = str(_s(raw)).strip()
+    if _is_iso_date(text):
+        return text
+    try:
+        parsed = datetime.strptime(text, "%Y-%m-%d")
+    except ValueError:
+        raise ValueError(f"{label} must be an ISO date (YYYY-MM-DD), got {text!r}") from None
+    raise ValueError(f"{label} must be zero-padded (YYYY-MM-DD), got {text!r} — "
+                     f"try {parsed.strftime('%Y-%m-%d')!r}. Dates here are sorted as "
+                     f"strings, so an unpadded month or day compares wrong.") from None
+
+
+def _cmd_intake(args):
+    """Record that a source bears on some Subcategories. Writes no ratings, ever.
+
+    The unit of record is the SOURCE, not the Subcategory. One conversation
+    typically bears on many outcomes, and "what did the March architecture review
+    cover?" is the question a CISO actually asks when rebuilding a picture — which
+    a per-Subcategory pointer list cannot answer.
+
+    This must cost under thirty seconds or it will not happen mid-conversation.
+    No rating is discussed at this step and none can be written from here.
+    """
+    pos, opt = parse_flags(args)
+    usage = ("usage: intake add <store.csfp> --label '...' --subjects ID.AM-01 ID.AM-02 "
+             "[--source-date YYYY-MM-DD] [--recorded-by NAME] [--ts TS]\n"
+             "       intake list <store.csfp> [--json]")
+    if len(pos) < 2:
+        raise ValueError(usage)
+    sub, path = pos[0], pos[1]
+    core = load_core(); index = index_subcategories(core)
+    store = load_store(path)
+    ts = _s(opt.get("ts")) if isinstance(opt.get("ts"), (str, list)) else _now()
+
+    if sub == "add":
+        label = _s(opt.get("label")) if isinstance(opt.get("label"), (str, list)) else ""
+        if not str(label).strip():
+            raise ValueError("--label is required. It is a note about the source — human-authored "
+                             "or human-confirmed, never model-generated, and never a quoted "
+                             "excerpt. That is what keeps internal material out of this file.\n\n"
+                             + usage)
+        subjects = _list(opt.get("subjects"))
+        if not subjects:
+            raise ValueError("--subjects is required: at least one Subcategory this source bears "
+                             "on.\n\n" + usage)
+        unknown = [s for s in subjects if s not in index]
+        if unknown:
+            noun = "Subcategory" if len(unknown) == 1 else "Subcategories"
+            raise ValueError(f"Unknown {noun} {', '.join(repr(s) for s in unknown)} "
+                             f"for framework {FRAMEWORK_REF}.")
+        # A fumbled --subjects list can repeat an id. Task 5's per-source
+        # confirmed/pending split sums len(subjects) directly, so a duplicate would
+        # silently inflate coverage-by-source. dict.fromkeys dedupes and keeps
+        # first-seen order without pulling in a set (which would not).
+        subjects = list(dict.fromkeys(subjects))
+
+        recorded_at = ts[:10]
+        source_date = (_iso_date(opt["source-date"], "--source-date")
+                       if isinstance(opt.get("source-date"), (str, list)) else recorded_at)
+        recorded_by = (_s(opt.get("recorded-by"))
+                       if isinstance(opt.get("recorded-by"), (str, list))
+                       else (store["profile"]["scope"].get("owner") or ""))
+
+        rec = {
+            "id": _next_intake_id(store),
+            "label": str(label).strip(),
+            # These diverge routinely under accretion — a March conversation
+            # recorded in July — and conflating them would misreport age.
+            "sourceDate": source_date,
+            "recordedAt": recorded_at,
+            "subjects": list(subjects),
+            "recordedBy": recorded_by,
+        }
+        store.setdefault("intake", []).append(rec)
+        append_history(store, "intake-recorded", intakeId=rec["id"], ts=ts,
+                       actor=_s(opt.get("actor")) if isinstance(opt.get("actor"), (str, list)) else None,
+                       rationale=f"Source recorded: {rec['label']} ({rec['sourceDate']}), "
+                                 f"bearing on {len(rec['subjects'])} Subcategories.")
+        save_store(store, path, ts)
+        print(f"Recorded {rec['id']}: {rec['label']}")
+        if not rec["recordedBy"]:
+            print("  Warning: no recorder. Set --recorded-by, or an --owner on the Profile — "
+                  "a source nobody recorded is a source nobody can be asked about.")
+        print(f"  {rec['sourceDate']} · bears on {', '.join(rec['subjects'])}")
+        print(f"  No ratings written. Confirm them when you have time to decide: "
+              f"queue {path}")
+        return 0
+
+    if sub == "list":
+        records = store.get("intake", [])
+        if opt.get("json"):
+            sys.stdout.write(json.dumps(records, indent=2, ensure_ascii=False) + "\n")
+            return 0
+        if not records:
+            print("No intake recorded yet.")
+            print("  intake add <store.csfp> --label '...' --subjects ID.AM-01 ID.AM-02")
+            return 0
+        # "confirmed" here means a rating exists, matching the four-way coverage
+        # bucket the dashboards report. Whether that rating is *attributed* — has a
+        # source, a confirmer and a date — is a separate axis, reported by `analyze`.
+        # Conflating the two is the mistake this whole schema exists to prevent.
+        rated = {a["subcategoryId"] for a in store["assessments"] if a.get("current") is not None}
+        for r in records:
+            done = sum(1 for s in r["subjects"] if s in rated)
+            print(f"{r['id']}  {r['sourceDate']}  {r['label']}")
+            print(f"          {len(r['subjects'])} Subcategories · {done} confirmed · "
+                  f"{len(r['subjects']) - done} pending · {', '.join(r['subjects'])}")
+        return 0
+
+    raise ValueError(usage)
+
+
+def _cmd_queue(args):
+    pos, opt = parse_flags(args)
+    path = _require_store(pos, "usage: queue <store.csfp> [--top N] [--json]")
+    core = load_core(); index = index_subcategories(core)
+    store = load_store(path)
+    rep = store["profile"]["settings"]["reporting"]
+    # today is needed by derive_evidence for the age block, which the queue does not
+    # read. It is deliberately NOT a flag here: nothing observable in the queue
+    # depends on it, and a flag that accepts a value and changes nothing is worse
+    # than no flag.
+    today = _today()
+    # Batches of at most five by default. Long confirmation runs are where
+    # rubber-stamping happens, and a rubber-stamped rating is worse than none.
+    top = int(_s(opt.get("top"))) if isinstance(opt.get("top"), (str, list)) else 5
+    if top < 0:
+        raise ValueError("--top must be zero or greater.")
+
+    ev = derive_evidence(store["assessments"], store.get("intake", []), index, core,
+                         today, rep["scopeThresholdPct"], rep["ageThresholdDays"])
+    all_rows = build_queue(store["assessments"], store.get("intake", []), ev, index,
+                           resolve_rank(index, core, load_cold_start_rank()))
+    rows = all_rows[:top]
+
+    if opt.get("json"):
+        sys.stdout.write(json.dumps(rows, indent=2, ensure_ascii=False) + "\n")
+        return 0
+
+    if not all_rows:
+        # "Confirmed" is only true if something was in scope to confirm. Scoping
+        # everything out and reading "confirmed" back is how a CISO concludes their
+        # programme is current when it was never assessed at all — the exact
+        # conclusion-laundering this command exists to refuse.
+        scoped = in_scope(store["assessments"])
+        if not scoped:
+            print("Queue is empty because nothing is in scope — all "
+                  f"{len(store['assessments'])} Subcategories are marked not-applicable. "
+                  "That is a scoping position, not an assessment result.")
+        else:
+            print(f"Queue is empty — all {len(scoped)} in-scope Subcategories are "
+                  "confirmed and nothing newer has arrived.")
+        return 0
+
+    if not rows:
+        print(f"{len(all_rows)} to confirm, but --top {top} is showing none of them.")
+        return 0
+
+    print(f"Next {len(rows)} to confirm ({len(all_rows)} in the queue):\n")
+    for r in rows:
+        print(f"  {r['subcategoryId']}  [{r['band']}]")
+        print(f"    {trunc_plain(r['text'], 110)}")
+        for s in r["sources"]:
+            print(f"    source {s['id']} · {s['sourceDate']} · {s['label']}")
+        if r["band"] == "revisit":
+            if r.get("reason") == "undated-confirmation":
+                print("    this rating carries no confirmation date, so it cannot be "
+                      "shown to predate this material")
+            else:
+                print(f"    confirmed {r['confirmedAt']}; newer material has arrived since")
+        if not r["sources"]:
+            print("    no material recorded — this is a cold start, go and ask")
+        print()
+    print("Confirm one with:")
+    print(f"  set {path} <id> --current N --source in-NNNN --confirmed-by NAME "
+          f"--rationale '...'")
+    print("If the material is thin, the right outcome is a question to go ask — "
+          "not a rating.")
+    return 0
+
+
 def _next_action_id(store) -> str:
     used = [int(m.group(1)) for i in store["actionItems"]
             if (m := re.match(r"A-(\d+)$", str(i.get("id", ""))))]
@@ -1167,7 +1848,8 @@ def _cmd_action(args):
 
 def _cmd_analyze(args):
     pos, opt = parse_flags(args)
-    path = _require_store(pos, "usage: analyze <store.csfp> [--today YYYY-MM-DD] [--top N] [--out F]")
+    path = _require_store(pos, "usage: analyze <store.csfp> [--today YYYY-MM-DD] [--top N] "
+                                "[--queue-top N] [--out F]")
     core = load_core(); index = index_subcategories(core)
     store = load_store(path)
 
@@ -1177,6 +1859,11 @@ def _cmd_analyze(args):
 
     today = _s(opt.get("today")) if isinstance(opt.get("today"), (str, list)) else _today()
     top = int(_s(opt.get("top"))) if isinstance(opt.get("top"), (str, list)) else 10
+    # The playbook and the queue answer different questions and have different safe
+    # batch sizes. --top governs the playbook, as it always has; the queue keeps the
+    # cap the `queue` command chose for it, because a long confirmation run is where
+    # rubber-stamping happens no matter which surface presents it.
+    queue_top = int(_s(opt.get("queue-top"))) if isinstance(opt.get("queue-top"), (str, list)) else 5
     settings = store["profile"]["settings"]
     prof = store["profile"]
 
@@ -1184,6 +1871,10 @@ def _cmd_analyze(args):
     tiers["profile"] = prof.get("tier", {})
 
     guidance = load_guidance()
+    rep = settings["reporting"]
+    evidence = derive_evidence(store["assessments"], store.get("intake", []), index, core,
+                               today, rep["scopeThresholdPct"], rep["ageThresholdDays"])
+    rank = resolve_rank(index, core, load_cold_start_rank())
     gaps = compute_gaps(store["assessments"], settings, index)
     for row in gaps:
         g = render_guidance(row, settings, guidance)
@@ -1208,6 +1899,17 @@ def _cmd_analyze(args):
         "tracked": len(store["assessments"]),
         "coverage": compute_coverage(store["assessments"], index, core),
         "completeness": compute_completeness(store["assessments"], index, core),
+        # Derived on demand, never stored. The store holds intake records and the
+        # attribution on each assessment; everything below is computed from them at
+        # read time. A renderer must never recompute any of it — two views of one
+        # Profile disagreeing is the failure this rule exists to prevent.
+        "evidence": evidence,
+        "intake": {
+            "records": store.get("intake", []),
+            "bySource": coverage_by_source(store.get("intake", []), evidence["states"], index),
+        },
+        "queue": build_queue(store["assessments"], store.get("intake", []), evidence,
+                             index, rank, queue_top),
         "gaps": gaps,
         "playbook": build_playbook(gaps, settings, guidance, top),
         "attention": attention_lists(store, index, today, top),
@@ -1329,6 +2031,43 @@ def _cmd_self_test(_args):
     # --- Fixture loads and validates ---
     store = load_store(FIXTURE)
     eq(check_store(store, index), [], "fixture validates")
+
+    # A hand-edited or externally-converted store can carry a malformed date where
+    # the write path never would. check_store is the gate analyze already calls
+    # before computing anything, so this is where it must be caught.
+    bad_confirmed = copy.deepcopy(store)
+    bad_confirmed["assessments"][0]["confirmedAt"] = "14 March 2026"
+    ok(any("confirmedAt" in p for p in check_store(bad_confirmed, index)),
+       "check_store reports a malformed confirmedAt")
+
+    # Unpadded — '2026-3-1' parses fine under plain strptime, but sorts AFTER
+    # '2026-12-01' as a string, which is exactly the failure _iso_date's round-trip
+    # exists to catch on the write path. check_store is the read-path equivalent
+    # and must share the same predicate, or a hand-edited store slips through here.
+    unpadded_confirmed = copy.deepcopy(store)
+    unpadded_confirmed["assessments"][0]["confirmedAt"] = "2026-3-1"
+    ok(any("confirmedAt" in p for p in check_store(unpadded_confirmed, index)),
+       "check_store reports an unpadded confirmedAt")
+
+    bad_intake = copy.deepcopy(store)
+    bad_intake["intake"] = [{"id": "in-0001", "label": "x", "sourceDate": "14 March 2026",
+                              "recordedAt": "2026-03-16", "subjects": [], "recordedBy": "Darren"}]
+    ok(any("sourceDate" in p for p in check_store(bad_intake, index)),
+       "check_store reports a malformed intake sourceDate")
+
+    unpadded_source = copy.deepcopy(store)
+    unpadded_source["intake"] = [{"id": "in-0001", "label": "x", "sourceDate": "2026-3-1",
+                                   "recordedAt": "2026-03-16", "subjects": [], "recordedBy": "Darren"}]
+    ok(any("sourceDate" in p for p in check_store(unpadded_source, index)),
+       "check_store reports an unpadded intake sourceDate")
+
+    unpadded_recorded = copy.deepcopy(store)
+    unpadded_recorded["intake"] = [{"id": "in-0001", "label": "x", "sourceDate": "2026-03-01",
+                                     "recordedAt": "2026-3-2", "subjects": [], "recordedBy": "Darren"}]
+    ok(any("recordedAt" in p for p in check_store(unpadded_recorded, index)),
+       "check_store reports an unpadded intake recordedAt")
+
+    eq(check_store(store, index), [], "the well-formed store still reports neither")
     settings = store["profile"]["settings"]
     A = {a["subcategoryId"]: a for a in store["assessments"]}
     eq(len(A), 10, "fixture assessment count")
@@ -1466,6 +2205,786 @@ def _cmd_self_test(_args):
         ok("applicability" in str(exc), "'N/A' error points at --applicability")
     checks += 1
 
+    # --- Schema v2: normalization and attribution defaults ---
+    v1 = {
+        "schemaVersion": "1.0",
+        "profile": {"id": "t", "name": "T", "frameworkRef": FRAMEWORK_REF,
+                    "created": "2026-01-01T00:00:00Z", "updated": "2026-01-01T00:00:00Z"},
+        "assessments": [{"subcategoryId": "ID.AM-01", "applicability": "in-scope",
+                         "current": 2, "target": 3, "priority": "medium",
+                         "status": "in-progress", "notes": "", "evidenceRefs": [],
+                         "lastReviewed": "2026-01-01"}],
+        "history": [], "snapshots": [], "actionItems": [],
+    }
+    with tempfile.TemporaryDirectory() as _d:
+        _p = os.path.join(_d, "v1.csfp")
+        with open(_p, "w", encoding="utf-8") as _fh:
+            json.dump(v1, _fh)
+        s = load_store(_p)
+        eq(s["intake"], [], "v1 normalizes with an empty intake list")
+        a0 = s["assessments"][0]
+        eq(a0["confirmedAt"], None, "v1 rating normalizes with confirmedAt null")
+        eq(a0["confirmedBy"], None, "v1 rating normalizes with confirmedBy null")
+        eq(a0["source"], None, "v1 rating normalizes with source null")
+        eq(a0["current"], 2, "v1 normalization does not touch the rating itself")
+        eq(s["profile"]["settings"]["reporting"]["scopeThresholdPct"], 60,
+           "reporting defaults are seeded on normalization")
+        eq(s["profile"]["settings"]["reporting"]["ageThresholdDays"], 180,
+           "age threshold default is 180 days")
+        save_store(s, _p, "2026-07-27T00:00:00Z")
+        with open(_p, encoding="utf-8") as _fh:
+            back = json.load(_fh)
+        eq(back["schemaVersion"], "2.0", "first write stamps schemaVersion 2.0")
+        eq(load_store(_p)["assessments"][0]["current"], 2, "a v2 file round-trips")
+
+        # A file carrying `"reporting": null` or only one of the two keys must not
+        # defeat the defaults — the `or {}` guard in load_store is what stops it,
+        # and a future "simplification" of that line needs to fail loudly here.
+        for partial, expect_scope, expect_age, why in (
+            (None, 60, 180, "reporting: null falls back to both defaults"),
+            ({"scopeThresholdPct": 75}, 75, 180, "a partial reporting block keeps the other default"),
+        ):
+            _pp = os.path.join(_d, f"r{expect_scope}.csfp")
+            _v = json.loads(json.dumps(v1))
+            _v["profile"]["settings"] = {"reporting": partial}
+            with open(_pp, "w", encoding="utf-8") as _fh:
+                json.dump(_v, _fh)
+            _rep = load_store(_pp)["profile"]["settings"]["reporting"]
+            eq(_rep["scopeThresholdPct"], expect_scope, why)
+            eq(_rep["ageThresholdDays"], expect_age, why + " (age)")
+
+    with tempfile.TemporaryDirectory() as _d:
+        _p = os.path.join(_d, "v3.csfp")
+        with open(_p, "w", encoding="utf-8") as _fh:
+            json.dump({**v1, "schemaVersion": "3.0"}, _fh)
+        try:
+            load_store(_p)
+            failures.append("schemaVersion 3.0 should have been refused")
+        except ValueError as exc:
+            ok("3.0" in str(exc), "an unsupported schemaVersion names the version found")
+        checks += 1
+
+    # --- Intake: the source is the unit of record ---
+    with tempfile.TemporaryDirectory() as _d:
+        _p = os.path.join(_d, "i.csfp")
+        _cmd_init(["--name", "Intake Co", "--out", _p, "--owner", "CISO",
+                   "--ts", "2026-01-01T00:00:00Z"])
+        _cmd_intake(["add", _p, "--label", "architecture review with infra team",
+                     "--subjects", "ID.AM-01", "ID.AM-02", "ID.AM-03",
+                     "--source-date", "2026-03-14", "--recorded-by", "Darren",
+                     "--ts", "2026-03-16T09:00:00Z"])
+        st = load_store(_p)
+        eq(len(st["intake"]), 1, "one intake record written")
+        r = st["intake"][0]
+        eq(r["id"], "in-0001", "intake ids are in-NNNN, zero padded")
+        eq(r["label"], "architecture review with infra team", "label is stored verbatim")
+        eq(r["subjects"], ["ID.AM-01", "ID.AM-02", "ID.AM-03"], "subjects are stored in order")
+        eq(r["sourceDate"], "2026-03-14", "sourceDate is when the conversation happened")
+        eq(r["recordedAt"], "2026-03-16", "recordedAt is when it entered the store")
+        eq(r["recordedBy"], "Darren", "recordedBy is recorded")
+        eq([a for a in st["assessments"] if a["subcategoryId"] == "ID.AM-01"][0]["current"], None,
+           "intake writes no ratings")
+        ev = [e for e in st["history"] if e.get("type") == "intake-recorded"]
+        eq(len(ev), 1, "intake appends exactly one history event")
+        eq(ev[0].get("intakeId"), "in-0001", "the history event names the intake id")
+
+        # sourceDate defaults to the recording date, so the fast path stays fast.
+        _cmd_intake(["add", _p, "--label", "hallway note on backups",
+                     "--subjects", "PR.DS-11", "--ts", "2026-04-02T00:00:00Z"])
+        r2 = load_store(_p)["intake"][1]
+        eq(r2["id"], "in-0002", "intake ids increment")
+        eq(r2["sourceDate"], "2026-04-02", "sourceDate defaults to the recording date")
+
+        # A repeated id in --subjects (a fumbled paste) must not inflate the count
+        # Task 5 sums for per-source coverage.
+        _cmd_intake(["add", _p, "--label", "duplicate subjects test",
+                     "--subjects", "PR.DS-11", "PR.DS-11", "ID.AM-01",
+                     "--ts", "2026-04-03T00:00:00Z"])
+        r3 = load_store(_p)["intake"][2]
+        eq(r3["subjects"], ["PR.DS-11", "ID.AM-01"],
+           "duplicate --subjects entries are deduped, first-seen order preserved")
+
+        # A source nobody recorded is a source nobody can be asked about. The warning
+        # fires only when BOTH --recorded-by and a profile --owner are absent.
+        _p_nowarn = os.path.join(_d, "no-owner.csfp")
+        _cmd_init(["--name", "No Owner Co", "--out", _p_nowarn, "--ts", "2026-01-01T00:00:00Z"])
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            _cmd_intake(["add", _p_nowarn, "--label", "unattributed note",
+                         "--subjects", "ID.AM-01", "--ts", "2026-01-02T00:00:00Z"])
+        ok("Warning: no recorder" in buf.getvalue(),
+           "no --recorded-by and no profile owner triggers the recorder warning")
+
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            _cmd_intake(["add", _p_nowarn, "--label", "attributed note",
+                         "--subjects", "ID.AM-02", "--recorded-by", "Darren",
+                         "--ts", "2026-01-03T00:00:00Z"])
+        ok("Warning: no recorder" not in buf.getvalue(),
+           "--recorded-by suppresses the recorder warning")
+
+        for bad, why, expect in (
+            (["add", _p, "--subjects", "ID.AM-01"], "no --label", "--label is required"),
+            (["add", _p, "--label", "x"], "no --subjects", "--subjects is required"),
+            (["add", _p, "--label", "x", "--subjects", "ZZ.ZZ-99"], "unknown Subcategory", "ZZ.ZZ-99"),
+            (["add", _p, "--label", "x", "--subjects", "ID.AM-01",
+              "--source-date", "14/03/2026"], "non-ISO sourceDate", "ISO date"),
+            (["add", _p, "--label", "x", "--subjects", "ID.AM-01",
+              "--source-date", "2026-3-14"], "unpadded sourceDate", "zero-padded"),
+        ):
+            try:
+                _cmd_intake(bad)
+                failures.append(f"intake add with {why} should have been refused")
+            except ValueError as exc:
+                ok(expect in str(exc), f"refusal for {why} names the actual problem")
+            checks += 1
+
+    # --- Intake list: the vocabulary and arithmetic a human actually reads ---
+    with tempfile.TemporaryDirectory() as _d2:
+        _p2 = os.path.join(_d2, "list.csfp")
+        _cmd_init(["--name", "List Co", "--out", _p2, "--owner", "CISO",
+                   "--ts", "2026-01-01T00:00:00Z"])
+
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = _cmd_intake(["list", _p2])
+        eq(rc, 0, "intake list on an empty store returns 0")
+        ok("No intake recorded yet." in buf.getvalue(),
+           "empty store prints a clear message, not a crash")
+
+        _cmd_intake(["add", _p2, "--label", "two-subject source",
+                     "--subjects", "ID.AM-01", "ID.AM-02", "--ts", "2026-02-01T00:00:00Z"])
+
+        # Confirm one of the two subjects directly on the store. `set`'s attribution
+        # requirement (Task 2) does not exist yet, so this writes exactly what a
+        # confirmed rating will later look like.
+        s2 = load_store(_p2)
+        for a in s2["assessments"]:
+            if a["subcategoryId"] == "ID.AM-01":
+                a["current"] = 2
+        save_store(s2, _p2, "2026-02-02T00:00:00Z")
+
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = _cmd_intake(["list", _p2])
+        eq(rc, 0, "intake list on a populated store returns 0")
+        out = buf.getvalue()
+        ok("1 confirmed" in out, "confirmed count reflects the one rated subject")
+        ok("1 pending" in out, "pending count reflects the one unrated subject")
+
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = _cmd_intake(["list", _p2, "--json"])
+        eq(rc, 0, "intake list --json returns 0")
+        eq(json.loads(buf.getvalue()), load_store(_p2)["intake"],
+           "--json emits the stored intake records verbatim")
+
+    # --- Attribution enforcement on a Current rating ---
+    # This asserts FAILURE. A test that only exercised the happy path would pass
+    # against an engine that enforces nothing.
+    with tempfile.TemporaryDirectory() as _d:
+        _p = os.path.join(_d, "a.csfp")
+        _cmd_init(["--name", "Attr Co", "--out", _p, "--owner", "CISO",
+                   "--ts", "2026-01-01T00:00:00Z"])
+        _cmd_intake(["add", _p, "--label", "architecture review with infra team",
+                     "--subjects", "ID.AM-01", "ID.AM-02",
+                     "--source-date", "2026-03-14", "--recorded-by", "Darren",
+                     "--ts", "2026-03-16T00:00:00Z"])
+        for bad, why in (
+            (["--current", "2", "--rationale", "x"], "no attribution at all"),
+            (["--current", "2", "--rationale", "x", "--source", "in-0001"], "no --confirmed-by"),
+            (["--current", "2", "--rationale", "x", "--confirmed-by", "Darren"], "no --source"),
+        ):
+            try:
+                _cmd_set([_p, "ID.AM-01"] + bad + ["--ts", "2026-03-20T00:00:00Z"])
+                failures.append(f"set --current with {why} should have been refused")
+            except ValueError as exc:
+                # Assert on text unique to the attribution gate, NOT on "--source" /
+                # "--confirmed-by" alone — the usage banner also names both flags, so
+                # a regression that routed this call into the generic usage error
+                # (raise ValueError(usage)) would pass that weaker assertion silently.
+                ok("required for a Current rating" in str(exc)
+                   and "nobody can defend" in str(exc),
+                   f"refusal for {why} names the attribution gate, not generic usage")
+            checks += 1
+        try:
+            _cmd_set([_p, "ID.AM-01", "--current", "2", "--rationale", "x",
+                      "--source", "in-9999", "--confirmed-by", "Darren",
+                      "--ts", "2026-03-20T00:00:00Z"])
+            failures.append("set --source with an unknown intake id should have been refused")
+        except ValueError as exc:
+            ok("in-9999" in str(exc) and "not an intake record" in str(exc),
+               "unknown --source names the id and the actual problem, not generic usage")
+        checks += 1
+
+        # Target is NOT gated: it is a risk-based decision, already covered by --rationale.
+        _cmd_set([_p, "ID.AM-01", "--target", "3", "--rationale", "risk-based target",
+                  "--ts", "2026-03-20T00:00:00Z"])
+        eq([a for a in load_store(_p)["assessments"]
+            if a["subcategoryId"] == "ID.AM-01"][0]["target"], 3,
+           "target writes without attribution")
+
+        _cmd_set([_p, "ID.AM-01", "--current", "2", "--rationale", "confirmed at review",
+                  "--source", "in-0001", "--confirmed-by", "Darren",
+                  "--ts", "2026-03-20T00:00:00Z"])
+        st = load_store(_p)
+        a = [x for x in st["assessments"] if x["subcategoryId"] == "ID.AM-01"][0]
+        eq(a["current"], 2, "attributed current rating is written")
+        eq(a["source"], "in-0001", "source is recorded on the assessment")
+        eq(a["confirmedBy"], "Darren", "confirmedBy is recorded on the assessment")
+        eq(a["confirmedAt"], "2026-03-20", "confirmedAt is the date of the decision")
+        eq(a["lastReviewed"], "2026-03-20", "a Current move still refreshes lastReviewed")
+        ev = [e for e in st["history"] if e.get("type") == "rating-changed"][-1]
+        eq(ev.get("source"), "in-0001", "the history event carries the source")
+        eq(ev.get("confirmedBy"), "Darren", "the history event carries the confirmer")
+
+        # Clearing a rating is not a claim, so it needs no attribution.
+        _cmd_set([_p, "ID.AM-01", "--current", "null", "--rationale", "withdrawn: source disputed",
+                  "--ts", "2026-03-21T00:00:00Z"])
+        a2 = [x for x in load_store(_p)["assessments"]
+              if x["subcategoryId"] == "ID.AM-01"][0]
+        eq(a2["current"], None, "a rating can be cleared without attribution")
+        eq(a2["confirmedAt"], None, "confirmedAt clears along with the rating")
+
+        # CRITICAL (caught in review): a clear passed WITH stray --source/--confirmed-by
+        # flags must still end up fully unattributed. The clear itself is ungated — the
+        # flags are simply irrelevant to it — but they must not be recorded anyway, or
+        # the assessment ends up naming a source and a confirmer for a rating that, after
+        # this call, does not exist.
+        _cmd_set([_p, "ID.AM-01", "--current", "2", "--rationale", "re-confirmed",
+                  "--source", "in-0001", "--confirmed-by", "Darren",
+                  "--ts", "2026-03-22T00:00:00Z"])
+        _cmd_set([_p, "ID.AM-01", "--current", "null", "--rationale", "withdrawn again",
+                  "--source", "in-0001", "--confirmed-by", "Darren",
+                  "--ts", "2026-03-23T00:00:00Z"])
+        a3 = [x for x in load_store(_p)["assessments"]
+              if x["subcategoryId"] == "ID.AM-01"][0]
+        eq(a3["current"], None, "current clears even with stray attribution flags present")
+        eq(a3["confirmedAt"], None, "confirmedAt clears despite stray --source/--confirmed-by")
+        eq(a3["confirmedBy"], None, "confirmedBy clears despite stray --source/--confirmed-by")
+        eq(a3["source"], None, "source clears despite stray --source/--confirmed-by")
+
+        # An unchanged value is a no-op, not a new claim — it must not demand attribution.
+        _cmd_set([_p, "ID.AM-02", "--priority", "high", "--ts", "2026-03-22T00:00:00Z"])
+        eq([x for x in load_store(_p)["assessments"]
+            if x["subcategoryId"] == "ID.AM-02"][0]["priority"], "high",
+           "a non-rating field still writes without attribution")
+
+    # --- Cold-start rank ---
+    rank_data = load_cold_start_rank()
+    ok(bool(rank_data.get("rank")), "cold-start rank file loads")
+    ok(bool(rank_data.get("basis")) and bool(rank_data.get("disclaimer")),
+       "cold-start rank states its basis and carries a disclaimer")
+    unknown_ranked = [sid for sid in rank_data["rank"] if sid not in index]
+    eq(unknown_ranked, [], "every ranked id exists in the framework")
+    ranks = sorted(rank_data["rank"].values())
+    eq(ranks, list(range(1, len(ranks) + 1)), "ranks are a dense 1..N sequence with no ties")
+    order = resolve_rank(index, core, rank_data)
+    eq(len(order), len(index), "every Subcategory gets a position")
+    eq(order["ID.AM-01"], 1, "ID.AM-01 leads the cold start")
+    ok(order["GV.RR-02"] > order["ID.AM-01"], "ranked ids sort by their rank")
+    tail = [sid for sid in index if sid not in rank_data["rank"]]
+    ok(min(order[s] for s in tail) > max(rank_data["rank"].values()),
+       "unranked ids sort after every ranked id")
+    # Both ids here MUST be absent from the rank table, or this stops testing the tail
+    # rule and starts testing the table. GV.OC-03 used to sit here and was later ranked,
+    # at which point the assertion still passed while covering nothing.
+    ok("GV.OC-05" not in rank_data["rank"] and "ID.RA-02" not in rank_data["rank"],
+       "the tail-rule assertion uses genuinely unranked ids")
+    ok(order["GV.OC-05"] < order["ID.RA-02"],
+       "unranked ids fall back to framework order, GV before ID")
+    eq(len(set(order.values())), len(order), "positions are unique — the order is total")
+    ok(load_cold_start_rank("/nonexistent/cold-start-rank.json").get("rank") == {},
+       "a missing rank file degrades to an empty table, not a crash")
+    eq(len(resolve_rank(index, core, {"rank": {}})), len(index),
+       "with no ranked ids, every Subcategory still gets a position from framework order")
+
+    # Adversarial rank tables: an id the framework lacks, a gap, and a tie. Each of
+    # these collided a ranked id's compacted position with the tail offset before
+    # resolve_rank compacted to 1..n instead of trusting the file's raw numbers —
+    # reproduced by spec review against the code as originally handed over.
+    for bad, why in (
+        ({"rank": {"ZZ.ZZ-99": 1, "ID.AM-01": 2}}, "a rank table naming an id the framework lacks"),
+        ({"rank": {"ID.AM-01": 1, "ID.AM-02": 2, "ID.AM-03": 5}}, "a gapped rank table"),
+        ({"rank": {"ID.AM-01": 1, "ID.AM-02": 1}}, "a rank table with a tie"),
+    ):
+        o = resolve_rank(index, core, bad)
+        eq(len(o), len(index), f"{why} still positions every Subcategory")
+        eq(len(set(o.values())), len(index), f"{why} still yields a total order")
+
+    # Quoted rank values are the hand-editing mistake that sorts lexicographically
+    # and passes every structural check while silently reordering the queue.
+    # isinstance(v, bool) must also be rejected — True is an int in Python and
+    # would otherwise slip through as rank 1.
+    for bad_ranks, why in (
+        ({"ID.AM-01": "1", "ID.AM-02": "2", "ID.AM-03": "10"}, "string-valued ranks"),
+        ({"ID.AM-01": True, "ID.AM-02": 2}, "a bool-valued rank"),
+    ):
+        try:
+            resolve_rank(index, core, {"rank": bad_ranks})
+            failures.append(f"resolve_rank with {why} should have been refused")
+        except ValueError as exc:
+            ok("must be integers" in str(exc), f"{why} refusal names the actual problem")
+        checks += 1
+
+    # The shipped file is already dense 1..32, so compaction must be an identity on
+    # it — verified directly, since that is exactly the case the bug hid in.
+    shipped = load_cold_start_rank()
+    ok(all(order[sid] == v for sid, v in shipped["rank"].items()),
+       "compaction is an identity on the shipped table — every ranked id keeps its authored position")
+
+    # --- Derivation layer: derived, never stored ---
+    fx_assess = [
+        {"subcategoryId": "ID.AM-01", "applicability": "in-scope", "current": 2, "target": 3,
+         "confirmedAt": "2026-03-20", "confirmedBy": "Darren", "source": "in-0001"},
+        {"subcategoryId": "ID.AM-02", "applicability": "in-scope", "current": 1, "target": 3,
+         "confirmedAt": "2025-06-01", "confirmedBy": "Darren", "source": "in-0001"},
+        {"subcategoryId": "ID.AM-03", "applicability": "in-scope", "current": None, "target": 3,
+         "confirmedAt": None, "confirmedBy": None, "source": None},
+        {"subcategoryId": "PR.AA-01", "applicability": "in-scope", "current": None, "target": 3,
+         "confirmedAt": None, "confirmedBy": None, "source": None},
+        {"subcategoryId": "PR.AA-03", "applicability": "not-applicable", "current": None,
+         "target": None, "confirmedAt": None, "confirmedBy": None, "source": None},
+        {"subcategoryId": "PR.DS-11", "applicability": "in-scope", "current": 3, "target": 3,
+         "confirmedAt": "2026-01-10", "confirmedBy": "Darren", "source": "in-0002"},
+    ]
+    fx_intake = [
+        {"id": "in-0001", "label": "architecture review", "sourceDate": "2025-05-20",
+         "recordedAt": "2026-03-16", "subjects": ["ID.AM-01", "ID.AM-02", "ID.AM-03"],
+         "recordedBy": "Darren"},
+        {"id": "in-0002", "label": "backup restore test", "sourceDate": "2026-01-08",
+         "recordedAt": "2026-01-09", "subjects": ["PR.DS-11"], "recordedBy": "Darren"},
+        {"id": "in-0003", "label": "vendor DR conversation", "sourceDate": "2026-06-02",
+         "recordedAt": "2026-06-03", "subjects": ["PR.DS-11"], "recordedBy": "Darren"},
+    ]
+    ev = derive_evidence(fx_assess, fx_intake, index, core, today="2026-07-27",
+                         threshold_pct=60, age_days=180)
+
+    st = ev["states"]
+    eq(st["ID.AM-01"], "confirmed", "rated with material is confirmed")
+    eq(st["ID.AM-03"], "evidence-pending", "unrated with material is evidence-pending")
+    eq(st["PR.AA-01"], "unrated", "unrated with no material is unrated")
+    eq(st["PR.AA-03"], "not-applicable", "scoped out is its own state")
+
+    cov = ev["coverage"]["overall"]
+    eq(cov["confirmed"], 3, "four-way: confirmed count")
+    eq(cov["evidencePending"], 1, "four-way: evidence-pending count")
+    eq(cov["unrated"], 1, "four-way: unrated count")
+    eq(cov["notApplicable"], 1, "four-way: not-applicable count")
+    eq(cov["confirmed"] + cov["evidencePending"] + cov["unrated"] + cov["notApplicable"],
+       len(fx_assess), "the four buckets partition every tracked Subcategory")
+    eq(cov["attributed"], 3, "attributed = confirmed with source and confirmer")
+    eq(cov["unattributed"], 0, "unattributed = confirmed without all three")
+
+    eq([r["subcategoryId"] for r in ev["revisit"]], ["PR.DS-11"],
+       "revisit: material newer than the confirmation")
+    eq(ev["revisit"][0]["newestSourceDate"], "2026-06-02", "revisit names the newer source date")
+    eq(ev["revisit"][0]["reason"], "newer-material",
+       "a dated confirmation with newer intake against it is reason newer-material")
+    ok("ID.AM-01" not in {r["subcategoryId"] for r in ev["revisit"]},
+       "material older than the confirmation is not a revisit")
+
+    # A cited source dated after its own confirmation is incoherent data, and the
+    # right response is to surface it for a human, not to special-case it away.
+    incoherent = [dict(a) for a in fx_assess]
+    for a in incoherent:
+        if a["subcategoryId"] == "ID.AM-01":
+            a["confirmedAt"] = "2025-01-01"      # before in-0001's sourceDate
+    ev_inc = derive_evidence(incoherent, fx_intake, index, core, today="2026-07-27",
+                             threshold_pct=60, age_days=180)
+    ok("ID.AM-01" in {r["subcategoryId"] for r in ev_inc["revisit"]},
+       "a source dated after the confirmation it grounds still raises a revisit")
+
+    # --- revisit reason: newer-material vs undated-confirmation ---
+    #
+    # This is the exact defect a final whole-branch review caught: derive_evidence
+    # used to guard the whole revisit check on `confirmed_at and ...`, so a rating
+    # with confirmedAt None — every rating carried over from a v1 Profile, by
+    # design — could never raise a revisit no matter what material arrived against
+    # it. These three fixtures pin the two honest reasons and the one non-reason.
+    reason_assess = [
+        # Confirmed, no confirmedAt (the v1-migrated shape), material bears on it:
+        # there is no date to compare against, so every bearing record counts.
+        {"subcategoryId": "GV.OC-01", "applicability": "in-scope", "current": 1, "target": 2,
+         "confirmedAt": None, "confirmedBy": None, "source": None},
+        # Confirmed, dated, and intake postdates the confirmation.
+        {"subcategoryId": "GV.OC-02", "applicability": "in-scope", "current": 1, "target": 2,
+         "confirmedAt": "2026-01-01", "confirmedBy": "Darren", "source": "in-r02"},
+        # Confirmed, dated, and every bearing record predates the confirmation.
+        {"subcategoryId": "GV.OC-03", "applicability": "in-scope", "current": 1, "target": 2,
+         "confirmedAt": "2026-06-01", "confirmedBy": "Darren", "source": "in-r03"},
+    ]
+    reason_intake = [
+        {"id": "in-r01", "label": "control walkthrough", "sourceDate": "2026-05-01",
+         "recordedAt": "2026-05-02", "subjects": ["GV.OC-01"], "recordedBy": "Darren"},
+        {"id": "in-r02", "label": "policy review", "sourceDate": "2026-03-01",
+         "recordedAt": "2026-03-02", "subjects": ["GV.OC-02"], "recordedBy": "Darren"},
+        {"id": "in-r03", "label": "prior review", "sourceDate": "2026-01-01",
+         "recordedAt": "2026-01-02", "subjects": ["GV.OC-03"], "recordedBy": "Darren"},
+    ]
+    ev_reason = derive_evidence(reason_assess, reason_intake, index, core, today="2026-07-27",
+                                threshold_pct=0, age_days=180)
+    by_reason_sid = {r["subcategoryId"]: r for r in ev_reason["revisit"]}
+    eq(set(by_reason_sid), {"GV.OC-01", "GV.OC-02"},
+       "undated-confirmation and newer-material both raise a revisit; fully-predated "
+       "material raises neither")
+    eq(by_reason_sid["GV.OC-01"]["reason"], "undated-confirmation",
+       "confirmed, no confirmedAt, bearing material: reason is undated-confirmation")
+    eq(by_reason_sid["GV.OC-01"]["confirmedAt"], None,
+       "undated-confirmation carries confirmedAt None — never a guessed date")
+    eq(by_reason_sid["GV.OC-01"]["newestSourceDate"], "2026-05-01",
+       "undated-confirmation still names the newest bearing source")
+    eq(by_reason_sid["GV.OC-02"]["reason"], "newer-material",
+       "confirmed, dated, intake postdates it: reason is newer-material")
+
+    q_reason = build_queue(reason_assess, reason_intake, ev_reason, index,
+                           resolve_rank(index, core, load_cold_start_rank()))
+    q_reason_revisit = {r["subcategoryId"]: r for r in q_reason if r["band"] == "revisit"}
+    eq(q_reason_revisit["GV.OC-01"]["reason"], "undated-confirmation",
+       "build_queue threads the reason through to the row for undated-confirmation")
+    eq(q_reason_revisit["GV.OC-02"]["reason"], "newer-material",
+       "build_queue threads the reason through to the row for newer-material")
+
+    # --- Reproduction: the shipped v1 fixture must not swallow new material ---
+    #
+    # GV.OC-01 in the v1 fixture is confirmed (current=2) and, being schema v1,
+    # carries no confirmedAt at all (load_store normalizes it to None in memory —
+    # never backfilled from lastReviewed). Before the fix this intake vanished:
+    # `analyze` reported revisit == [] and `queue` offered an unrelated cold-start
+    # item instead, exactly the silent drop the review reproduced.
+    v1_store = load_store(FIXTURE)
+    eq(v1_store["assessments"][
+           [a["subcategoryId"] for a in v1_store["assessments"]].index("GV.OC-01")
+       ]["confirmedAt"], None, "the v1 fixture's GV.OC-01 carries no confirmedAt")
+    v1_intake = [{"id": "in-0001", "label": "audit found the asset inventory is stale",
+                  "sourceDate": "2026-07-20", "recordedAt": "2026-07-27",
+                  "subjects": ["GV.OC-01"], "recordedBy": "Darren"}]
+    ev_v1 = derive_evidence(v1_store["assessments"], v1_intake, index, core, today="2026-07-27",
+                            threshold_pct=60, age_days=180)
+    v1_revisit = {r["subcategoryId"]: r for r in ev_v1["revisit"]}
+    ok("GV.OC-01" in v1_revisit,
+       "reproduction: a v1 rating with fresh intake against it must raise a revisit, "
+       "not be silently dropped (the exact defect the final review caught)")
+    eq(v1_revisit.get("GV.OC-01", {}).get("reason"), "undated-confirmation",
+       "reproduction: the reason names why — no confirmation date to compare against")
+    q_v1 = build_queue(v1_store["assessments"], v1_intake, ev_v1, index,
+                       resolve_rank(index, core, load_cold_start_rank()))
+    ok(any(r["subcategoryId"] == "GV.OC-01" and r["band"] == "revisit" for r in q_v1),
+       "reproduction: GV.OC-01 surfaces in the queue as a revisit rather than vanishing "
+       "behind an unrelated cold-start item")
+
+    age = ev["age"]["overall"]
+    eq(age["dated"], 3, "age counts only dated confirmations")
+    eq(age["oldestDays"], 421, "oldest: 2025-06-01 to 2026-07-27")
+    eq(age["medianDays"], 198, "median of 129, 198, 421")
+    eq(age["olderThanThreshold"], 2, "two ratings older than 180 days")
+    eq(ev["age"]["thresholdDays"], 180, "the threshold is reported with the counts")
+
+    g = ev["scopeGuard"]
+    eq(g["assessed"], 3, "scope guard numerator is assessed in-scope")
+    eq(g["inScope"], 5, "scope guard denominator excludes not-applicable")
+    eq(g["thresholdPct"], 60, "scope guard reports its threshold")
+    eq(g["assessedPct"], 60.0, "3 of 5 in-scope assessed is exactly 60%")
+    # The boundary is inclusive: AT the threshold the figure is reported.
+    ok(not g["suppressed"], "exactly at the threshold, the headline is NOT suppressed")
+    ok("60%" in g["statement"] and "3 of 5" in g["statement"],
+       "the scope statement carries both the fraction and the threshold")
+    ev70 = derive_evidence(fx_assess, fx_intake, index, core, today="2026-07-27",
+                           threshold_pct=70, age_days=180)
+    ok(ev70["scopeGuard"]["suppressed"], "one point below the threshold suppresses the headline")
+    ok("No headline coverage figure is reported" in ev70["scopeGuard"]["statement"],
+       "the suppressed statement replaces the number rather than caveating it")
+
+    ok(all("state" not in a and "age" not in a for a in fx_assess),
+       "derivation mutates nothing on the assessments it reads")
+
+    # Per-Function derivation uses framework ids, never hardcoded names.
+    eq(set(ev["coverage"]["byFunction"]), set(function_ids(core)),
+       "four-way coverage covers every Function in the framework")
+    eq(set(ev["age"]["byFunction"]), set(function_ids(core)),
+       "age is reported per Function")
+    eq(ev["coverage"]["byFunction"]["ID"]["confirmed"], 2, "ID has two confirmed")
+    eq(ev["coverage"]["byFunction"]["RC"]["total"], 0, "an untouched Function reports zeros")
+
+    # Coverage by source: what did that review actually cover?
+    bysrc = coverage_by_source(fx_intake, ev["states"], index)
+    eq([r["id"] for r in bysrc], ["in-0003", "in-0002", "in-0001"],
+       "sources are newest-first by sourceDate")
+    first = [r for r in bysrc if r["id"] == "in-0001"][0]
+    eq(first["confirmed"], 2, "in-0001 confirmed two of its three subjects")
+    eq(first["pending"], 1, "in-0001 has one subject still pending")
+    eq(len(first["subjects"]), 3, "every subject is listed, with its state")
+    ok(all(set(s) == {"subcategoryId", "state"} for s in first["subjects"]),
+       "each subject carries only an id and a state — no per-subject text to accrete")
+
+    # Tie-break: three pending Subcategories sharing one sourceDate. A single
+    # reverse=True over the (date, id) tuple would hand these out id-descending —
+    # this is the case that shipped silently because the earlier fixture had no tie.
+    tie_assess = [
+        {"subcategoryId": "ID.AM-03", "applicability": "in-scope", "current": None, "target": 3,
+         "confirmedAt": None, "confirmedBy": None, "source": None},
+        {"subcategoryId": "ID.AM-02", "applicability": "in-scope", "current": None, "target": 3,
+         "confirmedAt": None, "confirmedBy": None, "source": None},
+        {"subcategoryId": "ID.AM-01", "applicability": "in-scope", "current": None, "target": 3,
+         "confirmedAt": None, "confirmedBy": None, "source": None},
+    ]
+    tie_intake = [{"id": "in-tie", "label": "one review, three subjects",
+                   "sourceDate": "2026-05-01", "recordedAt": "2026-05-02",
+                   "subjects": ["ID.AM-03", "ID.AM-02", "ID.AM-01"], "recordedBy": "Darren"}]
+    ev_tie = derive_evidence(tie_assess, tie_intake, index, core, today="2026-07-27",
+                             threshold_pct=60, age_days=180)
+    eq([r["subcategoryId"] for r in ev_tie["pending"]], ["ID.AM-01", "ID.AM-02", "ID.AM-03"],
+       "tied newestSourceDate breaks by ascending Subcategory id, not descending")
+
+    # --- Queue order: evidence-pending -> revisit -> cold-start rank ---
+    _rank = resolve_rank(index, core, load_cold_start_rank())
+    q = build_queue(fx_assess, fx_intake, ev, index, _rank)
+    eq([r["subcategoryId"] for r in q], ["ID.AM-03", "PR.DS-11", "PR.AA-01"],
+       "bands run pending, then revisit, then cold-start")
+    eq([r["band"] for r in q], ["evidence-pending", "revisit", "cold-start"],
+       "each row names its band")
+    ok("PR.AA-03" not in {r["subcategoryId"] for r in q},
+       "not-applicable never enters the queue")
+    ok("ID.AM-01" not in {r["subcategoryId"] for r in q},
+       "a confirmed rating with no newer material is not queued")
+
+    # The anti-drift rule: a queue item presents a question, never an answer.
+    for r in q:
+        ok(r.get("tier") is None, f"{r['subcategoryId']}: queue row carries no tier")
+        ok(not any(k in r for k in ("proposedTier", "suggested", "confidence", "current")),
+           f"{r['subcategoryId']}: queue row carries no proposed rating of any kind")
+
+    eq(q[0]["sources"][0]["label"], "architecture review",
+       "a pending row carries its source label")
+    eq(q[0]["sources"][0]["sourceDate"], "2025-05-20", "and the date the source is from")
+    eq(q[1]["confirmedAt"], "2026-01-10", "a revisit row carries the confirmation it questions")
+    eq(q[2]["sources"], [], "a cold-start row has no material — that is what makes it cold")
+    ok(all(r.get("coldStartRank") for r in q), "every row carries its cold-start rank")
+    eq(build_queue(fx_assess, fx_intake, ev, index, _rank, top=2), q[:2],
+       "top=N truncates after ordering, not before")
+
+    # Ties must break on id ASCENDING. reverse=True over a (date, id) tuple would
+    # reverse the tie-break too and hand a user ID.AM-03 before ID.AM-01.
+    tie_assess = [{"subcategoryId": s, "applicability": "in-scope", "current": None,
+                   "target": 3, "confirmedAt": None, "confirmedBy": None, "source": None}
+                  for s in ("ID.AM-03", "ID.AM-01", "ID.AM-02")]
+    tie_intake = [{"id": "in-0009", "label": "one workshop", "sourceDate": "2026-05-01",
+                   "recordedAt": "2026-05-02",
+                   "subjects": ["ID.AM-03", "ID.AM-01", "ID.AM-02"], "recordedBy": "D"}]
+    tie_ev = derive_evidence(tie_assess, tie_intake, index, core, today="2026-07-27",
+                             threshold_pct=60, age_days=180)
+    tie_q = build_queue(tie_assess, tie_intake, tie_ev, index, _rank)
+    eq([r["subcategoryId"] for r in tie_q], ["ID.AM-01", "ID.AM-02", "ID.AM-03"],
+       "within one source date, pending rows order by cold-start rank then id")
+
+    # An empty queue is a real state, not an error.
+    eq(build_queue([], [], derive_evidence([], [], index, core, "2026-07-27", 60, 180),
+                   index, _rank), [],
+       "a Profile with nothing to confirm yields an empty queue")
+
+    # --- queue CLI: --top must truncate the display, never lie about what exists ---
+    with tempfile.TemporaryDirectory() as _dq:
+        _pq = os.path.join(_dq, "q.csfp")
+        _cmd_init(["--name", "Queue Co", "--out", _pq, "--owner", "CISO",
+                   "--ts", "2026-01-01T00:00:00Z"])
+        # Fresh store: 106 unrated Subcategories, all cold-start, so the full queue
+        # is non-empty. --top 0 must not claim otherwise.
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = _cmd_queue([_pq, "--top", "0"])
+        out = buf.getvalue()
+        eq(rc, 0, "queue --top 0 returns 0")
+        ok("Queue is empty" not in out,
+           "--top 0 truncates the view; it must not claim the queue itself is empty")
+        ok("to confirm, but --top 0 is showing none of them" in out,
+           "--top 0 says what it is doing instead")
+
+        # A normal, non-zero --top folds the total into the header, ahead of the
+        # listing — not as an afterthought below the call to action.
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = _cmd_queue([_pq, "--top", "3"])
+        out = buf.getvalue()
+        eq(rc, 0, "queue --top 3 returns 0")
+        eq(out.count("[cold-start]"), 3, "--top 3 lists exactly three rows")
+        ok("Next 3 to confirm (106 in the queue):" in out,
+           "a truncated queue tells the reader how much more there is, in the header")
+
+        # --json must be pinned to the exact same rows the plain-text path would
+        # list, truncated the same way — a future edit that swaps all_rows/rows in
+        # one branch but not the other must fail here.
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = _cmd_queue([_pq, "--top", "3", "--json"])
+        eq(rc, 0, "queue --top 3 --json returns 0")
+        core_q = load_core(); index_q = index_subcategories(core_q)
+        store_q = load_store(_pq)
+        ev_q = derive_evidence(store_q["assessments"], store_q.get("intake", []), index_q,
+                               core_q, _today(), 60, 180)
+        expected_q = build_queue(store_q["assessments"], store_q.get("intake", []), ev_q,
+                                 index_q, resolve_rank(index_q, core_q, load_cold_start_rank()),
+                                 top=3)
+        eq(json.loads(buf.getvalue()), expected_q,
+           "--json emits exactly build_queue's own output, truncated the same way")
+
+        # A negative --top would slice from the end and silently show the wrong
+        # rows — refuse it outright rather than let Python's slicing paper over it.
+        try:
+            _cmd_queue([_pq, "--top", "-1"])
+            failures.append("queue --top -1 should have been refused")
+        except ValueError as exc:
+            ok("--top must be zero or greater" in str(exc),
+               "a negative --top names the actual problem")
+        checks += 1
+
+        # A genuinely empty queue has two distinct causes, and conflating them is
+        # exactly the overclaim this command exists to refuse: scoping everything
+        # out is a scoping position, not an assessment result, and must never read
+        # back as "confirmed".
+        s_empty = load_store(_pq)
+        for a in s_empty["assessments"]:
+            a["applicability"] = "not-applicable"
+            a["current"] = None
+            a["target"] = None
+        save_store(s_empty, _pq, "2026-01-02T00:00:00Z")
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = _cmd_queue([_pq, "--top", "5"])
+        out = buf.getvalue()
+        eq(rc, 0, "queue on a fully scoped-out store returns 0")
+        ok("Queue is empty because nothing is in scope" in out,
+           "a fully scoped-out store gets the SCOPING message, not the confirmed one")
+        ok("confirmed" not in out,
+           "the scoping message never uses the word that would claim an assessment happened")
+
+    # --- analyze carries every derived block, and the store carries none of them ---
+    with tempfile.TemporaryDirectory() as _d:
+        _p = os.path.join(_d, "an.csfp")
+        _out = os.path.join(_d, "an.json")
+        _cmd_init(["--name", "Analyze Co", "--out", _p, "--owner", "CISO",
+                   "--ts", "2026-01-01T00:00:00Z"])
+        _cmd_quickstart_target([_p, "--rationale", "baseline", "--ts", "2026-01-02T00:00:00Z"])
+        _cmd_intake(["add", _p, "--label", "architecture review", "--subjects",
+                     "ID.AM-01", "ID.AM-02", "--source-date", "2026-03-14",
+                     "--ts", "2026-03-16T00:00:00Z"])
+        _cmd_set([_p, "ID.AM-01", "--current", "2", "--rationale", "confirmed",
+                  "--source", "in-0001", "--confirmed-by", "Darren",
+                  "--ts", "2026-03-20T00:00:00Z"])
+        _cmd_analyze([_p, "--today", "2026-07-27", "--out", _out])
+        with open(_out, encoding="utf-8") as _fh:
+            an = json.load(_fh)
+
+        for key in ("evidence", "intake", "queue"):
+            ok(key in an, f"analyze emits {key!r}")
+        eq(an["evidence"]["coverage"]["overall"]["confirmed"], 1, "analyze counts confirmations")
+        eq(an["evidence"]["coverage"]["overall"]["evidencePending"], 1,
+           "analyze counts evidence-pending")
+        eq(an["evidence"]["coverage"]["overall"]["attributed"], 1,
+           "analyze reports attribution as its own axis")
+        ok(an["evidence"]["scopeGuard"]["suppressed"],
+           "1 of 106 assessed suppresses the headline")
+        eq(an["evidence"]["age"]["thresholdDays"], 180,
+           "analyze reports the age threshold in force")
+        eq(len(an["intake"]["records"]), 1, "analyze carries the intake records")
+        eq(an["intake"]["bySource"][0]["confirmed"], 1, "coverage-by-source counts confirmations")
+        eq(an["intake"]["bySource"][0]["pending"], 1, "coverage-by-source counts pending")
+        eq(an["queue"][0]["subcategoryId"], "ID.AM-02", "the queue leads with the pending item")
+        eq(an["queue"][0]["band"], "evidence-pending", "and names its band")
+        ok(all(r.get("tier") is None for r in an["queue"]),
+           "no queue row in analyze output carries a rating")
+        eq(an["generated"]["schemaVersion"], "2.0", "analyze stamps the schema version")
+
+        raw = json.load(open(_p, encoding="utf-8"))
+        ok("evidence" not in raw and "queue" not in raw,
+           "no derived block is persisted to the store")
+        ok(all("state" not in a for a in raw["assessments"]),
+           "no derived state is persisted onto an assessment")
+
+        # The existing scoring path is untouched by any of this.
+        eq(an["coverage"]["overall"]["d"], 212, "quickstart target of 2 across 106 in-scope")
+        eq(an["coverage"]["overall"]["n"], 2, "one Subcategory at Current 2")
+        eq(an["completeness"]["overall"]["assessed"], 1, "completeness still counts assessed")
+
+        # analyze must not mutate the store it reads.
+        _before = open(_p, encoding="utf-8").read()
+        _cmd_analyze([_p, "--today", "2026-07-27", "--out", _out])
+        eq(open(_p, encoding="utf-8").read(), _before, "analyze does not rewrite the store")
+
+        # --top governs the playbook, as it always has; the queue is a different
+        # question with its own safe batch size and does not move with it.
+        _cmd_analyze([_p, "--today", "2026-07-27", "--top", "3", "--out", _out])
+        _an_top3 = json.load(open(_out, encoding="utf-8"))
+        eq(len(_an_top3["playbook"]), 3, "--top bounds the playbook emitted by analyze")
+        eq(len(_an_top3["queue"]), 5,
+           "the queue keeps its own default of 5, unmoved by --top")
+
+        # --queue-top governs the queue independently, leaving --top's default alone.
+        _cmd_analyze([_p, "--today", "2026-07-27", "--queue-top", "3", "--out", _out])
+        _an_qtop3 = json.load(open(_out, encoding="utf-8"))
+        eq(len(_an_qtop3["queue"]), 3, "--queue-top bounds the queue emitted by analyze")
+        eq(len(_an_qtop3["playbook"]), 10, "--top keeps its own default of 10, unmoved by --queue-top")
+
+    # --- The shipped v2 fixture exercises every new state at once ---
+    fx2 = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "examples",
+                       "example-profile-v2.csfp")
+    s2 = load_store(fx2)
+    eq(s2["schemaVersion"], "2.0", "v2 fixture is schema 2.0")
+    eq(len(s2["intake"]), 4, "v2 fixture carries four intake records")
+    eq(check_store(s2, index), [], "v2 fixture passes structural validation")
+    rep2 = s2["profile"]["settings"]["reporting"]
+    ev2 = derive_evidence(s2["assessments"], s2["intake"], index, core, "2026-07-27",
+                          rep2["scopeThresholdPct"], rep2["ageThresholdDays"])
+    cov2 = ev2["coverage"]["overall"]
+    eq(cov2["confirmed"], 4, "v2 fixture: four confirmed ratings")
+    eq(cov2["attributed"], 4, "v2 fixture: every confirmation is attributed")
+    eq(cov2["unattributed"], 0, "v2 fixture: nothing confirmed without a source")
+    eq(cov2["evidencePending"], 5, "v2 fixture: five Subcategories have material, no rating")
+    eq(cov2["unrated"], 96, "v2 fixture: the rest have nothing recorded")
+    eq(cov2["notApplicable"], 1, "v2 fixture: one Subcategory scoped out")
+    eq(cov2["confirmed"] + cov2["evidencePending"] + cov2["unrated"] + cov2["notApplicable"],
+       106, "v2 fixture: the four buckets partition all 106")
+
+    eq([r["subcategoryId"] for r in ev2["revisit"]], ["RC.RP-01"],
+       "v2 fixture: the DR walkthrough questions the January recovery rating")
+    eq(ev2["revisit"][0]["confirmedAt"], "2026-01-10", "revisit names the confirmation it questions")
+    eq(ev2["revisit"][0]["newestSourceDate"], "2026-06-30", "and the material that questions it")
+    eq(ev2["revisit"][0]["reason"], "newer-material",
+       "v2 fixture: RC.RP-01 is dated, so its revisit reason is newer-material")
+
+    age2 = ev2["age"]["overall"]
+    eq(age2["dated"], 4, "v2 fixture: four dated confirmations")
+    eq(age2["oldestDays"], 420, "v2 fixture: oldest is 2025-06-02 to 2026-07-27")
+    eq(age2["medianDays"], 309, "v2 fixture: median of 198, 198, 420, 420")
+    eq(age2["olderThanThreshold"], 4, "v2 fixture: all four are older than the 180-day default")
+    ok(age2["oldestDays"] > 365, "v2 fixture: ratings span more than twelve months")
+
+    eq(ev2["scopeGuard"]["assessed"], 4, "v2 fixture: four of 105 in-scope assessed")
+    eq(ev2["scopeGuard"]["inScope"], 105, "v2 fixture: the n/a Subcategory is out of the denominator")
+    ok(ev2["scopeGuard"]["suppressed"], "v2 fixture sits below the scope threshold")
+
+    _rank2 = resolve_rank(index, core, load_cold_start_rank())
+    q2_all = build_queue(s2["assessments"], s2["intake"], ev2, index, _rank2)
+    bands2 = [r["band"] for r in q2_all]
+    eq(bands2[:5], ["evidence-pending"] * 5, "the five pending items lead the queue")
+    eq(bands2[5], "revisit", "the revisit follows them, before any cold start")
+    eq(q2_all[5]["subcategoryId"], "RC.RP-01", "and it is the recovery rating")
+    ok(all(b == "cold-start" for b in bands2[6:]), "cold-start fills the tail")
+
+    # A full batch of pending material pushes the revisit to the next session. That is
+    # the anti-rubber-stamping cap working, not a defect — five is a deliberate limit.
+    q2 = build_queue(s2["assessments"], s2["intake"], ev2, index, _rank2, 5)
+    eq(len(q2), 5, "the default batch is five")
+    ok(all(r["band"] == "evidence-pending" for r in q2),
+       "five pending items fill the first batch, so the revisit waits for the next")
+    ok(all(r["tier"] is None for r in q2), "v2 fixture queue carries no pre-filled ratings")
+
+    bysrc2 = coverage_by_source(s2["intake"], ev2["states"], index)
+    eq([r["id"] for r in bysrc2], ["in-0004", "in-0003", "in-0002", "in-0001"],
+       "v2 fixture sources are newest-first by sourceDate")
+    eq([r["confirmed"] for r in bysrc2 if r["id"] == "in-0001"][0], 2,
+       "the asset workshop confirmed two of its four subjects")
+    eq(len(s2["snapshots"]), 1, "v2 fixture carries a snapshot, so diff has something to compare")
+
     # --- Export contract ---
     eq(EXPORT_COLUMNS,
        ["subcategory_id", "function_id", "category_id", "current_tier", "target_tier",
@@ -1486,6 +3005,7 @@ COMMANDS = {
     "init": _cmd_init, "set": _cmd_set, "set-tier": _cmd_set_tier,
     "quickstart-target": _cmd_quickstart_target,
     "snapshot": _cmd_snapshot, "diff": _cmd_diff, "action": _cmd_action,
+    "intake": _cmd_intake, "queue": _cmd_queue,
     "analyze": _cmd_analyze, "export-gaps": _cmd_export_gaps,
 }
 

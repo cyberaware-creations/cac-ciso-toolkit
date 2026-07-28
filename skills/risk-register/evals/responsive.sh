@@ -52,20 +52,29 @@ fi
 mkdir -p "$work"
 echo "Building a fixture: CSF Profile -> gap export -> register import"
 "$PY" "$CSF/scripts/profile_analysis.py" init --name "Responsive Co" \
-  --out "$work/p.csfp" --owner CISO >/dev/null
-"$PY" "$CSF/scripts/profile_analysis.py" quickstart-target "$work/p.csfp" >/dev/null
+  --out "$work/p.csfp" --owner CISO >/dev/null || {
+    echo "responsive: FIXTURE FAILED — profile init errored"; exit 1; }
+"$PY" "$CSF/scripts/profile_analysis.py" quickstart-target "$work/p.csfp" >/dev/null || {
+    echo "responsive: FIXTURE FAILED — quickstart-target errored"; exit 1; }
+"$PY" "$CSF/scripts/profile_analysis.py" intake add "$work/p.csfp" \
+  --label "regression fixture seed" \
+  --subjects PR.AA-01 GV.SC-07 DE.AE-03 ID.AM-01 RS.MA-01 RC.RP-01 >/dev/null || {
+    echo "responsive: FIXTURE FAILED — intake add errored"; exit 1; }
 for s in PR.AA-01 GV.SC-07 DE.AE-03 ID.AM-01 RS.MA-01 RC.RP-01; do
   "$PY" "$CSF/scripts/profile_analysis.py" set "$work/p.csfp" "$s" \
-    --current 0 --target 3 --rationale fixture >/dev/null
+    --current 0 --target 3 --source in-0001 --confirmed-by fixture \
+    --rationale fixture >/dev/null || {
+      echo "responsive: FIXTURE FAILED — could not rate $s"; exit 1; }
 done
-"$PY" "$CSF/scripts/profile_analysis.py" export-gaps "$work/p.csfp" --out "$work/gaps.csv" >/dev/null
+"$PY" "$CSF/scripts/profile_analysis.py" export-gaps "$work/p.csfp" --out "$work/gaps.csv" >/dev/null || {
+  echo "responsive: FIXTURE FAILED — export-gaps errored"; exit 1; }
 
 # Spread Current across the Functions so every coverage-ramp colour appears, then
 # snapshot and improve so each tile also carries a delta chip. Without this the
 # fixture only ever renders two of the five tile fills, and the pairing that was
 # actually shipping at 1.57:1 never gets drawn — a suite that cannot reach the
 # defect is not covering it.
-"$PY" - "$work/p.csfp" <<'SEED'
+"$PY" - "$work/p.csfp" <<'SEED' || { echo "responsive: FIXTURE FAILED — SEED heredoc errored"; exit 1; }
 import collections, json, sys
 path = sys.argv[1]
 prof = json.load(open(path))
@@ -80,8 +89,9 @@ for a in by["RC"]:                      # keep one Function untargeted
     a["target"] = a["current"] = None
 json.dump(prof, open(path, "w"), indent=2)
 SEED
-"$PY" "$CSF/scripts/profile_analysis.py" snapshot "$work/p.csfp" --label Baseline >/dev/null
-"$PY" - "$work/p.csfp" <<'BUMP'
+"$PY" "$CSF/scripts/profile_analysis.py" snapshot "$work/p.csfp" --label Baseline >/dev/null || {
+  echo "responsive: FIXTURE FAILED — snapshot errored"; exit 1; }
+"$PY" - "$work/p.csfp" <<'BUMP' || { echo "responsive: FIXTURE FAILED — BUMP heredoc errored"; exit 1; }
 import collections, json, sys
 path = sys.argv[1]
 prof = json.load(open(path))
@@ -96,20 +106,82 @@ json.dump(prof, open(path, "w"), indent=2)
 BUMP
 rm -f "$work/r.rr"
 "$PY" "$RR/scripts/score_register.py" init "$work/r.rr" --client "Responsive Co" \
-  --assessor CISO >/dev/null
+  --assessor CISO >/dev/null || {
+    echo "responsive: FIXTURE FAILED — register init errored"; exit 1; }
 "$PY" "$RR/scripts/score_register.py" import-gaps "$work/gaps.csv" \
-  --into "$work/r.rr" --write >/dev/null 2>&1
-"$PY" "$RR/scripts/score_register.py" set-score "$work/r.rr" R-001 --residual 5 5 --why x >/dev/null
-"$PY" "$RR/scripts/score_register.py" set-score "$work/r.rr" R-002 --residual 5 4 --why x >/dev/null
+  --into "$work/r.rr" --write >/dev/null 2>&1 || {
+    echo "responsive: FIXTURE FAILED — import-gaps errored"; exit 1; }
+"$PY" "$RR/scripts/score_register.py" set-score "$work/r.rr" R-001 --residual 5 5 --why x >/dev/null || {
+  echo "responsive: FIXTURE FAILED — could not score R-001"; exit 1; }
+"$PY" "$RR/scripts/score_register.py" set-score "$work/r.rr" R-002 --residual 5 4 --why x >/dev/null || {
+  echo "responsive: FIXTURE FAILED — could not score R-002"; exit 1; }
 
 for r in render_board render_dashboard render_report; do
-  "$PY" "$RR/renderers/$r.py" "$work/r.rr" "$work/$r.html" --offline >/dev/null || exit 1
+  "$PY" "$RR/renderers/$r.py" "$work/r.rr" "$work/$r.html" --offline >/dev/null || {
+    echo "responsive: FIXTURE FAILED — $r.py errored"; exit 1; }
 done
-"$PY" "$CSF/scripts/profile_analysis.py" analyze "$work/p.csfp" > "$work/an.json"
+"$PY" "$CSF/scripts/profile_analysis.py" analyze "$work/p.csfp" > "$work/an.json" || {
+  echo "responsive: FIXTURE FAILED — analyze errored"; exit 1; }
 "$PY" "$CSF/renderers/render_executive.py" --in "$work/an.json" \
-  --out "$work/csf_exec.html" --offline >/dev/null
+  --out "$work/csf_exec.html" --offline >/dev/null || {
+    echo "responsive: FIXTURE FAILED — render_executive errored"; exit 1; }
 "$PY" "$CSF/renderers/render_operational.py" --in "$work/an.json" \
-  --out "$work/csf_ops.html" --offline >/dev/null
+  --out "$work/csf_ops.html" --offline >/dev/null || {
+    echo "responsive: FIXTURE FAILED — render_operational errored"; exit 1; }
+
+# A second CSF pair, deliberately below the scope threshold. The first fixture seeds
+# ratings across every Function, so it renders the headline path only — the scope
+# guard, the four-way evidence bar and the by-source cards would never be drawn.
+# A suite that cannot reach a state is not covering it, which is how three render
+# defects already reached a user.
+"$PY" "$CSF/scripts/profile_analysis.py" init --name "Partial Co" \
+  --out "$work/partial.csfp" --owner CISO >/dev/null || {
+    echo "responsive: FIXTURE FAILED — partial profile init errored"; exit 1; }
+"$PY" "$CSF/scripts/profile_analysis.py" quickstart-target "$work/partial.csfp" >/dev/null || {
+    echo "responsive: FIXTURE FAILED — partial quickstart-target errored"; exit 1; }
+"$PY" "$CSF/scripts/profile_analysis.py" intake add "$work/partial.csfp" \
+  --label "architecture review with the infrastructure team, covering discovery and data flows" \
+  --subjects ID.AM-01 ID.AM-02 ID.AM-03 ID.AM-05 PR.AA-01 --source-date 2025-03-14 \
+  --recorded-by CISO >/dev/null || {
+    echo "responsive: FIXTURE FAILED — partial intake add in-0001 errored"; exit 1; }
+"$PY" "$CSF/scripts/profile_analysis.py" intake add "$work/partial.csfp" \
+  --label "backup restore test debrief" --subjects PR.DS-11 RC.RP-01 \
+  --source-date 2026-06-30 --recorded-by CISO >/dev/null || {
+    echo "responsive: FIXTURE FAILED — partial intake add in-0002 errored"; exit 1; }
+"$PY" "$CSF/scripts/profile_analysis.py" set "$work/partial.csfp" ID.AM-01 --current 2 \
+  --source in-0001 --confirmed-by CISO --rationale fixture --ts 2025-03-20T00:00:00Z >/dev/null || {
+    echo "responsive: FIXTURE FAILED — could not rate partial ID.AM-01"; exit 1; }
+"$PY" "$CSF/scripts/profile_analysis.py" set "$work/partial.csfp" RC.RP-01 --current 1 \
+  --source in-0002 --confirmed-by CISO --rationale fixture --ts 2026-01-10T00:00:00Z >/dev/null || {
+    echo "responsive: FIXTURE FAILED — could not rate partial RC.RP-01"; exit 1; }
+"$PY" "$CSF/scripts/profile_analysis.py" set "$work/partial.csfp" PR.AA-06 \
+  --applicability not-applicable --rationale fixture >/dev/null || {
+    echo "responsive: FIXTURE FAILED — could not mark PR.AA-06 not-applicable"; exit 1; }
+"$PY" "$CSF/scripts/profile_analysis.py" analyze "$work/partial.csfp" \
+  --today 2026-07-27 > "$work/partial.json" || {
+    echo "responsive: FIXTURE FAILED — partial analyze errored"; exit 1; }
+"$PY" "$CSF/renderers/render_executive.py" --in "$work/partial.json" \
+  --out "$work/csf_exec_partial.html" --offline >/dev/null || {
+    echo "responsive: FIXTURE FAILED — partial render_executive errored"; exit 1; }
+"$PY" "$CSF/renderers/render_operational.py" --in "$work/partial.json" \
+  --out "$work/csf_ops_partial.html" --offline >/dev/null || {
+    echo "responsive: FIXTURE FAILED — partial render_operational errored"; exit 1; }
+
+# The shipped v2 example fixture, rendered too. It is suppressed like the partial
+# fixture above and shares the same four-way states, but its four intake sources
+# (one all-confirmed, one all-pending, two mixed) exercise source-card state
+# variety and a wider by-source grid that a two-source fixture cannot reach, and
+# its >12-month age spread across four dated confirmations is a genuinely
+# different data shape from the partial fixture's two.
+"$PY" "$CSF/scripts/profile_analysis.py" analyze "$CSF/examples/example-profile-v2.csfp" \
+  --today 2026-07-27 > "$work/v2ex.json" || {
+    echo "responsive: FIXTURE FAILED — v2 example analyze errored"; exit 1; }
+"$PY" "$CSF/renderers/render_executive.py" --in "$work/v2ex.json" \
+  --out "$work/csf_exec_v2ex.html" --offline >/dev/null || {
+    echo "responsive: FIXTURE FAILED — v2 example render_executive errored"; exit 1; }
+"$PY" "$CSF/renderers/render_operational.py" --in "$work/v2ex.json" \
+  --out "$work/csf_ops_v2ex.html" --offline >/dev/null || {
+    echo "responsive: FIXTURE FAILED — v2 example render_operational errored"; exit 1; }
 
 "$CHROME" --headless=new --disable-gpu --remote-debugging-port="$PORT" \
   --user-data-dir="$work/chrome-profile" --no-first-run \
@@ -126,7 +198,9 @@ if ! curl -sf "http://127.0.0.1:$PORT/json/version" >/dev/null; then
 fi
 
 pages=("$work/render_board.html" "$work/render_dashboard.html" "$work/render_report.html"
-       "$work/csf_exec.html" "$work/csf_ops.html")
+       "$work/csf_exec.html" "$work/csf_ops.html"
+       "$work/csf_exec_partial.html" "$work/csf_ops_partial.html"
+       "$work/csf_exec_v2ex.html" "$work/csf_ops_v2ex.html")
 fails=0
 echo
 for vw in 320 375 768 1265; do

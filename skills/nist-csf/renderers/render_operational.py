@@ -132,6 +132,176 @@ def gap_table(ctx: c.Context) -> str:
             f'</tr></thead><tbody>{"".join(rows)}</tbody></table></div></section>')
 
 
+def overall_block(ctx: c.Context) -> str:
+    """The working view's overall card, under the same scope guard as the board view.
+
+    The guard must bind BOTH renderers or the number simply reappears one document
+    over, which is how a suppressed figure gets quoted back at a board anyway.
+    """
+    guard = (ctx.evidence.get("scopeGuard") or {})
+    split = ((ctx.evidence.get("coverage") or {}).get("overall")) or {}
+    tracked = (f'{ctx.a.get("tracked", 0)} of {ctx.framework.get("subcategories", 0)} '
+               f'Subcategories tracked')
+
+    if guard.get("suppressed"):
+        head = (f'<div class="card guard">'
+                f'<div class="gh">No overall coverage figure yet</div>'
+                f'<p style="margin:10px 0 0">{c.esc(guard.get("statement", ""))}</p>'
+                f'<div class="muted" style="margin-top:6px">{c.esc(tracked)}</div>'
+                f'{c.evidence_bar(split)}</div>')
+    else:
+        cov, comp = ctx.coverage["overall"], ctx.completeness["overall"]
+        head = (f'<div class="card"><div style="font-size:30px;font-weight:700;'
+                f'font-family:\'Space Grotesk\',sans-serif">{c.esc(c.cov_label(cov))}</div>'
+                f'<div class="muted" style="margin-top:6px">'
+                f'{c.esc(c.completeness_line(comp))} · {c.esc(tracked)}</div>'
+                + ('' if not c.cov_is_untargeted(cov) else
+                   '<div class="muted" style="margin-top:8px">Nothing is targeted yet, so there '
+                   'is no coverage figure to report. Run <span class="mono">quickstart-target'
+                   '</span> and then tune Targets by risk.</div>')
+                + c.evidence_bar(split) + '</div>')
+    return f'<section><h2>Overall coverage</h2>{head}</section>'
+
+
+def evidence_detail(ctx: c.Context) -> str:
+    """Age of confirmed ratings per Function, plus the revisit table.
+
+    Ratings never expire on their own. A rating is worth a second look when new
+    material contradicts or updates it, never merely because time has passed — the
+    "older than N days" column exists to prompt that look, not to auto-expire
+    anything. That column (header and cells together) only appears when a threshold
+    is actually configured: a fallback threshold would count a rating against a
+    number this Profile never set.
+    """
+    age = ctx.evidence.get("age") or {}
+    by_fn = age.get("byFunction") or {}
+    thr = age.get("thresholdDays")
+
+    hint = ("Ratings do not expire. A rating is questioned when new material arrives, "
+            "not when time passes.")
+    if thr is not None:
+        hint += f" The threshold in force for a second look here is {thr} days."
+
+    n_extra_cols = 4 if thr is not None else 3
+    rows = []
+    for fn in ctx.function_meta():
+        fid = fn["id"]
+        fa = by_fn.get(fid) or {}
+        if not fa.get("dated"):
+            rows.append(f'<tr><td class="mono">{c.esc(fid)}</td>'
+                        f'<td class="muted" colspan="{n_extra_cols}">no dated confirmations</td>'
+                        f'</tr>')
+            continue
+        cells = [f'<td class="mono">{c.esc(fid)}</td>',
+                 f'<td class="mono">{fa.get("dated", 0)}</td>']
+        cells.append(f'<td class="mono">{fa["medianDays"]}</td>'
+                     if fa.get("medianDays") is not None else '<td class="muted">—</td>')
+        cells.append(f'<td class="mono">{fa["oldestDays"]}</td>'
+                     if fa.get("oldestDays") is not None else '<td class="muted">—</td>')
+        if thr is not None:
+            cells.append(f'<td class="mono">{fa["olderThanThreshold"]}</td>'
+                         if fa.get("olderThanThreshold") is not None
+                         else '<td class="muted">—</td>')
+        rows.append(f'<tr>{"".join(cells)}</tr>')
+
+    headers = ['<th>Function</th>', '<th class="num">Dated</th>',
+               '<th class="num">Median age</th>', '<th class="num">Oldest</th>']
+    if thr is not None:
+        headers.append(f'<th class="num">Older than {thr} days</th>')
+
+    age_table = (f'<div class="scroll"><table><thead><tr>{"".join(headers)}</tr></thead>'
+                f'<tbody>{"".join(rows)}</tbody></table></div>')
+
+    revisit = ctx.evidence.get("revisit") or []
+    if not revisit:
+        revisit_html = ('<div class="card muted">Nothing is flagged for revisit — no confirmed '
+                        'rating in this Profile has material recorded against it that it cannot '
+                        'be shown to predate.</div>')
+    else:
+        rrows = []
+        for r in revisit:
+            # Two distinct reasons land a row here (derive_evidence, reason field):
+            # newer-material (confirmedAt is set and some intake postdates it) and
+            # undated-confirmation (a v1-migrated rating with no confirmedAt at all,
+            # so there is no basis to claim it predates the material next to it). A
+            # bare "—" for the second would read as a data gap rather than the
+            # honest reason it is; naming it is why the Why column exists.
+            if r.get("reason") == "undated-confirmation":
+                confirmed_cell = '<span class="muted">undated</span>'
+                why = "no confirmation date recorded — cannot be shown to predate this material"
+            else:
+                confirmed_cell = c.esc(r.get("confirmedAt") or "—")
+                why = "material recorded after the confirmation date"
+            rrows.append(
+                f'<tr><td class="mono">{c.esc(r.get("subcategoryId"))}</td>'
+                f'<td>{c.esc(c.trunc(r.get("text", ""), 90))}</td>'
+                f'<td class="mono">{confirmed_cell}</td>'
+                f'<td class="mono">{c.esc(r.get("newestSourceDate") or "—")}</td>'
+                f'<td class="mono">{c.esc(", ".join(r.get("intakeIds", [])))}</td>'
+                f'<td>{c.esc(why)}</td></tr>')
+        revisit_html = (f'<div class="scroll"><table><thead><tr>'
+                        f'<th>Subcategory</th><th>Outcome</th><th>Confirmed</th>'
+                        f'<th>Material recorded</th><th>Source</th><th>Why</th>'
+                        f'</tr></thead><tbody>{"".join(rrows)}</tbody></table></div>')
+
+    return (f'<section><h2>Age and revisits</h2>'
+            f'<div class="hint">{c.esc(hint)}</div>'
+            f'<h3 class="subhead">Age of confirmed ratings, by Function</h3>'
+            f'{age_table}'
+            f'<h3 class="subhead" style="margin-top:20px">Revisit — material that questions a '
+            f'confirmed rating <span class="muted">({len(revisit)})</span></h3>'
+            f'{revisit_html}</section>')
+
+
+def by_source(ctx: c.Context) -> str:
+    """One card per intake record and what it bore on.
+
+    `subjects` carries only the Subcategory id and its current state — never the
+    outcome text, which is dropped upstream on purpose because it would duplicate
+    `gaps`/`queue` on a block that grows without bound as intake accretes.
+    """
+    records = ctx.intake.get("bySource") or []
+    if not records:
+        return (f'<section><h2>Coverage by source</h2>'
+                f'<div class="card muted">No sources recorded yet. Every conversation, '
+                f'document or review that bears on a Subcategory should be logged once, '
+                f'here, rather than repeated in every rating it touches:'
+                f'<div class="mono" style="margin-top:8px">intake add &lt;store.csfp&gt; '
+                f'--label \'...\' --subjects ID.AM-01 ID.AM-02</div></div></section>')
+
+    cards = []
+    for r in records:
+        sub_bits = [f'source dated {c.esc(r.get("sourceDate") or "—")}',
+                   f'recorded {c.esc(r.get("recordedAt") or "—")}']
+        by = (r.get("recordedBy") or "").strip()
+        if by:
+            sub_bits.append(f'by {c.esc(by)}')
+        n = len(r.get("subjects", []))
+        sub_bits.append(f'bears on {n} · {r.get("confirmed", 0)} confirmed · '
+                        f'{r.get("pending", 0)} still pending')
+
+        chips = []
+        for subj in r.get("subjects", []):
+            state = subj.get("state")
+            if state not in c.EVIDENCE_FILL:
+                state = "unrated"
+            fill = c.EVIDENCE_FILL[state]
+            chips.append(f'<span class="schip" style="background:{fill};color:{c.text_on(fill)}" '
+                        f'title="{c.esc(c.EVIDENCE_LABEL[state])}">'
+                        f'{c.esc(subj.get("subcategoryId"))}</span>')
+
+        cards.append(
+            f'<div class="card srccard"><div class="srchead">'
+            f'<span class="mono">{c.esc(r.get("id"))}</span> {c.esc(r.get("label"))}</div>'
+            f'<div class="muted" style="margin-top:4px">{" · ".join(sub_bits)}</div>'
+            f'<div class="chips">{"".join(chips)}</div></div>')
+
+    return (f'<section><h2>Coverage by source <span class="muted">({len(records)})</span></h2>'
+            f'<div class="hint">What each conversation, note or review actually bore on. '
+            f'Labels are what a human wrote about the source — never an excerpt from it.</div>'
+            f'{"".join(cards)}</section>')
+
+
 def attention(ctx: c.Context) -> str:
     a = ctx.attention
     panels = [
@@ -278,6 +448,16 @@ th[data-sort]:hover{{color:{c.INK}}}
 .playbook td.fill{{background:{c.WB};min-width:110px}}
 .flag{{display:inline-block;background:#7C3A32;color:#fff;border-radius:4px;
   padding:1px 6px;font-size:10.5px;font-weight:700;margin-left:6px}}
+.subhead{{font-size:14px;margin:0 0 8px}}
+""" + c.EVIDENCE_CSS + """
+.srccard{margin-bottom:10px}
+.srchead{font-weight:700;font-family:'Space Grotesk',sans-serif;font-size:15px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+/* schip, not chip: _common's .chip is the gap table's priority pill, and reusing
+   the name silently restyled every one of them. */
+.schip{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:12px;padding:3px 7px;
+      border-radius:4px;white-space:nowrap}
+.scroll{overflow-x:auto;min-width:0}
 """
 
 JS = """
@@ -323,7 +503,7 @@ document.querySelectorAll('#gaps th[data-sort]').forEach(function(th){
 
 def main(argv):
     ctx = c.build(argv, "Operational CSF Profile dashboard", "csf-operational.html")
-    p, cov, comp = ctx.profile, ctx.coverage["overall"], ctx.completeness["overall"]
+    p = ctx.profile
     scope = p.get("scope", {})
     scope_bits = [b for b in [
         ", ".join(scope.get("orgUnits", [])) or None,
@@ -334,19 +514,8 @@ def main(argv):
                     [c.esc(ctx.as_of_line()),
                      c.esc(" · ".join(scope_bits)) if scope_bits else ""])
 
-    overall = (f'<section><h2>Overall coverage</h2>'
-               f'<div class="card"><div style="font-size:30px;font-weight:700;'
-               f'font-family:\'Space Grotesk\',sans-serif">{c.esc(c.cov_label(cov))}</div>'
-               f'<div class="muted" style="margin-top:6px">{c.esc(c.completeness_line(comp))} · '
-               f'{ctx.a.get("tracked", 0)} of {ctx.framework.get("subcategories", 0)} '
-               f'Subcategories tracked</div>'
-               + ('' if not c.cov_is_untargeted(cov) else
-                  '<div class="muted" style="margin-top:8px">Nothing is targeted yet, so there is '
-                  'no coverage figure to report. Run <span class="mono">quickstart-target</span> '
-                  'and then tune Targets by risk.</div>')
-               + f'</div></section>')
-
-    body = (head + "<main>" + overall + heatmap(ctx) + gap_table(ctx) + attention(ctx)
+    body = (head + "<main>" + overall_block(ctx) + heatmap(ctx) + gap_table(ctx)
+            + evidence_detail(ctx) + by_source(ctx) + attention(ctx)
             + playbook(ctx) + action_plan(ctx) + "</main>"
             + f'<footer>{c.esc(ctx.footer())}</footer>'
             + f"<script>{JS}</script>")

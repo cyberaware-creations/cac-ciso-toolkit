@@ -1,10 +1,35 @@
-# Assessment & Review — the two rituals
+# Assessment & Review — the workflows
 
-Two workflows carry this skill. **A** builds or extends a Profile. **B** is the recurring review
-that keeps it honest. Most sessions are one or the other.
+Four workflows carry this skill. **0** logs a source the moment it comes up, mid-conversation. **A**
+builds or extends a Profile. **B** is the recurring review that keeps it honest. **C** works the
+confirmation queue that accretes between reviews. Most sessions are A, B, or C; 0 happens inside all
+of them, whenever a source comes up.
 
 Every command below is real. If a step here names a flag that `profile_analysis.py` does not
 accept, the doc is wrong — fix the doc, not the user's expectations.
+
+---
+
+## Workflow 0 — Record a source
+
+Evidence arrives before anyone has time to decide what it means: a review finishes, a debrief
+happens, a document lands. Log it the moment it comes up — this takes seconds and **writes no
+ratings**, so it never blocks the conversation it interrupts.
+
+```bash
+python3 scripts/profile_analysis.py intake add acme.csfp \
+  --label "architecture review with infra team" \
+  --subjects ID.AM-01 ID.AM-02 \
+  --source-date 2026-03-14 --recorded-by "Darren"
+```
+
+`--label` is a note *about* the source, in the user's own words or confirmed by them — never
+something generated on their behalf, and never an excerpt from whatever the source actually was.
+`--source-date` is when the conversation happened, not today; it defaults to today only if omitted,
+which is rarely what you want for anything discussed after the fact. `--subjects` takes every
+Subcategory the source bears on — one record per source, not one per Subcategory.
+
+Nothing here decides a rating. That happens later, deliberately, in Workflow C.
 
 ---
 
@@ -97,15 +122,26 @@ python3 scripts/profile_analysis.py set acme.csfp GV.RM-01 --priority critical
 
 ### 5. Assess Current, with evidence
 
-The core of the work. For each Subcategory in scope:
+The core of the work. A Current rating needs a recorded source first — see Workflow 0 — then a
+decision:
 
 ```bash
+python3 scripts/profile_analysis.py intake add acme.csfp \
+  --label "IAM policy review and a sample of 20 OT accounts" --subjects PR.AA-01 \
+  --source-date 2026-07-20 --recorded-by "Darren"
+
 python3 scripts/profile_analysis.py set acme.csfp PR.AA-01 \
   --current 1 \
+  --source in-0001 --confirmed-by "Darren" \
   --evidence "iam-policy-v4.pdf" "ticket:SEC-2211" \
   --notes "SSO covers corporate apps; plant OT still uses local accounts." \
   --rationale "Assessed against the IAM policy and a sample of 20 OT accounts."
 ```
+
+`--current` **refuses without both `--source` and `--confirmed-by`.** A rating is the claim the
+whole report rests on, so it does not exist without a named source and a named person attached to
+it. Never fill either flag with a guess to get past the refusal — if there is no recorded source yet,
+that is Workflow 0, not a reason to invent one.
 
 Rating guidance, using the default scale:
 
@@ -159,8 +195,12 @@ python3 scripts/profile_analysis.py diff acme.csfp
 
 ```bash
 python3 scripts/profile_analysis.py set acme.csfp PR.AA-01 --current 2 \
+  --source in-0001 --confirmed-by "Darren" \
   --rationale "OT identities migrated to the corporate IdP in October; 40 local accounts remain."
 ```
+
+`--source` must name a real `intake` record — log the review or conversation this decision is drawn
+from first (Workflow 0) if it isn't recorded yet.
 
 When you checked and nothing changed, say so explicitly — "reviewed, no change" is a finding, and
 it is the only thing that stops a stale rating from looking fresh:
@@ -235,6 +275,47 @@ python3 scripts/profile_analysis.py analyze acme.csfp --today 2026-10-01 \
 # Executive (board) — translations composed via ciso-board-translation
 python3 scripts/profile_analysis.py analyze acme.csfp --today 2026-10-01 \
   | python3 renderers/render_executive.py --translations translations.json --out board.html
+```
+
+---
+
+## Workflow C — Confirm from the queue
+
+Intake accretes between reviews — sources get logged (Workflow 0) faster than anyone has time to
+decide what they mean. This workflow is where that backlog gets worked, in its own session,
+deliberately separate from the pace evidence arrives at.
+
+```bash
+python3 scripts/profile_analysis.py queue acme.csfp
+```
+
+Ranked in three bands, in this order: **evidence-pending** (material already recorded, nothing
+decided yet), then **revisit** (a confirmed rating that cannot be shown to predate material
+recorded against it — either the material is newer, or the rating carries no confirmation date
+to compare against), then
+**cold-start** (nothing recorded at all, ordered by `references/cold-start-rank.json`). Material you
+already have beats material you have to go find; a rating newer evidence has called into question
+beats one nobody has looked at yet.
+
+Confirm one at a time:
+
+```bash
+python3 scripts/profile_analysis.py set acme.csfp ID.AM-01 --current 2 \
+  --source in-0001 --confirmed-by "Darren" \
+  --rationale "Asset inventory reviewed against the March architecture review; 40 servers untracked."
+```
+
+A queue row shows the source and the date and **never a proposed rating** — presenting a conclusion
+and asking for confirmation is how inference gets laundered as judgment, and a rubber-stamped rating
+is worse than an unrated one because it looks like evidence.
+
+Work batches of **at most five** by default (`queue`'s own cap, and `analyze`'s `--queue-top`) — a
+long confirmation run is exactly where rubber-stamping happens. Where the material on a row is thin,
+the right outcome is **a question to go ask**, not a rating: leave it in the queue and log what you
+still need with Workflow 0 once you have it.
+
+```bash
+python3 scripts/profile_analysis.py queue acme.csfp --top 3
 ```
 
 ---

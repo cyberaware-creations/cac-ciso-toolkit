@@ -27,6 +27,93 @@ import sys
 import _common as c
 
 
+def headline_or_guard(ctx: c.Context) -> str:
+    """Below the scope threshold the programme mean is SUPPRESSED, not caveated.
+
+    A number with a warning beside it is still a number, and people read the number.
+
+    Suppression is checked before anything else is unpacked: `ctx.coverage["overall"]`
+    and `ctx.completeness["overall"]` are only needed on the non-suppressed path, and
+    indexing them unconditionally would raise on a malformed-but-structurally-valid
+    payload that this branch never reaches.
+    """
+    guard = (ctx.evidence.get("scopeGuard") or {})
+    if guard.get("suppressed"):
+        return (f'<section><div class="card guard">'
+                f'<div class="gh">Coverage is not reported at this level of assessment</div>'
+                f'<p style="margin:10px 0 0">{c.esc(guard.get("statement", ""))}</p>'
+                f'<div class="muted" style="margin-top:8px">'
+                f'Function-level figures below carry the counts they are drawn from, and '
+                f'a Function with nothing targeted says so rather than showing a zero.'
+                f'</div></div></section>')
+    cov, comp = ctx.coverage["overall"], ctx.completeness["overall"]
+    return (f'<section><div class="card">'
+            f'<div style="font-size:30px;font-weight:700;'
+            f'font-family:\'Space Grotesk\',sans-serif">{c.esc(c.cov_label(cov))}</div>'
+            f'<div class="muted" style="margin-top:6px">overall coverage of Target · '
+            f'{c.esc(c.completeness_line(comp))}</div></div></section>')
+
+
+def evidence_block(ctx: c.Context) -> str:
+    """Four-way coverage, age, and the revisit count — all four in the board view,
+    not only the operational tables."""
+    ev = ctx.evidence
+    if not ev:
+        return ""
+    split = (ev.get("coverage") or {}).get("overall") or {}
+    age = (ev.get("age") or {}).get("overall") or {}
+    thr = (ev.get("age") or {}).get("thresholdDays")
+    revisit = ev.get("revisit") or []
+
+    # The revisit count must never be gated on age.dated. A rating with no
+    # confirmedAt at all — every rating carried over from a v1 Profile, by design —
+    # can still be flagged revisit (reason undated-confirmation): confirmedAt unset
+    # is not the same fact as "nothing to revisit". Nesting the revisit cell inside
+    # the dated-only branch was a second instance of the falsehood a final review
+    # caught: a Profile with zero dated confirmations — a fresh v1 import, exactly
+    # the audience this feature exists to onboard — could carry a real, non-zero
+    # revisit count and the board would see no cell for it at all.
+    #
+    # Every value here is optional on a partially-populated payload — .get()
+    # throughout, and a cell whose value is missing is dropped rather than
+    # rendered blank or defaulted. The "older than N days" cell in particular only
+    # appears when BOTH the threshold and the count are present: printing one
+    # without the other would put a count on screen next to a threshold it was
+    # never counted against.
+    cells = []
+    if age.get("dated"):
+        if age.get("medianDays") is not None:
+            cells.append(("median age", f'{age["medianDays"]} days'))
+        if age.get("oldestDays") is not None:
+            cells.append(("oldest", f'{age["oldestDays"]} days'))
+        if thr is not None and age.get("olderThanThreshold") is not None:
+            cells.append((f"older than {thr} days", f'{age["olderThanThreshold"]}'))
+    # Counts both revisit reasons (derive_evidence): confirmedAt set with newer
+    # material against it, and confirmedAt unset (a v1-migrated rating) with any
+    # material against it at all — "newer" would overclaim the second, so the
+    # label says "new" rather than "newer".
+    cells.append(("ratings questioned by new material", f'{len(revisit)}'))
+    age_html = ('<div class="agegrid">' + "".join(
+        f'<div class="agecell"><div class="an">{c.esc(v)}</div>'
+        f'<div class="muted">{c.esc(k)}</div></div>' for k, v in cells) + '</div>')
+    if age.get("dated"):
+        if age.get("undated"):
+            age_html += (f'<div class="muted" style="margin-top:8px">'
+                         f'{age["undated"]} confirmed ratings carry no confirmation date and '
+                         f'are excluded from these figures.</div>')
+    else:
+        age_html += (f'<div class="muted" style="margin-top:10px">No rating in this Profile '
+                     'carries a confirmation date yet, so there is no age to report beyond the '
+                     'revisit count above. Age reporting begins as ratings are confirmed with a '
+                     'source and a date.</div>')
+
+    return (f'<section><h2>How much of this is known, and how old is it</h2>'
+            f'<div class="hint">Ratings do not expire. Age is reported and the reader '
+            f'judges — a governance outcome and an asset inventory go stale at completely '
+            f'different rates.</div>'
+            f'<div class="card">{c.evidence_bar(split)}{age_html}</div></section>')
+
+
 def rollup(ctx: c.Context) -> str:
     """One tile per Function, with movement since the last snapshot."""
     dfn = (ctx.diff or {}).get("coverage", {}).get("byFunction", {})
@@ -263,12 +350,12 @@ CSS = f"""
 .lede{{font-size:15px;margin:0 0 10px}}
 .decisions li{{margin-bottom:8px;font-size:14px}}
 @media (max-width:720px){{.tierdetail{{grid-template-columns:1fr}}}}
-"""
+""" + c.EVIDENCE_CSS
 
 
 def main(argv):
     ctx = c.build(argv, "Executive CSF Profile dashboard", "csf-executive.html")
-    p, cov, comp = ctx.profile, ctx.coverage["overall"], ctx.completeness["overall"]
+    p = ctx.profile
 
     head = c.header("Executive dashboard", ctx,
                     [f'Cybersecurity programme posture · {c.esc(ctx.as_of_line())}'])
@@ -283,13 +370,8 @@ def main(argv):
                    f'<strong>Executive summary not supplied.</strong> {c.esc(c.PLACEHOLDER)}'
                    f'</div></section>')
 
-    headline = (f'<section><div class="card">'
-                f'<div style="font-size:30px;font-weight:700;'
-                f'font-family:\'Space Grotesk\',sans-serif">{c.esc(c.cov_label(cov))}</div>'
-                f'<div class="muted" style="margin-top:6px">overall coverage of Target · '
-                f'{c.esc(c.completeness_line(comp))}</div></div></section>')
-
-    body = (head + "<main>" + summary + headline + rollup(ctx) + tier_block(ctx)
+    body = (head + "<main>" + summary + headline_or_guard(ctx) + evidence_block(ctx)
+            + rollup(ctx) + tier_block(ctx)
             + top_gaps(ctx) + what_changed(ctx) + decisions(ctx) + "</main>"
             + f'<footer>{c.esc(ctx.footer())}</footer>')
     c.write(ctx, c.page(f'{p.get("name", "CSF Profile")} — Board View', CSS, body, ctx.offline))
