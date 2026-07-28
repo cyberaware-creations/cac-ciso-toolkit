@@ -26,6 +26,17 @@ SCRIPT_TO_SKILL = {
     "score_register": "risk-register",
 }
 
+# The skills this repo ships. Routing is a claim about THESE — whether a prompt
+# reaches the right one of ours, or correctly reaches none of them.
+#
+# Anything else the operator happens to have installed is not a property of this
+# repo, and must not decide a verdict. The 0.4.0 run failed X1 ("write us an
+# acceptable use policy") because it reached `brainstorming`, a superpowers
+# skill: the case was right that none of OUR skills should fire, and the scorer
+# called it a failure anyway. A result that changes with the operator's plugin
+# list is not measuring this repo.
+OURS = ("nist-csf", "risk-register", "ciso-board-translation")
+
 
 def parse_run(path):
     """Pull skills, corroborating scripts, cost and the final answer out of one transcript."""
@@ -65,14 +76,97 @@ def parse_run(path):
 
 
 def verdict(expected, actual):
-    if expected == "either":
-        return actual in ("nist-csf", "risk-register")
+    """Does `actual` satisfy `expected`?
+
+    `expected` is either the keyword `neither`, or one or more of OUR skill
+    names separated by `|`. A pipe list is how a genuinely ambiguous prompt is
+    written down: A4 ("what should I show the board about our security
+    posture?") is answerable by nist-csf, risk-register OR
+    ciso-board-translation, and the 0.4.0 run scored a defensible
+    ciso-board-translation answer as a failure because the old `either` keyword
+    silently meant just the first two.
+    """
     if expected == "neither":
         return actual == "none"
-    return actual == expected
+    return actual in {e.strip() for e in expected.split("|")}
+
+
+def _classify(path):
+    """The routing decision for one transcript, as main() makes it."""
+    run = parse_run(path)
+    ours = [sk for sk in run["skills"] if sk in OURS]
+    foreign = [sk for sk in run["skills"] if sk not in OURS]
+    return (ours[0] if ours else "none"), foreign
+
+
+def self_test():
+    """Assert the scorer against hand-authored transcripts.
+
+    This suite had none until the 0.4.0 run produced two failures that were both
+    defects in the scoring rather than in the skills. A scorer making pass/fail
+    claims with nothing verifying it is the same defect it exists to catch.
+    """
+    checks = []
+
+    def eq(got, want, label):
+        checks.append((got == want, label, got, want))
+
+    fx = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures", "trigger")
+    f = lambda n: os.path.join(fx, n)
+
+    eq(_classify(f("ours.jsonl")), ("nist-csf", []),
+       "a run that invokes one of ours reports it")
+    eq(_classify(f("none.jsonl")), ("none", []),
+       "a run that invokes nothing reports none")
+    eq(_classify(f("board.jsonl")), ("ciso-board-translation", []),
+       "ciso-board-translation is one of ours and is reported as such")
+
+    # The X1 defect, reproduced.
+    eq(_classify(f("foreign-only.jsonl")), ("none", ["brainstorming"]),
+       "a run that reaches ONLY a non-toolkit skill reports none of ours, and "
+       "names the foreign skill separately")
+    eq(verdict("neither", _classify(f("foreign-only.jsonl"))[0]), True,
+       "so `neither` PASSES when only a non-toolkit skill fired — the 0.4.0 X1 "
+       "failure was the scorer's, not the skill's")
+
+    # Order must not let a foreign skill win.
+    eq(_classify(f("foreign-then-ours.jsonl")), ("risk-register", ["brainstorming"]),
+       "a foreign skill firing FIRST does not displace ours in the verdict")
+
+    # The A4 defect, reproduced.
+    eq(verdict("nist-csf|risk-register|ciso-board-translation", "ciso-board-translation"),
+       True, "a pipe list accepts every skill it names")
+    eq(verdict("nist-csf|risk-register", "ciso-board-translation"), False,
+       "and rejects one it does not — the widening is targeted, not a blanket pass")
+    eq(verdict("nist-csf|risk-register", "nist-csf"), True,
+       "a pipe list still accepts its first alternative")
+    eq(verdict("nist-csf", "risk-register"), False,
+       "a single expectation is still exact")
+    eq(verdict("neither", "nist-csf"), False,
+       "`neither` still fails when one of ours DOES fire — this is the case that "
+       "catches over-triggering, and it must not have been loosened")
+
+    # Every expectation in the shipped table is satisfiable.
+    tsv = os.path.join(os.path.dirname(os.path.abspath(__file__)), "prompts.tsv")
+    for line in open(tsv, encoding="utf-8"):
+        if not line.strip():
+            continue
+        cid, exp, _ = line.rstrip("\n").split("\t")
+        names = {e.strip() for e in exp.split("|")} if exp != "neither" else set()
+        bad = names - set(OURS)
+        eq(bad, set(), f"{cid} expects only skills this repo ships")
+
+    for okflag, label, got, want in checks:
+        if not okflag:
+            print(f"FAIL: {label}\n  got:  {got!r}\n  want: {want!r}")
+    passed = sum(1 for c in checks if c[0])
+    print(f"score-triggers self-test: {passed}/{len(checks)} checks passed")
+    return 0 if passed == len(checks) else 1
 
 
 def main():
+    if len(sys.argv) == 2 and sys.argv[1] == "self-test":
+        return self_test()
     prompts_path, out = sys.argv[1], sys.argv[2]
     cases = [l.rstrip("\n").split("\t") for l in open(prompts_path) if l.strip()]
 
@@ -83,13 +177,18 @@ def main():
             missing.append(cid)
             continue
         total += run["cost"]
-        actual = run["skills"][0] if run["skills"] else "none"
+        ours = [sk for sk in run["skills"] if sk in OURS]
+        foreign = [sk for sk in run["skills"] if sk not in OURS]
+        actual = ours[0] if ours else "none"
         ok = verdict(expected, actual)
-        extra = run["skills"][1:]
+        extra = ours[1:]
         rows.append({"id": cid, "expected": expected, "actual": actual,
-                     "also": extra, "scripts": run["scripts"], "pass": ok,
-                     "cost": run["cost"], "dur_s": run["dur_s"], "answer": run["result"]})
+                     "also": extra, "foreign": foreign, "scripts": run["scripts"],
+                     "pass": ok, "cost": run["cost"], "dur_s": run["dur_s"],
+                     "answer": run["result"]})
         also = f"  (+{', '.join(extra)})" if extra else ""
+        if foreign:
+            also += f"  [non-toolkit: {', '.join(foreign)}]"
         print(f'{cid:>3} | expect {expected:<13} got {actual:<16} '
               f'{"PASS" if ok else "FAIL"}{also}  ${run["cost"]:.3f} {run["dur_s"]}s')
 
