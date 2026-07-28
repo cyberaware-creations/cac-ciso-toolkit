@@ -1,0 +1,1499 @@
+{
+ "datasetVersion": "8596-iprd-2025-12-16",
+ "sourceStatus": "Initial Preliminary Draft",
+ "sourcePublished": "2025-12-16",
+ "sourceUrl": "https://csrc.nist.gov/pubs/ir/8596/iprd",
+ "note": "Proposed priorities transcribed from NIST IR 8596 tables 1-6. NIST states that determining priority is a subjective exercise based on field observation and subject-matter expertise, and that the level may be higher or lower for an individual organization. Priority indicates sequencing, not required maturity. No NIST consideration text is reproduced here — standardPracticesApply records only whether a cell said 'standard cybersecurity practices apply', which is a fact about the cell rather than a copy of it.",
+ "extractedBy": "tools/extract_cyber_ai.py",
+ "focusAreas": [
+  "secure",
+  "defend",
+  "thwart"
+ ],
+ "subcategories": {
+  "DE.AE-02": {
+   "secure": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": true
+   }
+  },
+  "DE.AE-03": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": false
+   }
+  },
+  "DE.AE-04": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": false
+   }
+  },
+  "DE.AE-06": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 1,
+    "standardPracticesApply": false
+   }
+  },
+  "DE.AE-07": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 1,
+    "standardPracticesApply": true
+   }
+  },
+  "DE.AE-08": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": false
+   }
+  },
+  "DE.CM-01": {
+   "secure": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 1,
+    "standardPracticesApply": true
+   }
+  },
+  "DE.CM-02": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 3,
+    "standardPracticesApply": true
+   }
+  },
+  "DE.CM-03": {
+   "secure": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 3,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": false
+   }
+  },
+  "DE.CM-06": {
+   "secure": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": false
+   }
+  },
+  "DE.CM-09": {
+   "secure": {
+    "priority": 1,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": false
+   }
+  },
+  "GV.OC-01": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "thwart": {
+    "priority": 3,
+    "standardPracticesApply": true
+   }
+  },
+  "GV.OC-02": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": true
+   }
+  },
+  "GV.OC-03": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 3,
+    "standardPracticesApply": true
+   }
+  },
+  "GV.OC-04": {
+   "secure": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 3,
+    "standardPracticesApply": true
+   }
+  },
+  "GV.OC-05": {
+   "secure": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 3,
+    "standardPracticesApply": true
+   }
+  },
+  "GV.OV-01": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": false
+   }
+  },
+  "GV.OV-02": {
+   "secure": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": false
+   }
+  },
+  "GV.OV-03": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 3,
+    "standardPracticesApply": true
+   }
+  },
+  "GV.PO-01": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 3,
+    "standardPracticesApply": true
+   }
+  },
+  "GV.PO-02": {
+   "secure": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": true
+   }
+  },
+  "GV.RM-01": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 3,
+    "standardPracticesApply": true
+   }
+  },
+  "GV.RM-02": {
+   "secure": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 1,
+    "standardPracticesApply": false
+   }
+  },
+  "GV.RM-03": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 3,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 3,
+    "standardPracticesApply": true
+   }
+  },
+  "GV.RM-04": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 3,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 3,
+    "standardPracticesApply": true
+   }
+  },
+  "GV.RM-05": {
+   "secure": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": false
+   }
+  },
+  "GV.RM-06": {
+   "secure": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": false
+   }
+  },
+  "GV.RM-07": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 1,
+    "standardPracticesApply": true
+   },
+   "thwart": {
+    "priority": 3,
+    "standardPracticesApply": true
+   }
+  },
+  "GV.RR-01": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": false
+   }
+  },
+  "GV.RR-02": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": false
+   }
+  },
+  "GV.RR-03": {
+   "secure": {
+    "priority": 2,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 1,
+    "standardPracticesApply": false
+   }
+  },
+  "GV.RR-04": {
+   "secure": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "thwart": {
+    "priority": 1,
+    "standardPracticesApply": false
+   }
+  },
+  "GV.SC-01": {
+   "secure": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": true
+   }
+  },
+  "GV.SC-02": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "thwart": {
+    "priority": 3,
+    "standardPracticesApply": true
+   }
+  },
+  "GV.SC-03": {
+   "secure": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 3,
+    "standardPracticesApply": true
+   }
+  },
+  "GV.SC-04": {
+   "secure": {
+    "priority": 2,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 3,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 3,
+    "standardPracticesApply": true
+   }
+  },
+  "GV.SC-05": {
+   "secure": {
+    "priority": 2,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 3,
+    "standardPracticesApply": true
+   }
+  },
+  "GV.SC-06": {
+   "secure": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 3,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 3,
+    "standardPracticesApply": true
+   }
+  },
+  "GV.SC-07": {
+   "secure": {
+    "priority": 1,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 3,
+    "standardPracticesApply": true
+   }
+  },
+  "GV.SC-08": {
+   "secure": {
+    "priority": 2,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 3,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": true
+   }
+  },
+  "GV.SC-09": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "thwart": {
+    "priority": 3,
+    "standardPracticesApply": true
+   }
+  },
+  "GV.SC-10": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "thwart": {
+    "priority": 3,
+    "standardPracticesApply": true
+   }
+  },
+  "ID.AM-01": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 3,
+    "standardPracticesApply": true
+   }
+  },
+  "ID.AM-02": {
+   "secure": {
+    "priority": 2,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 3,
+    "standardPracticesApply": true
+   }
+  },
+  "ID.AM-03": {
+   "secure": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": true
+   }
+  },
+  "ID.AM-04": {
+   "secure": {
+    "priority": 2,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 3,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": true
+   }
+  },
+  "ID.AM-05": {
+   "secure": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 3,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 3,
+    "standardPracticesApply": false
+   }
+  },
+  "ID.AM-07": {
+   "secure": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 3,
+    "standardPracticesApply": true
+   }
+  },
+  "ID.AM-08": {
+   "secure": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": true
+   }
+  },
+  "ID.IM-01": {
+   "secure": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 3,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": true
+   }
+  },
+  "ID.IM-02": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": false
+   }
+  },
+  "ID.IM-03": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 3,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 3,
+    "standardPracticesApply": true
+   }
+  },
+  "ID.IM-04": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 3,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": true
+   }
+  },
+  "ID.RA-01": {
+   "secure": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 1,
+    "standardPracticesApply": false
+   }
+  },
+  "ID.RA-02": {
+   "secure": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 3,
+    "standardPracticesApply": true
+   }
+  },
+  "ID.RA-03": {
+   "secure": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 1,
+    "standardPracticesApply": false
+   }
+  },
+  "ID.RA-04": {
+   "secure": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 1,
+    "standardPracticesApply": false
+   }
+  },
+  "ID.RA-05": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": true
+   }
+  },
+  "ID.RA-06": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 1,
+    "standardPracticesApply": true
+   }
+  },
+  "ID.RA-07": {
+   "secure": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 1,
+    "standardPracticesApply": true
+   },
+   "thwart": {
+    "priority": 1,
+    "standardPracticesApply": true
+   }
+  },
+  "ID.RA-08": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "thwart": {
+    "priority": 1,
+    "standardPracticesApply": true
+   }
+  },
+  "ID.RA-09": {
+   "secure": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": false
+   }
+  },
+  "ID.RA-10": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": true
+   }
+  },
+  "PR.AA-01": {
+   "secure": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 1,
+    "standardPracticesApply": true
+   }
+  },
+  "PR.AA-02": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": true
+   }
+  },
+  "PR.AA-03": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": true
+   }
+  },
+  "PR.AA-04": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": true
+   }
+  },
+  "PR.AA-05": {
+   "secure": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 1,
+    "standardPracticesApply": true
+   }
+  },
+  "PR.AA-06": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 3,
+    "standardPracticesApply": true
+   }
+  },
+  "PR.AT-01": {
+   "secure": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 1,
+    "standardPracticesApply": false
+   }
+  },
+  "PR.AT-02": {
+   "secure": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 1,
+    "standardPracticesApply": false
+   }
+  },
+  "PR.DS-01": {
+   "secure": {
+    "priority": 1,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": true
+   }
+  },
+  "PR.DS-02": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "thwart": {
+    "priority": 3,
+    "standardPracticesApply": true
+   }
+  },
+  "PR.DS-10": {
+   "secure": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 3,
+    "standardPracticesApply": false
+   }
+  },
+  "PR.DS-11": {
+   "secure": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 3,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 3,
+    "standardPracticesApply": true
+   }
+  },
+  "PR.IR-01": {
+   "secure": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 1,
+    "standardPracticesApply": false
+   }
+  },
+  "PR.IR-02": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": false
+   }
+  },
+  "PR.IR-03": {
+   "secure": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": false
+   }
+  },
+  "PR.IR-04": {
+   "secure": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": false
+   }
+  },
+  "PR.PS-01": {
+   "secure": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 3,
+    "standardPracticesApply": true
+   }
+  },
+  "PR.PS-02": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 3,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 1,
+    "standardPracticesApply": false
+   }
+  },
+  "PR.PS-03": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 1,
+    "standardPracticesApply": false
+   }
+  },
+  "PR.PS-04": {
+   "secure": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 1,
+    "standardPracticesApply": false
+   }
+  },
+  "PR.PS-05": {
+   "secure": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 1,
+    "standardPracticesApply": false
+   }
+  },
+  "PR.PS-06": {
+   "secure": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": true
+   }
+  },
+  "RC.CO-03": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 3,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 3,
+    "standardPracticesApply": true
+   }
+  },
+  "RC.CO-04": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "thwart": {
+    "priority": 3,
+    "standardPracticesApply": true
+   }
+  },
+  "RC.RP-01": {
+   "secure": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": false
+   }
+  },
+  "RC.RP-02": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 1,
+    "standardPracticesApply": true
+   },
+   "thwart": {
+    "priority": 3,
+    "standardPracticesApply": true
+   }
+  },
+  "RC.RP-03": {
+   "secure": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 3,
+    "standardPracticesApply": true
+   }
+  },
+  "RC.RP-04": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": true
+   }
+  },
+  "RC.RP-05": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 3,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": true
+   }
+  },
+  "RC.RP-06": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 3,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 3,
+    "standardPracticesApply": true
+   }
+  },
+  "RS.AN-03": {
+   "secure": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 1,
+    "standardPracticesApply": false
+   }
+  },
+  "RS.AN-06": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "thwart": {
+    "priority": 1,
+    "standardPracticesApply": false
+   }
+  },
+  "RS.AN-07": {
+   "secure": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": true
+   }
+  },
+  "RS.AN-08": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 3,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": true
+   }
+  },
+  "RS.CO-02": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 3,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 3,
+    "standardPracticesApply": true
+   }
+  },
+  "RS.CO-03": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 3,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 3,
+    "standardPracticesApply": true
+   }
+  },
+  "RS.MA-01": {
+   "secure": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": false
+   }
+  },
+  "RS.MA-02": {
+   "secure": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": true
+   }
+  },
+  "RS.MA-03": {
+   "secure": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "defend": {
+    "priority": 1,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 1,
+    "standardPracticesApply": true
+   }
+  },
+  "RS.MA-04": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": true
+   }
+  },
+  "RS.MA-05": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 2,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": true
+   }
+  },
+  "RS.MI-01": {
+   "secure": {
+    "priority": 2,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 3,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 2,
+    "standardPracticesApply": false
+   }
+  },
+  "RS.MI-02": {
+   "secure": {
+    "priority": 3,
+    "standardPracticesApply": true
+   },
+   "defend": {
+    "priority": 3,
+    "standardPracticesApply": false
+   },
+   "thwart": {
+    "priority": 3,
+    "standardPracticesApply": true
+   }
+  }
+ }
+}

@@ -44,6 +44,8 @@ Mutations (each appends an append-only history event and rewrites the store):
   intake add        <store.csfp> --label '...' --subjects ID.AM-01 ID.AM-02
                     [--source-date D] [--recorded-by NAME] [--ts TS]
   intake list       <store.csfp> [--json]
+  overlay           list|enable|disable <store.csfp> [--focus A B] [--mode advisory|reorder]
+                    (list is read-only; enable and disable rewrite the store)
 
 Usage:
   python3 profile_analysis.py init --name "Acme Corp" --out acme.csfp --owner CISO
@@ -121,6 +123,7 @@ DEFAULT_CORE = os.path.join(_SKILL_ROOT, "references", "nist-csf-2.0-core.json")
 DEFAULT_GUIDANCE = os.path.join(_SKILL_ROOT, "references", "guidance.json")
 DEFAULT_COLD_START_RANK = os.path.join(_SKILL_ROOT, "references", "cold-start-rank.json")
 DEFAULT_ELICITATION = os.path.join(_SKILL_ROOT, "references", "elicitation.json")
+DEFAULT_CYBER_AI = os.path.join(_SKILL_ROOT, "references", "cyber-ai-profile.json")
 FIXTURE = os.path.join(_SKILL_ROOT, "examples", "example-profile.csfp")
 
 
@@ -273,6 +276,19 @@ def load_store(path: str) -> dict:
     # date" are different claims, and inventing the second from the first would
     # fabricate exactly the attribution this schema exists to make honest.
     store.setdefault("intake", [])
+
+    # Overlay state. Defaults are inert on purpose: a normalization bug should
+    # produce a Profile that reports nothing, never one that silently
+    # resequences a board's top five. Note this default is `advisory` while the
+    # enable command defaults to `reorder` — the safe fallback and the useful
+    # choice are different questions.
+    overlays = store.setdefault("overlays", {})
+    cyber = overlays.setdefault("cyberAi", {})
+    cyber.setdefault("enabled", False)
+    cyber.setdefault("focusAreas", [])
+    cyber.setdefault("mode", "advisory")
+    cyber.setdefault("datasetVersion", None)
+
     for a in store["assessments"]:
         a.setdefault("confirmedAt", None)
         a.setdefault("confirmedBy", None)
@@ -859,6 +875,101 @@ def load_elicitation(path: str | None = None) -> dict:
     """
     with open(path or DEFAULT_ELICITATION, encoding="utf-8") as fh:
         return json.load(fh)
+
+
+OVERLAY_FOCUS_AREAS = ("secure", "defend", "thwart")
+OVERLAY_MODES = ("advisory", "reorder")   # `floor` is deliberately absent; see
+                                          # references/cyber-ai-overlay.md
+
+
+def validate_overlay_dataset(data: dict, index: dict) -> dict:
+    """Assert a Cyber AI Profile dataset is well formed. Raises ValueError on any defect.
+
+    Well formed is not the same as correct. This catches an extraction that
+    dropped a cell or mangled a number; it cannot catch a priority transcribed
+    as 2 when the source says 1. That is what the hand spot-check is for.
+    """
+    for field in ("datasetVersion", "sourceStatus", "sourcePublished", "sourceUrl"):
+        if not str(data.get(field) or "").strip():
+            raise ValueError(
+                f"overlay dataset is missing {field!r}. Every artifact carrying "
+                f"overlay output has to state where the data came from and what "
+                f"status it has; a dataset that cannot say is not usable.")
+    if list(data.get("focusAreas") or []) != list(OVERLAY_FOCUS_AREAS):
+        raise ValueError(
+            f"overlay dataset focusAreas must be exactly "
+            f"{list(OVERLAY_FOCUS_AREAS)}, got {data.get('focusAreas')!r}.")
+    subs = data.get("subcategories")
+    if not isinstance(subs, dict) or not subs:
+        raise ValueError("overlay dataset has no subcategories.")
+    for sid, areas in sorted(subs.items()):
+        if sid not in index:
+            raise ValueError(
+                f"overlay dataset references {sid!r}, which is not a Subcategory "
+                f"of {FRAMEWORK_REF}.")
+        for area in OVERLAY_FOCUS_AREAS:
+            cell = areas.get(area)
+            if not isinstance(cell, dict):
+                raise ValueError(f"{sid} has no {area!r} entry.")
+            pri = cell.get("priority")
+            # isinstance(pri, bool) must be rejected first — True == 1 in Python,
+            # so a JSON `true` would pass `in (1, 2, 3)` and then read as High
+            # priority everywhere downstream. Same trap as the cold-start ranks.
+            if isinstance(pri, bool) or pri not in (1, 2, 3):
+                raise ValueError(
+                    f"{sid}.{area}.priority is {pri!r}; NIST proposes 1 (High), "
+                    f"2 (Moderate) or 3 (Foundational) and nothing else.")
+            if not isinstance(cell.get("standardPracticesApply"), bool):
+                raise ValueError(
+                    f"{sid}.{area}.standardPracticesApply must be true or false, "
+                    f"got {cell.get('standardPracticesApply')!r}.")
+    return data
+
+
+def load_overlay_dataset(path: str | None = None, index: dict | None = None) -> dict:
+    """Load and validate the Cyber AI Profile dataset.
+
+    Does NOT degrade when the file is missing, unlike load_cold_start_rank. An
+    absent rank means the queue falls back to framework order and is still
+    correct; an absent overlay dataset means the overlay silently annotates
+    nothing while reporting itself enabled, which is a lie about the Profile.
+    """
+    with open(path or DEFAULT_CYBER_AI, encoding="utf-8") as fh:
+        data = json.load(fh)
+    return validate_overlay_dataset(data, index if index is not None
+                                    else index_subcategories(load_core()))
+
+
+def resolve_overlay(sub_id: str, cfg: dict | None, dataset: dict) -> dict | None:
+    """What the overlay says about one Subcategory, or None if it says nothing.
+
+    Returns None — never a default — when the overlay is disabled, no areas are
+    selected, or the Subcategory is absent from the dataset. A default would let
+    an absent entry silently participate in ordering as though the dataset had
+    spoken about it.
+
+    effectivePriority is the MINIMUM across selected areas because NIST's 1/2/3
+    is High/Moderate/Foundational: 1 is the most urgent. Minimum therefore means
+    "the most urgent selected area wins", and deselecting an area can only relax
+    the result, never tighten it.
+    """
+    if not cfg or not cfg.get("enabled"):
+        return None
+    areas = [a for a in cfg.get("focusAreas") or [] if a in OVERLAY_FOCUS_AREAS]
+    if not areas:
+        return None
+    entry = (dataset.get("subcategories") or {}).get(sub_id)
+    if not entry:
+        return None
+    per_area = {a: entry[a]["priority"] for a in areas if a in entry}
+    if not per_area:
+        return None
+    return {
+        "effectivePriority": min(per_area.values()),
+        "perArea": per_area,
+        "sentinelAreas": [a for a in areas
+                          if entry.get(a, {}).get("standardPracticesApply")],
+    }
 
 
 def _settled_subjects(store: dict) -> set:
@@ -1734,6 +1845,128 @@ def _cmd_intake(args):
     raise ValueError(usage)
 
 
+def _cmd_overlay(argv):
+    """Turn the NIST Cyber AI Profile overlay on or off for this Profile.
+
+    The overlay reweights the same 106 Subcategories and adds none, so enabling
+    it adds no assessment work — it changes the order in which existing work is
+    presented, and it says so on every surface that reports it.
+
+    Every validation happens before `cfg` is touched, so a refused enable leaves
+    the stored selection exactly as it was rather than half-written.
+    """
+    usage = ("usage: overlay list <store.csfp>\n"
+             "       overlay enable <store.csfp> --focus secure defend thwart "
+             "[--mode advisory|reorder]\n"
+             "       overlay disable <store.csfp>")
+    if not argv:
+        raise ValueError(usage)
+    sub, rest = argv[0], argv[1:]
+    if sub not in ("list", "enable", "disable"):
+        raise ValueError(usage)
+    pos, opt = parse_flags(rest)
+    path = _require_store(pos, usage)
+    store = load_store(path)
+    index = index_subcategories(load_core())
+    # --dataset is undocumented in the usage banner on purpose: it exists so the
+    # tests can run against examples/fixture-cyber-ai.json, not as a way to point
+    # a Profile at an unvetted priority table.
+    dataset = load_overlay_dataset(
+        _s(opt["dataset"]) if isinstance(opt.get("dataset"), (str, list)) else None,
+        index)
+    cfg = store["overlays"]["cyberAi"]
+
+    if sub == "list":
+        print("cyber-ai — NIST Cyber AI Profile overlay")
+        print(f"  dataset      {dataset['datasetVersion']}")
+        print(f"  source       {dataset['sourceStatus']}, published "
+              f"{dataset['sourcePublished']}")
+        print(f"  {dataset['sourceUrl']}")
+        print(f"  focus areas  {', '.join(dataset['focusAreas'])}")
+        print("")
+        if cfg["enabled"]:
+            print(f"  ENABLED  areas: {', '.join(cfg['focusAreas']) or 'none'}  "
+                  f"mode: {cfg['mode']}  dataset in force: {cfg['datasetVersion']}")
+        else:
+            print("  disabled. This Profile is not affected by the overlay.")
+        print("")
+        print("Priority indicates sequencing, not required maturity. Enabling adds "
+              "no assessment work — the overlay reweights the existing 106 "
+              "Subcategories and adds none.")
+        return 0
+
+    ts = _s(opt["ts"]) if isinstance(opt.get("ts"), (str, list)) else _now()
+    actor = _s(opt["actor"]) if isinstance(opt.get("actor"), (str, list)) else None
+
+    if sub == "disable":
+        was = cfg["enabled"]
+        cfg["enabled"] = False
+        if was:
+            append_history(store, "overlay-disabled", ts=ts, actor=actor,
+                           rationale="cyber-ai overlay disabled")
+        save_store(store, path, ts)
+        print("cyber-ai overlay disabled. Focus areas and mode kept, so re-enabling "
+              "is one command.")
+        return 0
+
+    focus = _list(opt.get("focus"))
+    if not focus:
+        raise ValueError(
+            "--focus is required. Which Focus Areas apply?\n"
+            "  secure  — you build or deploy AI systems\n"
+            "  defend  — your security programme uses AI\n"
+            "  thwart  — attackers use AI against you. This applies whether or not "
+            "you use AI at all.\n\n" + usage)
+    bad = [f for f in focus if f not in OVERLAY_FOCUS_AREAS]
+    if bad:
+        # parse_flags splits on spaces and never on commas, so `--focus a,b`
+        # arrives as one unrecognised token. Name that specifically: a bare
+        # "unknown focus area" reads as a typo and sends people looking for one.
+        hint = ""
+        if any("," in b for b in bad):
+            hint = ("\nFocus areas are separated by spaces, not commas: "
+                    "--focus secure thwart")
+        raise ValueError(
+            f"Unknown focus area(s) {', '.join(repr(b) for b in bad)}. "
+            f"Valid: {', '.join(OVERLAY_FOCUS_AREAS)}.{hint}")
+
+    mode = _s(opt["mode"]) if isinstance(opt.get("mode"), (str, list)) else "reorder"
+    if mode == "floor":
+        # Refused with its reason, not as an unknown value. `floor` was in the
+        # original design and was cut; anyone working from that design will type
+        # it, and "unknown mode" would send them hunting for a typo.
+        raise ValueError(
+            "--mode floor is not available. It would map NIST proposed priority "
+            "onto a raised target, and that mapping is scale-dependent: the rating "
+            "scale is a per-Profile setting, native Profiles run 0-3 while Profiles "
+            "converted from the web tool run 0-4, and there is no honest mapping "
+            "between them (references/scale-and-scoring.md). A fixed "
+            "priority-to-target table would mean different things on two Profiles "
+            "that both load here.\n\n"
+            "Use --mode reorder, which sequences the work without asserting a "
+            "maturity level NIST does not claim.")
+    if mode not in OVERLAY_MODES:
+        raise ValueError(f"--mode must be one of {', '.join(OVERLAY_MODES)}, "
+                         f"got {mode!r}.")
+
+    cfg["enabled"] = True
+    cfg["focusAreas"] = [a for a in OVERLAY_FOCUS_AREAS if a in focus]
+    cfg["mode"] = mode
+    cfg["datasetVersion"] = dataset["datasetVersion"]
+    append_history(store, "overlay-enabled", ts=ts, actor=actor,
+                   rationale=f"cyber-ai overlay enabled: "
+                             f"{', '.join(cfg['focusAreas'])}, mode {mode}")
+    save_store(store, path, ts)
+    print(f"cyber-ai overlay enabled — {', '.join(cfg['focusAreas'])}, mode {mode}, "
+          f"dataset {cfg['datasetVersion']}.")
+    print("No assessment work is added. The overlay reweights the existing 106 "
+          "Subcategories.")
+    if mode == "reorder":
+        print("The gap table will be ordered by AI priority. Scores, targets, gaps "
+              "and coverage are unchanged.")
+    return 0
+
+
 def _cmd_queue(args):
     pos, opt = parse_flags(args)
     path = _require_store(pos, "usage: queue <store.csfp> [--top N] [--json]")
@@ -1983,6 +2216,65 @@ def _cmd_analyze(args):
         if g:
             row["guidance"] = g
 
+    # --- Cyber AI Profile overlay -----------------------------------------
+    # Advisory mode annotates and nothing else: no gap value moves, no row
+    # moves, and a Profile that has not opted in emits no `overlay` key at all
+    # — not `"overlay": null`, which would be a diff in every existing report.
+    cfg = store["overlays"]["cyberAi"]
+    overlay_block = None
+    if cfg.get("enabled"):
+        # --dataset is undocumented in the usage banner for the same reason it is
+        # on `overlay`: it exists so the tests can run against the fixture, not as
+        # a way to point a report at an unvetted priority table.
+        ov_data = load_overlay_dataset(
+            _s(opt["dataset"]) if isinstance(opt.get("dataset"), (str, list)) else None,
+            index)
+        for row in gaps:
+            res = resolve_overlay(row["subcategoryId"], cfg, ov_data)
+            if res:
+                row["overlay"] = res
+        counts = {a: {"1": 0, "2": 0, "3": 0} for a in cfg["focusAreas"]}
+        for _sid, entry in (ov_data.get("subcategories") or {}).items():
+            for a in cfg["focusAreas"]:
+                if a in entry:
+                    counts[a][str(entry[a]["priority"])] += 1
+        overlay_block = {
+            "id": "cyber-ai",
+            "mode": cfg["mode"],
+            "focusAreas": list(cfg["focusAreas"]),
+            "datasetVersion": ov_data["datasetVersion"],
+            "sourceStatus": ov_data["sourceStatus"],
+            "sourcePublished": ov_data["sourcePublished"],
+            "sourceUrl": ov_data["sourceUrl"],
+            "byFocusArea": counts,
+            # Said once, here, so every renderer projects the same sentence
+            # instead of composing its own and drifting.
+            "provenance": (f"Cyber AI Profile overlay · dataset "
+                           f"{ov_data['datasetVersion']} · "
+                           f"{ov_data['sourceStatus']}, "
+                           f"{ov_data['sourcePublished']}"),
+            "orderingNote": ("Gap order is AI-prioritized, not gap-severity order."
+                             if cfg["mode"] == "reorder" else
+                             "Gap order is unchanged; the overlay annotates only."),
+        }
+        if cfg["mode"] == "reorder":
+            # Two-pass stable sort. Python's sort is stable, so sorting by the
+            # existing key first and the overlay key second preserves the old
+            # ordering WITHIN each priority band. A single sort over a tuple
+            # would work too, but this keeps the existing key in one place and
+            # makes the band structure obvious.
+            #
+            # The first pass is currently redundant — compute_gaps already
+            # returns rows in exactly this order — so deleting it changes no
+            # output today. It is kept because it makes the band ordering a
+            # property of THIS block rather than an inherited assumption about
+            # compute_gaps: if that function's tie-break ever changes, reorder
+            # keeps refining a severity order rather than silently refining
+            # whatever it was handed.
+            gaps.sort(key=lambda r: (-r["prioritizedGapScore"], r["subcategoryId"]))
+            gaps.sort(key=lambda r: (r.get("overlay") or {})
+                      .get("effectivePriority", 99))
+
     out = {
         "generated": {"today": today, "engine": "profile_analysis.py", "schemaVersion": SCHEMA_VERSION},
         "profile": {
@@ -2030,6 +2322,10 @@ def _cmd_analyze(args):
         "diff": compute_diff(store, index, core),
         "history": store["history"][-50:],
     }
+    # Only when present. `out["overlay"] = None` is a diff for every Profile that
+    # never opted in, which is exactly what the parity assertion forbids.
+    if overlay_block:
+        out["overlay"] = overlay_block
 
     text = json.dumps(out, indent=2, ensure_ascii=False)
     dest = _s(opt.get("out")) if isinstance(opt.get("out"), (str, list)) else None
@@ -2669,6 +2965,425 @@ def _cmd_self_test(_args):
        "a bank that asks rank-27 material before rank-1 contradicts the rank "
        "it is built from")
 
+    # --- cyber-ai overlay dataset -----------------------------------------
+    # Validated before it is populated, so an extraction defect surfaces here
+    # rather than as a wrong priority in a board pack.
+    _ds = load_overlay_dataset(os.path.join(_SKILL_ROOT, "examples",
+                                            "fixture-cyber-ai.json"), index)
+    eq(_ds["datasetVersion"], "fixture-1", "the fixture dataset loads")
+    eq(sorted(_ds["focusAreas"]), ["defend", "secure", "thwart"],
+       "three focus areas, always")
+
+    def _bad(mutate, label):
+        broken = copy.deepcopy(_ds)
+        mutate(broken)
+        try:
+            validate_overlay_dataset(broken, index)
+        except ValueError:
+            ok(True, label)
+        else:
+            ok(False, label)
+
+    _bad(lambda d: d.pop("datasetVersion"), "a dataset with no version is refused")
+    _bad(lambda d: d.pop("sourceStatus"), "a dataset with no source status is refused")
+    _bad(lambda d: d["subcategories"]["ID.AM-01"]["secure"].__setitem__("priority", 0),
+         "priority 0 is refused")
+    _bad(lambda d: d["subcategories"]["ID.AM-01"]["secure"].__setitem__("priority", 4),
+         "priority 4 is refused")
+    _bad(lambda d: d["subcategories"].__setitem__("XX.YY-99", {}),
+         "a Subcategory outside the Core is refused")
+    _bad(lambda d: d["subcategories"]["ID.AM-01"].pop("defend"),
+         "a Subcategory missing a focus area is refused")
+    _bad(lambda d: d["subcategories"]["ID.AM-01"]["secure"]
+         .__setitem__("standardPracticesApply", "yes"),
+         "a non-boolean sentinel is refused")
+    # True == 1 in Python, so a JSON `true` would satisfy a naive `in (1, 2, 3)`
+    # check and then behave as High priority everywhere downstream.
+    _bad(lambda d: d["subcategories"]["ID.AM-01"]["secure"].__setitem__("priority", True),
+         "a boolean priority is refused, not silently read as 1")
+
+    # --- overlay store block ----------------------------------------------
+    # Defaults are inert on purpose: a normalization bug should produce a
+    # Profile that reports nothing, never one that silently resequences a
+    # board's top five.
+    with tempfile.TemporaryDirectory() as _tmp:
+        _ov_store = os.path.join(_tmp, "overlay.csfp")
+        _cmd_init(["--name", "Overlay Fixture", "--out", _ov_store,
+                   "--ts", "2026-01-01T00:00:00Z"])
+        _ovs = load_store(_ov_store)
+        eq(_ovs["overlays"]["cyberAi"]["enabled"], False,
+           "a fresh Profile normalizes with the overlay disabled")
+        eq(_ovs["overlays"]["cyberAi"]["focusAreas"], [],
+           "and with no focus areas selected")
+        eq(_ovs["overlays"]["cyberAi"]["mode"], "advisory",
+           "and the inert mode, so a normalization bug cannot silently reorder")
+        ok(_ovs["overlays"]["cyberAi"]["datasetVersion"] is None,
+           "and no dataset stamped until something enables it")
+
+        # A store predating the overlay must still load.
+        with open(FIXTURE, encoding="utf-8") as _fh:
+            _v1 = json.load(_fh)
+        _v1.pop("overlays", None)
+        _v1_path = os.path.join(_tmp, "no-overlays.csfp")
+        with open(_v1_path, "w", encoding="utf-8") as _fh:
+            json.dump(_v1, _fh)
+        ok(load_store(_v1_path)["overlays"]["cyberAi"]["enabled"] is False,
+           "a store predating the overlay normalizes to disabled, never to enabled")
+
+        eq(check_store(load_store(_ov_store), index), [],
+           "an overlays block is not a structural problem")
+
+        # An explicitly-configured block must survive a load/save round trip
+        # untouched — setdefault must not clobber a real choice.
+        _rt = load_store(_ov_store)
+        _rt["overlays"]["cyberAi"] = {"enabled": True, "focusAreas": ["secure"],
+                                      "mode": "reorder", "datasetVersion": "fixture-1"}
+        save_store(_rt, _ov_store, "2026-01-02T00:00:00Z")
+        _back = load_store(_ov_store)["overlays"]["cyberAi"]
+        eq(_back, {"enabled": True, "focusAreas": ["secure"], "mode": "reorder",
+                   "datasetVersion": "fixture-1"},
+           "an explicitly set overlay block round-trips unchanged")
+
+        # --- overlay commands ----------------------------------------------
+        _fx_path = os.path.join(_SKILL_ROOT, "examples", "fixture-cyber-ai.json")
+        _ov2 = os.path.join(_tmp, "cmds.csfp")
+        _cmd_init(["--name", "Overlay Cmds", "--out", _ov2,
+                   "--ts", "2026-01-01T00:00:00Z"])
+
+        _cmd_overlay(["enable", _ov2, "--focus", "secure", "thwart",
+                      "--dataset", _fx_path, "--ts", "2026-01-02T00:00:00Z"])
+        _en = load_store(_ov2)["overlays"]["cyberAi"]
+        eq(_en["enabled"], True, "enable turns the overlay on")
+        eq(_en["focusAreas"], ["secure", "thwart"], "and records the selected areas")
+        eq(_en["mode"], "reorder",
+           "defaulting to reorder — the honest use of a sequencing signal")
+        eq(_en["datasetVersion"], "fixture-1",
+           "and stamps the dataset version in force")
+        eq(load_store(_ov2)["history"][-1]["type"], "overlay-enabled",
+           "enabling writes a history event; it changes what every report says")
+
+        # Focus areas are stored in canonical order, not the order they were typed.
+        _cmd_overlay(["enable", _ov2, "--focus", "thwart", "secure",
+                      "--dataset", _fx_path, "--ts", "2026-01-02T01:00:00Z"])
+        eq(load_store(_ov2)["overlays"]["cyberAi"]["focusAreas"], ["secure", "thwart"],
+           "focus areas are canonicalised, so two equivalent commands agree")
+
+        try:
+            _cmd_overlay(["enable", _ov2, "--focus", "secure", "--mode", "floor",
+                          "--dataset", _fx_path, "--ts", "2026-01-03T00:00:00Z"])
+            ok(False, "floor mode is refused")
+        except ValueError as _e:
+            ok("floor" in str(_e) and "scale" in str(_e),
+               "floor is refused NAMING THE SCALE — anyone who read the original "
+               "design will type it, and 'unknown mode' sends them hunting a typo")
+
+        try:
+            _cmd_overlay(["enable", _ov2, "--focus", "secure,thwart",
+                          "--dataset", _fx_path, "--ts", "2026-01-03T00:00:00Z"])
+            ok(False, "a comma-joined focus list is refused")
+        except ValueError as _e:
+            ok("secure,thwart" in str(_e) and "space" in str(_e).lower(),
+               "a comma-joined focus list is refused by name and says to use spaces")
+
+        try:
+            _cmd_overlay(["enable", _ov2, "--dataset", _fx_path,
+                          "--ts", "2026-01-03T00:00:00Z"])
+            ok(False, "enable with no --focus is refused")
+        except ValueError as _e:
+            ok("thwart" in str(_e),
+               "and the refusal explains the three areas, including that thwart "
+               "applies whether or not you use AI")
+
+        try:
+            _cmd_overlay(["enable", _ov2, "--focus", "sekure",
+                          "--dataset", _fx_path, "--ts", "2026-01-03T00:00:00Z"])
+            ok(False, "an unknown focus area is refused")
+        except ValueError as _e:
+            ok("sekure" in str(_e), "and names the value it did not recognise")
+
+        # A refused enable must not have half-written the store.
+        eq(load_store(_ov2)["overlays"]["cyberAi"]["focusAreas"], ["secure", "thwart"],
+           "a refused enable leaves the previous state intact")
+
+        _cmd_overlay(["disable", _ov2, "--dataset", _fx_path,
+                      "--ts", "2026-01-04T00:00:00Z"])
+        _dis = load_store(_ov2)["overlays"]["cyberAi"]
+        eq(_dis["enabled"], False, "disable turns it off")
+        eq(_dis["focusAreas"], ["secure", "thwart"],
+           "and preserves the selection, so re-enabling is one command")
+        eq(load_store(_ov2)["history"][-1]["type"], "overlay-disabled",
+           "and writes its own history event")
+
+    # --- overlay resolution ------------------------------------------------
+    # Effective priority is the MINIMUM across selected areas because NIST's
+    # 1/2/3 is High/Moderate/Foundational — 1 is the most urgent. That gives
+    # the property that matters: deselecting an area can only relax.
+    _fx = load_overlay_dataset(os.path.join(_SKILL_ROOT, "examples",
+                                            "fixture-cyber-ai.json"), index)
+    _on = {"enabled": True, "focusAreas": ["secure", "thwart"], "mode": "reorder"}
+
+    eq(resolve_overlay("ID.AM-01", _on, _fx)["effectivePriority"], 1,
+       "effective priority is the minimum across selected areas")
+    eq(resolve_overlay("DE.CM-01", _on, _fx)["effectivePriority"], 1,
+       "and finds the urgent one whichever area carries it")
+    eq(resolve_overlay("GV.OC-01", _on, _fx)["effectivePriority"], 3,
+       "a Subcategory foundational everywhere resolves to 3")
+
+    _one = {"enabled": True, "focusAreas": ["thwart"], "mode": "reorder"}
+    eq(resolve_overlay("ID.AM-01", _one, _fx)["effectivePriority"], 3,
+       "deselecting an area relaxes — ID.AM-01 is 1 in secure, 3 in thwart")
+
+    # The invariant, over every Subcategory in the dataset rather than one.
+    for _sid in _fx["subcategories"]:
+        _all3 = resolve_overlay(_sid, {"enabled": True, "mode": "reorder",
+                                       "focusAreas": list(OVERLAY_FOCUS_AREAS)}, _fx)
+        for _area in OVERLAY_FOCUS_AREAS:
+            _fewer = resolve_overlay(_sid, {"enabled": True, "mode": "reorder",
+                                            "focusAreas": [a for a in OVERLAY_FOCUS_AREAS
+                                                           if a != _area]}, _fx)
+            ok(_fewer["effectivePriority"] >= _all3["effectivePriority"],
+               f"deselecting {_area} never tightens {_sid}")
+
+    ok(resolve_overlay("ID.AM-01", {"enabled": False, "focusAreas": ["secure"],
+                                    "mode": "reorder"}, _fx) is None,
+       "disabled resolves to None, never to a default priority")
+    ok(resolve_overlay("ID.AM-01", {"enabled": True, "focusAreas": [],
+                                    "mode": "reorder"}, _fx) is None,
+       "no areas selected resolves to None")
+    ok(resolve_overlay("RC.RP-01", _on, _fx) is None,
+       "a Subcategory absent from the dataset resolves to None")
+    ok(resolve_overlay("ID.AM-01", None, _fx) is None,
+       "a missing config resolves to None rather than raising")
+
+    eq(resolve_overlay("GV.OC-01", _on, _fx)["sentinelAreas"], ["secure", "thwart"],
+       "the 'standard practices apply' sentinel is reported per selected area")
+    eq(resolve_overlay("ID.AM-01", _on, _fx)["sentinelAreas"], ["thwart"],
+       "and only for the areas where the source said it")
+    eq(resolve_overlay("ID.AM-01", _on, _fx)["perArea"], {"secure": 1, "thwart": 3},
+       "per-area priorities carry through for display, selected areas only")
+
+    _res = resolve_overlay("ID.AM-01", _on, _fx)
+    ok("target" not in _res and "effectiveTarget" not in _res
+       and "targetRaisedBy" not in _res,
+       "resolution never touches targets — floor mode is not in this increment")
+
+    with tempfile.TemporaryDirectory() as _tmp:
+        # --- advisory mode changes nothing computed ---------------------------
+        # The acceptance bar. If enabling the overlay in advisory mode can move a
+        # number, the overlay is a defect regardless of how useful it is.
+        def _copy_fixture(src, dst):
+            with open(src, encoding="utf-8") as _s, open(dst, "w", encoding="utf-8") as _d:
+                _d.write(_s.read())
+
+        _fx_path = os.path.join(_SKILL_ROOT, "examples", "fixture-cyber-ai.json")
+        _par = os.path.join(_tmp, "parity.csfp")
+        _copy_fixture(FIXTURE, _par)
+
+        _base_out = os.path.join(_tmp, "base.json")
+        _cmd_analyze([_par, "--today", "2026-07-28", "--dataset", _fx_path,
+                      "--out", _base_out])
+        with open(_base_out, encoding="utf-8") as _fh:
+            _base = json.load(_fh)
+        ok("overlay" not in _base,
+           "a Profile that has not opted in carries no overlay key at all — not "
+           "null, which would be a diff")
+
+        _cmd_overlay(["enable", _par, "--focus", "secure", "defend", "thwart",
+                      "--mode", "advisory", "--dataset", _fx_path,
+                      "--ts", "2026-02-01T00:00:00Z"])
+        _adv_out = os.path.join(_tmp, "adv.json")
+        _cmd_analyze([_par, "--today", "2026-07-28", "--dataset", _fx_path,
+                      "--out", _adv_out])
+        with open(_adv_out, encoding="utf-8") as _fh:
+            _adv = json.load(_fh)
+
+        for _k in ("coverage", "completeness", "tiers", "attention", "queue",
+                   "evidence", "playbook", "tracked", "actionItems", "framework"):
+            eq(_adv[_k], _base[_k],
+               f"advisory mode leaves analyze.{_k} identical")
+
+        _vals = lambda rows: [(r["subcategoryId"], r["current"], r["target"], r["gap"],
+                               r["prioritizedGapScore"]) for r in rows]
+        eq(_vals(_adv["gaps"]), _vals(_base["gaps"]),
+           "advisory mode leaves every gap value AND the row order untouched")
+
+        ok("overlay" in _adv, "advisory mode adds an overlay block")
+        eq(_adv["overlay"]["mode"], "advisory", "which states the mode")
+        eq(_adv["overlay"]["datasetVersion"], "fixture-1", "and the dataset version")
+        ok(_adv["overlay"]["sourceStatus"], "and the source status, for the artifact")
+        eq(_adv["overlay"]["focusAreas"], ["secure", "defend", "thwart"],
+           "and which areas are selected")
+        ok("provenance" in _adv["overlay"] and "orderingNote" in _adv["overlay"],
+           "and the two sentences renderers project rather than compose themselves")
+
+        _annotated = [r for r in _adv["gaps"] if r.get("overlay")]
+        ok(_annotated, "gap rows for Subcategories in the dataset are annotated")
+        ok(all("effectivePriority" in r["overlay"] for r in _annotated),
+           "each annotation carries an effective priority")
+        ok(any(not r.get("overlay") for r in _adv["gaps"])
+           or len(_adv["gaps"]) == len(_annotated),
+           "rows the dataset says nothing about are simply not annotated")
+
+        # Disabling must restore byte-identical output, not merely similar output.
+        _cmd_overlay(["disable", _par, "--dataset", _fx_path,
+                      "--ts", "2026-02-02T00:00:00Z"])
+        _off_out = os.path.join(_tmp, "off.json")
+        _cmd_analyze([_par, "--today", "2026-07-28", "--dataset", _fx_path,
+                      "--out", _off_out])
+
+        # Compared as TEXT, not as parsed objects, so key ORDER and a stray
+        # `"overlay": null` both show up. Exactly two fields are set aside, and
+        # they are the audit trail rather than the report: toggling the overlay
+        # deliberately writes overlay-enabled/overlay-disabled history and
+        # re-stamps profile.updated (already asserted above, and the point of
+        # having those events at all). Everything else — every gap row, every
+        # rollup, the absence of the overlay key — is compared byte for byte.
+        def _sans_audit(_path):
+            with open(_path, encoding="utf-8") as _fh:
+                _d = json.load(_fh)
+            _d["history"] = "<audit trail, asserted separately below>"
+            _d["profile"]["updated"] = "<stamped by save_store on every write>"
+            return json.dumps(_d, indent=2, ensure_ascii=False)
+
+        eq(_sans_audit(_off_out), _sans_audit(_base_out),
+           "disabling restores byte-identical analyze output — the overlay is "
+           "fully reversible, leaving no residue in a report")
+
+        with open(_off_out, encoding="utf-8") as _fh:
+            _off = json.load(_fh)
+        ok("overlay" not in _off and all(not _r.get("overlay") for _r in _off["gaps"]),
+           "no overlay key survives disabling, at the top level or on any gap row")
+        eq([_h["type"] for _h in _off["history"][-2:]],
+           ["overlay-enabled", "overlay-disabled"],
+           "and the only trace left anywhere is the audit trail the toggle is "
+           "supposed to write")
+
+    with tempfile.TemporaryDirectory() as _tmp:
+        # --- reorder changes order and NOTHING else ---------------------------
+        # This is the default mode on enable. NIST priority is sequencing, not
+        # maturity, so the honest use of it moves the queue and leaves every
+        # number exactly where it was.
+        def _copy_fixture(src, dst):
+            with open(src, encoding="utf-8") as _s, open(dst, "w", encoding="utf-8") as _d:
+                _d.write(_s.read())
+
+        _fx_path = os.path.join(_SKILL_ROOT, "examples", "fixture-cyber-ai.json")
+        _ro = os.path.join(_tmp, "reorder.csfp")
+        _copy_fixture(FIXTURE, _ro)
+
+        _ro_base_out = os.path.join(_tmp, "ro-base.json")
+        _cmd_analyze([_ro, "--today", "2026-07-28", "--out", _ro_base_out])
+        with open(_ro_base_out, encoding="utf-8") as _fh:
+            _rbase = json.load(_fh)
+
+        # `defend` and not `secure`: under `secure` the fixture's only priority-1
+        # gap row is also its LARGEST gap, so "a small gap at priority 1 beats a
+        # large gap at priority 3" would be vacuous. Under `defend` the priority-1
+        # row (PR.AA-01, gap 2) is smaller than a priority-3 row (PR.DS-01, gap 3),
+        # which is the case the mode exists for.
+        _cmd_overlay(["enable", _ro, "--focus", "defend", "--mode", "reorder",
+                      "--dataset", _fx_path, "--ts", "2026-02-01T00:00:00Z"])
+        _ro_out = os.path.join(_tmp, "ro.json")
+        _cmd_analyze([_ro, "--today", "2026-07-28", "--out", _ro_out,
+                      "--dataset", _fx_path])
+        with open(_ro_out, encoding="utf-8") as _fh:
+            _ran = json.load(_fh)
+
+        # Values: identical, keyed by id so ordering cannot mask a change.
+        _by_id = lambda rows: {r["subcategoryId"]: (r["current"], r["target"], r["gap"],
+                                                    r["prioritizedGapScore"],
+                                                    r["priority"], r["status"])
+                               for r in rows}
+        eq(_by_id(_ran["gaps"]), _by_id(_rbase["gaps"]),
+           "reorder changes no gap VALUE")
+        eq(sorted(r["subcategoryId"] for r in _ran["gaps"]),
+           sorted(r["subcategoryId"] for r in _rbase["gaps"]),
+           "and drops or adds no row")
+        for _k in ("coverage", "completeness", "tiers", "queue", "evidence",
+                   "tracked", "actionItems"):
+            eq(_ran[_k], _rbase[_k],
+               f"reorder leaves analyze.{_k} untouched — it is not a scoring change")
+
+        _order_base = [r["subcategoryId"] for r in _rbase["gaps"]]
+        _order_ro = [r["subcategoryId"] for r in _ran["gaps"]]
+        ok(_order_ro != _order_base,
+           "and the order actually differs, or the mode does nothing at all")
+
+        # The point of the mode: urgency beats size.
+        _pos = {sid: i for i, sid in enumerate(_order_ro)}
+        _p1 = [r["subcategoryId"] for r in _ran["gaps"]
+               if (r.get("overlay") or {}).get("effectivePriority") == 1]
+        _p3 = [r["subcategoryId"] for r in _ran["gaps"]
+               if (r.get("overlay") or {}).get("effectivePriority") == 3]
+        _none = [r["subcategoryId"] for r in _ran["gaps"] if not r.get("overlay")]
+        ok(_p1 and _p3 and _none,
+           "the fixture exercises all three cases: priority 1, priority 3, and "
+           "Subcategories the dataset says nothing about")
+        ok(max(_pos[s] for s in _p1) < min(_pos[s] for s in _p3),
+           "every priority-1 row outranks every priority-3 row, whatever the gap size")
+        ok(min(_pos[s] for s in _none) > max(_pos[s] for s in _p3),
+           "and Subcategories the dataset says nothing about sort after those it does")
+
+        # Specifically: a small gap at priority 1 beats a large gap at priority 3.
+        _gapof = {r["subcategoryId"]: r["gap"] for r in _ran["gaps"]}
+        _beats = [(a, b) for a in _p1 for b in _p3 if _gapof[a] < _gapof[b]]
+        ok(_beats and all(_pos[a] < _pos[b] for a, b in _beats),
+           "a SMALLER gap at priority 1 still outranks a larger gap at priority 3 — "
+           "which is the whole point of a sequencing signal")
+
+        # Stable within a band: ties keep the old relative order.
+        _band3 = [s for s in _order_ro if s in _p3]
+        eq(_band3, [s for s in _order_base if s in _p3],
+           "within a priority band the previous ordering is preserved — the sort is "
+           "stable, so reorder refines the old order rather than replacing it")
+
+        # Determinism.
+        _ro_out2 = os.path.join(_tmp, "ro2.json")
+        _cmd_analyze([_ro, "--today", "2026-07-28", "--out", _ro_out2,
+                      "--dataset", _fx_path])
+        with open(_ro_out2, encoding="utf-8") as _fh:
+            eq([r["subcategoryId"] for r in json.load(_fh)["gaps"]], _order_ro,
+               "ordering is deterministic across runs")
+
+        ok(_ran["overlay"]["orderingNote"].startswith("Gap order is AI-prioritized"),
+           "and the output states the order is AI-prioritized, so a reader is not "
+           "left assuming it reflects gap severity")
+
+        # Two downstream consumers, and they behave differently ON PURPOSE.
+        #
+        # `playbook` is built from the reordered `gaps` list, so it inherits the
+        # new sequence. That is intended, not incidental: the playbook is the
+        # Next-90-Days worksheet, and if the overlay has resequenced the work
+        # queue then the worksheet is exactly the thing that should follow it.
+        # Its VALUES still move nowhere — same rows, same numbers, new order.
+        _pb_ro = [r["subcategoryId"] for r in _ran["playbook"]]
+        _pb_base = [r["subcategoryId"] for r in _rbase["playbook"]]
+        eq(_pb_ro, _order_ro[:len(_pb_ro)],
+           "the playbook is cut from the reordered gap list, so the Next-90-Days "
+           "worksheet follows the resequenced queue — intended, and the reason "
+           "reorder is worth having")
+        ok(_pb_ro != _pb_base, "which means it visibly differs from the base order")
+        eq(sorted(_pb_base), sorted(_pb_ro),
+           "and it is the same set of rows, resequenced — reorder adds and drops "
+           "nothing here either")
+        eq({r["subcategoryId"]: (r["current"], r["target"], r["prioritizedGapScore"])
+            for r in _ran["playbook"]},
+           {r["subcategoryId"]: (r["current"], r["target"], r["prioritizedGapScore"])
+            for r in _rbase["playbook"]},
+           "with every playbook value identical — the sequence moved, the numbers "
+           "did not")
+
+        # `attention` does NOT move: attention_lists recomputes gaps from the
+        # store rather than reading the reordered list, so largestGaps stays in
+        # severity order. That is the correct reading of its name — it answers
+        # "what is biggest", not "what is next".
+        eq(_ran["attention"], _rbase["attention"],
+           "attention is untouched: it recomputes its own gap list, so largestGaps "
+           "still means largest and not AI-first")
+        eq([r["subcategoryId"] for r in _ran["attention"]["largestGaps"]], _order_base,
+           "specifically largestGaps keeps severity order, so the two lists are "
+           "readable as the different questions they answer")
+
     # --- elicit ------------------------------------------------------------
     # Settled = rated, scoped out, or already carrying intake. The third
     # clause is the one that makes this a cold-start tool rather than a
@@ -3185,7 +3900,8 @@ COMMANDS = {
     "init": _cmd_init, "set": _cmd_set, "set-tier": _cmd_set_tier,
     "quickstart-target": _cmd_quickstart_target,
     "snapshot": _cmd_snapshot, "diff": _cmd_diff, "action": _cmd_action,
-    "intake": _cmd_intake, "queue": _cmd_queue, "elicit": _cmd_elicit,
+    "intake": _cmd_intake, "overlay": _cmd_overlay,
+    "queue": _cmd_queue, "elicit": _cmd_elicit,
     "analyze": _cmd_analyze, "export-gaps": _cmd_export_gaps,
 }
 

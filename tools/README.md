@@ -113,6 +113,50 @@ Everything else — the deep guidance, the Function slants, the tier-transition 
 its `source.note`. The `0 → 1` transition and the `0 Not Implemented` label are authored *for this
 skill* (the web tool had no 0 level) and are flagged separately under `added`.
 
+## Extracting the Cyber AI Profile dataset
+
+`skills/nist-csf/references/cyber-ai-profile.json` holds the per-Subcategory, per-Focus-Area
+proposed priorities from **NIST IR 8596 (Cyber AI Profile)**. It exists so the `nist-csf`
+overlay can reweight the 106 Subcategories for AI relevance without anyone retyping 318
+numbers.
+
+```bash
+curl -A "Mozilla/5.0" -o /tmp/ir8596.pdf \
+  https://nvlpubs.nist.gov/nistpubs/ir/2025/NIST.IR.8596.iprd.pdf
+pdftotext -layout /tmp/ir8596.pdf /tmp/ir8596.txt      # NOTE: -layout IS required here
+
+python3 tools/extract_cyber_ai.py /tmp/ir8596.txt \
+  --out skills/nist-csf/references/cyber-ai-profile.json \
+  --coverage /tmp/coverage.txt \
+  --core skills/nist-csf/references/nist-csf-2.0-core.json
+```
+
+Note the opposite `-layout` advice from Pass 2 above: the Tier extraction must **not** use it,
+this one **must**. The priorities live in three side-by-side columns, and the parser slices
+them by character offset — without `-layout` there are no columns to slice.
+
+Three gotchas, all of which cost time once:
+
+- **`nvlpubs.nist.gov` returns 404 to a default curl user-agent** and 200 to a browser one.
+  The file is not missing; the request is being refused.
+- **Column order is Secure | Defend | Thwart.** Swapping two would invert priorities in a way
+  no validator can catch, because every value would still be a legal 1/2/3. The script warns
+  if it cannot find the column header, and `--check` on the output is not a substitute for
+  looking at a rendered page.
+- **The "standard cybersecurity practices apply" sentinel wraps across lines.** Grepping the
+  whole document for it returns exactly one hit — the sentence in §2.2 that *defines* the
+  phrase. It is used 142 times. A line-based parser sets `standardPracticesApply` false for
+  all 318 cells and looks entirely successful.
+
+The script emits a coverage report naming every cell it could not parse and **exits non-zero**
+if any Subcategory is missing, so a partial extraction cannot be mistaken for a finished one.
+It defaults nothing.
+
+Verification method and results for the shipped dataset are in
+`docs/superpowers/notes/2026-07-28-ir8596-dataset-verification.md`. IR 8596 is a preliminary
+draft; an initial public draft is expected, and this script exists so following it costs a
+re-run rather than a re-transcription.
+
 ## Why there is no `package.json`
 
 Pass 1 used to be `ingest-csf-core.js`, running on SheetJS (`xlsx`) to turn the worksheet into rows
