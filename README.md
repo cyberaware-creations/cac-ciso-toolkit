@@ -51,6 +51,29 @@ deterministic gap analysis and risk-weighted prioritization, coverage rollups by
 Category, Tier characterization, an append-only history with rationale, named snapshots with a
 "what changed" diff, and an owned action plan — reported to both the team and the board.
 
+**A Profile is built from fragments, not from one sitting.** Nobody rates 106 Subcategories in an
+afternoon, and a Profile assembled that way is mostly guesses wearing a number. So the unit of record
+is the **source** — a pen test, an audit finding, a vendor questionnaire, a hallway conversation —
+recorded once with `intake add` and pointed at whatever Subcategories it speaks to. Ratings accrete
+against that log as evidence arrives.
+
+- **Nothing is confirmed anonymously.** Setting a Current rating requires `--source` and
+  `--confirmed-by`. This is a hard refusal, not a warning: an unattributed rating is indistinguishable
+  from someone's recollection six months later, and the whole point is to be able to tell.
+- **Four evidence states, always shown together** — `confirmed`, `evidence-pending` (a source names
+  it, nobody has rated it yet), `unrated`, `not-applicable`. Reporting a subset collapses
+  evidence-pending into unrated, which erases the distinction the schema exists to draw.
+- **`queue` answers "what do I ask next?"** — in three bands: Subcategories with evidence already
+  recorded and no rating, then ratings due a second look, then a cold-start order for a Profile with
+  nothing in it (37 Subcategories, our editorial judgment, informed by NIST SP 1300 — see
+  `references/cold-start-rank.json`, which records what the research actually changed).
+- **The scope guard suppresses rather than caveats.** Below 60% of in-scope Subcategories assessed,
+  the headline coverage figure does not render at all. A percentage with a warning beside it is still
+  a percentage, and people read the number. This binds *both* dashboards — otherwise the suppressed
+  figure just reappears one document over.
+- **Ratings do not expire.** A rating is questioned when newer material is recorded against it, or
+  when it carries no confirmation date to compare against — not because a timer ran out. Age is
+  reported; the reader judges.
 - **Bundled framework data** — the full CSF 2.0 Core (6 Functions / 22 Categories / 106
   Subcategories) with all 363 Implementation Examples and the Informative References, generated from
   the NIST CPRT catalog, plus verbatim Tier text from NIST CSWP 29.
@@ -59,6 +82,10 @@ Category, Tier characterization, an append-only history with rationale, named sn
 - **Feeds the register** — `export-gaps` emits the gap CSV that `risk-register` imports, so a
   framework gap becomes a scored, owned risk without retyping.
 - **Tiers are rigor, never a maturity score.** NIST is explicit about this, and the skill enforces it.
+
+Profiles written before v0.2.0 keep working: schema v1 is normalized to v2 in memory on load and
+stamped on the next write. Their existing ratings carry no attribution — which is exactly what the
+Profile now says about them, rather than quietly implying they were sourced.
 
 ### `ciso-board-translation`
 The reusable "moat" skill. Turns a raw security fact — a metric, a risk, or a quarter of program
@@ -82,12 +109,14 @@ skills/
   nist-csf/
     SKILL.md
     scripts/profile_analysis.py  CSF Profile engine + persistence (stdlib only)
+    scripts/csfa_compat.py     web-tool .csfa import/export
     renderers/                 render_operational / render_executive
     references/                CSF 2.0 Core data, schema, assessment & review, dashboards,
+                               scale & scoring, authored guidance, cold-start rank,
                                framework abstraction
     assets/                    brand tokens
-    examples/                  worked example Profile
-    evals/                     trigger-routing checklist
+    examples/                  worked Profiles (v1 and v2), worked .csfa + gap CSV
+    evals/                     trigger-routing suite
   ciso-board-translation/
     SKILL.md
     references/                four-questions, board-question bank, receipts, metric archetypes
@@ -106,9 +135,13 @@ That floor is enforced, not asserted:
 ./skills/risk-register/evals/python-compat.sh            # compiles every shipped file on 3.9
 PY=/usr/bin/python3 ./skills/risk-register/evals/board-safety.sh   # and runs the suite there
 ./skills/risk-register/evals/responsive.sh               # width + WCAG AA contrast, in a browser
+
+python3 skills/risk-register/scripts/score_register.py self-test   # 34/34 parity checks
+python3 skills/nist-csf/scripts/profile_analysis.py self-test      # 318/318
+python3 skills/nist-csf/scripts/csfa_compat.py self-test           # 47/47
 ```
 
-Run all three before any release. `responsive.sh` is the one check that isn't stdlib-only — it
+Run all of these before any release. `responsive.sh` is the one check that isn't stdlib-only — it
 drives a headless Chrome over the DevTools protocol. Both of the things it measures are properties
 of a *resolved layout*, not of the CSS text: how wide the page actually laid out, and what colour a
 given piece of text actually ends up on once alpha fills, ancestor backgrounds and `opacity` have
