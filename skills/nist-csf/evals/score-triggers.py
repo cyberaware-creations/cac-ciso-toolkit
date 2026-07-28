@@ -39,8 +39,19 @@ OURS = ("nist-csf", "risk-register", "ciso-board-translation")
 
 
 def parse_run(path):
-    """Pull skills, corroborating scripts, cost and the final answer out of one transcript."""
+    """Pull skills, corroborating scripts, cost, the final answer and run health out of
+    one transcript.
+
+    `errored` matters as much as the routing. A run can hit the turn cap, die with
+    `is_error: true` and produce zero assistant text, yet still have made its Skill call
+    minutes earlier — routing is decided long before a run ends. Inferring the verdict
+    from tool calls alone reported one such run as `A3 | expect nist-csf got nist-csf
+    PASS $0.411 70.9s`: a cost, a duration, a green tick, and no answer at all. A3 is one
+    of the cases carrying behavioural requirements, so what it silently counted toward
+    "20/20 passed" was a run in which nothing could have been read.
+    """
     skills, scripts, cost, dur, result = [], [], None, 0, ""
+    errored, subtype = False, ""
     if not os.path.exists(path):
         return None
     for line in open(path):
@@ -55,6 +66,9 @@ def parse_run(path):
             cost = ev.get("total_cost_usd")
             dur = ev.get("duration_ms") or 0
             result = ev.get("result") or ""
+            subtype = ev.get("subtype") or ""
+            # A missing answer is an error even when the runner did not say so.
+            errored = bool(ev.get("is_error")) or subtype not in ("", "success")
         content = (ev.get("message") or {}).get("content")
         if not isinstance(content, list):
             continue
@@ -72,7 +86,8 @@ def parse_run(path):
                                     inp.get("command", "")):
                     scripts.append(SCRIPT_TO_SKILL[m])
     return {"skills": skills, "scripts": sorted(set(scripts)),
-            "cost": cost or 0.0, "dur_s": round(dur / 1000, 1), "result": result}
+            "cost": cost or 0.0, "dur_s": round(dur / 1000, 1), "result": result,
+            "errored": errored, "subtype": subtype, "answered": bool(result.strip())}
 
 
 def verdict(expected, actual):
@@ -97,6 +112,26 @@ def _classify(path):
     ours = [sk for sk in run["skills"] if sk in OURS]
     foreign = [sk for sk in run["skills"] if sk not in OURS]
     return (ours[0] if ours else "none"), foreign
+
+
+def mark(expected, run):
+    """PASS / FAIL / ERROR for one run — the whole scoring decision, in one place.
+
+    Factored out so the self-test can assert the decision itself rather than only the
+    parsing beneath it. The 0.4.0 defect lived in main()'s inline logic, where no check
+    could reach it: parse_run() could have reported `is_error` perfectly and the verdict
+    would still have come out PASS.
+    """
+    actual = _decide(run)
+    if run["errored"] or not run["answered"]:
+        return "ERROR", actual
+    return ("PASS" if verdict(expected, actual) else "FAIL"), actual
+
+
+def _decide(run):
+    """Which of ours the run reached, or 'none'."""
+    ours = [sk for sk in run["skills"] if sk in OURS]
+    return ours[0] if ours else "none"
 
 
 def self_test():
@@ -146,6 +181,33 @@ def self_test():
        "`neither` still fails when one of ours DOES fire — this is the case that "
        "catches over-triggering, and it must not have been loosened")
 
+    # The A3 defect, reproduced: a run that routed correctly and then died.
+    err = parse_run(f("errored-max-turns.jsonl"))
+    eq(_classify(f("errored-max-turns.jsonl"))[0], "nist-csf",
+       "an errored run still shows where it routed — routing happens before the run dies")
+    eq(verdict("nist-csf", "nist-csf"), True,
+       "and by routing alone it would satisfy its expectation")
+    eq((err["errored"], err["answered"]), (True, False),
+       "but the transcript is marked errored and answerless, so it cannot be scored — "
+       "the 0.4.0 A3 run was reported PASS with a cost, a duration and no answer at all")
+    eq(err["subtype"], "error_max_turns", "the terminal subtype is carried for the report")
+    eq(mark("nist-csf", err), ("ERROR", "nist-csf"),
+       "and the scoring decision itself returns ERROR, not PASS — this is the check "
+       "that reaches where the 0.4.0 defect actually lived")
+
+    ok_run = parse_run(f("ours.jsonl"))
+    eq((ok_run["errored"], ok_run["answered"]), (False, True),
+       "a healthy run is not swept up by the same guard")
+    eq(mark("nist-csf", ok_run), ("PASS", "nist-csf"),
+       "and still scores normally")
+    eq(mark("risk-register", ok_run), ("FAIL", "nist-csf"),
+       "including scoring a genuine routing miss as FAIL, not ERROR")
+
+    blank = parse_run(f("answerless.jsonl"))
+    eq((blank["errored"], blank["answered"]), (False, False),
+       "a run the runner called successful but which produced only whitespace is "
+       "answerless too — is_error alone would have missed it")
+
     # Every expectation in the shipped table is satisfiable.
     tsv = os.path.join(os.path.dirname(os.path.abspath(__file__)), "prompts.tsv")
     for line in open(tsv, encoding="utf-8"):
@@ -177,25 +239,36 @@ def main():
             missing.append(cid)
             continue
         total += run["cost"]
-        ours = [sk for sk in run["skills"] if sk in OURS]
         foreign = [sk for sk in run["skills"] if sk not in OURS]
-        actual = ours[0] if ours else "none"
-        ok = verdict(expected, actual)
-        extra = ours[1:]
+        # An errored or answerless run is neither a pass nor a routing failure — it is a
+        # run that did not happen. Scoring it either way makes a claim the transcript
+        # does not support, so it gets its own state and is excluded from the total.
+        mark_, actual = mark(expected, run)
+        broken, ok = mark_ == "ERROR", mark_ == "PASS"
+        extra = [sk for sk in run["skills"] if sk in OURS][1:]
         rows.append({"id": cid, "expected": expected, "actual": actual,
                      "also": extra, "foreign": foreign, "scripts": run["scripts"],
-                     "pass": ok, "cost": run["cost"], "dur_s": run["dur_s"],
+                     "pass": ok, "errored": broken,
+                     "subtype": run["subtype"], "answered": run["answered"],
+                     "cost": run["cost"], "dur_s": run["dur_s"],
                      "answer": run["result"]})
         also = f"  (+{', '.join(extra)})" if extra else ""
         if foreign:
             also += f"  [non-toolkit: {', '.join(foreign)}]"
+        if broken:
+            why = run["subtype"] or ("no answer" if not run["answered"] else "is_error")
+            also += f"  [{why}; routed to {actual}, but nothing was produced to read]"
         print(f'{cid:>3} | expect {expected:<13} got {actual:<16} '
-              f'{"PASS" if ok else "FAIL"}{also}  ${run["cost"]:.3f} {run["dur_s"]}s')
+              f'{mark_}{also}  ${run["cost"]:.3f} {run["dur_s"]}s')
 
     if missing:
         print(f'\nNOT RUN: {", ".join(missing)}')
-    passed = sum(1 for r in rows if r["pass"])
-    print(f'\n{passed}/{len(rows)} passed   ${total:.2f} total')
+    errored = [r["id"] for r in rows if r["errored"]]
+    scored = [r for r in rows if not r["errored"]]
+    passed = sum(1 for r in scored if r["pass"])
+    print(f'\n{passed}/{len(scored)} passed   ${total:.2f} total')
+    if errored:
+        print(f'ERRORED (not scored, re-run before quoting a total): {", ".join(errored)}')
 
     with open(os.path.join(out, "summary.json"), "w") as fh:
         json.dump(rows, fh, indent=1)
@@ -207,7 +280,7 @@ def main():
         print("\nNote: A1-A5 also carry behavioural requirements that this script does "
               "NOT check.\nRead their `answer` field against trigger-prompts.md before "
               "recording them as passed.")
-    return 1 if (missing or passed != len(rows)) else 0
+    return 1 if (missing or errored or passed != len(scored)) else 0
 
 
 if __name__ == "__main__":
