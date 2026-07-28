@@ -254,7 +254,7 @@ crosswalks. See `references/framework-abstraction.md`.
 | `references/dashboards.md` | What each dashboard must contain, and the rules binding both |
 | `references/framework-abstraction.md` | The multi-framework seam and the crosswalk plan |
 | `references/nist-csf-2.0-core.json` | The bundled Core — read-only framework data |
-| `references/cold-start-rank.json` | 32 Subcategories ranked for the queue's cold-start band — CAC editorial judgment, not NIST's |
+| `references/cold-start-rank.json` | 37 Subcategories ranked for the queue's cold-start band — CAC editorial judgment, not NIST's; carries its own record of what informed it |
 | `assets/brand.md` | Limen tokens, the coverage ramp, and the mandatory footer |
 | `examples/example-profile.csfp` | A small worked Profile, used by `self-test` |
 | `examples/example-profile-v2.csfp` | A Profile exercising every v2 state: intake, attribution, a revisit, an age spread, below-threshold scope |

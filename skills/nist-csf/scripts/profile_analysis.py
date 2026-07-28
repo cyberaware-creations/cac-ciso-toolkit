@@ -2486,7 +2486,12 @@ def _cmd_self_test(_args):
     tail = [sid for sid in index if sid not in rank_data["rank"]]
     ok(min(order[s] for s in tail) > max(rank_data["rank"].values()),
        "unranked ids sort after every ranked id")
-    ok(order["GV.OC-03"] < order["ID.RA-02"],
+    # Both ids here MUST be absent from the rank table, or this stops testing the tail
+    # rule and starts testing the table. GV.OC-03 used to sit here and was later ranked,
+    # at which point the assertion still passed while covering nothing.
+    ok("GV.OC-05" not in rank_data["rank"] and "ID.RA-02" not in rank_data["rank"],
+       "the tail-rule assertion uses genuinely unranked ids")
+    ok(order["GV.OC-05"] < order["ID.RA-02"],
        "unranked ids fall back to framework order, GV before ID")
     eq(len(set(order.values())), len(order), "positions are unique — the order is total")
     ok(load_cold_start_rank("/nonexistent/cold-start-rank.json").get("rank") == {},
