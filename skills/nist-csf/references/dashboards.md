@@ -95,10 +95,16 @@ Two blocks under one heading.
 says so in its row rather than showing zeros. The threshold in force is stated once, as a hint above
 the table, not repeated per cell.
 
-**Revisit** — every confirmed rating with intake material newer than its `confirmedAt`: Subcategory,
-outcome, confirmed date, newest source date, and the source id(s). The empty state names what
-"nothing to revisit" actually means — no confirmed rating has newer material recorded against it —
-which is a different claim from "nothing has been assessed."
+**Revisit** — every confirmed rating that cannot be shown to predate material recorded against it:
+Subcategory, outcome, confirmed date (or "undated"), the source date, the source id(s), and **why**
+the row is there. Two reasons, and they are not interchangeable: `newer-material` means the
+comparison was made and the material won; `undated-confirmation` means there was no basis for a
+comparison, because the rating carries no `confirmedAt` — the state every rating migrated from a v1
+Profile is in. Both earn a second look; only the first is a claim about chronology.
+
+The empty state names what "nothing to revisit" actually means — no confirmed rating has material
+recorded against it that it cannot be shown to predate — which is a different claim from "nothing
+has been assessed."
 
 Ratings never expire on their own (`references/schema.md`); this section prompts a second look when
 something changed, not staleness for its own sake.

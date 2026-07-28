@@ -290,7 +290,9 @@ python3 scripts/profile_analysis.py queue acme.csfp
 ```
 
 Ranked in three bands, in this order: **evidence-pending** (material already recorded, nothing
-decided yet), then **revisit** (a confirmed rating with newer material against it), then
+decided yet), then **revisit** (a confirmed rating that cannot be shown to predate material
+recorded against it — either the material is newer, or the rating carries no confirmation date
+to compare against), then
 **cold-start** (nothing recorded at all, ordered by `references/cold-start-rank.json`). Material you
 already have beats material you have to go find; a rating newer evidence has called into question
 beats one nobody has looked at yet.
