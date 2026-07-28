@@ -1,0 +1,52 @@
+{
+  "id": "cac-cold-start-rank-1",
+  "basis": "Cyber Aware Creations editorial judgment. NIST publishes no Subcategory prioritization; any ordering is editorial and this one is ours, not NIST's.",
+  "disclaimer": "This ordering is a Cyber Aware Creations opinion about where a programme with nothing recorded should start asking. It is not a NIST prioritization, not a maturity path, and not a compliance sequence. It carries the same caveat as the 0-4 tool scale: a practical convention, not doctrine.",
+  "informedBy": [
+    "CISA Cross-Sector Cybersecurity Performance Goals — a US federal, public-domain, explicitly prioritized subset published with a CSF mapping",
+    "NIST CSF 2.0 Quick Start Guides, particularly the small-business guide (NIST SP 1300)"
+  ],
+  "informedByNote": "Read to inform judgment, not redistributed. No mapping table from any source is copied into this file.",
+  "tailRule": "Subcategories absent from `rank` sort after every ranked id, in framework order: Function order as the Core defines it, then Category order, then Subcategory id.",
+  "rank": {
+    "ID.AM-01": 1,
+    "ID.AM-02": 2,
+    "ID.AM-03": 3,
+    "PR.AA-01": 4,
+    "PR.AA-03": 5,
+    "PR.AA-05": 6,
+    "PR.PS-02": 7,
+    "PR.PS-01": 8,
+    "PR.DS-11": 9,
+    "RC.RP-01": 10,
+    "RS.MA-01": 11,
+    "DE.CM-01": 12,
+    "DE.CM-09": 13,
+    "DE.AE-02": 14,
+    "GV.RR-02": 15,
+    "GV.OC-02": 16,
+    "GV.RM-01": 17,
+    "ID.RA-01": 18,
+    "ID.RA-05": 19,
+    "PR.AT-01": 20,
+    "GV.PO-01": 21,
+    "GV.SC-04": 22,
+    "GV.SC-07": 23,
+    "PR.DS-01": 24,
+    "PR.DS-02": 25,
+    "RS.CO-02": 26,
+    "RS.MI-01": 27,
+    "DE.AE-06": 28,
+    "ID.AM-05": 29,
+    "PR.AA-06": 30,
+    "GV.OV-01": 31,
+    "ID.IM-01": 32
+  },
+  "rationale": {
+    "1-3": "You cannot rate access, monitoring, or recovery for assets you cannot enumerate. Asset, software, and data-flow inventory resolve the most downstream uncertainty per question asked, and they batch into one conversation.",
+    "4-9": "The controls that most often decide whether an incident is an event or a crisis: who can get in, is software patched, is the build known, and can you restore.",
+    "10-14": "The highest-consequence yes/no questions, then the harder spectrum ones. Whether a recovery plan and an incident response plan exist and have been exercised is answerable in a sentence, and a 'no' is immediately actionable. How good detection is, by contrast, is a matter of degree and a much longer conversation — so it is asked second, not because it matters less but because it costs more to answer. This is a question-ordering, not a dependency-ordering: detection obviously precedes response operationally.",
+    "15-23": "Governance, supplier context, and the risk inputs that feed them. Placed after the operational floor deliberately: a CISO with nothing recorded gets more from knowing what they run than from restating who is accountable, and questions about accountability, supplier exposure, vulnerability identification and awareness are all easier to answer once the operational picture exists.",
+    "24-32": "Everything that sharpens the picture rather than establishing it: data protection specifics, incident communication and containment, asset criticality, physical access, and the review-and-improve loop. Real work, all of it — but a programme that answered 1-23 already has a defensible profile, and these refine it."
+  }
+}

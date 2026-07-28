@@ -117,6 +117,7 @@ CORE_EXPECTED = {
 _SKILL_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_CORE = os.path.join(_SKILL_ROOT, "references", "nist-csf-2.0-core.json")
 DEFAULT_GUIDANCE = os.path.join(_SKILL_ROOT, "references", "guidance.json")
+DEFAULT_COLD_START_RANK = os.path.join(_SKILL_ROOT, "references", "cold-start-rank.json")
 FIXTURE = os.path.join(_SKILL_ROOT, "examples", "example-profile.csfp")
 
 
@@ -484,6 +485,52 @@ def load_guidance(path: str | None = None) -> dict:
             return json.load(fh)
     except (FileNotFoundError, json.JSONDecodeError):
         return {}
+
+
+def load_cold_start_rank(path: str | None = None) -> dict:
+    """Load the CAC cold-start ordering. Absent is fine — the queue falls back to
+    framework order, which is still deterministic."""
+    try:
+        with open(path or DEFAULT_COLD_START_RANK, encoding="utf-8") as fh:
+            return json.load(fh)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {"rank": {}, "basis": "", "disclaimer": ""}
+
+
+def resolve_rank(index: dict, core: dict, rank_data: dict) -> dict:
+    """Map every Subcategory to a total-order position, ranked ids first.
+
+    Used only when NO intake exists for a Subcategory. The queue mechanism is
+    indifferent to what fills the table; this is where the editorial judgment
+    lives, and it is labelled as CAC's in the reference file itself.
+    """
+    ranked = rank_data.get("rank") or {}
+    # Rank values must be numbers. A hand-edited file that quotes them sorts
+    # lexicographically instead — "10" before "2" — which loads, passes every
+    # structural check, and silently produces a wrong queue order. Fail loudly.
+    bad = sorted(sid for sid, v in ranked.items() if not isinstance(v, int) or isinstance(v, bool))
+    if bad:
+        raise ValueError(f"cold-start rank values must be integers; {', '.join(bad)} "
+                         f"are not. Quoted numbers sort as text and would silently "
+                         f"reorder the queue.")
+    # Compact to 1..n rather than trusting the file's numbers. A gap, a tie, or an
+    # id the framework no longer has would otherwise collide with the tail offset
+    # below and silently break the total order the queue sorts on. Relative order
+    # is what the editorial judgment actually encodes; the absolute values are not
+    # load-bearing, so normalising them costs nothing and removes a whole failure mode.
+    present = sorted((v, sid) for sid, v in ranked.items() if sid in index)
+    out = {sid: i for i, (_, sid) in enumerate(present, start=1)}
+    n = len(out)
+    # Framework order for the tail: Function order as the Core defines it, then
+    # Category, then id. Never hardcode the six CSF Function names.
+    pos = 0
+    for f in core["hierarchy"]:
+        for cat in f.get("categories", []):
+            for s in cat.get("subcategories", []):
+                if s["id"] in index and s["id"] not in ranked:
+                    pos += 1
+                    out[s["id"]] = n + pos
+    return out
 
 
 def render_guidance(row: dict, settings: dict, guidance: dict) -> dict | None:
@@ -1958,6 +2005,64 @@ def _cmd_self_test(_args):
         eq([x for x in load_store(_p)["assessments"]
             if x["subcategoryId"] == "ID.AM-02"][0]["priority"], "high",
            "a non-rating field still writes without attribution")
+
+    # --- Cold-start rank ---
+    rank_data = load_cold_start_rank()
+    ok(bool(rank_data.get("rank")), "cold-start rank file loads")
+    ok(bool(rank_data.get("basis")) and bool(rank_data.get("disclaimer")),
+       "cold-start rank states its basis and carries a disclaimer")
+    unknown_ranked = [sid for sid in rank_data["rank"] if sid not in index]
+    eq(unknown_ranked, [], "every ranked id exists in the framework")
+    ranks = sorted(rank_data["rank"].values())
+    eq(ranks, list(range(1, len(ranks) + 1)), "ranks are a dense 1..N sequence with no ties")
+    order = resolve_rank(index, core, rank_data)
+    eq(len(order), len(index), "every Subcategory gets a position")
+    eq(order["ID.AM-01"], 1, "ID.AM-01 leads the cold start")
+    ok(order["GV.RR-02"] > order["ID.AM-01"], "ranked ids sort by their rank")
+    tail = [sid for sid in index if sid not in rank_data["rank"]]
+    ok(min(order[s] for s in tail) > max(rank_data["rank"].values()),
+       "unranked ids sort after every ranked id")
+    ok(order["GV.OC-03"] < order["ID.RA-02"],
+       "unranked ids fall back to framework order, GV before ID")
+    eq(len(set(order.values())), len(order), "positions are unique — the order is total")
+    ok(load_cold_start_rank("/nonexistent/cold-start-rank.json").get("rank") == {},
+       "a missing rank file degrades to an empty table, not a crash")
+    eq(len(resolve_rank(index, core, {"rank": {}})), len(index),
+       "with no ranked ids, every Subcategory still gets a position from framework order")
+
+    # Adversarial rank tables: an id the framework lacks, a gap, and a tie. Each of
+    # these collided a ranked id's compacted position with the tail offset before
+    # resolve_rank compacted to 1..n instead of trusting the file's raw numbers —
+    # reproduced by spec review against the code as originally handed over.
+    for bad, why in (
+        ({"rank": {"ZZ.ZZ-99": 1, "ID.AM-01": 2}}, "a rank table naming an id the framework lacks"),
+        ({"rank": {"ID.AM-01": 1, "ID.AM-02": 2, "ID.AM-03": 5}}, "a gapped rank table"),
+        ({"rank": {"ID.AM-01": 1, "ID.AM-02": 1}}, "a rank table with a tie"),
+    ):
+        o = resolve_rank(index, core, bad)
+        eq(len(o), len(index), f"{why} still positions every Subcategory")
+        eq(len(set(o.values())), len(index), f"{why} still yields a total order")
+
+    # Quoted rank values are the hand-editing mistake that sorts lexicographically
+    # and passes every structural check while silently reordering the queue.
+    # isinstance(v, bool) must also be rejected — True is an int in Python and
+    # would otherwise slip through as rank 1.
+    for bad_ranks, why in (
+        ({"ID.AM-01": "1", "ID.AM-02": "2", "ID.AM-03": "10"}, "string-valued ranks"),
+        ({"ID.AM-01": True, "ID.AM-02": 2}, "a bool-valued rank"),
+    ):
+        try:
+            resolve_rank(index, core, {"rank": bad_ranks})
+            failures.append(f"resolve_rank with {why} should have been refused")
+        except ValueError as exc:
+            ok("must be integers" in str(exc), f"{why} refusal names the actual problem")
+        checks += 1
+
+    # The shipped file is already dense 1..32, so compaction must be an identity on
+    # it — verified directly, since that is exactly the case the bug hid in.
+    shipped = load_cold_start_rank()
+    ok(all(order[sid] == v for sid, v in shipped["rank"].items()),
+       "compaction is an identity on the shipped table — every ranked id keeps its authored position")
 
     # --- Export contract ---
     eq(EXPORT_COLUMNS,
