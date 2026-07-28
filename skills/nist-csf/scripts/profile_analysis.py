@@ -2257,6 +2257,23 @@ def _cmd_analyze(args):
                              if cfg["mode"] == "reorder" else
                              "Gap order is unchanged; the overlay annotates only."),
         }
+        if cfg["mode"] == "reorder":
+            # Two-pass stable sort. Python's sort is stable, so sorting by the
+            # existing key first and the overlay key second preserves the old
+            # ordering WITHIN each priority band. A single sort over a tuple
+            # would work too, but this keeps the existing key in one place and
+            # makes the band structure obvious.
+            #
+            # The first pass is currently redundant — compute_gaps already
+            # returns rows in exactly this order — so deleting it changes no
+            # output today. It is kept because it makes the band ordering a
+            # property of THIS block rather than an inherited assumption about
+            # compute_gaps: if that function's tie-break ever changes, reorder
+            # keeps refining a severity order rather than silently refining
+            # whatever it was handed.
+            gaps.sort(key=lambda r: (-r["prioritizedGapScore"], r["subcategoryId"]))
+            gaps.sort(key=lambda r: (r.get("overlay") or {})
+                      .get("effectivePriority", 99))
 
     out = {
         "generated": {"today": today, "engine": "profile_analysis.py", "schemaVersion": SCHEMA_VERSION},
@@ -3240,6 +3257,132 @@ def _cmd_self_test(_args):
            ["overlay-enabled", "overlay-disabled"],
            "and the only trace left anywhere is the audit trail the toggle is "
            "supposed to write")
+
+    with tempfile.TemporaryDirectory() as _tmp:
+        # --- reorder changes order and NOTHING else ---------------------------
+        # This is the default mode on enable. NIST priority is sequencing, not
+        # maturity, so the honest use of it moves the queue and leaves every
+        # number exactly where it was.
+        def _copy_fixture(src, dst):
+            with open(src, encoding="utf-8") as _s, open(dst, "w", encoding="utf-8") as _d:
+                _d.write(_s.read())
+
+        _fx_path = os.path.join(_SKILL_ROOT, "examples", "fixture-cyber-ai.json")
+        _ro = os.path.join(_tmp, "reorder.csfp")
+        _copy_fixture(FIXTURE, _ro)
+
+        _ro_base_out = os.path.join(_tmp, "ro-base.json")
+        _cmd_analyze([_ro, "--today", "2026-07-28", "--out", _ro_base_out])
+        with open(_ro_base_out, encoding="utf-8") as _fh:
+            _rbase = json.load(_fh)
+
+        # `defend` and not `secure`: under `secure` the fixture's only priority-1
+        # gap row is also its LARGEST gap, so "a small gap at priority 1 beats a
+        # large gap at priority 3" would be vacuous. Under `defend` the priority-1
+        # row (PR.AA-01, gap 2) is smaller than a priority-3 row (PR.DS-01, gap 3),
+        # which is the case the mode exists for.
+        _cmd_overlay(["enable", _ro, "--focus", "defend", "--mode", "reorder",
+                      "--dataset", _fx_path, "--ts", "2026-02-01T00:00:00Z"])
+        _ro_out = os.path.join(_tmp, "ro.json")
+        _cmd_analyze([_ro, "--today", "2026-07-28", "--out", _ro_out,
+                      "--dataset", _fx_path])
+        with open(_ro_out, encoding="utf-8") as _fh:
+            _ran = json.load(_fh)
+
+        # Values: identical, keyed by id so ordering cannot mask a change.
+        _by_id = lambda rows: {r["subcategoryId"]: (r["current"], r["target"], r["gap"],
+                                                    r["prioritizedGapScore"],
+                                                    r["priority"], r["status"])
+                               for r in rows}
+        eq(_by_id(_ran["gaps"]), _by_id(_rbase["gaps"]),
+           "reorder changes no gap VALUE")
+        eq(sorted(r["subcategoryId"] for r in _ran["gaps"]),
+           sorted(r["subcategoryId"] for r in _rbase["gaps"]),
+           "and drops or adds no row")
+        for _k in ("coverage", "completeness", "tiers", "queue", "evidence",
+                   "tracked", "actionItems"):
+            eq(_ran[_k], _rbase[_k],
+               f"reorder leaves analyze.{_k} untouched — it is not a scoring change")
+
+        _order_base = [r["subcategoryId"] for r in _rbase["gaps"]]
+        _order_ro = [r["subcategoryId"] for r in _ran["gaps"]]
+        ok(_order_ro != _order_base,
+           "and the order actually differs, or the mode does nothing at all")
+
+        # The point of the mode: urgency beats size.
+        _pos = {sid: i for i, sid in enumerate(_order_ro)}
+        _p1 = [r["subcategoryId"] for r in _ran["gaps"]
+               if (r.get("overlay") or {}).get("effectivePriority") == 1]
+        _p3 = [r["subcategoryId"] for r in _ran["gaps"]
+               if (r.get("overlay") or {}).get("effectivePriority") == 3]
+        _none = [r["subcategoryId"] for r in _ran["gaps"] if not r.get("overlay")]
+        ok(_p1 and _p3 and _none,
+           "the fixture exercises all three cases: priority 1, priority 3, and "
+           "Subcategories the dataset says nothing about")
+        ok(max(_pos[s] for s in _p1) < min(_pos[s] for s in _p3),
+           "every priority-1 row outranks every priority-3 row, whatever the gap size")
+        ok(min(_pos[s] for s in _none) > max(_pos[s] for s in _p3),
+           "and Subcategories the dataset says nothing about sort after those it does")
+
+        # Specifically: a small gap at priority 1 beats a large gap at priority 3.
+        _gapof = {r["subcategoryId"]: r["gap"] for r in _ran["gaps"]}
+        _beats = [(a, b) for a in _p1 for b in _p3 if _gapof[a] < _gapof[b]]
+        ok(_beats and all(_pos[a] < _pos[b] for a, b in _beats),
+           "a SMALLER gap at priority 1 still outranks a larger gap at priority 3 — "
+           "which is the whole point of a sequencing signal")
+
+        # Stable within a band: ties keep the old relative order.
+        _band3 = [s for s in _order_ro if s in _p3]
+        eq(_band3, [s for s in _order_base if s in _p3],
+           "within a priority band the previous ordering is preserved — the sort is "
+           "stable, so reorder refines the old order rather than replacing it")
+
+        # Determinism.
+        _ro_out2 = os.path.join(_tmp, "ro2.json")
+        _cmd_analyze([_ro, "--today", "2026-07-28", "--out", _ro_out2,
+                      "--dataset", _fx_path])
+        with open(_ro_out2, encoding="utf-8") as _fh:
+            eq([r["subcategoryId"] for r in json.load(_fh)["gaps"]], _order_ro,
+               "ordering is deterministic across runs")
+
+        ok(_ran["overlay"]["orderingNote"].startswith("Gap order is AI-prioritized"),
+           "and the output states the order is AI-prioritized, so a reader is not "
+           "left assuming it reflects gap severity")
+
+        # Two downstream consumers, and they behave differently ON PURPOSE.
+        #
+        # `playbook` is built from the reordered `gaps` list, so it inherits the
+        # new sequence. That is intended, not incidental: the playbook is the
+        # Next-90-Days worksheet, and if the overlay has resequenced the work
+        # queue then the worksheet is exactly the thing that should follow it.
+        # Its VALUES still move nowhere — same rows, same numbers, new order.
+        _pb_ro = [r["subcategoryId"] for r in _ran["playbook"]]
+        _pb_base = [r["subcategoryId"] for r in _rbase["playbook"]]
+        eq(_pb_ro, _order_ro[:len(_pb_ro)],
+           "the playbook is cut from the reordered gap list, so the Next-90-Days "
+           "worksheet follows the resequenced queue — intended, and the reason "
+           "reorder is worth having")
+        ok(_pb_ro != _pb_base, "which means it visibly differs from the base order")
+        eq(sorted(_pb_base), sorted(_pb_ro),
+           "and it is the same set of rows, resequenced — reorder adds and drops "
+           "nothing here either")
+        eq({r["subcategoryId"]: (r["current"], r["target"], r["prioritizedGapScore"])
+            for r in _ran["playbook"]},
+           {r["subcategoryId"]: (r["current"], r["target"], r["prioritizedGapScore"])
+            for r in _rbase["playbook"]},
+           "with every playbook value identical — the sequence moved, the numbers "
+           "did not")
+
+        # `attention` does NOT move: attention_lists recomputes gaps from the
+        # store rather than reading the reordered list, so largestGaps stays in
+        # severity order. That is the correct reading of its name — it answers
+        # "what is biggest", not "what is next".
+        eq(_ran["attention"], _rbase["attention"],
+           "attention is untouched: it recomputes its own gap list, so largestGaps "
+           "still means largest and not AI-first")
+        eq([r["subcategoryId"] for r in _ran["attention"]["largestGaps"]], _order_base,
+           "specifically largestGaps keeps severity order, so the two lists are "
+           "readable as the different questions they answer")
 
     # --- elicit ------------------------------------------------------------
     # Settled = rated, scoped out, or already carrying intake. The third
