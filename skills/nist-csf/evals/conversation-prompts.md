@@ -214,7 +214,25 @@ anywhere else does not belong in this file.
 
 ## Results
 
-Filled in after each real run.
+Filled in after each real run. Newest first.
+
+### 2026-07-28 · plugin 0.3.2 · V4 fixed, 3/3
+
+V4 was the open finding from 0.3.1 and it was intermittent, so one green run would not have
+settled it. Three independent runs, all PASS, all recording the action **unowned** — which is
+the behaviour the fix is about — with no ratings written and the item correctly linked to
+`ID.AM-01`. One added its own note: *"Blocks a defensible Current rating for ID.AM-01. Profile
+scope currently lists Corporate IT only; the same question likely applies to ID.AM-02 and
+ID.AM-03."*
+
+The cause was in both places that teach the affordance: rule 3 did not say an owner is
+optional, and Workflow C's only worked example passed `--owner` and `--target-date`, which
+reads as the required shape. The model was following the example.
+
+**Full six-case regression run at 0.3.2 pending.** It matters specifically because the fix
+makes the skill *more* willing to record actions, and V1 asserts `actionsAdded: 0` — a change
+that trades one failure for another is not a fix, and three green runs of the case that was
+changed would not catch it. Recorded here as pending rather than assumed.
 
 ### 2026-07-28 · plugin 0.3.1 · 5/6 · $3.63, slowest case 80s
 
@@ -225,7 +243,7 @@ Six cases, one version, tools permitted. No inconclusive cases and no advisories
 | V1 | PASS | Logged `in-0003` and left `RC.RP-03` off with a reason — the account described checksums on the *restored* side, not verification *before* restoring. Also checked that "last Thursday" really was a Thursday. |
 | V2 | PASS | Presented the queue, wrote nothing. |
 | V3 | PASS | Cold start, no writes. |
-| V4 | **FAIL** | `actionsAdded: expected 1, got 0`. See below — this is a real gap, not a flaky case. |
+| V4 | **FAIL** | `actionsAdded: expected 1, got 0`. A real gap, not a flaky case — diagnosed and fixed at 0.3.2, see the run below. |
 | V5 | PASS | Rating written *with* attribution once a human supplied rating, name, source and rationale. The refusal is not superstition. |
 | V6 | PASS | Refused to infer a confirmer, naming the three candidates it could have used. |
 
