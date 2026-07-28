@@ -38,6 +38,9 @@ Mutations (each appends an append-only history event and rewrites the store):
                     [--target-date D] [--notes ...]
   action update     <store.csfp> <id> [--title ...] [--owner ...] [--target-date ...] ...
   action close      <store.csfp> <id> --rationale ...
+  intake add        <store.csfp> --label '...' --subjects ID.AM-01 ID.AM-02
+                    [--source-date D] [--recorded-by NAME] [--ts TS]
+  intake list       <store.csfp> [--json]
 
 Usage:
   python3 profile_analysis.py init --name "Acme Corp" --out acme.csfp --owner CISO
@@ -49,6 +52,7 @@ Usage:
 
 from __future__ import annotations
 
+import contextlib
 import copy
 import csv
 import io
@@ -338,12 +342,14 @@ def is_material(field: str, old, new) -> bool:
 
 
 def append_history(store, etype, *, subcategoryId=None, field=None, frm=None, to=None,
-                   rationale=None, actor=None, ts=None, actionId=None):
+                   rationale=None, actor=None, ts=None, actionId=None, intakeId=None):
     ev = {"ts": ts, "actor": actor or store["profile"]["scope"].get("owner") or "unknown", "type": etype}
     if subcategoryId is not None:
         ev["subcategoryId"] = subcategoryId
     if actionId is not None:
         ev["actionId"] = actionId
+    if intakeId is not None:
+        ev["intakeId"] = intakeId
     if field is not None:
         ev["field"] = field
         ev["from"] = frm
@@ -773,6 +779,11 @@ def _cmd_init(args):
         "notes": "",
         "evidenceRefs": [],
         "lastReviewed": None,
+        # Null because nobody has confirmed anything yet — set --source populates
+        # these on the first confirmed rating (see Task 2's attribution enforcement).
+        "confirmedAt": None,
+        "confirmedBy": None,
+        "source": None,
     } for sid in index]
 
     store = {
@@ -791,6 +802,7 @@ def _cmd_init(args):
             "created": ts, "updated": ts,
         },
         "assessments": assessments, "history": [], "snapshots": [], "actionItems": [],
+        "intake": [],
     }
     append_history(store, "profile-created", rationale=f"Profile '{name}' initialised.",
                    actor=_s(opt.get("actor")) if isinstance(opt.get("actor"), (str, list)) else None, ts=ts)
@@ -1101,6 +1113,132 @@ def _cmd_diff(args):
     for i in d["actionItems"]["closed"]:
         print(f"  ✓ action {i['id']} closed: {i['title']}")
     return 0
+
+
+def _next_intake_id(store) -> str:
+    used = [int(m.group(1)) for r in store.get("intake", [])
+            if (m := re.match(r"in-(\d+)$", str(r.get("id", ""))))]
+    return f"in-{max(used, default=0) + 1:04d}"
+
+
+def _iso_date(raw, label: str) -> str:
+    """Validate an ISO date, zero-padding included.
+
+    Dates in this store are compared and sorted as plain strings — `revisit` asks
+    whether a source is newer than a confirmation by comparing them directly. So
+    '2026-3-14' is not merely untidy: it sorts after '2026-12-01' and would make
+    every revisit flag and age figure downstream quietly false.
+    """
+    text = str(_s(raw)).strip()
+    try:
+        parsed = datetime.strptime(text, "%Y-%m-%d")
+    except ValueError:
+        raise ValueError(f"{label} must be an ISO date (YYYY-MM-DD), got {text!r}") from None
+    if parsed.strftime("%Y-%m-%d") != text:
+        raise ValueError(f"{label} must be zero-padded (YYYY-MM-DD), got {text!r} — "
+                         f"try {parsed.strftime('%Y-%m-%d')!r}. Dates here are sorted as "
+                         f"strings, so an unpadded month or day compares wrong.") from None
+    return text
+
+
+def _cmd_intake(args):
+    """Record that a source bears on some Subcategories. Writes no ratings, ever.
+
+    The unit of record is the SOURCE, not the Subcategory. One conversation
+    typically bears on many outcomes, and "what did the March architecture review
+    cover?" is the question a CISO actually asks when rebuilding a picture — which
+    a per-Subcategory pointer list cannot answer.
+
+    This must cost under thirty seconds or it will not happen mid-conversation.
+    No rating is discussed at this step and none can be written from here.
+    """
+    pos, opt = parse_flags(args)
+    usage = ("usage: intake add <store.csfp> --label '...' --subjects ID.AM-01 ID.AM-02 "
+             "[--source-date YYYY-MM-DD] [--recorded-by NAME] [--ts TS]\n"
+             "       intake list <store.csfp> [--json]")
+    if len(pos) < 2:
+        raise ValueError(usage)
+    sub, path = pos[0], pos[1]
+    core = load_core(); index = index_subcategories(core)
+    store = load_store(path)
+    ts = _s(opt.get("ts")) if isinstance(opt.get("ts"), (str, list)) else _now()
+
+    if sub == "add":
+        label = _s(opt.get("label")) if isinstance(opt.get("label"), (str, list)) else ""
+        if not str(label).strip():
+            raise ValueError("--label is required. It is a note about the source — human-authored "
+                             "or human-confirmed, never model-generated, and never a quoted "
+                             "excerpt. That is what keeps internal material out of this file.\n\n"
+                             + usage)
+        subjects = _list(opt.get("subjects"))
+        if not subjects:
+            raise ValueError("--subjects is required: at least one Subcategory this source bears "
+                             "on.\n\n" + usage)
+        unknown = [s for s in subjects if s not in index]
+        if unknown:
+            noun = "Subcategory" if len(unknown) == 1 else "Subcategories"
+            raise ValueError(f"Unknown {noun} {', '.join(repr(s) for s in unknown)} "
+                             f"for framework {FRAMEWORK_REF}.")
+        # A fumbled --subjects list can repeat an id. Task 5's per-source
+        # confirmed/pending split sums len(subjects) directly, so a duplicate would
+        # silently inflate coverage-by-source. dict.fromkeys dedupes and keeps
+        # first-seen order without pulling in a set (which would not).
+        subjects = list(dict.fromkeys(subjects))
+
+        recorded_at = ts[:10]
+        source_date = (_iso_date(opt["source-date"], "--source-date")
+                       if isinstance(opt.get("source-date"), (str, list)) else recorded_at)
+        recorded_by = (_s(opt.get("recorded-by"))
+                       if isinstance(opt.get("recorded-by"), (str, list))
+                       else (store["profile"]["scope"].get("owner") or ""))
+
+        rec = {
+            "id": _next_intake_id(store),
+            "label": str(label).strip(),
+            # These diverge routinely under accretion — a March conversation
+            # recorded in July — and conflating them would misreport age.
+            "sourceDate": source_date,
+            "recordedAt": recorded_at,
+            "subjects": list(subjects),
+            "recordedBy": recorded_by,
+        }
+        store.setdefault("intake", []).append(rec)
+        append_history(store, "intake-recorded", intakeId=rec["id"], ts=ts,
+                       actor=_s(opt.get("actor")) if isinstance(opt.get("actor"), (str, list)) else None,
+                       rationale=f"Source recorded: {rec['label']} ({rec['sourceDate']}), "
+                                 f"bearing on {len(rec['subjects'])} Subcategories.")
+        save_store(store, path, ts)
+        print(f"Recorded {rec['id']}: {rec['label']}")
+        if not rec["recordedBy"]:
+            print("  Warning: no recorder. Set --recorded-by, or an --owner on the Profile — "
+                  "a source nobody recorded is a source nobody can be asked about.")
+        print(f"  {rec['sourceDate']} · bears on {', '.join(rec['subjects'])}")
+        print(f"  No ratings written. Confirm them when you have time to decide: "
+              f"queue {path}")
+        return 0
+
+    if sub == "list":
+        records = store.get("intake", [])
+        if opt.get("json"):
+            sys.stdout.write(json.dumps(records, indent=2, ensure_ascii=False) + "\n")
+            return 0
+        if not records:
+            print("No intake recorded yet.")
+            print("  intake add <store.csfp> --label '...' --subjects ID.AM-01 ID.AM-02")
+            return 0
+        # "confirmed" here means a rating exists, matching the four-way coverage
+        # bucket the dashboards report. Whether that rating is *attributed* — has a
+        # source, a confirmer and a date — is a separate axis, reported by `analyze`.
+        # Conflating the two is the mistake this whole schema exists to prevent.
+        rated = {a["subcategoryId"] for a in store["assessments"] if a.get("current") is not None}
+        for r in records:
+            done = sum(1 for s in r["subjects"] if s in rated)
+            print(f"{r['id']}  {r['sourceDate']}  {r['label']}")
+            print(f"          {len(r['subjects'])} Subcategories · {done} confirmed · "
+                  f"{len(r['subjects']) - done} pending · {', '.join(r['subjects'])}")
+        return 0
+
+    raise ValueError(usage)
 
 
 def _next_action_id(store) -> str:
@@ -1529,8 +1667,129 @@ def _cmd_self_test(_args):
             back = json.load(_fh)
         eq(back["schemaVersion"], "2.0", "first write stamps schemaVersion 2.0")
         eq(load_store(_p)["assessments"][0]["current"], 2, "a v2 file round-trips")
-    ok("2.0" in SUPPORTED_SCHEMA and "1.0" in SUPPORTED_SCHEMA,
-       "both schema versions load")
+
+        # A file carrying `"reporting": null` or only one of the two keys must not
+        # defeat the defaults — the `or {}` guard in load_store is what stops it,
+        # and a future "simplification" of that line needs to fail loudly here.
+        for partial, expect_scope, expect_age, why in (
+            (None, 60, 180, "reporting: null falls back to both defaults"),
+            ({"scopeThresholdPct": 75}, 75, 180, "a partial reporting block keeps the other default"),
+        ):
+            _pp = os.path.join(_d, f"r{expect_scope}.csfp")
+            _v = json.loads(json.dumps(v1))
+            _v["profile"]["settings"] = {"reporting": partial}
+            with open(_pp, "w", encoding="utf-8") as _fh:
+                json.dump(_v, _fh)
+            _rep = load_store(_pp)["profile"]["settings"]["reporting"]
+            eq(_rep["scopeThresholdPct"], expect_scope, why)
+            eq(_rep["ageThresholdDays"], expect_age, why + " (age)")
+
+    with tempfile.TemporaryDirectory() as _d:
+        _p = os.path.join(_d, "v3.csfp")
+        with open(_p, "w", encoding="utf-8") as _fh:
+            json.dump({**v1, "schemaVersion": "3.0"}, _fh)
+        try:
+            load_store(_p)
+            failures.append("schemaVersion 3.0 should have been refused")
+        except ValueError as exc:
+            ok("3.0" in str(exc), "an unsupported schemaVersion names the version found")
+        checks += 1
+
+    # --- Intake: the source is the unit of record ---
+    with tempfile.TemporaryDirectory() as _d:
+        _p = os.path.join(_d, "i.csfp")
+        _cmd_init(["--name", "Intake Co", "--out", _p, "--owner", "CISO",
+                   "--ts", "2026-01-01T00:00:00Z"])
+        _cmd_intake(["add", _p, "--label", "architecture review with infra team",
+                     "--subjects", "ID.AM-01", "ID.AM-02", "ID.AM-03",
+                     "--source-date", "2026-03-14", "--recorded-by", "Darren",
+                     "--ts", "2026-03-16T09:00:00Z"])
+        st = load_store(_p)
+        eq(len(st["intake"]), 1, "one intake record written")
+        r = st["intake"][0]
+        eq(r["id"], "in-0001", "intake ids are in-NNNN, zero padded")
+        eq(r["label"], "architecture review with infra team", "label is stored verbatim")
+        eq(r["subjects"], ["ID.AM-01", "ID.AM-02", "ID.AM-03"], "subjects are stored in order")
+        eq(r["sourceDate"], "2026-03-14", "sourceDate is when the conversation happened")
+        eq(r["recordedAt"], "2026-03-16", "recordedAt is when it entered the store")
+        eq(r["recordedBy"], "Darren", "recordedBy is recorded")
+        eq([a for a in st["assessments"] if a["subcategoryId"] == "ID.AM-01"][0]["current"], None,
+           "intake writes no ratings")
+        ev = [e for e in st["history"] if e.get("type") == "intake-recorded"]
+        eq(len(ev), 1, "intake appends exactly one history event")
+        eq(ev[0].get("intakeId"), "in-0001", "the history event names the intake id")
+
+        # sourceDate defaults to the recording date, so the fast path stays fast.
+        _cmd_intake(["add", _p, "--label", "hallway note on backups",
+                     "--subjects", "PR.DS-11", "--ts", "2026-04-02T00:00:00Z"])
+        r2 = load_store(_p)["intake"][1]
+        eq(r2["id"], "in-0002", "intake ids increment")
+        eq(r2["sourceDate"], "2026-04-02", "sourceDate defaults to the recording date")
+
+        # A repeated id in --subjects (a fumbled paste) must not inflate the count
+        # Task 5 sums for per-source coverage.
+        _cmd_intake(["add", _p, "--label", "duplicate subjects test",
+                     "--subjects", "PR.DS-11", "PR.DS-11", "ID.AM-01",
+                     "--ts", "2026-04-03T00:00:00Z"])
+        r3 = load_store(_p)["intake"][2]
+        eq(r3["subjects"], ["PR.DS-11", "ID.AM-01"],
+           "duplicate --subjects entries are deduped, first-seen order preserved")
+
+        for bad, why, expect in (
+            (["add", _p, "--subjects", "ID.AM-01"], "no --label", "--label is required"),
+            (["add", _p, "--label", "x"], "no --subjects", "--subjects is required"),
+            (["add", _p, "--label", "x", "--subjects", "ZZ.ZZ-99"], "unknown Subcategory", "ZZ.ZZ-99"),
+            (["add", _p, "--label", "x", "--subjects", "ID.AM-01",
+              "--source-date", "14/03/2026"], "non-ISO sourceDate", "ISO date"),
+            (["add", _p, "--label", "x", "--subjects", "ID.AM-01",
+              "--source-date", "2026-3-14"], "unpadded sourceDate", "zero-padded"),
+        ):
+            try:
+                _cmd_intake(bad)
+                failures.append(f"intake add with {why} should have been refused")
+            except ValueError as exc:
+                ok(expect in str(exc), f"refusal for {why} names the actual problem")
+            checks += 1
+
+    # --- Intake list: the vocabulary and arithmetic a human actually reads ---
+    with tempfile.TemporaryDirectory() as _d2:
+        _p2 = os.path.join(_d2, "list.csfp")
+        _cmd_init(["--name", "List Co", "--out", _p2, "--owner", "CISO",
+                   "--ts", "2026-01-01T00:00:00Z"])
+
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = _cmd_intake(["list", _p2])
+        eq(rc, 0, "intake list on an empty store returns 0")
+        ok("No intake recorded yet." in buf.getvalue(),
+           "empty store prints a clear message, not a crash")
+
+        _cmd_intake(["add", _p2, "--label", "two-subject source",
+                     "--subjects", "ID.AM-01", "ID.AM-02", "--ts", "2026-02-01T00:00:00Z"])
+
+        # Confirm one of the two subjects directly on the store. `set`'s attribution
+        # requirement (Task 2) does not exist yet, so this writes exactly what a
+        # confirmed rating will later look like.
+        s2 = load_store(_p2)
+        for a in s2["assessments"]:
+            if a["subcategoryId"] == "ID.AM-01":
+                a["current"] = 2
+        save_store(s2, _p2, "2026-02-02T00:00:00Z")
+
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = _cmd_intake(["list", _p2])
+        eq(rc, 0, "intake list on a populated store returns 0")
+        out = buf.getvalue()
+        ok("1 confirmed" in out, "confirmed count reflects the one rated subject")
+        ok("1 pending" in out, "pending count reflects the one unrated subject")
+
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = _cmd_intake(["list", _p2, "--json"])
+        eq(rc, 0, "intake list --json returns 0")
+        eq(json.loads(buf.getvalue()), load_store(_p2)["intake"],
+           "--json emits the stored intake records verbatim")
 
     # --- Export contract ---
     eq(EXPORT_COLUMNS,
@@ -1552,6 +1811,7 @@ COMMANDS = {
     "init": _cmd_init, "set": _cmd_set, "set-tier": _cmd_set_tier,
     "quickstart-target": _cmd_quickstart_target,
     "snapshot": _cmd_snapshot, "diff": _cmd_diff, "action": _cmd_action,
+    "intake": _cmd_intake,
     "analyze": _cmd_analyze, "export-gaps": _cmd_export_gaps,
 }
 
