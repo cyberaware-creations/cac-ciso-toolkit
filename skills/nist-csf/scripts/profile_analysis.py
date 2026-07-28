@@ -2216,6 +2216,48 @@ def _cmd_analyze(args):
         if g:
             row["guidance"] = g
 
+    # --- Cyber AI Profile overlay -----------------------------------------
+    # Advisory mode annotates and nothing else: no gap value moves, no row
+    # moves, and a Profile that has not opted in emits no `overlay` key at all
+    # — not `"overlay": null`, which would be a diff in every existing report.
+    cfg = store["overlays"]["cyberAi"]
+    overlay_block = None
+    if cfg.get("enabled"):
+        # --dataset is undocumented in the usage banner for the same reason it is
+        # on `overlay`: it exists so the tests can run against the fixture, not as
+        # a way to point a report at an unvetted priority table.
+        ov_data = load_overlay_dataset(
+            _s(opt["dataset"]) if isinstance(opt.get("dataset"), (str, list)) else None,
+            index)
+        for row in gaps:
+            res = resolve_overlay(row["subcategoryId"], cfg, ov_data)
+            if res:
+                row["overlay"] = res
+        counts = {a: {"1": 0, "2": 0, "3": 0} for a in cfg["focusAreas"]}
+        for _sid, entry in (ov_data.get("subcategories") or {}).items():
+            for a in cfg["focusAreas"]:
+                if a in entry:
+                    counts[a][str(entry[a]["priority"])] += 1
+        overlay_block = {
+            "id": "cyber-ai",
+            "mode": cfg["mode"],
+            "focusAreas": list(cfg["focusAreas"]),
+            "datasetVersion": ov_data["datasetVersion"],
+            "sourceStatus": ov_data["sourceStatus"],
+            "sourcePublished": ov_data["sourcePublished"],
+            "sourceUrl": ov_data["sourceUrl"],
+            "byFocusArea": counts,
+            # Said once, here, so every renderer projects the same sentence
+            # instead of composing its own and drifting.
+            "provenance": (f"Cyber AI Profile overlay · dataset "
+                           f"{ov_data['datasetVersion']} · "
+                           f"{ov_data['sourceStatus']}, "
+                           f"{ov_data['sourcePublished']}"),
+            "orderingNote": ("Gap order is AI-prioritized, not gap-severity order."
+                             if cfg["mode"] == "reorder" else
+                             "Gap order is unchanged; the overlay annotates only."),
+        }
+
     out = {
         "generated": {"today": today, "engine": "profile_analysis.py", "schemaVersion": SCHEMA_VERSION},
         "profile": {
@@ -2263,6 +2305,10 @@ def _cmd_analyze(args):
         "diff": compute_diff(store, index, core),
         "history": store["history"][-50:],
     }
+    # Only when present. `out["overlay"] = None` is a diff for every Profile that
+    # never opted in, which is exactly what the parity assertion forbids.
+    if overlay_block:
+        out["overlay"] = overlay_block
 
     text = json.dumps(out, indent=2, ensure_ascii=False)
     dest = _s(opt.get("out")) if isinstance(opt.get("out"), (str, list)) else None
@@ -3103,6 +3149,97 @@ def _cmd_self_test(_args):
     ok("target" not in _res and "effectiveTarget" not in _res
        and "targetRaisedBy" not in _res,
        "resolution never touches targets — floor mode is not in this increment")
+
+    with tempfile.TemporaryDirectory() as _tmp:
+        # --- advisory mode changes nothing computed ---------------------------
+        # The acceptance bar. If enabling the overlay in advisory mode can move a
+        # number, the overlay is a defect regardless of how useful it is.
+        def _copy_fixture(src, dst):
+            with open(src, encoding="utf-8") as _s, open(dst, "w", encoding="utf-8") as _d:
+                _d.write(_s.read())
+
+        _fx_path = os.path.join(_SKILL_ROOT, "examples", "fixture-cyber-ai.json")
+        _par = os.path.join(_tmp, "parity.csfp")
+        _copy_fixture(FIXTURE, _par)
+
+        _base_out = os.path.join(_tmp, "base.json")
+        _cmd_analyze([_par, "--today", "2026-07-28", "--dataset", _fx_path,
+                      "--out", _base_out])
+        with open(_base_out, encoding="utf-8") as _fh:
+            _base = json.load(_fh)
+        ok("overlay" not in _base,
+           "a Profile that has not opted in carries no overlay key at all — not "
+           "null, which would be a diff")
+
+        _cmd_overlay(["enable", _par, "--focus", "secure", "defend", "thwart",
+                      "--mode", "advisory", "--dataset", _fx_path,
+                      "--ts", "2026-02-01T00:00:00Z"])
+        _adv_out = os.path.join(_tmp, "adv.json")
+        _cmd_analyze([_par, "--today", "2026-07-28", "--dataset", _fx_path,
+                      "--out", _adv_out])
+        with open(_adv_out, encoding="utf-8") as _fh:
+            _adv = json.load(_fh)
+
+        for _k in ("coverage", "completeness", "tiers", "attention", "queue",
+                   "evidence", "playbook", "tracked", "actionItems", "framework"):
+            eq(_adv[_k], _base[_k],
+               f"advisory mode leaves analyze.{_k} identical")
+
+        _vals = lambda rows: [(r["subcategoryId"], r["current"], r["target"], r["gap"],
+                               r["prioritizedGapScore"]) for r in rows]
+        eq(_vals(_adv["gaps"]), _vals(_base["gaps"]),
+           "advisory mode leaves every gap value AND the row order untouched")
+
+        ok("overlay" in _adv, "advisory mode adds an overlay block")
+        eq(_adv["overlay"]["mode"], "advisory", "which states the mode")
+        eq(_adv["overlay"]["datasetVersion"], "fixture-1", "and the dataset version")
+        ok(_adv["overlay"]["sourceStatus"], "and the source status, for the artifact")
+        eq(_adv["overlay"]["focusAreas"], ["secure", "defend", "thwart"],
+           "and which areas are selected")
+        ok("provenance" in _adv["overlay"] and "orderingNote" in _adv["overlay"],
+           "and the two sentences renderers project rather than compose themselves")
+
+        _annotated = [r for r in _adv["gaps"] if r.get("overlay")]
+        ok(_annotated, "gap rows for Subcategories in the dataset are annotated")
+        ok(all("effectivePriority" in r["overlay"] for r in _annotated),
+           "each annotation carries an effective priority")
+        ok(any(not r.get("overlay") for r in _adv["gaps"])
+           or len(_adv["gaps"]) == len(_annotated),
+           "rows the dataset says nothing about are simply not annotated")
+
+        # Disabling must restore byte-identical output, not merely similar output.
+        _cmd_overlay(["disable", _par, "--dataset", _fx_path,
+                      "--ts", "2026-02-02T00:00:00Z"])
+        _off_out = os.path.join(_tmp, "off.json")
+        _cmd_analyze([_par, "--today", "2026-07-28", "--dataset", _fx_path,
+                      "--out", _off_out])
+
+        # Compared as TEXT, not as parsed objects, so key ORDER and a stray
+        # `"overlay": null` both show up. Exactly two fields are set aside, and
+        # they are the audit trail rather than the report: toggling the overlay
+        # deliberately writes overlay-enabled/overlay-disabled history and
+        # re-stamps profile.updated (already asserted above, and the point of
+        # having those events at all). Everything else — every gap row, every
+        # rollup, the absence of the overlay key — is compared byte for byte.
+        def _sans_audit(_path):
+            with open(_path, encoding="utf-8") as _fh:
+                _d = json.load(_fh)
+            _d["history"] = "<audit trail, asserted separately below>"
+            _d["profile"]["updated"] = "<stamped by save_store on every write>"
+            return json.dumps(_d, indent=2, ensure_ascii=False)
+
+        eq(_sans_audit(_off_out), _sans_audit(_base_out),
+           "disabling restores byte-identical analyze output — the overlay is "
+           "fully reversible, leaving no residue in a report")
+
+        with open(_off_out, encoding="utf-8") as _fh:
+            _off = json.load(_fh)
+        ok("overlay" not in _off and all(not _r.get("overlay") for _r in _off["gaps"]),
+           "no overlay key survives disabling, at the top level or on any gap row")
+        eq([_h["type"] for _h in _off["history"][-2:]],
+           ["overlay-enabled", "overlay-disabled"],
+           "and the only trace left anywhere is the audit trail the toggle is "
+           "supposed to write")
 
     # --- elicit ------------------------------------------------------------
     # Settled = rated, scoped out, or already carrying intake. The third
