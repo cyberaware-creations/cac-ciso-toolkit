@@ -38,6 +38,19 @@ These exist because each one is a way a coverage report can mislead:
 8. **Age travels with every set of ratings.** Wherever confirmed ratings are shown, their age is
    shown alongside — and where no rating in the Profile carries a confirmation date, that is said in
    words ("no rating here carries a confirmation date yet"), never rendered as a blank or a zero.
+9. **Reordered is never silently reordered.** When an overlay changes row order, the dashboard
+   says so *adjacent to the affected table* — not in the footer, and not only in documentation.
+   A reader who is not told assumes a prioritized gap table is ordered by gap severity, because
+   that is what it means everywhere else here. Where a caption asserts an ordering that the
+   overlay has replaced, the caption is **replaced**, not supplemented: leaving "ordered by
+   prioritized score" above AI-sequenced rows is a wrong statement, not a missing one.
+   The converse also binds: a table the overlay did *not* reorder, on a Profile where an
+   overlay is active, must say that too. Two views of one Profile may order by different rules;
+   they may not do so without saying which.
+10. **Overlay output carries its provenance on the artifact.** Dataset version and source
+   status appear in the footer of every rendered page that carries overlay output, alongside
+   the standing disclaimer. Draft-derived priorities presented without their status read as
+   settled doctrine, and a report outlives the conversation that produced it.
 
 ---
 

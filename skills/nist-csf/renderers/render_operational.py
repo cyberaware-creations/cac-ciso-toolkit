@@ -120,10 +120,22 @@ def gap_table(ctx: c.Context) -> str:
             f'<strong>NIST Implementation Examples</strong>'
             f'<ul>{ex}</ul></div></td></tr>')
 
+    reordered = (ctx.overlay.get("mode") == "reorder")
+    if reordered:
+        # The default caption asserts an ordering that is no longer true. Saying
+        # "ordered by prioritized score" over AI-sequenced rows would be a wrong
+        # statement, not merely a missing one.
+        order_hint = c.overlay_note(ctx, reordered=True)
+    else:
+        order_hint = (
+            '<div class="hint">Ordered by prioritized score (gap × priority × Function '
+            'weight) — the only ordering that accounts for both size and importance.</div>'
+            + c.overlay_note(ctx, reordered=False))
+
     return (f'<section><h2>Gaps <span class="muted">({len(ctx.gaps)})</span></h2>'
-            f'<div class="hint">Ordered by prioritized score (gap × priority × Function weight) — '
-            f'the only ordering that accounts for both size and importance. '
-            f'Click a row for the NIST Implementation Examples that close it.</div>'
+            f'{order_hint}'
+            f'<div class="hint">Click a row for the NIST Implementation Examples that '
+            f'close it.</div>'
             f'<div class="scroll"><table id="gaps"><thead><tr>'
             f'<th data-sort="0">Subcategory</th><th data-sort="1">Outcome</th>'
             f'<th data-sort="2">Current → Target</th><th data-sort="3" class="num">Gap</th>'
@@ -517,7 +529,7 @@ def main(argv):
     body = (head + "<main>" + overall_block(ctx) + heatmap(ctx) + gap_table(ctx)
             + evidence_detail(ctx) + by_source(ctx) + attention(ctx)
             + playbook(ctx) + action_plan(ctx) + "</main>"
-            + f'<footer>{c.esc(ctx.footer())}</footer>'
+            + f'<footer>{c.esc(ctx.footer(ctx.overlay.get("provenance", "")))}</footer>'
             + f"<script>{JS}</script>")
     c.write(ctx, c.page(f'{p.get("name", "CSF Profile")} — Coverage', CSS, body, ctx.offline))
     return 0

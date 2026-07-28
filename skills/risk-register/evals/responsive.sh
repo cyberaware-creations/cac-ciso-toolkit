@@ -183,6 +183,30 @@ done
   --out "$work/csf_ops_v2ex.html" --offline >/dev/null || {
     echo "responsive: FIXTURE FAILED — v2 example render_operational errored"; exit 1; }
 
+# An overlay-enabled Profile. The Cyber AI overlay adds an ordering disclosure to
+# the operational gap table and the executive shortfall list, plus a provenance
+# line in both footers — new text in a new place, which is exactly where this
+# repo's render defects have historically hidden. Reorder mode is used because it
+# is the default on enable and the only mode that replaces an existing caption.
+cp "$CSF/examples/example-profile.csfp" "$work/overlay.csfp"
+"$PY" "$CSF/scripts/profile_analysis.py" overlay enable "$work/overlay.csfp" \
+  --focus secure thwart --mode reorder >/dev/null || {
+    echo "responsive: FIXTURE FAILED — overlay enable errored"; exit 1; }
+"$PY" "$CSF/scripts/profile_analysis.py" analyze "$work/overlay.csfp" \
+  --today 2026-07-27 > "$work/overlay.json" || {
+    echo "responsive: FIXTURE FAILED — overlay analyze errored"; exit 1; }
+"$PY" "$CSF/renderers/render_executive.py" --in "$work/overlay.json" \
+  --out "$work/csf_exec_overlay.html" --offline >/dev/null || {
+    echo "responsive: FIXTURE FAILED — overlay render_executive errored"; exit 1; }
+"$PY" "$CSF/renderers/render_operational.py" --in "$work/overlay.json" \
+  --out "$work/csf_ops_overlay.html" --offline >/dev/null || {
+    echo "responsive: FIXTURE FAILED — overlay render_operational errored"; exit 1; }
+# Prove the fixture is actually exercising the disclosure, not just rendering.
+grep -q "Cyber AI Profile overlay" "$work/csf_ops_overlay.html" || {
+    echo "responsive: FIXTURE FAILED — operational page carries no overlay disclosure"; exit 1; }
+grep -q "Cyber AI Profile overlay" "$work/csf_exec_overlay.html" || {
+    echo "responsive: FIXTURE FAILED — executive page carries no overlay disclosure"; exit 1; }
+
 "$CHROME" --headless=new --disable-gpu --remote-debugging-port="$PORT" \
   --user-data-dir="$work/chrome-profile" --no-first-run \
   >"$work/chrome.log" 2>&1 &
@@ -200,7 +224,8 @@ fi
 pages=("$work/render_board.html" "$work/render_dashboard.html" "$work/render_report.html"
        "$work/csf_exec.html" "$work/csf_ops.html"
        "$work/csf_exec_partial.html" "$work/csf_ops_partial.html"
-       "$work/csf_exec_v2ex.html" "$work/csf_ops_v2ex.html")
+       "$work/csf_exec_v2ex.html" "$work/csf_ops_v2ex.html"
+       "$work/csf_exec_overlay.html" "$work/csf_ops_overlay.html")
 fails=0
 echo
 for vw in 320 375 768 1265; do

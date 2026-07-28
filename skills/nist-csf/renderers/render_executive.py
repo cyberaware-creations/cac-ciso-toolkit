@@ -209,6 +209,10 @@ def tier_block(ctx: c.Context) -> str:
 def top_gaps(ctx: c.Context) -> str:
     """The top gaps, spoken as business outcomes — or an honest placeholder."""
     gaps = (ctx.attention.get("largestGaps") or ctx.gaps)[:5]
+    # This list is attention.largestGaps, which analyze computes fresh — it is
+    # NOT the reordered gap table. The note says so rather than leaving a reader
+    # to assume the overlay reached here too.
+    ov_note = c.overlay_note(ctx, reordered=False)
     if not gaps:
         return ('<section><h2>Where the biggest shortfalls are</h2>'
                 '<div class="card muted">No gaps against the current Target.</div></section>')
@@ -232,6 +236,7 @@ def top_gaps(ctx: c.Context) -> str:
             f'</div>{body}</div>')
     return (f'<section><h2>Where the biggest shortfalls are</h2>'
             f'<div class="hint">Ranked by shortfall weighted by priority — not by count.</div>'
+            f'{ov_note}'
             f'{"".join(rows)}</section>')
 
 
@@ -373,7 +378,7 @@ def main(argv):
     body = (head + "<main>" + summary + headline_or_guard(ctx) + evidence_block(ctx)
             + rollup(ctx) + tier_block(ctx)
             + top_gaps(ctx) + what_changed(ctx) + decisions(ctx) + "</main>"
-            + f'<footer>{c.esc(ctx.footer())}</footer>')
+            + f'<footer>{c.esc(ctx.footer(ctx.overlay.get("provenance", "")))}</footer>')
     c.write(ctx, c.page(f'{p.get("name", "CSF Profile")} — Board View', CSS, body, ctx.offline))
     return 0
 
