@@ -1,9 +1,10 @@
 # Assessment & Review — the workflows
 
-Four workflows carry this skill. **0** logs a source the moment it comes up, mid-conversation. **A**
-builds or extends a Profile. **B** is the recurring review that keeps it honest. **C** works the
-confirmation queue that accretes between reviews. Most sessions are A, B, or C; 0 happens inside all
-of them, whenever a source comes up.
+Five workflows carry this skill. **0** logs a source the moment it comes up, mid-conversation. **A**
+builds or extends a Profile. **B** is the recurring review that keeps it honest. **C0** cold-starts
+an empty Profile in nine batched questions rather than 106. **C** works the confirmation queue that
+accretes between reviews. Most sessions are A, B, or C; 0 happens inside all of them, whenever a
+source comes up.
 
 Every command below is real. If a step here names a flag that `profile_analysis.py` does not
 accept, the doc is wrong — fix the doc, not the user's expectations.
@@ -23,13 +24,49 @@ python3 scripts/profile_analysis.py intake add acme.csfp \
   --source-date 2026-03-14 --recorded-by "Darren"
 ```
 
-`--label` is a note *about* the source, in the user's own words or confirmed by them — never
-something generated on their behalf, and never an excerpt from whatever the source actually was.
-`--source-date` is when the conversation happened, not today; it defaults to today only if omitted,
-which is rarely what you want for anything discussed after the fact. `--subjects` takes every
-Subcategory the source bears on — one record per source, not one per Subcategory.
+`--label` is a note *about* the source, in the user's own words or confirmed by them.
+`--source-date` is when the conversation happened, not today. `--subjects` takes every Subcategory
+the source bears on — one record per source, not one per Subcategory.
 
-Nothing here decides a rating. That happens later, deliberately, in Workflow C.
+### Getting from a fragment to a record
+
+Fragments arrive as prose: *"just came out of the architecture review — infra reckon they scan for
+new kit quarterly, and there's a CMDB but nobody trusts the OT side of it."*
+
+Propose, do not assert:
+
+> That sounds worth logging. Label it *"March architecture review — infra"*? I'd point it at
+> **ID.AM-01** (hardware inventory) and **ID.AM-02** (software), since the CMDB and the scans speak
+> to both. I'd leave **ID.AM-05** off — criticality didn't come up. Sound right, and when was the
+> review?
+
+Three things are happening there, and all three matter:
+
+- **The label is offered, not imposed.** It is a note about the source in the user's own register,
+  and they get to rewrite it. Never write an excerpt of what the source said.
+- **Subjects are justified individually.** Naming why each id is attached is what lets the user
+  strike one. A bare list gets waved through.
+- **What was left off is said out loud.** Over-attaching is the failure mode here: every extra id
+  becomes evidence-pending, and the queue then promises material that does not exist. Say what you
+  excluded and why.
+
+Then, and only then:
+
+```bash
+python3 scripts/profile_analysis.py intake add acme.csfp \
+  --label "March architecture review — infra" \
+  --subjects ID.AM-01 ID.AM-02 \
+  --source-date 2026-03-12 --recorded-by "Darren"
+```
+
+Ask for the date. `--source-date` defaults to today, which is right for a conversation happening now
+and wrong for everything else — and a wrong date silently misreports age and can invert a `revisit`
+comparison.
+
+**No rating is discussed at this step.** If the user offers one — *"so that's probably a 2"* — log
+the source, then say the rating is a Workflow C decision and let them make it there with the source
+in front of them. That is not pedantry: a rating decided in passing, mid-topic, is exactly what the
+confirmation session exists to prevent.
 
 ---
 
@@ -279,6 +316,43 @@ python3 scripts/profile_analysis.py analyze acme.csfp --today 2026-10-01 \
 
 ---
 
+## Workflow C0 — Cold start
+
+A Profile with nothing in it does not need 106 questions. It needs nine, each of which resolves
+several Subcategories at once.
+
+```bash
+python3 scripts/profile_analysis.py elicit acme.csfp
+```
+
+Three questions per batch by default; the full bank is roughly a twenty-minute conversation. The
+questions and what to listen for live in `references/elicitation.json` — read the `listenFor` line
+before asking, because it names the parts of an answer that usually go unsaid ("we have a SIEM"
+answers none of the four detection Subcategories on its own).
+
+**One answer becomes one intake record.** This is the rule the whole workflow turns on:
+
+```bash
+# They answered q1. Attach only what the answer actually spoke to.
+python3 scripts/profile_analysis.py intake add acme.csfp \
+  --label "cold-start walkthrough: how we know what's on the network" \
+  --subjects ID.AM-01 ID.AM-02 \
+  --source-date 2026-07-28 --recorded-by "Darren"
+```
+
+Four Subcategories' worth of material gathered in one question is a saving on *evidence
+collection*. It is not a saving on *decisions* — those are still four separate ratings, made
+deliberately in Workflow C with the source in front of them.
+
+A question drops out of `elicit` once every Subcategory it resolves is settled: rated, scoped out,
+or already carrying recorded material. So a cold-start session naturally hands over to `queue` — the
+material you just collected is what the queue's first band is made of.
+
+Do not run the whole bank and then rate 37 Subcategories in one sitting. That is the rubber-stamping
+failure with extra steps.
+
+---
+
 ## Workflow C — Confirm from the queue
 
 Intake accretes between reviews — sources get logged (Workflow 0) faster than anyone has time to
@@ -305,18 +379,43 @@ python3 scripts/profile_analysis.py set acme.csfp ID.AM-01 --current 2 \
   --rationale "Asset inventory reviewed against the March architecture review; 40 servers untracked."
 ```
 
-A queue row shows the source and the date and **never a proposed rating** — presenting a conclusion
-and asking for confirmation is how inference gets laundered as judgment, and a rubber-stamped rating
-is worse than an unrated one because it looks like evidence.
+### What a good presentation looks like
 
-Work batches of **at most five** by default (`queue`'s own cap, and `analyze`'s `--queue-top`) — a
-long confirmation run is exactly where rubber-stamping happens. Where the material on a row is thin,
-the right outcome is **a question to go ask**, not a rating: leave it in the queue and log what you
-still need with Workflow 0 once you have it.
+A queue row carries a source, a date, and an outcome. Present those, then ask:
+
+> **ID.AM-01** — *Inventories of hardware managed by the organization are maintained.*
+> One source bears on it: **in-0001**, *"March architecture review — infra"*, 12 March.
+> What's Current, 0 to 3?
+
+And not:
+
+> **ID.AM-01** — the March review mentions quarterly scans and a CMDB, so this looks like a **2**.
+> Confirm?
+
+The second version writes the model's inference into the file under the user's name. It will be
+accepted most of the time, which is precisely the problem — a number offered for confirmation is not
+a number anyone decided.
+
+Work batches of **at most five** (`queue`'s own default, and `analyze`'s `--queue-top`):
 
 ```bash
 python3 scripts/profile_analysis.py queue acme.csfp --top 3
 ```
+
+### When the material is thin
+
+Sometimes the honest answer to a queue row is that nobody knows yet. Do not rate it. Record what
+needs asking, so it is tracked rather than remembered:
+
+```bash
+python3 scripts/profile_analysis.py action add acme.csfp \
+  --title "Confirm whether OT assets are in the CMDB or only corporate IT" \
+  --linked ID.AM-01 --owner "Infra lead" --target-date 2026-08-15
+```
+
+The Subcategory stays evidence-pending and stays in the queue. That is a **result**, not a failure to
+reach one — an unrated Subcategory with a dated question against it is worth more than a rating
+nobody can defend.
 
 ---
 
