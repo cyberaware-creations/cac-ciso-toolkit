@@ -274,6 +274,19 @@ def load_store(path: str) -> dict:
     # date" are different claims, and inventing the second from the first would
     # fabricate exactly the attribution this schema exists to make honest.
     store.setdefault("intake", [])
+
+    # Overlay state. Defaults are inert on purpose: a normalization bug should
+    # produce a Profile that reports nothing, never one that silently
+    # resequences a board's top five. Note this default is `advisory` while the
+    # enable command defaults to `reorder` — the safe fallback and the useful
+    # choice are different questions.
+    overlays = store.setdefault("overlays", {})
+    cyber = overlays.setdefault("cyberAi", {})
+    cyber.setdefault("enabled", False)
+    cyber.setdefault("focusAreas", [])
+    cyber.setdefault("mode", "advisory")
+    cyber.setdefault("datasetVersion", None)
+
     for a in store["assessments"]:
         a.setdefault("confirmedAt", None)
         a.setdefault("confirmedBy", None)
@@ -2769,6 +2782,48 @@ def _cmd_self_test(_args):
     # check and then behave as High priority everywhere downstream.
     _bad(lambda d: d["subcategories"]["ID.AM-01"]["secure"].__setitem__("priority", True),
          "a boolean priority is refused, not silently read as 1")
+
+    # --- overlay store block ----------------------------------------------
+    # Defaults are inert on purpose: a normalization bug should produce a
+    # Profile that reports nothing, never one that silently resequences a
+    # board's top five.
+    with tempfile.TemporaryDirectory() as _tmp:
+        _ov_store = os.path.join(_tmp, "overlay.csfp")
+        _cmd_init(["--name", "Overlay Fixture", "--out", _ov_store,
+                   "--ts", "2026-01-01T00:00:00Z"])
+        _ovs = load_store(_ov_store)
+        eq(_ovs["overlays"]["cyberAi"]["enabled"], False,
+           "a fresh Profile normalizes with the overlay disabled")
+        eq(_ovs["overlays"]["cyberAi"]["focusAreas"], [],
+           "and with no focus areas selected")
+        eq(_ovs["overlays"]["cyberAi"]["mode"], "advisory",
+           "and the inert mode, so a normalization bug cannot silently reorder")
+        ok(_ovs["overlays"]["cyberAi"]["datasetVersion"] is None,
+           "and no dataset stamped until something enables it")
+
+        # A store predating the overlay must still load.
+        with open(FIXTURE, encoding="utf-8") as _fh:
+            _v1 = json.load(_fh)
+        _v1.pop("overlays", None)
+        _v1_path = os.path.join(_tmp, "no-overlays.csfp")
+        with open(_v1_path, "w", encoding="utf-8") as _fh:
+            json.dump(_v1, _fh)
+        ok(load_store(_v1_path)["overlays"]["cyberAi"]["enabled"] is False,
+           "a store predating the overlay normalizes to disabled, never to enabled")
+
+        eq(check_store(load_store(_ov_store), index), [],
+           "an overlays block is not a structural problem")
+
+        # An explicitly-configured block must survive a load/save round trip
+        # untouched — setdefault must not clobber a real choice.
+        _rt = load_store(_ov_store)
+        _rt["overlays"]["cyberAi"] = {"enabled": True, "focusAreas": ["secure"],
+                                      "mode": "reorder", "datasetVersion": "fixture-1"}
+        save_store(_rt, _ov_store, "2026-01-02T00:00:00Z")
+        _back = load_store(_ov_store)["overlays"]["cyberAi"]
+        eq(_back, {"enabled": True, "focusAreas": ["secure"], "mode": "reorder",
+                   "datasetVersion": "fixture-1"},
+           "an explicitly set overlay block round-trips unchanged")
 
     # --- elicit ------------------------------------------------------------
     # Settled = rated, scoped out, or already carrying intake. The third

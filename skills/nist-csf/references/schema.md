@@ -9,6 +9,7 @@
 - Applicability (in scope / not applicable)
 - Attribution: `confirmedAt`, `confirmedBy`, `source`
 - Intake records
+- `overlays` — reweighting, not re-assessing
 - Change log (history) and material changes
 - `lastReviewed` semantics
 - Snapshots
@@ -30,7 +31,8 @@
   "intake":      [ /* IntakeRecord[] — append-only, never rewritten */ ],
   "history":     [ /* HistoryEvent[] — append-only, never rewritten */ ],
   "snapshots":   [ /* Snapshot[] — named point-in-time freezes */ ],
-  "actionItems": [ /* ActionItem[] */ ]
+  "actionItems": [ /* ActionItem[] */ ],
+  "overlays":    { /* Overlay state — inert unless explicitly enabled */ }
 }
 ```
 
@@ -245,6 +247,39 @@ and would make every `revisit` flag and age figure downstream quietly wrong.
 
 Referenced by a rating's `source` field and by `queue`; never edited or removed once written —
 correcting a bad record means adding a new one, the same discipline `history` already enforces.
+
+## `overlays` — reweighting, not re-assessing
+
+```json
+"overlays": {
+  "cyberAi": {
+    "enabled": false,
+    "focusAreas": [],
+    "mode": "advisory",
+    "datasetVersion": null
+  }
+}
+```
+
+An overlay applies emphasis from another published profile to the **same** 106 Subcategories.
+It adds none, changes no framework, and creates no second assessment surface. `frameworkRef`
+stays `csf-2.0`.
+
+- `focusAreas` ⊆ `{secure, defend, thwart}` — NIST IR 8596's three Focus Areas, independently
+  selectable. Effective priority for a Subcategory is the **minimum** (most urgent) proposed
+  priority across the selected areas, so deselecting an area can only relax, never tighten.
+- `mode` ∈ `{advisory, reorder}`. `advisory` changes nothing computed. `reorder` changes only
+  the order of the `gaps` table and anything derived from its head. **No mode changes a score,
+  a target, a gap, a coverage figure, or a Tier.**
+- `datasetVersion` records which dataset produced the last analysis, and is stamped into
+  snapshots. A dataset swap is a file replacement plus a version bump; stores stamped with an
+  older version keep reporting that version until re-analyzed.
+
+Defaults are inert: absent `overlays` normalizes to disabled, no areas, `advisory`. A Profile
+that has not opted in is never perturbed. The enable command defaults to `reorder` — the safe
+fallback and the useful choice are different questions.
+
+Enable and disable append a `history` event. The change alters what every report says.
 
 ## Change log (history)
 
