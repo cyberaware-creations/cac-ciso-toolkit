@@ -25,6 +25,19 @@ These exist because each one is a way a coverage report can mislead:
    progression. Render the Tier label and the verbatim characterization, nothing more.
 5. **Not applicable is visible, not hidden.** A reader must be able to see what was scoped out, and
    ideally why. Silently dropping N/A rows is how scope creep hides.
+6. **The scope guard suppresses, it does not caveate.** Below `scopeThresholdPct` of in-scope
+   Subcategories assessed, the headline coverage figure does not render with a warning beside it — a
+   number with a warning beside it is still a number, and people read the number. It is replaced by
+   the guard statement instead. This must bind **both** dashboards, or the suppressed figure simply
+   reappears one document over, which is how a board ends up being quoted a number the operational
+   view refused to show.
+7. **The four-way evidence split always appears together.** `confirmed`, `evidence-pending`,
+   `unrated`, `not-applicable` render as one set, never a subset — showing only "confirmed" and
+   "unrated" collapses evidence-pending into unrated, which erases the exact distinction this schema
+   exists to draw.
+8. **Age travels with every set of ratings.** Wherever confirmed ratings are shown, their age is
+   shown alongside — and where no rating in the Profile carries a confirmation date, that is said in
+   words ("no rating here carries a confirmation date yet"), never rendered as a blank or a zero.
 
 ---
 
@@ -35,6 +48,12 @@ These exist because each one is a way a coverage report can mislead:
 ### Header
 Profile name, scope summary (org units, threat types), owner, `generated.today`, framework name and
 version, and the tracked count (`tracked` of `framework.subcategories`).
+
+### Overall coverage
+A card above the heatmap, under the **same** scope guard as the executive headline (Rule 6). Below
+`scopeThresholdPct` assessed, no coverage percentage renders — the guard statement takes its place,
+with the tracked count and the four-way evidence split beside it. At or above threshold, the
+achieved-against-target percentage renders with completeness and the same evidence split alongside.
 
 ### Coverage heatmap — Function × Category
 The centrepiece. A grid of Categories grouped under their Function.
@@ -67,6 +86,30 @@ carry hand-written guidance and which fall back to the template.
 
 Guidance is scale-aware: tier-transition prose appears only on the 0–4 tool scale. See
 `scale-and-scoring.md`.
+
+### Age and revisits
+Two blocks under one heading.
+
+**Age of confirmed ratings, by Function** — dated count, median age, oldest, and (only when
+`ageThresholdDays` is actually configured) how many exceed it. A Function with no dated confirmations
+says so in its row rather than showing zeros. The threshold in force is stated once, as a hint above
+the table, not repeated per cell.
+
+**Revisit** — every confirmed rating with intake material newer than its `confirmedAt`: Subcategory,
+outcome, confirmed date, newest source date, and the source id(s). The empty state names what
+"nothing to revisit" actually means — no confirmed rating has newer material recorded against it —
+which is a different claim from "nothing has been assessed."
+
+Ratings never expire on their own (`references/schema.md`); this section prompts a second look when
+something changed, not staleness for its own sake.
+
+### Coverage by source
+One card per intake record: id, label, source date, recorded date, recorder, and how many of its
+subjects are confirmed versus still pending, plus a chip per subject colored by evidence state.
+Answers "what did that review actually cover?" — a question a per-Subcategory pointer list cannot
+answer. Chips carry only a Subcategory id and its state, never the outcome text: this block grows
+without bound as intake accretes over the life of the Profile, and the text is already duplicated in
+the gap table and the queue.
 
 ### Next 90 days
 A worksheet, not a plan. Top gaps by prioritized score, each with a recommended first move drawn
@@ -104,6 +147,22 @@ The brand footer, plus the framework citation and the `generated.today` stamp.
 
 ### Header
 Profile name, the period under review, and the snapshot being compared against.
+
+### The headline figure, or the scope guard
+Below `scopeThresholdPct` of in-scope Subcategories assessed, no overall percentage renders — a
+labelled guard card takes its place, stating the assessed/in-scope count and why the figure is
+withheld, sourced from `evidence.scopeGuard.statement`. At or above threshold, the
+achieved-against-target percentage renders as the headline, with completeness beside it. This must
+read the same as the operational dashboard's own guard on the same numbers (Rule 6) — a board seeing
+a figure the working team's own dashboard refuses to show is how a suppressed number gets quoted
+back anyway.
+
+### How much of this is known, and how old is it
+The four-way evidence split (confirmed / evidence-pending / unrated / not applicable), plus age:
+median, oldest, the count older than the configured `ageThresholdDays`, and a count of ratings
+currently flagged `revisit`. Captioned explicitly that ratings do not expire — age is reported, the
+reader judges. Where no confirmed rating in the Profile carries a `confirmedAt` yet, the section says
+so in words rather than rendering empty cells.
 
 ### Function-level rollup
 Six tiles (one per Function), each: Function name, coverage `x/y` and percentage, delta versus the

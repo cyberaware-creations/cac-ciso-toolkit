@@ -46,10 +46,11 @@ Each of these is where CSF work usually goes wrong:
 
 ## The file is the source of truth
 
-Everything persists in one local `.csfp` file (JSON, schema v1): the Profile definition, per-
-Subcategory assessments, an **append-only history**, **named snapshots**, and the action plan.
-Dashboards are generated on demand and never stored — a rendered dashboard goes stale the moment a
-rating moves. Full model: `references/schema.md`.
+Everything persists in one local `.csfp` file (JSON, schema v2 — a v1 file loads and normalizes
+automatically): the Profile definition, per-Subcategory assessments and their attribution, an
+**append-only history**, an **append-only intake log** of recorded sources, **named snapshots**, and
+the action plan. Dashboards are generated on demand and never stored — a rendered dashboard goes
+stale the moment a rating moves. Full model: `references/schema.md`.
 
 The framework itself is read-only bundled data in `references/nist-csf-2.0-core.json` — 6 Functions,
 22 Categories, 106 Subcategories, 363 Implementation Examples, Informative References, and verbatim
@@ -62,19 +63,21 @@ must get the same numbers from the same Profile.
 
 ```bash
 python3 scripts/profile_analysis.py validate     # confirm the bundled Core is intact
-python3 scripts/profile_analysis.py self-test     # 79 assertions against a fixed fixture
+python3 scripts/profile_analysis.py self-test     # 304 checks against a fixed fixture
 ```
 
 Every mutating command appends a history event and rewrites a schema-valid file, so the audit trail
 is enforced by tooling rather than by discipline.
 
-## Two core workflows
+## Core workflows
 
 **A — Build or extend the Profile** (scope, seed Targets, assess Current).
 **B — Run an assessment review** (the recurring ritual: update, surface, decide, snapshot, report).
+**0 — Record a source**, mid-conversation, whenever one comes up (seconds, writes no ratings).
+**C — Confirm from the queue**, its own session, working what 0 accreted.
 
-Both are in `references/assessment-and-review.md`, with the exact command for every step. Most
-sessions are one or the other. Start by asking which.
+All four are in `references/assessment-and-review.md`, with the exact command for every step. Most
+sessions are A, B, or C. Start by asking which.
 
 Quick shape of A:
 
@@ -82,7 +85,9 @@ Quick shape of A:
 python3 scripts/profile_analysis.py init --name "Acme Corp" --out acme.csfp --owner CISO
 python3 scripts/profile_analysis.py quickstart-target acme.csfp        # baseline Target = 2
 python3 scripts/profile_analysis.py set acme.csfp PR.AA-01 --target 3 --rationale "..."
-python3 scripts/profile_analysis.py set acme.csfp PR.AA-01 --current 1 --rationale "..."
+python3 scripts/profile_analysis.py intake add acme.csfp --label "..." --subjects PR.AA-01
+python3 scripts/profile_analysis.py set acme.csfp PR.AA-01 --current 1 \
+  --source in-0001 --confirmed-by "CISO" --rationale "..."
 ```
 
 `quickstart-target` **seeds blanks only** — it will not overwrite a Target someone set deliberately,
@@ -91,6 +96,32 @@ and reports how many it left alone. Pass `--force` to reset those too.
 `--rationale` is **required** on material changes — rating moves, target moves, accepting a gap,
 claiming an outcome met, and scoping something out. The tool refuses without it. That refusal is a
 feature; don't route around it by editing the file directly.
+
+## Building a Profile from fragments
+
+Not every Profile gets built in one sitting. Evidence accretes — a review here, a debrief there —
+and rating from memory when nothing was actually confirmed is how a Profile ends up making claims
+nobody can defend.
+
+```bash
+# The moment a source comes up, log it — seconds, writes no ratings
+python3 scripts/profile_analysis.py intake add acme.csfp \
+  --label "architecture review with infra team" --subjects ID.AM-01 ID.AM-02 \
+  --source-date 2026-03-14 --recorded-by "Darren"
+
+# Later, in its own session: work the backlog, five at a time
+python3 scripts/profile_analysis.py queue acme.csfp
+python3 scripts/profile_analysis.py set acme.csfp ID.AM-01 --current 2 \
+  --source in-0001 --confirmed-by "Darren" --rationale "..."
+```
+
+`set --current` **refuses without `--source` and `--confirmed-by`** — a rating needs a named source
+and a named person, not a memory of a conversation. The tool can enforce that both are *present*; it
+cannot prove either is *true*. Never invent a `--confirmed-by` name or point `--source` at a record
+that doesn't reflect what actually happened, just to get past the refusal — ask who is deciding this,
+and log the source for real first if it isn't recorded yet. `--target` is not gated the same way: a
+Target is a risk decision already covered by `--rationale`, and `quickstart-target` needs to seed it
+in bulk. Full workflows: 0 and C in `references/assessment-and-review.md`.
 
 ## Reporting
 
@@ -216,15 +247,17 @@ crosswalks. See `references/framework-abstraction.md`.
 
 | File | What it covers |
 |---|---|
-| `references/schema.md` | The `.csfp` contract, coverage arithmetic, material-change rules |
+| `references/schema.md` | The `.csfp` contract, attribution and intake, evidence states, coverage arithmetic, material-change rules |
 | `references/scale-and-scoring.md` | The two scales, the Tier-vocabulary caveat, both scoring models |
 | `references/guidance.json` | Authored guidance: 15 deep entries, Function slants, tier transitions |
-| `references/assessment-and-review.md` | Workflows A and B, command by command |
+| `references/assessment-and-review.md` | Workflows 0, A, B, and C, command by command |
 | `references/dashboards.md` | What each dashboard must contain, and the rules binding both |
 | `references/framework-abstraction.md` | The multi-framework seam and the crosswalk plan |
 | `references/nist-csf-2.0-core.json` | The bundled Core — read-only framework data |
+| `references/cold-start-rank.json` | 32 Subcategories ranked for the queue's cold-start band — CAC editorial judgment, not NIST's |
 | `assets/brand.md` | Limen tokens, the coverage ramp, and the mandatory footer |
 | `examples/example-profile.csfp` | A small worked Profile, used by `self-test` |
+| `examples/example-profile-v2.csfp` | A Profile exercising every v2 state: intake, attribution, a revisit, an age spread, below-threshold scope |
 
 Every generated deliverable carries the footer **"A Cyber Aware Creation · Not affiliated with
 NIST"**. This skill renders NIST-derived content; that line is what keeps a coverage report from
