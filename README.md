@@ -87,6 +87,14 @@ against that log as evidence arrives.
 - **Feeds the register** — `export-gaps` emits the gap CSV that `risk-register` imports, so a
   framework gap becomes a scored, owned risk without retyping.
 - **Tiers are rigor, never a maturity score.** NIST is explicit about this, and the skill enforces it.
+- **Cyber AI Profile overlay, off by default.** Applies NIST IR 8596's AI-relevant emphasis to
+  the *same* 106 Subcategories — it adds none, and enabling it adds no assessment work. Three
+  independently selectable Focus Areas (Secure / Defend / Thwart, the last applying whether or
+  not you use AI at all). It annotates, and optionally resequences the gap table; **no mode
+  changes a score, target, gap, coverage figure or Tier.** The source is a preliminary draft,
+  so every artifact carrying its output states the dataset version and that status. There is
+  deliberately no target-floor mode: the priority-to-target mapping is scale-dependent and
+  would mean different things on a 0–3 and a 0–4 Profile.
 
 Profiles written before v0.2.0 keep working: schema v1 is normalized to v2 in memory on load and
 stamped on the next write. Their existing ratings carry no attribution — which is exactly what the
@@ -118,6 +126,7 @@ skills/
     renderers/                 render_operational / render_executive
     references/                CSF 2.0 Core data, schema, assessment & review, dashboards,
                                scale & scoring, authored guidance, cold-start rank,
+                               elicitation bank, Cyber AI overlay + dataset,
                                framework abstraction
     assets/                    brand tokens
     examples/                  worked Profiles (v1 and v2), worked .csfa + gap CSV

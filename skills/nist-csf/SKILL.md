@@ -177,6 +177,40 @@ between a Profile that records judgment and one that launders inference:
    declined to decide, and `confirmedBy` is the field the whole feature exists to make
    answerable.
 
+## The Cyber AI Profile overlay
+
+Optional, **off by default**, and it adds no assessment work — it reweights the existing 106
+Subcategories for AI relevance and adds none.
+
+Enabling is a scoping conversation, not a toggle. Three questions, and the third is stated
+rather than asked:
+
+- *Do you build or deploy AI systems?* → **Secure**
+- *Does your security programme use AI?* → **Defend**
+- **Thwart applies regardless.** Attackers use AI against you whether or not you use any.
+
+Saying the third out loud is what makes this legible to a CISO who has banned internal AI use.
+
+```bash
+python3 scripts/profile_analysis.py overlay list acme.csfp     # dataset, status, current state
+python3 scripts/profile_analysis.py overlay enable acme.csfp --focus secure thwart
+```
+
+Two modes. `advisory` annotates and changes nothing computed. `reorder` — the default on
+enable — changes the order of the gap table and nothing else: no score, target, gap, coverage
+figure or Tier moves. Both dashboards state when an order is AI-prioritized and carry the
+dataset version in the footer.
+
+**Priority is sequencing, not maturity.** NIST's 1/2/3 is High/Moderate/Foundational, and NIST
+says plainly that Foundational is *not* low priority and that priorities do not reflect
+difficulty. Never present a proposed priority as a required maturity level. There is no
+target-floor mode, and `--mode floor` is refused: the priority-to-target mapping is
+scale-dependent and would mean different things on a 0–3 and a 0–4 Profile.
+
+The source is a **preliminary draft** (IR 8596, 2025-12-16) and an initial public draft is
+expected. Say so whenever its output goes anywhere that outlives the conversation. Full
+contract, caveats, and the reasons behind every decision: `references/cyber-ai-overlay.md`.
+
 ## Reporting
 
 ```bash
@@ -309,6 +343,8 @@ crosswalks. See `references/framework-abstraction.md`.
 | `references/framework-abstraction.md` | The multi-framework seam and the crosswalk plan |
 | `references/nist-csf-2.0-core.json` | The bundled Core — read-only framework data |
 | `references/cold-start-rank.json` | 37 Subcategories ranked for the queue's cold-start band — CAC editorial judgment, not NIST's; carries its own record of what informed it |
+| `references/cyber-ai-overlay.md` | The overlay contract: modes, the Focus Areas, what it deliberately does not touch, and why there is no floor mode |
+| `references/cyber-ai-profile.json` | NIST IR 8596 proposed priorities, 106 Subcategories × 3 Focus Areas — preliminary-draft data, swappable, version-stamped |
 | `references/elicitation.json` | Nine batched cold-start questions covering the ranked 37 — what to ask, and what to listen for |
 | `assets/brand.md` | Limen tokens, the coverage ramp, and the mandatory footer |
 | `examples/example-profile.csfp` | A small worked Profile, used by `self-test` |
