@@ -305,6 +305,11 @@ class Context:
         self.evidence = self.a.get("evidence") or {}
         self.intake = self.a.get("intake") or {"records": [], "bySource": []}
         self.queue = self.a.get("queue") or []
+        # Absent unless a Profile has opted into an overlay. Empty dict means
+        # "no overlay", which every consumer must render as nothing at all —
+        # not as a disabled badge, which would advertise a feature to someone
+        # who never asked for it.
+        self.overlay = self.a.get("overlay") or {}
         self.today = self.a.get("generated", {}).get("today", "")
         self.scale_max = self.profile.get("settings", {}).get("scale", {}).get("max", 3)
         self.tr = Translations.load(args.translations)
@@ -327,6 +332,35 @@ class Context:
         if self.tr.absent:
             bits.append("board narrative not supplied")
         return " · ".join(bits)
+
+
+def overlay_note(ctx: "Context", reordered: bool) -> str:
+    """The overlay disclosure, rendered next to the rows it describes.
+
+    This has to sit adjacent to the affected table, not in the footer. A reader
+    who is not told assumes a prioritized gap table is ordered by gap severity,
+    because that is what it means everywhere else in this tool, and a footnote
+    two screens away does not undo that assumption.
+
+    `reordered` says whether THIS table is the one the overlay resequenced.
+    Both answers need saying. A table that was reordered must say so; a table
+    that was not, on a Profile where the overlay is active, must say that too —
+    otherwise a reader who knows the overlay is on assumes every list reflects
+    it. Two views of one Profile ordering by different rules is fine; two views
+    ordering by different rules without saying which is not.
+    """
+    ov = ctx.overlay
+    if not ov:
+        return ""
+    areas = ", ".join(ov.get("focusAreas") or []) or "none selected"
+    lead = (ov.get("orderingNote", "") if reordered else
+            "Ordered by gap size, not by AI priority — the AI-prioritized order is on "
+            "the operational dashboard's gap table.")
+    return (f'<div class="hint">{esc(lead)} '
+            f'Cyber AI Profile overlay · focus areas: {esc(areas)} · mode '
+            f'{esc(ov.get("mode", ""))} · dataset {esc(ov.get("datasetVersion", ""))} '
+            f'({esc(ov.get("sourceStatus", ""))}). Proposed priority indicates '
+            f'sequencing, not required maturity.</div>')
 
 
 def build(argv: list[str], description: str, default_out: str) -> Context:
