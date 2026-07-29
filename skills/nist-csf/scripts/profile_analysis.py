@@ -1879,6 +1879,10 @@ def _iso_date(raw, label: str) -> str:
     whether a source is newer than a confirmation by comparing them directly. So
     '2026-3-14' is not merely untidy: it sorts after '2026-12-01' and would make
     every revisit flag and age figure downstream quietly false.
+
+    Twinned with skills/risk-register/scripts/score_register.py::_iso_date, which carries
+    the matching note: same name, same rule, same reason, deliberately duplicated on the
+    same terms as age_band() above. Edit the two together.
     """
     text = str(_s(raw)).strip()
     if _is_iso_date(text):

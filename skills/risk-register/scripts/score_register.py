@@ -565,6 +565,41 @@ def _cmd_self_test(_: list[str]) -> int:
     # makes the check above pass over an empty set — green proving nothing.
     eq("the emitted-type scrape found real calls",
        {"risk-added", "score-changed", "risk-confirmed", "status-changed"} - _emitted, set())
+    # Both arms of the unreadable-source sentinel, by rebinding __file__ rather than by
+    # trusting the comment. Nothing else in the suite notices if the UnicodeDecodeError arm
+    # is removed, and then a .pyc-only install fails with a codec error nobody would ever
+    # connect to event types instead of the loud sentinel this is here to produce.
+    with tempfile.TemporaryDirectory() as _sd:
+        _binary = os.path.join(_sd, "notsource.bin")
+        with open(_binary, "wb") as _fh:
+            _fh.write(b"\xf6\x00\xa4\xff not valid utf-8 \x80\x81")
+        _real_file = globals()["__file__"]
+
+        def _probe(path):
+            """Scrape with __file__ pointed elsewhere, reporting a raise as a value.
+
+            Returned rather than propagated so a missing except-arm fails this check by
+            name. Left to propagate, it aborts the suite with a bare codec error and the
+            tally never prints — which is how the arm this pins came to be missing.
+            """
+            globals()["__file__"] = path
+            try:
+                return _emitted_event_types()
+            except Exception as exc:
+                return {"<raised:" + type(exc).__name__ + ">"}
+
+        try:
+            _undecodable = _probe(_binary)                      # a .pyc-only install
+            _missing = _probe(os.path.join(_sd, "absent.py"))    # a missing source
+        finally:
+            globals()["__file__"] = _real_file
+        eq("an undecodable source yields the sentinel", _undecodable, {"<source-unreadable>"})
+        eq("a missing source yields the sentinel", _missing, {"<source-unreadable>"})
+        # The sentinel has to actually fail the totality check, or it is decoration.
+        eq("the sentinel fails the totality check",
+           bool(_undecodable - KNOWN_EVENT_TYPES), True)
+        eq("the scrape recovers once the source is back",
+           _emitted_event_types(), _emitted)
     # The partition. Subset-of-known alone forced registration and stopped there, which
     # left a new type non-affirming by omission — the exact default the mechanism claims to
     # prevent. Requiring the union makes registration insufficient: a type must land on one
@@ -648,35 +683,37 @@ def _cmd_self_test(_: list[str]) -> int:
         eq("confirm changes nothing else in the register",
            _reg_key(load_register(_rr)), _reg_key(_norm_before))
 
-        # Each refusal must both refuse and leave the file byte-identical.
-        _r1 = _refuses([_rr, "R-001"])
-        eq("confirm without --why is refused", _r1[0], True)
-        eq("a refused confirm leaves the register untouched", _r1[1], True)
+        # Each refusal must both refuse and leave the file byte-identical, asserted as one
+        # pair at every site: a refusal that has already written is not a refusal.
+        eq("confirm without --why is refused, leaving the register untouched",
+           _refuses([_rr, "R-001"]), (True, True))
         # A bare --review is a typo, not a request for a default: silently dropping it
         # sends a reviewer out of the meeting believing the next review is booked.
-        _r2 = _refuses([_rr, "R-001", "--why", "still stands", "--review"])
-        eq("a bare --review is refused", _r2[0], True)
-        eq("a refused bare --review writes nothing", _r2[1], True)
-        _r3r = _refuses([_rr, "R-001", "--why", "still stands", "--review", "31/01/2027"])
-        eq("a non-ISO --review is refused", _r3r[0], True)
-        eq("a refused bad --review writes nothing", _r3r[1], True)
+        eq("a bare --review is refused, writing nothing",
+           _refuses([_rr, "R-001", "--why", "still stands", "--review"]), (True, True))
+        eq("a non-ISO --review is refused, writing nothing",
+           _refuses([_rr, "R-001", "--why", "still stands", "--review", "31/01/2027"]),
+           (True, True))
         # An unpadded date is the dangerous one: strptime accepted `2027-2-01`, stored it,
         # and _overdue's lexical compare then read an overdue review as on time.
-        _r4 = _refuses([_rr, "R-001", "--why", "still stands", "--review", "2027-2-01"])
-        eq("an unpadded --review is refused", _r4[0], True)
-        eq("a refused unpadded --review writes nothing", _r4[1], True)
+        eq("an unpadded --review is refused, writing nothing",
+           _refuses([_rr, "R-001", "--why", "still stands", "--review", "2027-2-01"]),
+           (True, True))
+        # Every site below asserts the pair, never just the refusal half. _refuses() makes
+        # the two halves impossible to drift apart in construction, but a caller can still
+        # drop one — and a refusal copied from a half-asserted site inherits the gap.
         # The basic form is rejected too, so the flag means one thing on 3.9 and on 3.11+.
-        eq("a basic-form --review is refused",
-           _refuses([_rr, "R-001", "--why", "x", "--review", "20270201"])[0], True)
+        eq("a basic-form --review is refused, writing nothing",
+           _refuses([_rr, "R-001", "--why", "x", "--review", "20270201"]), (True, True))
         # A flag given twice used to keep the last value silently.
-        _r5 = _refuses([_rr, "R-001", "--why", "a", "--review", "2027-01-31",
-                        "--review", "2027-02-28"])
-        eq("a repeated --review is refused", _r5[0], True)
-        eq("a repeated --review writes nothing", _r5[1], True)
-        eq("a repeated --why is refused",
-           _refuses([_rr, "R-001", "--why", "a", "--why", "b"])[0], True)
+        eq("a repeated --review is refused, writing nothing",
+           _refuses([_rr, "R-001", "--why", "a", "--review", "2027-01-31",
+                     "--review", "2027-02-28"]), (True, True))
+        eq("a repeated --why is refused, writing nothing",
+           _refuses([_rr, "R-001", "--why", "a", "--why", "b"]), (True, True))
         # An unknown risk id is an error, not a silently-created risk.
-        eq("confirm on an unknown id is refused", _refuses([_rr, "R-999", "--why", "t"])[0], True)
+        eq("confirm on an unknown id is refused, writing nothing",
+           _refuses([_rr, "R-999", "--why", "t"]), (True, True))
 
         # --review sets the next review date in the same breath as the confirmation,
         # because that is the actual review-meeting workflow.
@@ -739,6 +776,56 @@ def _cmd_self_test(_: list[str]) -> int:
            [r for r in _load(_pr)["risks"] if r["id"] == "R-001"][0].get("provisionalTitle"),
            True)
 
+    # --- The invariant: no affirming event may attach to a provisional-score risk ---
+    #
+    # Asserted over the writer set derived from this file's own source, not over the two
+    # instances we happened to think of. `confirm` was fixed first and `accept` was found
+    # open afterwards through the adjacent door; the point of deriving the set is that a
+    # fifth affirming writer has to face the question instead of inheriting the gap.
+    _writers = _affirming_writers()
+    # _cmd_add is exempt by construction: it *creates* the risk and never sets the
+    # provisional flags, so there is no pre-existing provisional risk for it to affirm.
+    # Every other affirming writer takes an existing id and is probed below.
+    _probes = {
+        "_cmd_confirm": (_cmd_confirm, ["R-001", "--why", "still stands"], "refuses"),
+        "_cmd_accept": (_cmd_accept, ["R-001", "--approver", "Audit Committee",
+                                      "--justification", "board tolerates it",
+                                      "--revalidate", "2027-01-31"], "refuses"),
+        # set-score is the sanctioned way through rather than an exception to the rule: it
+        # affirms *and* clears provisionalScore, so the score it affirms has been assessed.
+        "_cmd_set_score": (_cmd_set_score, ["R-001", "--residual", "4", "4",
+                                            "--why", "assessed at the forum"], "clears"),
+    }
+    eq("every affirming writer is either probed or exempt with a reason",
+       set(_probes) | {"_cmd_add"}, _writers)
+    for _name in sorted(_probes):
+        _fn, _tail, _expected = _probes[_name]
+        with tempfile.TemporaryDirectory() as _id:
+            _ir = os.path.join(_id, "i.rr")
+            _quiet(_cmd_init, [_ir, "--client", "Fixture Co", "--assessor", "D. Alleyne"])
+            _quiet(_cmd_add, [_ir, "--title", "PR.AA-05 partially implemented", "--il", "4",
+                              "--ii", "4", "--rl", "4", "--ri", "4", "--why", "imported"])
+            _ip = load_register(_ir)
+            _ip["risks"][0]["provisionalScore"] = True
+            save_register(_ip, _ir)
+            _iraw = _raw(_ir)
+            try:
+                _quiet(_fn, [_ir] + _tail)
+                _refused = False
+            except ValueError:
+                _refused = True
+            _after_risk = [r for r in load_register(_ir)["risks"] if r["id"] == "R-001"][0]
+            _still = bool(_after_risk.get("provisionalScore"))
+            # The invariant, stated once and applied to every writer: either the command
+            # refused and wrote nothing, or the score it affirmed is no longer a seed.
+            eq(f"invariant — {_name} cannot affirm a provisional score",
+               (_refused and _raw(_ir) == _iraw) or not _still, True)
+            # ...and which branch held is pinned too, so "refuses" cannot silently become
+            # "clears" (or vice versa) while the invariant above stays green.
+            eq(f"{_name} takes the {_expected} branch",
+               "refuses" if _refused else ("clears" if not _still else "neither"),
+               _expected)
+
     # The same date validation on every flag that writes a lexically-compared date.
     with tempfile.TemporaryDirectory() as _d3:
         _dr = os.path.join(_d3, "d.rr")
@@ -794,6 +881,29 @@ def _cmd_self_test(_: list[str]) -> int:
 
 STATUSES = {"open", "in-treatment", "monitoring", "closed"}
 RESPONSES = {"accept", "transfer", "mitigate", "avoid"}
+
+# DOCS HANDOVER (Task 8 owns the reference files; this note is the input it needs).
+# Three behaviour changes landed here that the prose does not yet describe:
+#
+#   1. `confirm` exists at all. SKILL.md's mutation list (~line 143) and
+#      references/history-and-review.md's required-flag table (~line 50) both predate it.
+#      Table row: `confirm` | `--why`. And `risk-confirmed` is missing from schema.md's
+#      event-type list (~line 122), which is separately wrong in five other ways — the doc
+#      lists five types nothing emits and omits two that are emitted.
+#   2. Date flags now REFUSE input they previously accepted: `--review` (add, confirm) and
+#      `--revalidate` / `--expiry` / `--accepted` (accept) require canonical YYYY-MM-DD.
+#      `2027-2-01` and `20270201` are both rejected where the first used to be stored
+#      verbatim and then compared lexically, reading an overdue date as on time. Worth
+#      stating as a rule, since it is now house-wide: nist-csf enforces the identical rule
+#      and its schema.md:245 already explains why.
+#      Validation guards WRITES ONLY — an existing register hand-carrying `2027-3-01` still
+#      loads and renders, deliberately, because a validator that made a user's file
+#      unopenable would be worse than the bug. Say so, or someone will "fix" it.
+#   3. `confirm` and `accept` both REFUSE while `provisionalScore` is true, and the reason
+#      is the invariant, not fussiness: no affirming event may attach to a provisional-score
+#      risk, because confirmation age is derived from affirming events and would otherwise
+#      reset to zero on the importer's seed number. `set-score` is the way through. A
+#      provisional *title* only warns.
 
 # --- Age bands and the age-affirming event taxonomy ---------------------------
 # The twin of skills/nist-csf/scripts/profile_analysis.py's age_band(), and that file
@@ -909,6 +1019,30 @@ def _emitted_event_types() -> set:
     return set(re.findall(r'_append_event\(\s*reg\s*,\s*"([a-z-]+)"', src))
 
 
+def _affirming_writers() -> set:
+    """Every command function in this file that can write an AGE_AFFIRMING event.
+
+    Derived from source for the same reason _emitted_event_types() is: the invariant it
+    guards — no affirming event may attach to a provisional-score risk — has to hold for
+    writers nobody has thought of yet, and a hand-kept list of writers is exactly the
+    omission-by-default the taxonomy partition was added to close.
+    """
+    try:
+        with open(os.path.abspath(__file__), encoding="utf-8") as fh:
+            src = fh.read()
+    except (OSError, UnicodeDecodeError):
+        return {"<source-unreadable>"}
+    out = set()
+    for chunk in re.split(r"\ndef ", src):
+        name = chunk.split("(", 1)[0].strip()
+        if not name.startswith("_cmd_"):
+            continue
+        emitted = re.findall(r'_append_event\(\s*reg\s*,\s*"([a-z-]+)"', chunk)
+        if any(e in AGE_AFFIRMING for e in emitted):
+            out.add(name)
+    return out
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
@@ -985,6 +1119,15 @@ def _iso_date(value, flag: str) -> str:
     `datetime.strptime(v, "%Y-%m-%d")` accepts unpadded fields, so `2027-2-01` used to be
     stored verbatim and then read as *not overdue* against a today of `2027-11-01`,
     dropping an eight-month-overdue review off the attention list entirely.
+
+    Twinned with skills/nist-csf/scripts/profile_analysis.py::_iso_date, which carries the
+    matching note and enforced this rule first — references/schema.md:245 there states it
+    exactly: "`2026-3-14` sorts after `2026-12-01` and would make every revisit flag and age
+    figure downstream quietly wrong." Same name, same rule, same reason, duplicated on the
+    same terms as age_band() above; edit the two together. That file reaches the verdict via
+    a strptime round-trip and this one via date.fromisoformat plus a round-trip; the verdicts
+    agree on every input either accepts, including `20270201`, and each skill's own self-test
+    is what pins them.
 
     `date.fromisoformat` rejects the unpadded form. The round-trip equality check then
     rejects the basic form `20270201`, which 3.11+ accepts and the 3.9 floor does not —
@@ -1250,6 +1393,28 @@ def _cmd_accept(args):
     for req in ("approver", "justification", "revalidate"):
         if req not in opt:
             raise ValueError(f"accept: missing --{req}")
+    # Refused for the same reason `confirm` is, and this is the door that closes the set.
+    # `risk-accepted` is in AGE_AFFIRMING, so accepting here reset confirmation age to zero
+    # on the importer's seed number and fed a board-facing freshness figure with it — and
+    # `accept` is the worse of the two paths, because it also flips response.type and books
+    # a *named approver* against a magnitude nobody has assessed, which is precisely what an
+    # auditor tests.
+    #
+    # The invariant this establishes: NO AFFIRMING EVENT CAN ATTACH TO A PROVISIONAL-SCORE
+    # RISK. It holds because the affirming writers are exactly four. `risk-added` comes only
+    # from _cmd_add, which creates the risk and never sets the provisional flags (only the
+    # importer does, and it writes `import-merged`, which is non-affirming). `score-changed`
+    # comes from _cmd_set_score, which *clears* provisionalScore in the same breath — it is
+    # the sanctioned way through, not an exception to the rule. That leaves confirm and
+    # accept, both of which now refuse. `acceptance-revalidated` is inert: nothing emits it.
+    # The self-test asserts the invariant over the writer set derived from this file's own
+    # source, so a fifth affirming writer has to face the question rather than inherit a
+    # gap. That invariant is what makes the confirmation-age report trustworthy.
+    if r.get("provisionalScore"):
+        raise ValueError(f"accept: {pos[1]}'s score is still the import seed, so there is no "
+                         f"assessed magnitude to accept. Assess it with `set-score` first — "
+                         f"booking a named approver against a number nobody has reviewed is "
+                         f"the acceptance an auditor pulls.")
     # All three dates are validated before anything is written. revalidationDate and
     # expiryDate both reach _overdue's lexical compare in the renderers, so an unpadded
     # date here reads as "not due" and an acceptance nobody re-validated stops appearing
