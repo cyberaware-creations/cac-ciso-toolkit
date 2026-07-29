@@ -21,7 +21,7 @@ jobs:
     name: Python floor (3.9)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v5
         with:
@@ -46,7 +46,7 @@ jobs:
     name: Rendered artifacts (width + contrast)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v5
         with:
@@ -76,7 +76,7 @@ jobs:
     name: Version manifests agree, and moved
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # check-versions.py diffs against the merge base. A shallow clone has no
           # merge base, and the check would report an error it cannot resolve.
