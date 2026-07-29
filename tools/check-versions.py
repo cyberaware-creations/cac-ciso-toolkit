@@ -80,51 +80,104 @@ def check_consistency(root="."):
 
 
 def _git(args, root="."):
+    # Decoded as UTF-8 rather than by locale: with --name-only -z below, a non-ASCII
+    # path arrives as raw bytes, and a C-locale runner would otherwise fail to decode
+    # it. surrogateescape keeps even undecodable bytes intact instead of raising.
     return subprocess.run(["git", "-C", str(root)] + args, check=True,
-                          capture_output=True, text=True).stdout
+                          capture_output=True, encoding="utf-8",
+                          errors="surrogateescape").stdout
+
+
+def _version_tuple(v):
+    """(int, ...) for a dot-separated numeric version, else None."""
+    try:
+        return tuple(int(p) for p in str(v).split("."))
+    except ValueError:
+        return None
+
+
+def _moved_forward(before, now):
+    """True if `now` is strictly ahead of `before`.
+
+    A downgrade is as much a silent no-op as standing still, so it does not count.
+    Falls back to plain inequality when either side is not dot-separated ints, so an
+    unusual scheme loses the direction check rather than crashing the guard.
+    """
+    b, n = _version_tuple(before), _version_tuple(now)
+    if b is None or n is None:
+        return now != before
+    return n > b
 
 
 def check_bump(base, root="."):
-    """If anything under SHIPPED changed against `base`, the version must have moved.
+    """If anything under SHIPPED changed against `base`, every version string must
+    have moved forward.
 
     Diffs with `base...HEAD` (three dots) so the comparison is against the merge base,
     not the tip of the base branch -- otherwise unrelated commits landing on main
     while a PR is open would be counted as this PR's changes.
+
+    All four entries are witnessed, not one. Witnessing a single manifest would assume
+    the base commit is internally consistent, and 18cfec5 -- the commit that motivated
+    this file -- was not: it moved plugin.json to 0.4.1 and left marketplace.json at
+    0.4.0. Against such a base, a head that converges every string onto 0.4.0 shows
+    plugin.json "moving" 0.4.1 -> 0.4.0 while marketplace.json, the file
+    `claude plugin update` actually reads, never moves at all. One witness plus a
+    consistency check on the head passes that commit; four witnesses do not.
     """
     try:
-        changed = _git(["diff", "--name-only", "{}...HEAD".format(base)], root).split()
+        changed = _git(["diff", "--name-only", "-z", "{}...HEAD".format(base)],
+                       root).split("\0")
     except subprocess.CalledProcessError:
         print("ERROR: cannot diff against base ref {!r}.".format(base))
         print("       Does this checkout have full history? CI needs fetch-depth: 0.")
         return False
 
+    # -z both NUL-delimits and disables core.quotePath. Without it git renders a
+    # non-ASCII path quoted ("skills/caf\303\251.md"), the leading quote defeats the
+    # prefix test, and the change vanishes from this list.
     shipped = sorted(f for f in changed if f.startswith(SHIPPED))
     if not shipped:
         print("bump: no shipped file changed against {}; no bump required.".format(base))
         return True
 
-    path, keypath = MANIFESTS[0]
-    try:
-        before = _dig(json.loads(_git(["show", "{}:{}".format(base, path)], root)),
-                      keypath)
-    except (subprocess.CalledProcessError, KeyError, ValueError):
-        print("bump: {} unreadable at {}; treating as a first release.".format(
-            path, base))
+    stale = []
+    for path, keypath in MANIFESTS:
+        try:
+            raw = _git(["show", "{}:{}".format(base, path)], root)
+        except subprocess.CalledProcessError:
+            print("bump: {} absent at {}; treating as a first release.".format(
+                path, base))
+            return True
+        try:
+            before = _dig(json.loads(raw), keypath)
+        except (ValueError, KeyError):
+            print("ERROR: {} is unreadable at {}: malformed JSON, or no such key.".format(
+                _label(path, keypath), base))
+            print("       Only an absent manifest means a first release. This one is "
+                  "present and cannot be trusted, so the bump cannot be verified.")
+            return False
+        now = _dig(json.loads((Path(root) / path).read_text(encoding="utf-8")), keypath)
+        if not _moved_forward(before, now):
+            stale.append((_label(path, keypath), before, now))
+
+    if not stale:
+        print("bump: {} shipped file(s) changed and all {} version strings moved "
+              "forward.".format(len(shipped), len(MANIFESTS)))
         return True
 
-    now = _dig(json.loads((Path(root) / path).read_text(encoding="utf-8")), keypath)
-    if now != before:
-        print("bump: {} shipped file(s) changed and the version moved {} -> {}.".format(
-            len(shipped), before, now))
-        return True
-
-    print("ERROR: {} shipped file(s) changed against {}, but the version is still "
-          "{}.".format(len(shipped), base, now))
+    print("ERROR: {} shipped file(s) changed against {}, but {} of {} version strings "
+          "did not move forward:".format(
+              len(shipped), base, len(stale), len(MANIFESTS)))
+    for label, before, now in stale:
+        print("         {:<52} {} -> {}".format(label, before, now))
+    print("       shipped:")
     for f in shipped[:10]:
         print("         {}".format(f))
     if len(shipped) > 10:
         print("         ... and {} more".format(len(shipped) - 10))
-    print("       An unchanged version makes `claude plugin update` a silent no-op.")
+    print("       A version that does not move forward makes `claude plugin update` a "
+          "silent no-op.")
     return False
 
 
@@ -145,13 +198,16 @@ def _write_manifests(root, version):
 
 
 def _git_commit(root, message):
-    """Commit everything in a scratch repo, with identity supplied inline so the
-    check never depends on the runner's global git config."""
+    """Commit everything in a scratch repo, with identity, signing and hooks all
+    supplied inline so the check never depends on the runner's global git config.
+    A developer with commit.gpgsign or core.hooksPath set would otherwise see this
+    self-test fail on their machine for reasons that have nothing to do with it."""
     subprocess.run(["git", "-C", str(root), "add", "-A"], check=True,
                    capture_output=True)
     subprocess.run(
         ["git", "-C", str(root),
          "-c", "user.email=selftest@example.invalid", "-c", "user.name=selftest",
+         "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null",
          "commit", "-q", "-m", message],
         check=True, capture_output=True)
     return subprocess.run(["git", "-C", str(root), "rev-parse", "HEAD"],
@@ -201,37 +257,115 @@ def self_test():
 
         # same change, now with a bump -> must pass
         _write_manifests(repo, "1.0.1")
-        _git_commit(repo, "bump")
+        base2 = _git_commit(repo, "bump")
         ok(check_bump(base, str(repo)) is True,
            "shipped change with a version bump passes")
 
         # docs-only change against the new base -> no bump required
-        base2 = subprocess.run(["git", "-C", str(repo), "rev-parse", "HEAD"],
-                               check=True, capture_output=True,
-                               text=True).stdout.strip()
         (repo / "docs" / "note.md").write_text("note v2\n", encoding="utf-8")
         _git_commit(repo, "docs only")
         ok(check_bump(base2, str(repo)) is True,
            "docs-only change needs no version bump")
 
+        ok(check_bump("nosuchref", str(repo)) is False,
+           "an unresolvable base ref fails")
+
+        # -- a base whose manifest is present but malformed is not a first release --
+        bad = Path(tmp) / "bad"
+        bad.mkdir()
+        subprocess.run(["git", "-C", str(bad), "init", "-q"], check=True,
+                       capture_output=True)
+        _write_manifests(bad, "1.0.0")
+        (bad / ".claude-plugin" / "plugin.json").write_text(
+            "{not json", encoding="utf-8")
+        (bad / "skills").mkdir()
+        (bad / "skills" / "SKILL.md").write_text("v1\n", encoding="utf-8")
+        bad_base = _git_commit(bad, "base carrying a malformed manifest")
+        _write_manifests(bad, "1.0.0")  # repaired, but the version never moved
+        (bad / "skills" / "SKILL.md").write_text("v2\n", encoding="utf-8")
+        _git_commit(bad, "shipped change")
+        ok(check_bump(bad_base, str(bad)) is False,
+           "a malformed manifest at base fails instead of passing as a first release")
+
+        # -- the reviewed hole: one witness plus a consistent head passed 18cfec5 --
+        skew = Path(tmp) / "skew"
+        skew.mkdir()
+        subprocess.run(["git", "-C", str(skew), "init", "-q"], check=True,
+                       capture_output=True)
+        _write_manifests(skew, "0.4.0")
+        (skew / ".claude-plugin" / "plugin.json").write_text(
+            json.dumps({"version": "0.4.1"}), encoding="utf-8")
+        (skew / "skills").mkdir()
+        (skew / "skills" / "SKILL.md").write_text("v1\n", encoding="utf-8")
+        skew_base = _git_commit(skew, "base: plugin.json ahead of the other three")
+        _write_manifests(skew, "0.4.0")  # head converges downward onto 0.4.0
+        (skew / "skills" / "SKILL.md").write_text("v2\n", encoding="utf-8")
+        _git_commit(skew, "converge downward, with a shipped change")
+        ok(check_bump(skew_base, str(skew)) is False,
+           "a downward convergence from an inconsistent base fails")
+        ok(check_consistency(str(skew)) is True,
+           "...and consistency alone would not have caught it")
+
+        # -- git quotes non-ASCII paths by default; -z is what keeps them visible --
+        uni = Path(tmp) / "unicode"
+        uni.mkdir()
+        subprocess.run(["git", "-C", str(uni), "init", "-q"], check=True,
+                       capture_output=True)
+        _write_manifests(uni, "1.0.0")
+        (uni / "skills").mkdir()
+        (uni / "skills" / "café.md").write_text("v1\n", encoding="utf-8")
+        uni_base = _git_commit(uni, "base")
+        (uni / "skills" / "café.md").write_text("v2\n", encoding="utf-8")
+        _git_commit(uni, "shipped change to a non-ASCII path, no bump")
+        ok(check_bump(uni_base, str(uni)) is False,
+           "a non-ASCII shipped path is not lost to git's path quoting")
+
     print("\nself-test: {}/{} checks passed".format(sum(checks), len(checks)))
     return all(checks)
 
 
+USAGE = "usage: check-versions.py [--base <ref>] [--self-test]"
+
+
 def main(argv):
     args = list(argv[1:])
-    if "--self-test" in args:
-        return 0 if self_test() else 1
     base = None
-    if "--base" in args:
-        i = args.index("--base")
-        if i + 1 >= len(args):
-            print("ERROR: --base needs a git ref")
+    want_self_test = False
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--self-test":
+            want_self_test = True
+        elif arg == "--base":
+            if i + 1 >= len(args):
+                print("ERROR: --base needs a git ref")
+                return 1
+            base = args[i + 1]
+            i += 1
+        else:
+            # Silently ignoring a typo like --base-sha would leave the bump check
+            # unrun and the script exiting 0 -- the same silent no-op this file exists
+            # to eliminate.
+            print("ERROR: unknown argument {!r}.".format(arg))
+            print("       " + USAGE)
             return 1
-        base = args[i + 1]
-    passed = check_consistency()
+        i += 1
+
+    if want_self_test:
+        return 0 if self_test() else 1
+
+    # git reports paths from the repo root, so the manifests must be read from there
+    # too. Resolving once keeps the two halves of check_bump talking about the same
+    # files no matter which directory the script was invoked from.
+    root = "."
+    try:
+        root = _git(["rev-parse", "--show-toplevel"]).strip()
+    except (subprocess.CalledProcessError, OSError):
+        print("note: not a git repository; checking the current directory instead.")
+
+    passed = check_consistency(root)
     if base is not None:
-        passed = check_bump(base) and passed
+        passed = check_bump(base, root) and passed
     return 0 if passed else 1
 
 
