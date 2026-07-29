@@ -1,4 +1,4 @@
-# The three suites README.md says to "run all three before any release", run on every push
+# The suites README.md says to "run all of these before any release", run on every push
 # instead — because that instruction was already in the README when v0.1.4 shipped a
 # Python-3.12-only construct that made a whole dashboard fail to import. A release checklist
 # a human has to remember is not a check.
@@ -67,3 +67,53 @@ jobs:
 
       - name: Width at 320/375/768/1265px, and AA contrast at 390/768/1280px
         run: ./skills/risk-register/evals/responsive.sh
+
+  manifests:
+    # A version that only moves in one of four places is the same class of bug as the
+    # v0.1.4 Python-3.12 construct: a release step a human had to remember. 18cfec5
+    # bumped plugin.json to 0.4.1 and left marketplace.json -- which is the file
+    # `claude plugin update` actually reads -- at 0.4.0, so those fixes reached nobody.
+    name: Version manifests agree, and moved
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # check-versions.py diffs against the merge base. A shallow clone has no
+          # merge base, and the check would report an error it cannot resolve.
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+
+      - name: The guard's own self-test
+        run: ./tools/check-versions.py --self-test
+
+      # The guard reads git's path output and writes filenames back out, so it has to
+      # survive a runner whose locale is not UTF-8 -- otherwise it crashes while
+      # reporting a violation, which reads as a broken guard rather than a caught one.
+      # All three variables are needed to actually reach ascii stdout: LC_ALL alone is
+      # undone by PEP 538 coercion, and PEP 540 UTF-8 mode is on by default on newer
+      # interpreters. Without them this assertion passes vacuously.
+      - name: ...and again with a non-UTF-8 locale
+        env:
+          LC_ALL: C
+          PYTHONCOERCECLOCALE: '0'
+          PYTHONUTF8: '0'
+        run: ./tools/check-versions.py --self-test
+
+      - name: All four version strings agree
+        run: ./tools/check-versions.py
+
+      - name: Shipped changes carry a version bump
+        if: github.event_name == 'pull_request'
+        run: ./tools/check-versions.py --base "${{ github.event.pull_request.base.sha }}"
+
+      # Defence in depth. The PR check above is only worth anything if this job is a
+      # *required* status check -- a direct push or an admin merge bypasses it entirely,
+      # and consistency alone would not have caught 18cfec5 (that commit was internally
+      # consistent at every step; only the bump check catches it). Guarded against the
+      # all-zero `before` that a branch's first push reports, which resolves to nothing.
+      - name: Shipped changes carry a version bump (direct push)
+        if: github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000'
+        run: ./tools/check-versions.py --base "${{ github.event.before }}"
