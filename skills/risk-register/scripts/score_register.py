@@ -52,7 +52,8 @@ import json
 import os
 import re
 import sys
-from datetime import datetime, timezone
+import tempfile
+from datetime import date, datetime, timezone
 from typing import Any
 
 # Behave like a normal Unix filter: on a closed pipe (e.g. `... | head`), exit
@@ -553,9 +554,10 @@ def _cmd_self_test(_: list[str]) -> int:
     eq("status-changed does NOT affirm", "status-changed" in AGE_AFFIRMING, False)
     eq("snapshot-created does NOT affirm", "snapshot-created" in AGE_AFFIRMING, False)
     eq("import-merged does NOT affirm", "import-merged" in AGE_AFFIRMING, False)
-    # Totality: a new event type must be classified deliberately, not default to
-    # "does not affirm age" by omission. The emitted set is scraped from this file's own
-    # source rather than hand-listed, so adding an emitting call is what breaks the suite.
+    # Totality: a new event type must be *classified*, not merely registered. The emitted
+    # set is scraped from this file's own source rather than hand-listed, so adding an
+    # emitting call is what breaks the suite; and the partition below means the repair has
+    # to be a decision about age rather than one more name in a list.
     _emitted = _emitted_event_types()
     eq("every affirming type is a known type", AGE_AFFIRMING - KNOWN_EVENT_TYPES, set())
     eq("every type score_register can write is classified", _emitted - KNOWN_EVENT_TYPES, set())
@@ -563,96 +565,217 @@ def _cmd_self_test(_: list[str]) -> int:
     # makes the check above pass over an empty set — green proving nothing.
     eq("the emitted-type scrape found real calls",
        {"risk-added", "score-changed", "risk-confirmed", "status-changed"} - _emitted, set())
+    # The partition. Subset-of-known alone forced registration and stopped there, which
+    # left a new type non-affirming by omission — the exact default the mechanism claims to
+    # prevent. Requiring the union makes registration insufficient: a type must land on one
+    # side or the other, and choosing a side is the decision.
+    eq("no type both affirms and does not", AGE_AFFIRMING & NON_AGE_AFFIRMING, frozenset())
+    eq("every known type is classified either way",
+       AGE_AFFIRMING | NON_AGE_AFFIRMING, KNOWN_EVENT_TYPES)
+    eq("the two halves are non-empty",
+       bool(AGE_AFFIRMING) and bool(NON_AGE_AFFIRMING), True)
 
     # --- confirm: "I looked at this and nothing changed" has a home ---
-    import tempfile as _tf
-    _d = _tf.mkdtemp()
-    _rr = os.path.join(_d, "c.rr")
-    _quiet(_cmd_init, [_rr, "--client", "Fixture Co", "--assessor", "D. Alleyne"])
-    _quiet(_cmd_add, [_rr, "--title", "Supplier concentration", "--il", "4", "--ii", "4",
-                     "--rl", "3", "--ri", "4", "--why", "fixture"])
-    _before = json.load(open(_rr))
-    _n_before = len(_before["history"])
-    # The before-state as `confirm` itself will see it. Comparing a raw json.load against
-    # a post-save file would fail on load_register's v1->v2 normalization (it defaults
-    # provisionalTitle/provisionalScore, which `add` never wrote) and blame `confirm` for
-    # it. Normalize both sides so the comparison can only fail on a real mutation.
-    _norm_before = load_register(_rr)
-    _quiet(_cmd_confirm, [_rr, "R-001", "--why", "reviewed at the monthly risk forum; unchanged"])
-    _after = json.load(open(_rr))
-    _ev = _after["history"][-1]
-    eq("confirm appends exactly one event", len(_after["history"]) - _n_before, 1)
-    eq("confirm writes risk-confirmed", _ev["type"], "risk-confirmed")
-    eq("confirm names the risk", _ev["riskId"], "R-001")
-    eq("confirm records the rationale", _ev["rationale"],
-       "reviewed at the monthly risk forum; unchanged")
-    eq("confirm records the actor", _ev["actor"], "D. Alleyne")
-    eq("confirm carries a timestamp", bool(_ev.get("ts")), True)
-    # Confirming asserts nothing new about magnitude, treatment or status.
-    _r_before = [r for r in _norm_before["risks"] if r["id"] == "R-001"][0]
-    _r_after = [r for r in load_register(_rr)["risks"] if r["id"] == "R-001"][0]
-    eq("confirm changes no score", _r_after["residual"], _r_before["residual"])
-    eq("confirm changes no status", _r_after["status"], _r_before["status"])
-    eq("confirm changes no response", _r_after["response"], _r_before["response"])
-    # The three above name three fields. This one is the assertion that actually holds the
-    # line: without --review, `confirm` is permitted to change *nothing* on the risk, so a
-    # future version that quietly edits owner, priority or a field invented next year is
-    # caught here rather than shipping unnoticed.
-    eq("confirm changes nothing whatsoever on the risk", _r_after, _r_before)
+    eq("confirm is reachable from the CLI", "confirm" in COMMANDS, True)
 
-    # --why is a hard refusal, and a refused mutation leaves the file byte-identical.
-    _raw_before = open(_rr, "rb").read()
-    try:
-        _quiet(_cmd_confirm, [_rr, "R-001"])
-        _refused = False
-    except ValueError:
-        _refused = True
-    eq("confirm without --why is refused", _refused, True)
-    eq("a refused confirm leaves the register untouched", open(_rr, "rb").read(), _raw_before)
+    def _load(path):
+        with open(path, encoding="utf-8") as fh:
+            return json.load(fh)
 
-    # --review sets the next review date in the same breath as the confirmation,
-    # because that is the actual review-meeting workflow.
-    _quiet(_cmd_confirm, [_rr, "R-001", "--why", "forum re-affirmed", "--review", "2027-01-31"])
-    _r3 = [r for r in json.load(open(_rr))["risks"] if r["id"] == "R-001"][0]
-    eq("--review sets the next review date", _r3["reviewDate"], "2027-01-31")
-    # reviewDate is the one field --review is licensed to write. Nothing else may move.
-    eq("--review changes nothing but reviewDate",
-       {k: v for k, v in _r3.items() if k != "reviewDate"},
-       {k: v for k, v in _r_after.items() if k != "reviewDate"})
+    def _raw(path):
+        with open(path, "rb") as fh:
+            return fh.read()
 
-    # A bare --review with no date is a typo, not a request for a default. Silently
-    # dropping it would send a reviewer out of the meeting believing the next review is
-    # booked when nothing was written.
-    try:
-        _quiet(_cmd_confirm, [_rr, "R-001", "--why", "still stands", "--review"])
-        _bare_review = False
-    except ValueError:
-        _bare_review = True
-    eq("a bare --review is refused", _bare_review, True)
-    try:
-        _quiet(_cmd_confirm, [_rr, "R-001", "--why", "still stands", "--review", "31/01/2027"])
-        _bad_date = False
-    except ValueError:
-        _bad_date = True
-    eq("a non-ISO --review is refused", _bad_date, True)
+    def _refuses(argv):
+        """True when a command refuses AND leaves the file byte-identical.
 
-    # An unknown risk id is an error, not a silently-created risk.
-    try:
-        _quiet(_cmd_confirm, [_rr, "R-999", "--why", "typo"])
-        _bad_id = False
-    except ValueError:
-        _bad_id = True
-    eq("confirm on an unknown id is refused", _bad_id, True)
+        Both halves in one helper because they are one property: a refusal that has
+        already written is not a refusal. Asserting them separately is how the second
+        half ends up covering only the first refusal anyone thought to test.
+        """
+        raw = _raw(argv[0])
+        try:
+            _quiet(_cmd_confirm, argv)
+            return (False, raw == _raw(argv[0]))
+        except ValueError:
+            return (True, raw == _raw(argv[0]))
 
-    # Confirming a *closed* risk is allowed on purpose — see the note in _cmd_confirm.
-    # "We re-checked this closed risk and it stays closed" is a claim reviewers make and
-    # ask about, and refusing it would push people to reopen a risk just to record it.
-    _quiet(_cmd_set_status, [_rr, "R-001", "closed", "--why", "treatment complete"])
-    _quiet(_cmd_confirm, [_rr, "R-001", "--why", "re-checked at the forum; stays closed"])
-    _closed = json.load(open(_rr))
-    eq("confirm works on a closed risk", _closed["history"][-1]["type"], "risk-confirmed")
-    eq("confirming a closed risk does not reopen it",
-       [r for r in _closed["risks"] if r["id"] == "R-001"][0]["status"], "closed")
+    with tempfile.TemporaryDirectory() as _d:
+        _rr = os.path.join(_d, "c.rr")
+        _quiet(_cmd_init, [_rr, "--client", "Fixture Co", "--assessor", "D. Alleyne"])
+        _quiet(_cmd_add, [_rr, "--title", "Supplier concentration", "--il", "4", "--ii", "4",
+                          "--rl", "3", "--ri", "4", "--why", "fixture"])
+        _before = _load(_rr)
+        _n_before = len(_before["history"])
+        # The before-state as `confirm` itself will see it. Comparing a raw json.load
+        # against a post-save file would fail on load_register's v1->v2 normalization (it
+        # defaults provisionalTitle/provisionalScore, which `add` never wrote) and blame
+        # `confirm` for it. Normalize both sides so the comparison can only fail on a real
+        # mutation.
+        _norm_before = load_register(_rr)
+        _quiet(_cmd_confirm, [_rr, "R-001", "--why",
+                              "reviewed at the monthly risk forum; unchanged"])
+        _after = _load(_rr)
+        _ev = _after["history"][-1]
+        eq("confirm appends exactly one event", len(_after["history"]) - _n_before, 1)
+        eq("confirm writes risk-confirmed", _ev["type"], "risk-confirmed")
+        eq("confirm names the risk", _ev.get("riskId"), "R-001")
+        # .get() throughout: a mutant that writes a different event shape should fail a
+        # named check, not abort the whole suite with a KeyError five minutes from
+        # anyone working out which assertion it was.
+        eq("confirm records the rationale", _ev.get("rationale"),
+           "reviewed at the monthly risk forum; unchanged")
+        eq("confirm records the actor", _ev.get("actor"), "D. Alleyne")
+        eq("confirm carries a timestamp", bool(_ev.get("ts")), True)
+        # Confirming asserts nothing new about magnitude, treatment or status.
+        _r_before = [r for r in _norm_before["risks"] if r["id"] == "R-001"][0]
+        _r_after = [r for r in load_register(_rr)["risks"] if r["id"] == "R-001"][0]
+        eq("confirm changes no score", _r_after["residual"], _r_before["residual"])
+        eq("confirm changes no status", _r_after["status"], _r_before["status"])
+        eq("confirm changes no response", _r_after["response"], _r_before["response"])
+        # The three above name three fields. This one holds the line: without --review,
+        # `confirm` may change *nothing* on the risk, so a future version that quietly
+        # edits owner, priority or a field invented next year is caught here.
+        eq("confirm changes nothing whatsoever on the risk", _r_after, _r_before)
+        # ...and the same again one level up. The risk object is not the only thing a
+        # register holds: appetite and matrixSize drive every over-appetite flag and the
+        # board headline, and a confirm that edited settings would sail past a
+        # risk-only comparison. history and updatedAt are the two things confirm is
+        # supposed to move.
+        def _reg_key(g):
+            return {k: v for k, v in g.items() if k not in ("history", "updatedAt")}
+
+        eq("confirm changes nothing else in the register",
+           _reg_key(load_register(_rr)), _reg_key(_norm_before))
+
+        # Each refusal must both refuse and leave the file byte-identical.
+        _r1 = _refuses([_rr, "R-001"])
+        eq("confirm without --why is refused", _r1[0], True)
+        eq("a refused confirm leaves the register untouched", _r1[1], True)
+        # A bare --review is a typo, not a request for a default: silently dropping it
+        # sends a reviewer out of the meeting believing the next review is booked.
+        _r2 = _refuses([_rr, "R-001", "--why", "still stands", "--review"])
+        eq("a bare --review is refused", _r2[0], True)
+        eq("a refused bare --review writes nothing", _r2[1], True)
+        _r3r = _refuses([_rr, "R-001", "--why", "still stands", "--review", "31/01/2027"])
+        eq("a non-ISO --review is refused", _r3r[0], True)
+        eq("a refused bad --review writes nothing", _r3r[1], True)
+        # An unpadded date is the dangerous one: strptime accepted `2027-2-01`, stored it,
+        # and _overdue's lexical compare then read an overdue review as on time.
+        _r4 = _refuses([_rr, "R-001", "--why", "still stands", "--review", "2027-2-01"])
+        eq("an unpadded --review is refused", _r4[0], True)
+        eq("a refused unpadded --review writes nothing", _r4[1], True)
+        # The basic form is rejected too, so the flag means one thing on 3.9 and on 3.11+.
+        eq("a basic-form --review is refused",
+           _refuses([_rr, "R-001", "--why", "x", "--review", "20270201"])[0], True)
+        # A flag given twice used to keep the last value silently.
+        _r5 = _refuses([_rr, "R-001", "--why", "a", "--review", "2027-01-31",
+                        "--review", "2027-02-28"])
+        eq("a repeated --review is refused", _r5[0], True)
+        eq("a repeated --review writes nothing", _r5[1], True)
+        eq("a repeated --why is refused",
+           _refuses([_rr, "R-001", "--why", "a", "--why", "b"])[0], True)
+        # An unknown risk id is an error, not a silently-created risk.
+        eq("confirm on an unknown id is refused", _refuses([_rr, "R-999", "--why", "t"])[0], True)
+
+        # --review sets the next review date in the same breath as the confirmation,
+        # because that is the actual review-meeting workflow.
+        _quiet(_cmd_confirm, [_rr, "R-001", "--why", "forum re-affirmed",
+                              "--review", "2027-01-31"])
+        _r3 = [r for r in _load(_rr)["risks"] if r["id"] == "R-001"][0]
+        eq("--review sets the next review date", _r3.get("reviewDate"), "2027-01-31")
+        # reviewDate is the one field --review is licensed to write. Nothing else may move.
+        eq("--review changes nothing but reviewDate",
+           {k: v for k, v in _r3.items() if k != "reviewDate"},
+           {k: v for k, v in _r_after.items() if k != "reviewDate"})
+
+        # Confirming a *closed* risk is allowed on purpose — see the note in _cmd_confirm.
+        # "We re-checked this closed risk and it stays closed" is a claim reviewers make
+        # and ask about, and refusing it would push people to reopen a risk to record it.
+        _quiet(_cmd_set_status, [_rr, "R-001", "closed", "--why", "treatment complete"])
+        _quiet(_cmd_confirm, [_rr, "R-001", "--why", "re-checked; stays closed"])
+        _closed = _load(_rr)
+        eq("confirm works on a closed risk", _closed["history"][-1]["type"], "risk-confirmed")
+        eq("confirming a closed risk does not reopen it",
+           [r for r in _closed["risks"] if r["id"] == "R-001"][0]["status"], "closed")
+
+    # A provisional score is the importer's seed off a CSF gap priority — nobody has
+    # assessed it. risk-confirmed affirms age, so confirming here would reset confirmation
+    # age on a number no human ever reviewed and feed a board freshness figure with it.
+    with tempfile.TemporaryDirectory() as _d2:
+        _pr = os.path.join(_d2, "p.rr")
+        _quiet(_cmd_init, [_pr, "--client", "Fixture Co", "--assessor", "D. Alleyne"])
+        _quiet(_cmd_add, [_pr, "--title", "PR.AA-05 partially implemented", "--il", "4",
+                          "--ii", "4", "--rl", "4", "--ri", "4", "--why", "imported"])
+        _p = load_register(_pr)
+        _p["risks"][0]["provisionalTitle"] = True
+        _p["risks"][0]["provisionalScore"] = True
+        save_register(_p, _pr)
+        _praw = _raw(_pr)
+        try:
+            _quiet(_cmd_confirm, [_pr, "R-001", "--why", "looks fine"])
+            _prov = False
+        except ValueError:
+            _prov = True
+        eq("confirm refuses a provisional score", _prov, True)
+        eq("a refused provisional confirm writes nothing", _raw(_pr), _praw)
+        # Clearing the score flag the honest way — set-score, which records a rationale —
+        # makes it confirmable. A provisional *title* only warns: wording is a
+        # board-eligibility question, not a magnitude one.
+        _quiet(_cmd_set_score, [_pr, "R-001", "--residual", "4", "4",
+                                "--why", "assessed; seed value was right"])
+        # Caught rather than called bare: an over-strict confirm that also refused a
+        # provisional *title* would otherwise abort the whole suite with an unnamed error
+        # instead of failing this one check by name.
+        try:
+            _quiet(_cmd_confirm, [_pr, "R-001", "--why", "re-affirmed at the forum"])
+            _title_warns = True
+        except ValueError:
+            _title_warns = False
+        eq("a provisional title only warns, it does not refuse", _title_warns, True)
+        eq("...and the confirmation was recorded",
+           _load(_pr)["history"][-1]["type"], "risk-confirmed")
+        eq("confirming leaves the provisional title flag alone",
+           [r for r in _load(_pr)["risks"] if r["id"] == "R-001"][0].get("provisionalTitle"),
+           True)
+
+    # The same date validation on every flag that writes a lexically-compared date.
+    with tempfile.TemporaryDirectory() as _d3:
+        _dr = os.path.join(_d3, "d.rr")
+        _quiet(_cmd_init, [_dr, "--client", "Fixture Co", "--assessor", "D. Alleyne"])
+
+        def _rejects(fn, argv):
+            raw = _raw(argv[0])
+            try:
+                _quiet(fn, argv)
+                return (False, raw == _raw(argv[0]))
+            except ValueError:
+                return (True, raw == _raw(argv[0]))
+
+        _add = [_dr, "--title", "T", "--il", "2", "--ii", "2", "--rl", "2", "--ri", "2",
+                "--why", "w"]
+        eq("add --review rejects an unpadded date",
+           _rejects(_cmd_add, _add + ["--review", "2027-2-01"]), (True, True))
+        _quiet(_cmd_add, _add + ["--review", "2027-02-01"])
+        eq("add --review keeps a canonical date",
+           [r for r in _load(_dr)["risks"] if r["id"] == "R-001"][0]["reviewDate"],
+           "2027-02-01")
+        _acc = [_dr, "R-001", "--approver", "CFO", "--justification", "j"]
+        eq("accept --revalidate rejects an unpadded date",
+           _rejects(_cmd_accept, _acc + ["--revalidate", "2027-2-01"]), (True, True))
+        eq("accept --expiry rejects an unpadded date",
+           _rejects(_cmd_accept, _acc + ["--revalidate", "2027-02-01",
+                                         "--expiry", "2027-6-30"]), (True, True))
+        _quiet(_cmd_accept, _acc + ["--revalidate", "2027-02-01", "--expiry", "2027-06-30"])
+        _acceptance = [r for r in _load(_dr)["risks"] if r["id"] == "R-001"][0]["acceptance"]
+        eq("accept stores canonical dates",
+           (_acceptance["revalidationDate"], _acceptance["expiryDate"]),
+           ("2027-02-01", "2027-06-30"))
+        # The defect in one line: the date the old code stored reads as NOT overdue
+        # against a later today, because the comparison downstream is lexical.
+        eq("an unpadded date would have inverted the overdue compare",
+           ("2027-2-01"[:10] <= "2027-11-01", "2027-02-01"[:10] <= "2027-11-01"),
+           (False, True))
 
     failures = [(n, g, w) for (n, g, w) in checks if g != w]
     for n, g, w in checks:
@@ -724,12 +847,31 @@ AGE_AFFIRMING = frozenset({
     "acceptance-revalidated",
 })
 
-# Every type this file can write, plus every type references/schema.md documents. The
-# self-test derives the emitted set from this file's own source and asserts it is a subset,
-# so a newly-emitted type fails the suite until somebody decides whether it affirms age.
-# Without that, a new event would default to "does not affirm" by omission — and silently
-# resetting, or silently failing to reset, staleness is what makes a staleness report
-# worthless.
+# The other half of the partition: events that are real history but assert nothing about
+# a risk's magnitude or its treatment decision, and so must NOT reset confirmation age.
+# Spelled out rather than left as "everything not listed above", because the difference
+# between the two is the whole mechanism — see the note on KNOWN_EVENT_TYPES.
+NON_AGE_AFFIRMING = frozenset({
+    "register-created", "risk-updated", "response-changed", "status-changed",
+    "theme-changed", "settings-changed", "snapshot-created", "import-merged",
+    "risk-closed", "risk-reopened", "risk-deleted",
+})
+
+# Every type this file can write, plus every type references/schema.md documents.
+#
+# The self-test holds three things together: the emitted set (scraped from this file's own
+# source) is a subset of this one, AGE_AFFIRMING and NON_AGE_AFFIRMING are disjoint, and
+# their union is exactly this set. That third assertion is the one that matters. An
+# earlier version asserted only the subset property, which forced a new event type to be
+# *registered* here and nothing more — the single edit a failing subset check steers you
+# toward — leaving it non-affirming by omission, which is precisely the default the
+# mechanism exists to prevent. Requiring the union makes registration insufficient: a new
+# type has to be placed in AGE_AFFIRMING or NON_AGE_AFFIRMING, and that placement is the
+# decision. Silently resetting, or silently failing to reset, staleness is what makes a
+# staleness report worthless.
+#
+# Written out independently rather than as `AGE_AFFIRMING | NON_AGE_AFFIRMING`, which would
+# make the union assertion a tautology and hand back the hole it was added to close.
 KNOWN_EVENT_TYPES = frozenset({
     "register-created", "risk-added", "risk-updated", "score-changed", "response-changed",
     "status-changed", "risk-accepted", "acceptance-revalidated", "risk-confirmed",
@@ -752,11 +894,17 @@ def _emitted_event_types() -> set:
 
     If the source cannot be read, this returns a sentinel that is deliberately not a valid
     event type, so the totality check fails loudly rather than passing over an empty set.
+    UnicodeDecodeError is caught alongside OSError because a .pyc-only install makes
+    __file__ the bytecode: decoding it raises UnicodeDecodeError, which subclasses
+    ValueError and would be swallowed by __main__'s handler into a codec error no
+    maintainer would ever connect to event types. python-compat.sh's own note that the
+    installed plugin "is NOT a git checkout" is why non-checkout execution is worth
+    handling rather than assuming away.
     """
     try:
         with open(os.path.abspath(__file__), encoding="utf-8") as fh:
             src = fh.read()
-    except OSError:
+    except (OSError, UnicodeDecodeError):
         return {"<source-unreadable>"}
     return set(re.findall(r'_append_event\(\s*reg\s*,\s*"([a-z-]+)"', src))
 
@@ -826,6 +974,37 @@ def _lvl(v, size, label):
     if not 1 <= n <= size:
         raise ValueError(f"{label} {n} out of range 1..{size}.")
     return n
+
+
+def _iso_date(value, flag: str) -> str:
+    """Validate a date flag as a canonical YYYY-MM-DD string, or refuse.
+
+    Every date this file stores is compared *lexically* downstream —
+    renderers/_common.py::_overdue is `str(value)[:10] <= today` — so a non-canonical
+    date does not merely look untidy, it silently inverts the comparison.
+    `datetime.strptime(v, "%Y-%m-%d")` accepts unpadded fields, so `2027-2-01` used to be
+    stored verbatim and then read as *not overdue* against a today of `2027-11-01`,
+    dropping an eight-month-overdue review off the attention list entirely.
+
+    `date.fromisoformat` rejects the unpadded form. The round-trip equality check then
+    rejects the basic form `20270201`, which 3.11+ accepts and the 3.9 floor does not —
+    without it this flag would mean two different things on two supported interpreters,
+    and `20270201` breaks `_overdue` exactly the same way. Same wording as _common.py's
+    `--today` guard, which has always validated this way; this is that idiom reaching the
+    flags that write the file rather than only the one that reads it.
+    """
+    s = _s(value)
+    if s is True or s is None or not str(s).strip():
+        raise ValueError(f"{flag} needs a date (YYYY-MM-DD).")
+    s = str(s).strip()
+    try:
+        parsed = date.fromisoformat(s)
+    except (ValueError, TypeError):
+        raise ValueError(f"{flag} {s!r} is not a YYYY-MM-DD date.")
+    if parsed.isoformat() != s:
+        raise ValueError(f"{flag} {s!r} is not a YYYY-MM-DD date "
+                         f"(write it as {parsed.isoformat()}).")
+    return s
 
 
 def _int_opt(opt, key, default):
@@ -926,7 +1105,7 @@ def _cmd_add(args):
     if "cost" in opt:
         risk["response"]["cost"] = int(_s(opt["cost"]))
     if "review" in opt:
-        risk["reviewDate"] = _s(opt["review"])
+        risk["reviewDate"] = _iso_date(opt["review"], "--review")
     if "csf" in opt:
         risk["csfSubcategoryId"] = _s(opt["csf"])
     if "notes" in opt:
@@ -1071,11 +1250,20 @@ def _cmd_accept(args):
     for req in ("approver", "justification", "revalidate"):
         if req not in opt:
             raise ValueError(f"accept: missing --{req}")
+    # All three dates are validated before anything is written. revalidationDate and
+    # expiryDate both reach _overdue's lexical compare in the renderers, so an unpadded
+    # date here reads as "not due" and an acceptance nobody re-validated stops appearing
+    # on the attention list. acceptedDate is validated for the same reason its siblings
+    # are: one flag name meaning one thing.
+    revalidate = _iso_date(opt["revalidate"], "--revalidate")
+    expiry = _iso_date(opt["expiry"], "--expiry") if "expiry" in opt else ""
+    accepted = _iso_date(opt["accepted"], "--accepted") if "accepted" in opt else _now()[:10]
+    # Every date is parsed before the first write, so a bad one refuses without leaving a
+    # half-applied acceptance behind — response.type used to flip to "accept" first.
     r["response"]["type"] = "accept"
     r["acceptance"] = {
         "approver": _s(opt["approver"]), "justification": _s(opt["justification"]),
-        "acceptedDate": _s(opt.get("accepted", _now()[:10])),
-        "expiryDate": _s(opt.get("expiry", "")), "revalidationDate": _s(opt["revalidate"]),
+        "acceptedDate": accepted, "expiryDate": expiry, "revalidationDate": revalidate,
     }
     _append_event(reg, "risk-accepted", riskId=pos[1], rationale=opt.get("why", opt["justification"]))
     save_register(reg, pos[0])
@@ -1094,6 +1282,10 @@ def _cmd_confirm(args):
     Changes no score, no status, no response, no band. The only optional write is
     `--review`, because setting the next review date in the same breath is the actual
     review-meeting workflow.
+
+    Refuses while `provisionalScore` is true — there is nothing to re-affirm about a number
+    nobody has assessed — and only warns on a provisional title, which is the same line
+    `set-score` draws between magnitude and board-eligible wording.
 
     Confirming a *closed* risk is allowed, deliberately. "We re-checked this and it stays
     closed" is a claim reviewers make and auditors ask about, and refusing it would push
@@ -1121,12 +1313,32 @@ def _cmd_confirm(args):
     pos, opt = parse_flags(args)
     if len(pos) < 2:
         raise ValueError("usage: confirm <register.rr> <id> --why '...' [--review YYYY-MM-DD]")
+    # A flag given twice used to keep the last value and drop the rest without a word.
+    # Losing half of a stated intent in silence is the worst available outcome.
+    for dup in ("why", "review"):
+        if args.count("--" + dup) > 1:
+            raise ValueError(f"confirm: --{dup} given more than once. Pass it once — "
+                             f"keeping the last value silently discards what you meant.")
     reg = load_register(pos[0])
     r = _find(reg, pos[1])
     if not (isinstance(opt.get("why"), (str, list)) and _s(opt["why"]).strip()):
         raise ValueError("confirm: --why is required. Asserting that a risk is still right "
                          "is a material claim and belongs in the audit trail on the same "
                          "terms as a score change.")
+    # A provisional score has never been reviewed by anyone — it is the importer's seed,
+    # derived from a CSF gap's priority. `risk-confirmed` is in AGE_AFFIRMING, so
+    # confirming here would reset confirmation age on a number nobody has ever assessed
+    # and feed it into a board-facing freshness figure as though it had been. Refuse: the
+    # honest path is `set-score` (at the seed value, if that is the assessment), which
+    # clears the flag and records the rationale.
+    #
+    # This is not a date gate. It refuses to affirm something never assessed; it neither
+    # expires nor rescores anything, and an assessed risk is confirmable forever.
+    if r.get("provisionalScore"):
+        raise ValueError(f"confirm: {pos[1]}'s score is still the import seed, so there is "
+                         f"nothing yet to re-affirm. Assess it with `set-score` first — "
+                         f"confirming would reset its confirmation age on a number nobody "
+                         f"has reviewed.")
     review = None
     if "review" in opt:
         # A bare `--review` with no date is a typo, not a request for a default. There is
@@ -1136,17 +1348,18 @@ def _cmd_confirm(args):
             raise ValueError("confirm: --review needs a date (YYYY-MM-DD). Bare --review "
                              "sets nothing, and a next review you think is booked but "
                              "isn't is worse than no date at all.")
-        review = _s(opt["review"])
-        try:
-            datetime.strptime(review, "%Y-%m-%d")
-        except ValueError:
-            raise ValueError(f"confirm: --review {review!r} is not a YYYY-MM-DD date.")
+        review = _iso_date(opt["review"], "--review")
         r["reviewDate"] = review
     _append_event(reg, "risk-confirmed", riskId=pos[1], rationale=opt["why"])
     save_register(reg, pos[0])
     print(f"{pos[1]} confirmed by {reg['meta'].get('assessor') or 'unknown'}.")
     if review:
         print(f"  Next review: {review}")
+    # A provisional *title* only warns. Wording is a board-eligibility question, not a
+    # magnitude one, and that is the same line `set-score` draws.
+    if r.get("provisionalTitle"):
+        print("  Title is still CSF framework wording, so it stays out of board views.")
+        print("  Reword it with `set-text` when you are ready to show it.")
     return 0
 
 
