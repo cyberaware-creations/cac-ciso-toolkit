@@ -525,9 +525,32 @@ def compute_completeness(assessments: list[dict], index: dict, core: dict) -> di
 #   beyond       d <= 2T
 #   wellBeyond   d >  2T
 #
+# T//2 is not a tuned figure. It is the halfway mark to the cadence the reader already
+# chose, which is the one inner split that needs no second setting to justify it; a
+# configurable inner boundary would be a second notion of "old" wearing a new name.
+#
+# AGE_BANDS is ordered ascending by age. Reporting renders in tuple order rather than
+# re-deriving it, so reordering this tuple silently reorders every rendered band.
+#
 # `olderThanThreshold` is unchanged and must always equal beyond + wellBeyond. The
-# self-test asserts that identity at two different thresholds, because holding at 180
-# alone would be an accident of the default rather than a property of the model.
+# self-test asserts that identity at three thresholds: 180 (the default), 365 (so that
+# holding is a property of the model rather than an accident of the default), and 198,
+# which puts a fixture rating exactly ON the line. The third is the one that earns its
+# keep. The guarantee lives in two independent expressions — `days <= threshold_days`
+# below and `d > age_days` in _age() — and they can only be caught disagreeing by a
+# rating sitting exactly on the boundary. With 180 and 365 alone, flipping _age()'s
+# `>` to `>=` breaks the identity and every test still passes.
+#
+# When risk-register grows the same age reporting, a near-identical age_band() belongs
+# in skills/risk-register/scripts/score_register.py. It is not there yet; this note
+# exists so the second copy is written knowingly rather than found later and "tidied".
+# The duplication is deliberate. The obvious cleanup — one shared module, say
+# skills/_shared/age.py — is rejected: every script here resolves its assets from
+# _SKILL_ROOT off __file__ and must run standalone, so a cross-skill import needs
+# sys.path surgery and breaks outright the moment a single skill directory is used on
+# its own. The obligation that replaces it: the two copies are edited together, and
+# each skill's own self-test is the only thing pinning them to the same semantics.
+# Grep the sibling path above before changing any boundary below.
 AGE_BANDS = ("within", "approaching", "beyond", "wellBeyond")
 
 
@@ -541,6 +564,14 @@ def age_band(days: int, threshold_days: int) -> str:
     Nothing here is a statement about confidence. The engine reports age; the reader
     judges what age means for a given Subcategory, because a governance outcome and an
     asset inventory go stale at completely different rates.
+
+    A negative `days` — a well-formed confirmedAt dated in the future, which nothing
+    upstream currently rejects — reports as `within`. That is the one place in this file
+    where a bad date becomes a positive claim of freshness, and it is left that way
+    knowingly: this function is a pure distance measurement, and an `impossible` band
+    would smuggle a validation verdict into the distribution. The honest fix belongs in
+    check_store, where an impossible date pair can be surfaced as the store defect it
+    is rather than hidden inside a band the reader would read as good news.
     """
     if days <= threshold_days // 2:
         return "within"
@@ -3727,7 +3758,12 @@ def _cmd_self_test(_args):
        "every dated confirmation lands in exactly one band")
     eq(age["bands"]["beyond"] + age["bands"]["wellBeyond"], age["olderThanThreshold"],
        "beyond + wellBeyond IS olderThanThreshold — the two notions cannot drift")
-    eq(set(age["bands"]), set(AGE_BANDS), "the counter carries every band and no others")
+    # Pinned against a literal, not against itself: comparing the counter's keys to
+    # AGE_BANDS is a tautology, since the counter is built from AGE_BANDS. The exact-dict
+    # assertions above already fix the key set. What is worth pinning is the tuple's
+    # ORDER, which reporting renders in and cannot re-derive.
+    eq(AGE_BANDS, ("within", "approaching", "beyond", "wellBeyond"),
+       "AGE_BANDS is ascending by age — reporting renders in this order")
 
     # The identity has to hold at a rescaled threshold too, or it is an accident of 180.
     ev365 = derive_evidence(fx_assess, fx_intake, index, core, today="2026-07-27",
@@ -3738,12 +3774,33 @@ def _cmd_self_test(_args):
     eq(age365["bands"]["beyond"] + age365["bands"]["wellBeyond"],
        age365["olderThanThreshold"], "the identity holds at T=365, not just at T=180")
     eq(ev365["age"]["thresholdDays"], 365, "the rescaled threshold is reported back")
-    # Per-Function bands follow the fixture's actual Function membership: the 198-day
-    # rating is PR.DS-11, so `beyond` sits under PR, while ID carries the 129-day
-    # (approaching) and 421-day (wellBeyond) ratings.
-    eq(ev["age"]["byFunction"]["PR"]["bands"]["beyond"], 1,
+
+    # T=198 puts PR.DS-11 exactly ON the line, and that is the whole point of this third
+    # call. beyond + wellBeyond == olderThanThreshold is a claim about two independent
+    # expressions agreeing — age_band's `days <= threshold_days` and _age's `d > age_days`
+    # — and no fixture age equals 180 or 365, so at those thresholds the identity holds
+    # no matter which way either comparison is written. Flip _age's `>` to `>=` and only
+    # a rating sitting on the boundary notices.
+    ev198 = derive_evidence(fx_assess, fx_intake, index, core, today="2026-07-27",
+                            threshold_pct=60, age_days=198)
+    age198 = ev198["age"]["overall"]
+    eq(age198["bands"], {"within": 0, "approaching": 2, "beyond": 0, "wellBeyond": 1},
+       "at T=198 the 198-day rating sits on the line and counts as approaching")
+    eq(age198["bands"]["beyond"] + age198["bands"]["wellBeyond"],
+       age198["olderThanThreshold"],
+       "the identity survives a rating exactly ON the threshold — the only case that "
+       "can catch the two comparisons disagreeing")
+    eq(ev198["age"]["thresholdDays"], 198, "the on-the-line threshold is reported back")
+
+    # Per-Function bands are asserted as whole dicts, not single keys. A single-key check
+    # stays true even if every Function wrongly reports the entire Profile, which is
+    # precisely the claim these labels make. The 198-day rating is PR.DS-11, so `beyond`
+    # sits under PR alone; ID carries the 129-day and 421-day ratings and nothing else.
+    eq(ev["age"]["byFunction"]["PR"]["bands"],
+       {"within": 0, "approaching": 0, "beyond": 1, "wellBeyond": 0},
        "bands are reported per Function as well as overall")
-    eq(ev["age"]["byFunction"]["ID"]["bands"]["wellBeyond"], 1,
+    eq(ev["age"]["byFunction"]["ID"]["bands"],
+       {"within": 0, "approaching": 1, "beyond": 0, "wellBeyond": 1},
        "the per-Function partition puts ID's 421-day rating in wellBeyond, not PR's")
 
     g = ev["scopeGuard"]
