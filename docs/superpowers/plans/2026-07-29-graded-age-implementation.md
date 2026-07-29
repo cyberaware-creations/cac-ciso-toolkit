@@ -66,6 +66,20 @@ board-safety                                   7 checks, all pass
 
 Every task ends green on the suites it touches. Counts go **up**, never down.
 
+## A standing rule: green is a claim, not evidence
+
+This repo's recurring defect is not broken code — it is **assertions that cannot fail.** The
+version guard shipped four distinct false-PASS classes. `board-safety.sh` passed over the
+change log for a full release. `python-compat.sh` printed "all 0 shipped files compile" and
+exited 0. Task 1 of this very plan was reviewed twice: the first review found a factually
+impossible assertion, and the second found that two of the remaining ones survived mutation —
+including the identity check whose comment claimed the two notions "cannot drift".
+
+So for every new assertion in every task below: **revert the mechanism it guards and confirm
+the assertion dies.** Where one property is held up by two independent expressions, mutate
+each separately — passing one mutant proves only half. If a mutant survives, the test is
+decoration; fix the test before writing more code. Each task's mutation steps are mandatory.
+
 ---
 
 ### Task 1: Age bands in `nist-csf`
@@ -126,9 +140,43 @@ Insert immediately after it:
     eq(age365["bands"]["beyond"] + age365["bands"]["wellBeyond"],
        age365["olderThanThreshold"], "the identity holds at T=365, not just at T=180")
     eq(ev365["age"]["thresholdDays"], 365, "the rescaled threshold is reported back")
-    eq(ev["age"]["byFunction"]["ID"]["bands"]["beyond"], 1,
-       "bands are reported per Function as well as overall")
+
+    # A threshold that puts a fixture rating EXACTLY on the line. This is the only case
+    # that can catch drift between the two independent expressions holding the identity
+    # up — age_band's `days <= threshold_days` and _age's `d > age_days`. At T=180 and
+    # T=365 no fixture age equals T (they are 129, 198, 421), so mutating _age's `>` to
+    # `>=` passes both. PR.DS-11 is 198 days old, so T=198 sits a rating on the boundary.
+    ev198 = derive_evidence(fx_assess, fx_intake, index, core, today="2026-07-27",
+                            threshold_pct=60, age_days=198)
+    age198 = ev198["age"]["overall"]
+    eq(age198["bands"], {"within": 0, "approaching": 2, "beyond": 0, "wellBeyond": 1},
+       "a rating at exactly T is approaching, not beyond")
+    eq(age198["bands"]["beyond"] + age198["bands"]["wellBeyond"],
+       age198["olderThanThreshold"],
+       "the identity holds with a rating sitting exactly on the threshold")
+    eq(ev198["age"]["thresholdDays"], 198, "the boundary threshold is reported back")
+
+    # Per-Function bands, as full dicts. A single-key assertion here passes even when
+    # byFunction wrongly hands every Function the whole Profile's ages — the full dict
+    # is what pins the grouping. Fixture membership: ID holds the 129- and 421-day
+    # ratings (ID.AM-01, ID.AM-02); PR holds the 198-day one (PR.DS-11).
+    eq(ev["age"]["byFunction"]["PR"]["bands"],
+       {"within": 0, "approaching": 0, "beyond": 1, "wellBeyond": 0},
+       "PR carries the one beyond rating and nothing else")
+    eq(ev["age"]["byFunction"]["ID"]["bands"],
+       {"within": 0, "approaching": 1, "beyond": 0, "wellBeyond": 1},
+       "ID carries the approaching and wellBeyond ratings, not PR's beyond")
 ```
+
+**Why these five extra assertions, and not the single per-Function check this plan first
+carried:** the original was `eq(ev["age"]["byFunction"]["ID"]["bands"]["beyond"], 1, ...)`,
+which is factually impossible — the fixture's only `beyond` rating at T=180 is `PR.DS-11`
+(198 days), in Function **PR**, so ID's `beyond` count is legitimately 0. Two independent
+reviews caught it. Worse, both the single-key form *and* the T=180/T=365 identity checks
+survive mutation: a single-key per-Function assertion passes when `byFunction` hands every
+Function the whole Profile, and the identity assertions pass when `_age`'s `>` becomes `>=`,
+because drift is only observable with a rating exactly on the line. Assertions that cannot
+fail are the defect this repo has shipped most often; these five can.
 
 - [ ] **Step 2: Run the test to verify it fails**
 
@@ -229,11 +277,18 @@ with:
 
 Run: `python3 skills/nist-csf/scripts/profile_analysis.py self-test 2>&1 | tail -3`
 
-Expected: `self-test: 490/490 checks passed` (472 baseline + 18 new).
+Expected: `self-test: 493/493 checks passed` — 472 baseline plus the 21 assertions above. Do
+not treat that number as the goal: the goal is 472 plus however many assertions you actually
+wrote. If it is *below* 472, you deleted a test, and that is the only outcome here that is a
+failure.
 
-- [ ] **Step 6: Prove the identity test binds**
+- [ ] **Step 6: Prove the tests bind — three mutants, not one**
 
-A test that cannot fail is not a test. Break the mechanism and confirm the assertion dies:
+A test that cannot fail is not a test, and this repo has shipped that defect more than any
+other. Each mutant below targets one of the three independent things these assertions claim.
+Run all three. Every one MUST fail, and the restore MUST return to green.
+
+**Mutant A — the band boundary.** Widens `beyond` so nothing is ever `wellBeyond`:
 
 ```bash
 cd /Users/darren/Documents/GitHub/cac-ciso-toolkit
@@ -248,11 +303,54 @@ s = s.replace("    if days <= threshold_days * 2:\n        return \"beyond\"",
               "    if days <= threshold_days * 99:\n        return \"beyond\"", 1)
 p.write_text(s)
 PY
-python3 skills/nist-csf/scripts/profile_analysis.py self-test 2>&1 | tail -3
+python3 skills/nist-csf/scripts/profile_analysis.py self-test 2>&1 | tail -5
 cp /tmp/pa.bak skills/nist-csf/scripts/profile_analysis.py
 ```
 
-Expected: the mutant run FAILS, naming `one day past 2T is wellBeyond` among the failures. Then the restore returns the file to 490/490. If the mutant passes, the boundary tests do not bind and must be strengthened before continuing.
+Expected: FAILS, naming `one day past 2T is wellBeyond`.
+
+**Mutant B — the identity's other half.** The identity is held up by two *independent*
+expressions: `age_band`'s `days <= threshold_days` and `_age`'s `d > age_days`. Mutant A only
+tests the first. This tests the second, and it is the reason the `age_days=198` case exists —
+at T=180 and T=365 no fixture age equals T, so this mutant passes without it:
+
+```bash
+cp skills/nist-csf/scripts/profile_analysis.py /tmp/pa.bak
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path("skills/nist-csf/scripts/profile_analysis.py")
+s = p.read_text()
+old = '"olderThanThreshold": sum(1 for d in ages if d > age_days),'
+assert old in s, "mutant target not found"
+p.write_text(s.replace(old, '"olderThanThreshold": sum(1 for d in ages if d >= age_days),', 1))
+PY
+python3 skills/nist-csf/scripts/profile_analysis.py self-test 2>&1 | tail -5
+cp /tmp/pa.bak skills/nist-csf/scripts/profile_analysis.py
+```
+
+Expected: FAILS, naming `the identity holds with a rating sitting exactly on the threshold`.
+If it passes, the boundary case is not doing its job — fix it before continuing.
+
+**Mutant C — the per-Function grouping.** Hands every Function the whole Profile's ages. A
+single-key per-Function assertion survives this; a full-dict one does not:
+
+```bash
+cp skills/nist-csf/scripts/profile_analysis.py /tmp/pa.bak
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path("skills/nist-csf/scripts/profile_analysis.py")
+s = p.read_text()
+old = '"byFunction": {fid: _age(by_fn.get(fid, [])) for fid in fids},'
+assert old in s, "mutant target not found"
+p.write_text(s.replace(old, '"byFunction": {fid: _age(assessments) for fid in fids},', 1))
+PY
+python3 skills/nist-csf/scripts/profile_analysis.py self-test 2>&1 | tail -5
+cp /tmp/pa.bak skills/nist-csf/scripts/profile_analysis.py
+python3 skills/nist-csf/scripts/profile_analysis.py self-test 2>&1 | tail -2
+```
+
+Expected: FAILS, naming one or both of the per-Function band assertions. The final restore
+returns to green.
 
 - [ ] **Step 7: Confirm the Python floor**
 
