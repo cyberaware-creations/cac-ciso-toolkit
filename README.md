@@ -81,7 +81,10 @@ against that log as evidence arrives.
 - **Ratings do not expire.** A rating is questioned when newer material is recorded against it, or
   when it carries no confirmation date to compare against — never because a timer ran out. Age is
   reported and the reader judges: a governance outcome and an asset inventory go stale at completely
-  different rates, so the engine declines to pick a decay rate on your behalf.
+  different rates, so the engine declines to pick a decay rate on your behalf. There *is* an
+  `ageThresholdDays` (default 180), and it is reporting furniture: it counts how many ratings sit
+  past it so the number can appear on a dashboard. It flags nothing, gates nothing, suppresses
+  nothing, and changes no score.
 - **Bundled framework data** — the full CSF 2.0 Core (6 Functions / 22 Categories / 106
   Subcategories) with all 363 Implementation Examples and the Informative References, generated from
   the NIST CPRT catalog, plus verbatim Tier text from NIST CSWP 29.
