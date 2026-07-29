@@ -88,6 +88,22 @@ def _git(args, root="."):
                           errors="surrogateescape").stdout
 
 
+def _utf8_stdout():
+    """Print UTF-8 whatever the runner's locale says.
+
+    Decoding git's output and encoding our own are independent settings, and fixing
+    only the first just moves the crash: under LC_ALL=C a non-ASCII path decodes
+    cleanly in _git and then blows up on the way to stdout while the guard is trying
+    to report the very violation it caught. backslashreplace also absorbs the
+    surrogates _git's surrogateescape can produce, which fail to encode even in a
+    UTF-8 locale.
+    """
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
+    except (AttributeError, ValueError):
+        pass  # stdout replaced by something without reconfigure; nothing to do
+
+
 def _version_tuple(v):
     """(int, ...) for a dot-separated numeric version, else None."""
     try:
@@ -142,35 +158,46 @@ def check_bump(base, root="."):
         return True
 
     stale = []
+    absent = []
     for path, keypath in MANIFESTS:
         try:
             raw = _git(["show", "{}:{}".format(base, path)], root)
         except subprocess.CalledProcessError:
-            print("bump: {} absent at {}; treating as a first release.".format(
-                path, base))
-            return True
+            # New at base, so there is no prior version to compare against. Only a
+            # clean sweep means a first release: one manifest arriving late must not
+            # excuse the others from moving.
+            absent.append(path)
+            continue
         try:
             before = _dig(json.loads(raw), keypath)
         except (ValueError, KeyError):
             print("ERROR: {} is unreadable at {}: malformed JSON, or no such key.".format(
                 _label(path, keypath), base))
-            print("       Only an absent manifest means a first release. This one is "
-                  "present and cannot be trusted, so the bump cannot be verified.")
+            print("       Only a wholly absent manifest set means a first release. "
+                  "This one is present and cannot be trusted, so the bump cannot be "
+                  "verified.")
             return False
         now = _dig(json.loads((Path(root) / path).read_text(encoding="utf-8")), keypath)
         if not _moved_forward(before, now):
             stale.append((_label(path, keypath), before, now))
 
+    if len(absent) == len(MANIFESTS):
+        print("bump: no manifest exists at {}; treating as a first release.".format(
+            base))
+        return True
+
     if not stale:
         print("bump: {} shipped file(s) changed and all {} version strings moved "
-              "forward.".format(len(shipped), len(MANIFESTS)))
+              "forward.".format(len(shipped), len(MANIFESTS) - len(absent)))
         return True
 
     print("ERROR: {} shipped file(s) changed against {}, but {} of {} version strings "
           "did not move forward:".format(
-              len(shipped), base, len(stale), len(MANIFESTS)))
+              len(shipped), base, len(stale), len(MANIFESTS) - len(absent)))
     for label, before, now in stale:
         print("         {:<52} {} -> {}".format(label, before, now))
+    for path in absent:
+        print("         {:<52} (new at base)".format(path))
     print("       shipped:")
     for f in shipped[:10]:
         print("         {}".format(f))
@@ -215,6 +242,7 @@ def _git_commit(root, message):
 
 
 def self_test():
+    _utf8_stdout()  # reachable without going through main()
     checks = []
 
     def ok(cond, label):
@@ -306,6 +334,58 @@ def self_test():
         ok(check_consistency(str(skew)) is True,
            "...and consistency alone would not have caught it")
 
+        # -- Case A binds the four-witness loop on its own. The skew case above needs
+        #    BOTH the loop and the forward-only rule to fail, so reverting either one
+        #    alone left it green -- it tested the conjunction, not the mechanisms. Here
+        #    plugin.json moves forward legitimately and the other three simply do not,
+        #    so only the count of witnesses can catch it. --
+        one = Path(tmp) / "one-witness"
+        one.mkdir()
+        subprocess.run(["git", "-C", str(one), "init", "-q"], check=True,
+                       capture_output=True)
+        _write_manifests(one, "1.0.0")
+        (one / "skills").mkdir()
+        (one / "skills" / "SKILL.md").write_text("v1\n", encoding="utf-8")
+        one_base = _git_commit(one, "base: all four at 1.0.0")
+        (one / ".claude-plugin" / "plugin.json").write_text(
+            json.dumps({"version": "1.0.1"}), encoding="utf-8")
+        (one / "skills" / "SKILL.md").write_text("v2\n", encoding="utf-8")
+        _git_commit(one, "bump plugin.json alone, with a shipped change")
+        ok(check_bump(one_base, str(one)) is False,
+           "a bump in plugin.json alone fails: marketplace.json never moved")
+
+        # -- Case B binds the forward-only rule on its own: all four move, so the
+        #    witness count is satisfied and only direction can catch it. --
+        down = Path(tmp) / "downgrade"
+        down.mkdir()
+        subprocess.run(["git", "-C", str(down), "init", "-q"], check=True,
+                       capture_output=True)
+        _write_manifests(down, "1.0.1")
+        (down / "skills").mkdir()
+        (down / "skills" / "SKILL.md").write_text("v1\n", encoding="utf-8")
+        down_base = _git_commit(down, "base: all four at 1.0.1")
+        _write_manifests(down, "1.0.0")
+        (down / "skills" / "SKILL.md").write_text("v2\n", encoding="utf-8")
+        _git_commit(down, "downgrade all four, with a shipped change")
+        ok(check_bump(down_base, str(down)) is False,
+           "a straight downgrade of all four fails: backwards ships nothing either")
+
+        # -- a manifest merely new at base must not excuse the three that exist --
+        partial = Path(tmp) / "partial"
+        partial.mkdir()
+        subprocess.run(["git", "-C", str(partial), "init", "-q"], check=True,
+                       capture_output=True)
+        _write_manifests(partial, "1.0.0")
+        (partial / ".codex-plugin" / "plugin.json").unlink()
+        (partial / "skills").mkdir()
+        (partial / "skills" / "SKILL.md").write_text("v1\n", encoding="utf-8")
+        partial_base = _git_commit(partial, "base lacking .codex-plugin/plugin.json")
+        _write_manifests(partial, "1.0.0")  # adds it back; nothing else moves
+        (partial / "skills" / "SKILL.md").write_text("v2\n", encoding="utf-8")
+        _git_commit(partial, "add the missing manifest, with a shipped change")
+        ok(check_bump(partial_base, str(partial)) is False,
+           "one manifest new at base does not excuse the three that did not move")
+
         # -- git quotes non-ASCII paths by default; -z is what keeps them visible --
         uni = Path(tmp) / "unicode"
         uni.mkdir()
@@ -328,6 +408,7 @@ USAGE = "usage: check-versions.py [--base <ref>] [--self-test]"
 
 
 def main(argv):
+    _utf8_stdout()
     args = list(argv[1:])
     base = None
     want_self_test = False
