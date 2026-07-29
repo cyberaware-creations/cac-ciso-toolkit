@@ -1,11 +1,20 @@
 # Build-time tools
 
 **Not part of the plugin.** Nothing here ships to users or is loaded by a skill. These scripts
-regenerate bundled reference data from its published sources.
+either regenerate bundled reference data from its published sources, or guard a repo-wide
+invariant that no single skill owns.
 
-They exist so that `skills/nist-csf/references/nist-csf-2.0-core.json` is reproducible. Without
-them the file is a 389K blob nobody can regenerate, verify, or update when NIST publishes a
-revision.
+The generators exist so that `skills/nist-csf/references/nist-csf-2.0-core.json` is reproducible.
+Without them the file is a 389K blob nobody can regenerate, verify, or update when NIST publishes
+a revision.
+
+The guards live here rather than in a skill's `evals/` directory for the same reason everything
+else here does: `skills/**` ships to users, and a check about the repo's own manifests is not
+something a user should be shipped.
+
+| Guard | What it enforces |
+|---|---|
+| `check-versions.py` | The four plugin version strings agree, and they move whenever shipped content moves. Run by the `manifests` job in `.github/workflows/evals.yml`. |
 
 **No dependencies, no install step.** Python stdlib and node built-ins only. That is a deliberate
 constraint, not a happy accident — see "Why there is no `package.json`" at the end.
