@@ -1108,6 +1108,24 @@ def attention_lists(store: dict, index: dict, today: str, top: int = 10) -> dict
     }
 
 
+def coverage_stdout(guard: dict, cov: dict | None) -> str:
+    """The coverage figure as it may be spoken on stdout — or the reason it may not be.
+
+    The scope guard's stated reason for suppressing the headline is that the number must
+    not reappear one document over. Three commands were printing it to the terminal
+    anyway while the dashboards withheld it, and an agent reads stdout and repeats it to
+    the user — so the guard was being routed around by the tool's own output.
+
+    One function so the three sites cannot drift: `analyze`/renderers, `snapshot`, `diff`.
+    """
+    if guard.get("suppressed"):
+        return (f"withheld ({guard.get('assessed', 0)} of {guard.get('inScope', 0)} "
+                f"assessed, below the {guard.get('thresholdPct', 60)}% threshold)")
+    if not cov or cov.get("percent") is None:
+        return "not yet targeted"
+    return f"{cov['percent']:.1f}% ({cov['n']}/{cov['d']})"
+
+
 def rollups(store: dict, index: dict, core: dict) -> dict:
     return {
         "coverage": compute_coverage(store["assessments"], index, core),
@@ -1212,7 +1230,17 @@ def _list(v):
 
 
 def parse_flags(args: list[str]):
-    """Tiny --flag parser. `--x a b` -> {'x': ['a','b']}; `--x a` -> {'x': 'a'}; `--x` -> {'x': True}."""
+    """Tiny --flag parser. `--x a b` -> {'x': ['a','b']}; `--x a` -> {'x': 'a'}; `--x` -> {'x': True}.
+
+    A repeated flag accumulates rather than overwriting. It used to overwrite, silently:
+    `--function ID=3 --function PR=1 --function RS=2` applied RS and dropped the other
+    two, exit 0, no warning. The space-separated form is what SKILL.md teaches and it
+    always worked, but the usage strings render as `[--function GV=N ...]`, and that `...`
+    reads as "repeatable" to anyone typing at a shell. Losing two thirds of a tier
+    judgment without saying so is the worst available outcome, so both forms now mean the
+    same thing. Applies to every multi-value flag: --subjects, --evidence, --linked,
+    --org-units, --threat-types.
+    """
     pos, opt, i = [], {}, 0
     while i < len(args):
         a = args[i]
@@ -1220,7 +1248,13 @@ def parse_flags(args: list[str]):
             key, vals, j = a[2:], [], i + 1
             while j < len(args) and not args[j].startswith("--"):
                 vals.append(args[j]); j += 1
-            opt[key] = (vals if len(vals) > 1 else vals[0]) if vals else True
+            new = (vals if len(vals) > 1 else vals[0]) if vals else True
+            if key in opt:
+                # `--x a --x b` is `--x a b`. A bare repeat (`--x --x`) stays True.
+                merged = _list(opt[key]) + _list(new)
+                opt[key] = merged if merged else True
+            else:
+                opt[key] = new
             i = j
         else:
             pos.append(a); i += 1
@@ -1668,7 +1702,11 @@ def _cmd_snapshot(args):
     save_store(store, path, ts)
 
     cov = snap["rollups"]["coverage"]["overall"]
-    pct = "not yet targeted" if cov["percent"] is None else f"{cov['percent']:.1f}% ({cov['n']}/{cov['d']})"
+    rep = store["profile"]["settings"]["reporting"]
+    guard = derive_evidence(store["assessments"], store.get("intake", []), index, core,
+                            _today(), rep["scopeThresholdPct"],
+                            rep["ageThresholdDays"])["scopeGuard"]
+    pct = coverage_stdout(guard, cov)
     print(f"Snapshot '{label}' saved — coverage {pct}, {len(store['actionItems'])} action items.")
     return 0
 
@@ -1689,7 +1727,15 @@ def _cmd_diff(args):
 
     print(f"Since '{d['against']['label']}' ({d['against']['ts']}):")
     ov = d["coverage"]["overall"]
-    if ov["delta"] is None:
+    rep = store["profile"]["settings"]["reporting"]
+    guard = derive_evidence(store["assessments"], store.get("intake", []), index, core,
+                            _today(), rep["scopeThresholdPct"],
+                            rep["ageThresholdDays"])["scopeGuard"]
+    if guard["suppressed"]:
+        # Below the threshold the movement is as unreportable as the level: a delta
+        # between two figures that both describe a minority describes the minority too.
+        print(f"  Coverage: {coverage_stdout(guard, None)}. Subcategory changes below.")
+    elif ov["delta"] is None:
         print("  Coverage: not comparable (one side has nothing targeted).")
     else:
         print(f"  Coverage: {ov['from']:.1f}% → {ov['to']:.1f}% ({ov['delta']:+.1f} pts)")
@@ -2420,6 +2466,44 @@ def _cmd_self_test(_args):
         checks += 1
         if got is None or abs(got - want) > tol:
             failures.append(f"{label}: expected {want!r}, got {got!r}")
+
+    # --- Flag parsing ---
+    # A repeated flag used to overwrite: `--function ID=3 --function PR=1 --function RS=2`
+    # applied RS and silently dropped ID and PR, exit 0. Both forms must now agree.
+    eq(parse_flags(["--function", "ID=3", "PR=1", "RS=2"])[1],
+       parse_flags(["--function", "ID=3", "--function", "PR=1", "--function", "RS=2"])[1],
+       "repeated flag == space-separated flag")
+    eq(parse_flags(["--function", "ID=3", "--function", "PR=1"])[1]["function"],
+       ["ID=3", "PR=1"], "a repeated flag accumulates in order")
+    eq(parse_flags(["--subjects", "PR.AA-01", "--subjects", "ID.AM-01", "ID.AM-02"])[1],
+       {"subjects": ["PR.AA-01", "ID.AM-01", "ID.AM-02"]},
+       "mixed repeated and space-separated values all survive")
+    eq(parse_flags(["--x", "a"])[1], {"x": "a"}, "a single value is still a scalar")
+    eq(parse_flags(["--x"])[1], {"x": True}, "a valueless flag is still True")
+    eq(parse_flags(["--x", "--x"])[1], {"x": True}, "a repeated valueless flag stays True")
+    eq(_s(parse_flags(["--rationale", "first", "--rationale", "second"])[1]["rationale"]),
+       "first second",
+       "a repeated scalar joins the same way an unquoted multi-token value always has")
+    eq(parse_flags(["p.csfp", "--a", "1", "--b"])[0], ["p.csfp"],
+       "positionals are unaffected")
+
+    # --- The scope guard binds stdout too ---
+    # Suppressing the figure inside the HTML and printing it to the terminal defeats the
+    # guard's stated reason: the number must not reappear one document over. An agent
+    # reads stdout and repeats it, which is the outcome the guard exists to prevent.
+    _sup = {"suppressed": True, "assessed": 31, "inScope": 106, "thresholdPct": 60}
+    _open = {"suppressed": False, "assessed": 80, "inScope": 106, "thresholdPct": 60}
+    _cov = {"percent": 22.2, "n": 47, "d": 212}
+    ok("22" not in coverage_stdout(_sup, _cov),
+       "a suppressed profile never prints the coverage percentage")
+    ok("31 of 106" in coverage_stdout(_sup, _cov),
+       "it prints the assessed fraction instead, so the reader knows why")
+    eq(coverage_stdout(_open, _cov), "22.2% (47/212)",
+       "at or above the threshold the figure is printed unchanged")
+    eq(coverage_stdout(_open, None), "not yet targeted",
+       "nothing targeted is still reported as such, not as 0%")
+    eq(coverage_stdout(_sup, None), coverage_stdout(_sup, _cov),
+       "suppression does not depend on having a figure to suppress")
 
     # --- Core integrity ---
     eq(check_core(core), [], "core integrity")

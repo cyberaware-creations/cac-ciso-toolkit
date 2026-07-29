@@ -1,0 +1,2 @@
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "t1", "name": "Skill", "input": {"skill": "cyber-aware-creations:nist-csf"}}]}}
+{"type": "result", "subtype": "success", "is_error": false, "total_cost_usd": 0.2, "duration_ms": 12000, "result": "   "}

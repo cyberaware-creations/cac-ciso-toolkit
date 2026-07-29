@@ -45,7 +45,7 @@ def build_data(ctx: C.Context) -> str:
 
 
 def tiles(ctx: C.Context) -> str:
-    s = ctx.summary
+    s = ctx.live
     prior = ctx.trend[-2]["overAppetite"] if len(ctx.trend) > 1 else None
     if prior is None:
         arrow, col, sub = "", C.SLATE, "no snapshot to compare against"
@@ -57,9 +57,9 @@ def tiles(ctx: C.Context) -> str:
     att = ctx.attention
     flagged = len({r["id"] for k in ("reviewOverdue", "acceptanceDue", "acceptanceExpired",
                                      "acceptanceIncomplete", "unowned") for r in att[k]})
-    live = s["total"] - s["closed"]
+    live = s["total"]
     cards = [
-        (s["total"], "Risks tracked", f'{live} live · {s["closed"]} closed', "", C.INK),
+        (s["registerTotal"], "Risks tracked", f'{live} live · {s["closed"]} closed', "", C.INK),
         (f'{s["overAppetite"]} <span style="color:{col}">{arrow}</span>',
          "Over appetite", sub, "warn" if s["overAppetite"] else "", C.INK),
         (len(att["acceptanceDue"]), "Acceptances due for re-validation",
@@ -397,7 +397,7 @@ def render(ctx: C.Context) -> str:
               .replace("__BAND__", json.dumps(C.BAND)))
     client = C.esc(m.get("clientName") or "")
     title_tail = " · " + client if client else ""
-    note = C.provisional_note(ctx.summary)
+    note = C.provisional_note(ctx.live)
     prov_banner = (f'<div class="sub provisional"><div class="wrap">{note}</div></div>'
                    if note else "")
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
