@@ -545,10 +545,10 @@ def compute_completeness(assessments: list[dict], index: dict, core: dict) -> di
 # in skills/risk-register/scripts/score_register.py. It is not there yet; this note
 # exists so the second copy is written knowingly rather than found later and "tidied".
 # The duplication is deliberate. The obvious cleanup — one shared module, say
-# skills/_shared/age.py — is rejected: every script here resolves its assets from
-# _SKILL_ROOT off __file__ and must run standalone, so a cross-skill import needs
-# sys.path surgery and breaks outright the moment a single skill directory is used on
-# its own. The obligation that replaces it: the two copies are edited together, and
+# skills/_shared/age.py — is rejected: every shipped script must run standalone (this
+# one also resolves its assets from _SKILL_ROOT off __file__), so a cross-skill import
+# needs sys.path surgery and breaks outright the moment a single skill directory is used
+# on its own. The obligation that replaces it: the two copies are edited together, and
 # each skill's own self-test is the only thing pinning them to the same semantics.
 # Grep the sibling path above before changing any boundary below.
 AGE_BANDS = ("within", "approaching", "beyond", "wellBeyond")
