@@ -65,18 +65,46 @@ def _label(path, keypath):
 
 
 def read_versions(root="."):
-    """[(label, version)] for all four manifest entries."""
-    out = []
+    """[(label, version)] for all four manifest entries.
+
+    Each file is parsed once even though marketplace.json carries two of the four
+    entries -- the cache is per-call, so a caller always sees one coherent snapshot
+    rather than two reads that could straddle an edit.
+
+    Raises OSError / ValueError / KeyError if a manifest is missing, malformed, or has
+    lost its version key. check_consistency turns those into a stated reason; nothing
+    here guesses at a value.
+    """
+    docs, out = {}, []
     for path, keypath in MANIFESTS:
-        doc = json.loads((Path(root) / path).read_text(encoding="utf-8"))
-        out.append((_label(path, keypath), _dig(doc, keypath)))
+        if path not in docs:
+            docs[path] = json.loads((Path(root) / path).read_text(encoding="utf-8"))
+        out.append((_label(path, keypath), _dig(docs[path], keypath)))
     return out
 
 
 def check_consistency(root="."):
-    rows = read_versions(root)
+    try:
+        rows = read_versions(root)
+    except (OSError, ValueError, KeyError) as exc:
+        # The module docstring promises "exit 1 with the reason". A traceback is an
+        # exit 1 without one, and the file this fails on is sitting in the reader's own
+        # working tree -- so name it rather than making them read a stack.
+        print("ERROR: a version manifest could not be read: {}: {}".format(
+            type(exc).__name__, exc))
+        print("       Expected all of: {}".format(
+            ", ".join(sorted({p for p, _ in MANIFESTS}))))
+        return False
     for label, v in rows:
         print("  {:<52} {}".format(label, v))
+    unparsed = sorted({v for _, v in rows if _version_tuple(v) is None})
+    if unparsed:
+        # Not a failure: an unusual scheme is allowed. But _moved_forward silently
+        # degrades to plain inequality for it, so a downgrade would stop being caught.
+        # Silent degradation in a guard is the thing this file exists to argue against.
+        print("NOTE:  not dot-separated integers: {}. The bump check still requires a "
+              "change,".format(", ".join(unparsed)))
+        print("       but cannot tell forwards from backwards for these.")
     distinct = sorted({v for _, v in rows})
     if len(distinct) == 1:
         print("consistency: all {} version strings agree ({}).".format(
@@ -274,6 +302,40 @@ def self_test():
             json.dumps({"version": "1.2.4"}), encoding="utf-8")
         ok(check_consistency(str(drift)) is False,
            "one divergent version string fails consistency")
+
+        # A manifest that is malformed, absent, or has lost its version key must fail
+        # with a stated reason rather than a traceback -- an exit 1 either way, but the
+        # module docstring promises the reason, and a stack is not one.
+        broken = Path(tmp) / "broken"
+        broken.mkdir()
+        _write_manifests(broken, "1.2.3")
+        (broken / ".codex-plugin" / "plugin.json").write_text("{not json",
+                                                              encoding="utf-8")
+        ok(check_consistency(str(broken)) is False,
+           "a malformed manifest fails with a reason, not a traceback")
+
+        gone = Path(tmp) / "gone"
+        gone.mkdir()
+        _write_manifests(gone, "1.2.3")
+        (gone / ".codex-plugin" / "plugin.json").unlink()
+        ok(check_consistency(str(gone)) is False,
+           "an absent manifest fails with a reason, not a traceback")
+
+        keyless = Path(tmp) / "keyless"
+        keyless.mkdir()
+        _write_manifests(keyless, "1.2.3")
+        (keyless / ".codex-plugin" / "plugin.json").write_text(
+            json.dumps({"name": "x"}), encoding="utf-8")
+        ok(check_consistency(str(keyless)) is False,
+           "a manifest missing its version key fails with a reason")
+
+        # An unusual scheme is allowed through consistency -- it just loses the
+        # direction check, which check_consistency now says out loud.
+        odd = Path(tmp) / "odd"
+        odd.mkdir()
+        _write_manifests(odd, "1.2.3-rc1")
+        ok(check_consistency(str(odd)) is True,
+           "a non-numeric scheme still passes consistency, with a note")
 
         # -- bump-on-change, needs a real repo --
         repo = Path(tmp) / "repo"

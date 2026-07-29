@@ -89,6 +89,19 @@ jobs:
       - name: The guard's own self-test
         run: ./tools/check-versions.py --self-test
 
+      # The guard reads git's path output and writes filenames back out, so it has to
+      # survive a runner whose locale is not UTF-8 -- otherwise it crashes while
+      # reporting a violation, which reads as a broken guard rather than a caught one.
+      # All three variables are needed to actually reach ascii stdout: LC_ALL alone is
+      # undone by PEP 538 coercion, and PEP 540 UTF-8 mode is on by default on newer
+      # interpreters. Without them this assertion passes vacuously.
+      - name: ...and again with a non-UTF-8 locale
+        env:
+          LC_ALL: C
+          PYTHONCOERCECLOCALE: '0'
+          PYTHONUTF8: '0'
+        run: ./tools/check-versions.py --self-test
+
       - name: All four version strings agree
         run: ./tools/check-versions.py
 
