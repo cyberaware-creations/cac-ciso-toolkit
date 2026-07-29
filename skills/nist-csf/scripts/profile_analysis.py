@@ -1151,15 +1151,32 @@ def build_playbook(gaps: list[dict], settings: dict, guidance: dict, top: int = 
     return rows
 
 
-def attention_lists(store: dict, index: dict, today: str, top: int = 10) -> dict:
-    """What a reviewer must look at. `today` is passed in — never read from the clock."""
+def attention_lists(store: dict, index: dict, today: str, top: int = 10,
+                    age_days: int = 180) -> dict:
+    """What a reviewer must look at. `today` is passed in — never read from the clock.
+
+    `age_days` is the Profile's own ageThresholdDays, used only to band each row's
+    confirmation age. It has a default so the two date-handling self-tests below can call
+    this with three arguments, but the real call site passes the configured value.
+    """
     settings = store["profile"]["settings"]
     scoped = in_scope(store["assessments"])
     gaps = compute_gaps(store["assessments"], settings, index)
 
     def _brief(a):
+        # Two dates, deliberately. `lastReviewed` is when somebody looked; `confirmedAt`
+        # is when the rating was decided, with a source and a confirmer behind it. The
+        # stalest list is ordered by the first and banded by the second, because the
+        # band belongs to the same field every other age figure in this engine measures.
+        # A rating with no confirmedAt gets no band — never a guessed one.
+        confirmed_at = a.get("confirmedAt")
         return {"subcategoryId": a["subcategoryId"], "text": index[a["subcategoryId"]]["text"],
-                "lastReviewed": a.get("lastReviewed"), "status": a.get("status")}
+                "lastReviewed": a.get("lastReviewed"), "status": a.get("status"),
+                "confirmedAt": confirmed_at,
+                "confirmationAgeDays": (_days_between(confirmed_at, today)
+                                        if confirmed_at else None),
+                "confirmationBand": (age_band(_days_between(confirmed_at, today), age_days)
+                                     if confirmed_at else None)}
 
     never = [_brief(a) for a in scoped if not a.get("lastReviewed")]
     never.sort(key=lambda r: r["subcategoryId"])
@@ -2425,7 +2442,8 @@ def _cmd_analyze(args):
                              index, rank, queue_top),
         "gaps": gaps,
         "playbook": build_playbook(gaps, settings, guidance, top),
-        "attention": attention_lists(store, index, today, top),
+        "attention": attention_lists(store, index, today, top,
+                                     age_days=rep["ageThresholdDays"]),
         "actionItems": {
             "items": store["actionItems"],
             "summary": {
@@ -2699,6 +2717,47 @@ def _cmd_self_test(_args):
        "stalest ordering (oldest first)")
     ok(all(r["subcategoryId"] not in ("GV.SC-01", "ID.RA-01") for r in att["stalest"]),
        "never-reviewed excluded from stalest")
+    # A stalest row is SORTED on lastReviewed but BANDED on confirmedAt. Those are
+    # different fields on purpose (confirmedAt is never backfilled from lastReviewed —
+    # that would fabricate attribution), so the row carries both and bands only the one
+    # the age model actually measures.
+    ok(all("confirmedAt" in r and "confirmationBand" in r for r in att["stalest"]),
+       "every stalest row carries both the confirmation date and its band")
+    # This v1 fixture carries no confirmedAt anywhere at all, by design, so every one of
+    # its stalest rows IS the reviewed-but-never-confirmed case. Asserted as an exact
+    # list rather than an all(...) over `if r["confirmedAt"]`, which would read the same
+    # and pass just as happily over no rows whatsoever.
+    eq(len(att["stalest"]), 7, "the v1 fixture has seven reviewed in-scope Subcategories")
+    eq([r["confirmationBand"] for r in att["stalest"]], [None] * 7,
+       "a row reviewed but never confirmed shows NO band rather than a guessed one")
+    eq([r["confirmationAgeDays"] for r in att["stalest"]], [None] * 7,
+       "and no confirmation age either — there is no date to measure from")
+
+    # The banded branch needs a Profile that actually holds confirmations, and the v1
+    # fixture above holds none. The shipped v2 fixture does. Its four dated ratings sit
+    # at 420 and 198 days, which straddles a boundary at BOTH thresholds, so every row
+    # moves band when the threshold is rescaled — a rescale that silently fell back to
+    # 180 could not produce the second list. Ordering is pinned here too: banding must
+    # not disturb the lastReviewed sort asserted above.
+    _v2 = load_store(os.path.join(_SKILL_ROOT, "examples", "example-profile-v2.csfp"))
+    _s180 = attention_lists(_v2, index, "2026-07-27", top=10)["stalest"]
+    _s365 = attention_lists(_v2, index, "2026-07-27", top=10, age_days=365)["stalest"]
+    eq([(r["subcategoryId"], r["confirmationBand"]) for r in _s180],
+       [("ID.AM-01", "wellBeyond"), ("ID.AM-02", "wellBeyond"),
+        ("PR.DS-11", "beyond"), ("RC.RP-01", "beyond")],
+       "a row with a confirmation date is banded, at the Profile's default threshold")
+    eq([(r["subcategoryId"], r["confirmationAgeDays"]) for r in _s180],
+       [("ID.AM-01", 420), ("ID.AM-02", 420), ("PR.DS-11", 198), ("RC.RP-01", 198)],
+       "and carries the confirmation age its band was computed from")
+    eq([(r["subcategoryId"], r["confirmationBand"]) for r in _s365],
+       [("ID.AM-01", "beyond"), ("ID.AM-02", "beyond"),
+        ("PR.DS-11", "approaching"), ("RC.RP-01", "approaching")],
+       "stalest bands honour a rescaled age threshold")
+    ok(len(_s180) == 4 and all(a["confirmationBand"] != b["confirmationBand"]
+                               for a, b in zip(_s180, _s365)),
+       "every dated row demonstrably changes band between T=180 and T=365")
+    ok(all(r["confirmationBand"] in AGE_BANDS for r in _s180 + _s365),
+       "every band a stalest row reports is one of AGE_BANDS")
     eq([i["id"] for i in att["unownedActions"]], ["A-002"], "unowned actions")
     eq([i["id"] for i in att["pastDueActions"]], ["A-003"], "past-due actions (A-004 closed, excluded)")
     eq([r["subcategoryId"] for r in att["acceptedGaps"]], ["PR.DS-01"], "accepted gaps")
@@ -4008,6 +4067,29 @@ def _cmd_self_test(_args):
            "1 of 106 assessed suppresses the headline")
         eq(an["evidence"]["age"]["thresholdDays"], 180,
            "analyze reports the age threshold in force")
+
+        # ...and hands that same threshold to the attention lists. Nothing above binds
+        # this: every banding check so far calls attention_lists directly, so dropping
+        # the age_days argument at the call site would leave it defaulting to 180 with
+        # every one of them still green. ID.AM-01 was confirmed 2026-03-20 and today is
+        # 2026-07-27 — 129 days, which is `approaching` a 180-day cadence and `within` a
+        # 365-day one. The same store rescaled must therefore move.
+        _an_row = [r for r in an["attention"]["stalest"] if r["subcategoryId"] == "ID.AM-01"]
+        eq([(r["confirmationAgeDays"], r["confirmationBand"]) for r in _an_row],
+           [(129, "approaching")], "analyze bands a stalest row against `today`, not the clock")
+        _v365 = json.load(open(_p, encoding="utf-8"))
+        _v365["profile"]["settings"]["reporting"]["ageThresholdDays"] = 365
+        _p365 = os.path.join(_d, "an365.csfp")
+        _out365 = os.path.join(_d, "an365.json")
+        with open(_p365, "w", encoding="utf-8") as _fh:
+            json.dump(_v365, _fh)
+        _cmd_analyze([_p365, "--today", "2026-07-27", "--out", _out365])
+        with open(_out365, encoding="utf-8") as _fh:
+            an365 = json.load(_fh)
+        eq(an365["evidence"]["age"]["thresholdDays"], 365, "the rescaled threshold is in force")
+        eq([(r["subcategoryId"], r["confirmationBand"]) for r in an365["attention"]["stalest"]],
+           [("ID.AM-01", "within")],
+           "analyze passes the Profile's configured threshold to attention_lists, not 180")
         eq(len(an["intake"]["records"]), 1, "analyze carries the intake records")
         eq(an["intake"]["bySource"][0]["confirmed"], 1, "coverage-by-source counts confirmations")
         eq(an["intake"]["bySource"][0]["pending"], 1, "coverage-by-source counts pending")

@@ -314,6 +314,47 @@ def by_source(ctx: c.Context) -> str:
             f'{"".join(cards)}</section>')
 
 
+# Distance from the cadence the Profile chose — never a claim about how sure anyone
+# should be that the rating still holds. The engine measures how old a determination is;
+# what that means for a given Subcategory is the reader's call.
+#
+# A same-named AGE_BAND_LABEL is coming to the risk-register dashboard with DIFFERENT
+# values: these read as a trailing clause after a date ("confirmed 2026-01-10, beyond
+# cadence"), and that sentence shape is not the one over there. The two are not to be
+# unified — the skills cannot import each other (each resolves its assets from its own
+# __file__ and must run standalone), so a shared module is not available even in
+# principle. Edit them together; each skill's own tests are what pin the wording.
+AGE_BAND_LABEL = {"within": "within cadence", "approaching": "approaching cadence",
+                  "beyond": "beyond cadence", "wellBeyond": "well beyond cadence"}
+
+
+def _age_note(row: dict) -> str:
+    """The confirmation age of one stalest row, or an honest blank.
+
+    Three cases, and the difference between the last two matters:
+
+    - A band, with a date behind it: say both.
+    - `confirmationBand` present and None: the rating was reviewed but never confirmed.
+      A rating carried over from a v1 Profile has no confirmedAt, and the whole point of
+      not backfilling it is to avoid inventing the attribution — so the row says the date
+      is missing rather than guessing a band.
+    - `confirmationBand` absent from the row entirely: this is analyze output from an
+      engine that predates age banding (_common's degrade-don't-crash contract). Nothing
+      is known about this row's confirmation either way, so nothing is said. Printing
+      "no confirmation date" here would turn a gap in the payload into a claim about
+      the Profile.
+    """
+    if "confirmationBand" not in row:
+        return ""
+    band = row["confirmationBand"]
+    if not band:
+        return '<span class="muted"> · no confirmation date</span>'
+    days = row.get("confirmationAgeDays")
+    age = f" ({days}d)" if days is not None else ""
+    return (f'<span class="muted"> · confirmed {c.esc(row.get("confirmedAt"))}, '
+            f'{AGE_BAND_LABEL[band]}{age}</span>')
+
+
 def attention(ctx: c.Context) -> str:
     a = ctx.attention
     panels = [
@@ -324,9 +365,15 @@ def attention(ctx: c.Context) -> str:
         ("Never reviewed", "Why has nobody looked at these at all?",
          [f'<span class="mono">{c.esc(r["subcategoryId"])}</span> {c.esc(c.trunc(r["text"], 70))}'
           for r in a.get("neverReviewed", [])]),
+        # Ordered by lastReviewed, banded on confirmedAt. Both dates are shown because
+        # they answer different questions — "when did anyone look" and "when was this
+        # decided, with a source behind it" — and a row with no confirmation date says
+        # so rather than being handed a band it has not earned.
         ("Stalest", "Is this rating still true, or just old?",
          [f'<span class="mono">{c.esc(r["subcategoryId"])}</span> '
-          f'<span class="muted">{c.esc(r["lastReviewed"])}</span> {c.esc(c.trunc(r["text"], 60))}'
+          f'<span class="muted">{c.esc(r["lastReviewed"])}</span> '
+          f'{c.esc(c.trunc(r["text"], 60))}'
+          f'{_age_note(r)}'
           for r in a.get("stalest", [])]),
         ("Unowned actions", "An action without an owner is a wish.",
          [f'<span class="mono">{c.esc(i["id"])}</span> {c.esc(i["title"])}'
