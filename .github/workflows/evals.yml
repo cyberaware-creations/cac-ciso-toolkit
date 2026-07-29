@@ -67,3 +67,31 @@ jobs:
 
       - name: Width at 320/375/768/1265px, and AA contrast at 390/768/1280px
         run: ./skills/risk-register/evals/responsive.sh
+
+  manifests:
+    # A version that only moves in one of four places is the same class of bug as the
+    # v0.1.4 Python-3.12 construct: a release step a human had to remember. 18cfec5
+    # bumped plugin.json to 0.4.1 and left marketplace.json -- which is the file
+    # `claude plugin update` actually reads -- at 0.4.0, so those fixes reached nobody.
+    name: Version manifests agree, and moved
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # check-versions.py diffs against the merge base. A shallow clone has no
+          # merge base, and the check would report an error it cannot resolve.
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+
+      - name: The guard's own self-test
+        run: ./tools/check-versions.py --self-test
+
+      - name: All four version strings agree
+        run: ./tools/check-versions.py
+
+      - name: Shipped changes carry a version bump
+        if: github.event_name == 'pull_request'
+        run: ./tools/check-versions.py --base "${{ github.event.pull_request.base.sha }}"
