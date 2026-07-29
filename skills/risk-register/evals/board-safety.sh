@@ -54,6 +54,14 @@ rm -f "$work/r.rr"
 "$PY" "$RR/scripts/score_register.py" init "$work/r.rr" --client "Regression Co" \
   --assessor CISO >/dev/null || {
     echo "board-safety: FIXTURE FAILED — register init errored"; exit 1; }
+# Snapshot BEFORE the import, deliberately. The change log only exists when there is a
+# baseline to diff against, so an import-then-render fixture leaves it empty and check 1
+# inspects a region that cannot fail. That blind spot shipped: the change log was the
+# third route for raw framework wording onto a board page, and this suite passed over it
+# for a full release. Do not "simplify" this snapshot away.
+"$PY" "$RR/scripts/score_register.py" snapshot "$work/r.rr" \
+  --label "Baseline" >/dev/null || {
+    echo "board-safety: FIXTURE FAILED — snapshot errored"; exit 1; }
 "$PY" "$RR/scripts/score_register.py" import-gaps "$work/gaps.csv" \
   --into "$work/r.rr" --write >/dev/null 2>&1 || {
     echo "board-safety: FIXTURE FAILED — import-gaps errored"; exit 1; }
@@ -69,6 +77,15 @@ rm -f "$work/r.rr"
   --justification "compensating controls; remediation funded" --revalidate 2099-01-31 \
   --why "board decision" >/dev/null || {
     echo "board-safety: FIXTURE FAILED — could not accept R-002"; exit 1; }
+
+# An over-appetite risk the organisation has since treated out. Check 7 asserts the board
+# figures stop counting it — the headline must improve when a risk is closed.
+"$PY" "$RR/scripts/score_register.py" set-score "$work/r.rr" R-004 --residual 5 5 \
+  --why "worst case before treatment" >/dev/null || {
+    echo "board-safety: FIXTURE FAILED — could not score R-004"; exit 1; }
+"$PY" "$RR/scripts/score_register.py" set-status "$work/r.rr" R-004 closed \
+  --why "treated out; control verified" >/dev/null || {
+    echo "board-safety: FIXTURE FAILED — could not close R-004"; exit 1; }
 
 for r in render_board render_dashboard render_report; do
   "$PY" "$RR/renderers/$r.py" "$work/r.rr" "$work/$r.html" >/dev/null || {
@@ -127,6 +144,55 @@ chk 5 "provisional disclosure present in board + report" \
 # Passes only when the file contains no absolute URL at all — not merely no font link.
 grep -q 'https\?://' "$work/off.html"
 chk 6 "--offline emits no external request" "$([ $? -ne 0 ] && echo PASS || echo FAIL)"
+
+# 7. A closed risk is not counted as over appetite, and is not a top risk.
+#
+# The engine's summarize() counts every risk regardless of status — that is web-engine
+# parity and it stays. The renderers must not repeat it: a headline that never improves
+# as risks are treated out is a board figure that cannot be acted on, and the same page
+# was reporting the count two different ways (KPI tile from summary, attention panel from
+# the live set) inches apart.
+chk 7 "closed risk excluded from board over-appetite figures" "$("$PY" - "$work" "$RR" <<'PY'
+import json, re, sys, pathlib
+work, rr = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
+sys.path.insert(0, str(rr / "scripts"))
+import score_register as sr
+
+reg = json.loads((work / "r.rr").read_text())
+size, appetite = reg["settings"]["matrixSize"], reg["settings"]["appetite"]
+closed = [r for r in reg["risks"] if r.get("status") == "closed"]
+live = [r for r in reg["risks"] if r.get("status") != "closed"]
+expected = sum(1 for r in live if sr.over_appetite(
+    sr.exposure(r["residual"]["likelihood"], r["residual"]["impact"]), size, appetite))
+whole = sum(1 for r in reg["risks"] if sr.over_appetite(
+    sr.exposure(r["residual"]["likelihood"], r["residual"]["impact"]), size, appetite))
+
+problems = []
+if not closed:
+    problems.append("fixture has no closed risk")
+elif expected == whole:
+    # Without this the check passes for the wrong reason: if no closed risk is over
+    # appetite, filtering and not filtering give the same number.
+    problems.append("fixture's closed risk is not over appetite — check proves nothing")
+
+board = (work / "render_board.html").read_text()
+m = re.search(r'<div class="n">(\d+) of (\d+)(?: live)? risks</div>', board)
+if not m:
+    problems.append("board headline not found")
+elif int(m.group(1)) != expected:
+    problems.append(f"board headline says {m.group(1)} over appetite, live count is {expected}")
+elif int(m.group(2)) != len(live):
+    problems.append(f"board headline denominator {m.group(2)}, live count is {len(live)}")
+
+for rid in (r["id"] for r in closed):
+    for name in ("render_board", "render_dashboard"):
+        for block in (work / f"{name}.html").read_text().split('class="toprisk"')[1:]:
+            if rid in block[:500]:
+                problems.append(f"{name}: closed {rid} listed as a top risk")
+
+print("PASS" if not problems else "FAIL " + "; ".join(problems[:2]))
+PY
+)"
 
 echo
 if [ "$fails" -eq 0 ]; then

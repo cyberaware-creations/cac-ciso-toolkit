@@ -51,6 +51,19 @@ if [ "$major" -gt "$FLOOR_MAJOR" ] || [ "$minor" -gt "$FLOOR_MINOR" ]; then
 fi
 
 cd "$repo" || exit 2
+
+# Discovery must be proven before its result is trusted. The plugin as installed
+# (~/.claude/plugins/synced/...) is NOT a git checkout, so `git ls-files` there fails,
+# the loop below reads nothing, and the script used to print "all 0 shipped files
+# compile" and exit 0 — a green tick over zero files, for the exact reader the README
+# tells to run this before a release. That is the same defect the header warns about,
+# in the one form the header did not anticipate.
+if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  echo "python-compat: not a git checkout, so the file list cannot be discovered."
+  echo "  Run this from a clone of the repository, not from the installed plugin."
+  exit 2
+fi
+
 fails=0
 count=0
 while IFS= read -r f; do
@@ -66,6 +79,12 @@ done < <(git ls-files --cached --others --exclude-standard '*.py')
 find "$repo/skills" "$repo/tools" -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null
 
 echo
+# A zero count is never a pass. Discovery is guarded above, but a bad pattern or an
+# empty tree would still land here, and "all 0 files compile" reads as coverage.
+if [ "$count" -eq 0 ]; then
+  echo "python-compat: found NO .py files to check — discovery is broken, not the repo clean."
+  exit 2
+fi
 if [ "$fails" -eq 0 ]; then
   echo "python-compat: all $count shipped files compile on $ver"
 else

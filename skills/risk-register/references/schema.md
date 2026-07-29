@@ -109,7 +109,7 @@ makes the log defensible and the trend real):
 ```json
 {
   "ts": "2026-07-26T18:04:00Z",
-  "actor": "D. Galleyne",
+  "actor": "D. Alleyne",
   "riskId": "R-005",
   "type": "score-changed",
   "field": "residual",

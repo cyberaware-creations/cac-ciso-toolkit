@@ -209,7 +209,24 @@ def parse_args(argv: list[str], description: str, default_out: str) -> argparse.
     p.add_argument("--offline", action="store_true",
                    help="omit the Google Fonts links so the file makes no external request; "
                         "falls back to the system font stack")
-    return p.parse_args(argv)
+    # The risk-register renderers are positional (`render_board.py reg.rr out.html`) and
+    # these are flag-based over the derived JSON. Both are documented, but someone moving
+    # between the two skills in one session will type the other form, and argparse's bare
+    # "unrecognized arguments" does not tell them which two files it wanted or why.
+    args, extra = p.parse_known_args(argv)
+    if extra:
+        looks_like_io = [a for a in extra if not a.startswith("-")]
+        hint = ""
+        if len(looks_like_io) == 2:
+            hint = (f"\n  Did you mean:  --in {looks_like_io[0]} --out {looks_like_io[1]}")
+        elif len(looks_like_io) == 1:
+            hint = f"\n  Did you mean:  --in {looks_like_io[0]}"
+        raise SystemExit(
+            f"error: unexpected argument(s): {' '.join(extra)}\n"
+            f"  These renderers take flags over the JSON that `profile_analysis.py analyze`\n"
+            f"  emits, not positional paths -- the risk-register renderers are the "
+            f"positional ones.{hint}")
+    return args
 
 
 class Translations:
@@ -372,9 +389,19 @@ def write(ctx: Context, doc: str) -> None:
     if out.parent != Path(""):
         out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(doc, encoding="utf-8")
-    cov = ctx.coverage["overall"]
-    print(f"wrote {out} ({len(doc):,} bytes) — coverage {cov_label(cov)}, "
-          f"{len(ctx.gaps)} gaps")
+    # The scope guard binds this line too. Suppressing the headline figure inside the
+    # HTML and then printing it to the terminal defeats the guard's whole stated reason
+    # — that the number must not reappear one document over. An agent reads stdout and
+    # repeats it to the user, which is the outcome the guard exists to prevent.
+    # Phrased here rather than imported from profile_analysis: the renderers consume the
+    # analyze JSON and nothing else, which is the whole reason they cannot drift from the
+    # engine's numbers. The guard's own fields are in that JSON, so the rule travels with
+    # the data — see coverage_stdout() in the engine for the same decision on its side.
+    guard = ctx.evidence.get("scopeGuard") or {}
+    head = (f'withheld ({guard.get("assessed", 0)} of {guard.get("inScope", 0)} assessed, '
+            f'below the {guard.get("thresholdPct", 60)}% threshold)'
+            if guard.get("suppressed") else cov_label(ctx.coverage["overall"]))
+    print(f"wrote {out} ({len(doc):,} bytes) — coverage {head}, {len(ctx.gaps)} gaps")
 
 
 # --- Shared chrome -----------------------------------------------------------

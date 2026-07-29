@@ -256,13 +256,46 @@ def _overdue(value: str | None, today: str) -> bool:
     return bool(value) and str(value)[:10] <= today
 
 
+def live_summary(risks: list, size: int, appetite: str) -> dict:
+    """`summarize()` over the risks a board is actually being asked about.
+
+    `sr.summarize()` is a faithful port of the web engine's summary.ts and counts every
+    risk regardless of status. That parity is asserted and shipped, and it must not move
+    — but it means a closed risk keeps its band, keeps counting as over appetite, and
+    keeps its place in the top five. A CISO who treats out three criticals reports the
+    same headline as one who treated out none, and `snapshot` freezes that figure into
+    the audit trail.
+
+    So every renderer draws its over-appetite count, band mix and top five from here
+    instead. `_attention()` and `_owner_load()` already filtered this way; the headline
+    numbers printed inches above them did not, which left one page reporting the same
+    quantity twice with two different answers.
+
+    `total` is the live count, so an "N of M" sentence has the same population on both
+    sides of the "of". `registerTotal` and `closed` keep the whole-register view for the
+    one line that reports register size.
+    """
+    live = [r for r in risks if r.get("status") != "closed"]
+    out = sr.summarize(live, size, appetite)
+    out["registerTotal"] = len(risks)
+    out["closed"] = len(risks) - len(live)
+    return out
+
+
 def _snapshot_summary(snap: dict) -> dict:
-    """A snapshot's frozen summary, recomputed only if the file predates summary freezing."""
+    """A snapshot's summary on the same definition the live figures use.
+
+    Recomputed from the snapshot's stored risks rather than read from its frozen
+    `summary`, because the frozen one counts closed risks and the live figures do not.
+    Plotting the two on one line would make the trend step whenever a risk was closed
+    rather than when exposure moved. The frozen summary is the fallback only for a
+    snapshot written before risks were stored beside it.
+    """
     data = snap.get("data", {})
-    if data.get("summary"):
-        return data["summary"]
     st = {"matrixSize": 5, "appetite": "medium", **data.get("settings", {})}
-    return sr.summarize(data.get("risks", []), st["matrixSize"], st["appetite"])
+    if data.get("risks"):
+        return live_summary(data["risks"], st["matrixSize"], st["appetite"])
+    return data.get("summary") or sr.summarize([], st["matrixSize"], st["appetite"])
 
 
 class Context:
@@ -281,6 +314,8 @@ class Context:
         self.size = self.settings["matrixSize"]
         self.appetite = self.settings["appetite"]
         self.summary = self.scored["summary"]
+        # The board-facing figures. `summary` stays the parity port; see live_summary().
+        self.live = live_summary(self.reg["risks"], self.size, self.appetite)
         self.tr = Translations.load(args.translations)
 
         # Themes: file order is the display order; Unclassified always trails.
@@ -303,6 +338,9 @@ class Context:
                     "status": r.get("status"), "response": r.get("response", {}).get("type"),
                     "overAppetite": sr.over_appetite(exp, b_size, b_settings["appetite"]),
                     "title": r.get("title", ""), "acceptance": r.get("acceptance"),
+                    # Carried so a risk that left the register is still title-guarded
+                    # in the change log; see risk_title().
+                    "provisionalTitle": bool(r.get("provisionalTitle")),
                 }
 
         self.risks = [self._enrich(r) for r in self.scored["risks"]]
@@ -361,8 +399,8 @@ class Context:
                            "ts": (snap.get("ts") or "")[:10], "overAppetite": s["overAppetite"],
                            "byBand": s["byBand"], "total": s["total"], "current": False})
         series.append({"label": "Current", "ts": self.today,
-                       "overAppetite": self.summary["overAppetite"],
-                       "byBand": self.summary["byBand"], "total": self.summary["total"],
+                       "overAppetite": self.live["overAppetite"],
+                       "byBand": self.live["byBand"], "total": self.live["total"],
                        "current": True})
         return series
 
@@ -380,7 +418,14 @@ class Context:
         return out
 
     def _diff(self) -> dict:
-        """What changed since the last snapshot — the continuity spine of the board story."""
+        """What changed since the last snapshot — the continuity spine of the board story.
+
+        Each change carries `provisionalTitle` alongside the raw title so the renderers
+        can put it through risk_title(). Without it the change log was a third route for
+        framework wording onto a board page, and the one the title guard's own docstring
+        did not yet know about: a snapshot taken before an import leaves every imported
+        gap in this list, in CSF voice, next to a band chip.
+        """
         if not self.baseline:
             return {"baseline": None, "changes": [], "added": [], "removed": []}
         why = self._rationales_since_baseline()
@@ -390,6 +435,7 @@ class Context:
             if prior is None:
                 added.append(r)
                 changes.append({"kind": "added", "id": r["id"], "title": r["title"],
+                                "provisionalTitle": bool(r.get("provisionalTitle")),
                                 "detail": f'new risk · residual {r["residualExposure"]} '
                                           f'{BAND_LABEL[r["residualBand"]]}',
                                 "rationale": why.get(r["id"], "")})
@@ -418,11 +464,13 @@ class Context:
                     else "worsened" if (r["delta"] or 0) > 0
                     else "changed")
             changes.append({"kind": kind, "id": r["id"], "title": r["title"],
+                            "provisionalTitle": bool(r.get("provisionalTitle")),
                             "detail": " · ".join(bits), "rationale": why.get(r["id"], "")})
         removed = [p for rid, p in self._prior.items() if rid not in self.by_id]
         for rid, p in self._prior.items():
             if rid not in self.by_id:
                 changes.append({"kind": "removed", "id": rid, "title": p["title"],
+                                "provisionalTitle": p.get("provisionalTitle", False),
                                 "detail": "no longer in the register", "rationale": ""})
         order = {"worsened": 0, "added": 1, "improved": 2, "closed": 3, "changed": 4, "removed": 5}
         changes.sort(key=lambda c: (order.get(c["kind"], 9), c["id"]))
@@ -539,7 +587,12 @@ class Context:
     # -- helpers renderers share --
 
     def top_risks(self, n: int = 5) -> list[dict]:
-        return sorted(self.risks, key=lambda r: -r["residualExposure"])[:n]
+        """The worst live risks. Closed ones are excluded on the same grounds as
+        live_summary(): a risk the board watched get treated out does not belong in
+        'what these mean for the business', least of all flagged over appetite on the
+        same page whose change log reports it closed."""
+        live = [r for r in self.risks if r.get("status") != "closed"]
+        return sorted(live, key=lambda r: -r["residualExposure"])[:n]
 
     def heat_counts(self, view: str = "residual") -> tuple[list[list[int]], int]:
         """Counts per (impact, likelihood) cell. Risks flagged outOfRange are skipped
@@ -577,5 +630,5 @@ def write(ctx: Context, doc: str) -> None:
     if out.parent != Path(""):
         out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(doc, encoding="utf-8")
-    print(f"wrote {out} ({len(doc):,} bytes) — {ctx.summary['total']} risks, "
-          f"{ctx.summary['overAppetite']} over appetite")
+    print(f"wrote {out} ({len(doc):,} bytes) — {ctx.live['registerTotal']} risks, "
+          f"{ctx.live['overAppetite']} over appetite")
