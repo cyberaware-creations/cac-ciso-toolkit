@@ -34,6 +34,16 @@ So "each row gains its band" (spec §4) would put a band derived from one date n
 
 The spec says `evals/board-safety.sh`. The real path is `skills/risk-register/evals/board-safety.sh`. There is no top-level `evals/` directory.
 
+**C4 — `skills/nist-csf/examples/example-profile.csfp` has zero `confirmedAt`, so it cannot test banding at all.**
+
+Found during Task 2, and it invalidated four of this plan's own assertions. That fixture is a **v1 Profile** — `grep -c confirmedAt` returns 0 — and the engine's self-test binds `store` to it. So any assertion of the form `all(... for r in rows if r["confirmedAt"])` iterates an empty set and is vacuously true. Reviewers reproduced this: the plan's Task 2 test block, applied verbatim, stayed green at 497/497 under a mutant that banded on `lastReviewed` instead of `confirmedAt` — the precise defect correction C2 exists to prevent.
+
+`skills/nist-csf/examples/example-profile-v2.csfp` carries four dated confirmations (420d and 198d against `today=2026-07-27`), and all four change band between T=180 and T=365. **Any test of banding must use the v2 fixture.** Pin exact lists with a row count rather than writing `all(...)` over a filter — a filter that matches nothing passes.
+
+**C5 — Renderer invocation: the nist-csf renderers take `--in <analyze JSON>` and `--out`, not a positional `.csfp`.** Positional paths raise an explicit `SystemExit`, and passing a store where analyze output is required fails a separate guard in `_common.py`. Pipe through `analyze` first. Also note that on the v1 fixture the executive band cells correctly do **not** render (all bands zero), so greping for them there and expecting a hit is unmeetable.
+
+**C6 — There is no automated coverage of rendered `nist-csf` HTML.** `skills/nist-csf/evals/` holds conversation and trigger evals only; the CI workflow runs engine self-tests plus `responsive.sh` (which does cover 8 nist-csf pages for width and WCAG AA) and `contrast-check.mjs` (which is **not** a standalone entry point — it needs the headless Chrome that `responsive.sh` starts). Nothing greps rendered nist-csf content. A Critical label defect shipped through Task 2 review because of this: see the warning in Task 2 Step 6.
+
 ---
 
 ## File structure
@@ -501,18 +511,53 @@ In `skills/nist-csf/renderers/render_executive.py`, find this block (around line
 
 Insert immediately after it:
 
+> ### ⚠️ This step originally carried a Critical defect. Do not restore it.
+>
+> The first version of this plan wrote the labels as cumulative phrases:
+> `("approaching", f"within {thr} days")`, `("beyond", f"within {thr * 2} days")`.
+>
+> The band counts are **exclusive** populations, so those labels are arithmetically false —
+> with a distribution spread across all four bands, `"within 180 days": 1` is wrong when two
+> ratings are within 180 days. Worse, `beyond` means *past the cadence the Profile chose*,
+> and "within 360 days" reads as **meeting** a deadline, while `render_operational.py` calls
+> that same band "beyond cadence". One dataset, two renderers, opposite valence, and the
+> flattering reading on the board surface. That breaks "numbers never flatter" through labels
+> alone, and it survived a full review round.
+>
+> Both shipped fixtures **hide it**: `example-profile.csfp` has no dated confirmations at
+> all, and `example-profile-v2.csfp` has `within` and `approaching` both 0, so the cumulative
+> misreading yields the same number. See correction **C4**.
+
+Labels must be **exclusive ranges** carrying the **same valence** as the operational
+renderer, every boundary derived from `thr`, and the distribution must show its denominator:
+
 ```python
-    # The band distribution, not a second copy of the threshold count. `beyond` and
-    # `wellBeyond` together ARE the "older than T" figure above — the engine asserts that
-    # identity — so this grid grades the same population rather than restating its total.
+    # The band distribution, grading the same population the "older than T" cell counts —
+    # beyond + wellBeyond IS that figure, and the engine asserts the identity. Each count
+    # carries `dated` so four new numbers do not appear without a denominator.
+    #
+    # Labels are EXCLUSIVE ranges and share render_operational's valence. Cumulative
+    # phrasing over exclusive counts is both false and flattering: `beyond` means past the
+    # cadence this Profile chose, so no label for it may read as meeting a deadline.
     bands = age.get("bands") or {}
     if thr is not None and any(bands.values()):
-        for key, label in (("within", f"confirmed within {thr // 2} days"),
-                           ("approaching", f"within {thr} days"),
-                           ("beyond", f"within {thr * 2} days"),
-                           ("wellBeyond", f"over {thr * 2} days")):
-            cells.append((label, f'{bands.get(key, 0)}'))
+        ranges = {"within": f"0–{thr // 2}d", "approaching": f"{thr // 2 + 1}–{thr}d",
+                  "beyond": f"{thr + 1}–{thr * 2}d", "wellBeyond": f"over {thr * 2}d"}
+        for key in c.AGE_BAND_ORDER:
+            cells.append((f'{c.AGE_BAND_LABEL[key]} ({ranges[key]})',
+                          f'{bands.get(key, 0)} of {age["dated"]}'))
 ```
+
+`AGE_BAND_LABEL` and `AGE_BAND_ORDER` belong in `skills/nist-csf/renderers/_common.py`, not
+in either renderer: that file already holds `EVIDENCE_LABEL` / `EVIDENCE_ORDER` /
+`EVIDENCE_KEY` in exactly this shape for both renderers, and a shared home collapses what
+would otherwise be a third copy of the band order. Consider `c.evidence_bar` in place of four
+cells if it fits — it is this codebase's existing idiom for mutually-exclusive counts that
+sum to a total with the denominator in view.
+
+**Then build a store spread across all four bands and read the rendered text.** Neither
+shipped fixture exercises all four, which is exactly how the defect above survived. This is
+the only check that would have caught it.
 
 - [ ] **Step 7: Show the band on each stalest row**
 
@@ -1565,7 +1610,38 @@ print("PASS" if not leaks else "FAIL " + "; ".join(leaks[:2]))
 PY
 chk "$n" "freshness sentence cites IDs, never titles" "$(cat "$work/titles.txt")"
 n=$((n + 1))
+# The numbers in the sentence must sum to the denominator the sentence opens with. An
+# earlier draft reported only the best and worst bands, leaving a silent remainder — a
+# board figure that does not add up. Parse the rendered text, do not re-derive from the
+# register, because the defect is in the prose and not in the data.
+"$PY" - "$work" <<'PY' > "$work/sums.txt"
+import pathlib, re, sys
+html = (pathlib.Path(sys.argv[1]) / "board.html").read_text()
+m = re.search(r"Of (\d+) live risks: (.*?)\. Scores do not expire", html, re.S)
+if not m:
+    print("FAIL freshness sentence not found in the expected shape")
+else:
+    total = int(m.group(1))
+    # Leading integer of each semicolon-separated clause; ignore digits inside day ranges
+    # and inside parenthesised risk IDs.
+    parts = [c.strip() for c in m.group(2).split(";")]
+    counts = [int(re.match(r"(\d+)", p).group(1)) for p in parts if re.match(r"(\d+)", p)]
+    if len(counts) != len(parts):
+        print(f"FAIL a clause does not begin with a count: {parts!r}")
+    elif sum(counts) != total:
+        print(f"FAIL clauses sum to {sum(counts)}, sentence says {total} live risks")
+    else:
+        print("PASS")
+PY
+chk "$n" "freshness sentence numbers sum to its own denominator" "$(cat "$work/sums.txt")"
+n=$((n + 1))
 ```
+
+**Prove this one binds** — it is guarding prose, so it is easy to write vacuously. Drop the
+`approaching` clause from `freshness_line` and confirm the check FAILS with a sum mismatch,
+using a fixture that actually has a risk in that band. If your fixture has every live risk in
+`within`, the check passes trivially and proves nothing: build one with a spread first, the
+same lesson as correction **C4**.
 
 - [ ] **Step 2: Run it to verify it fails**
 
@@ -1608,18 +1684,27 @@ def freshness_line(ctx: C.Context) -> str:
     c = ctx.confirmation
     if not c["live"]:
         return ""
-    t = c["thresholdDays"]
-    bits = [f'{c["bands"]["within"]} were confirmed within the last {t // 2} days']
+    t, b = c["thresholdDays"], c["bands"]
+    # Every clause is an EXCLUSIVE band, and together with `undated` they partition the live
+    # register — so the numbers in this sentence sum to the "Of N live risks" it opens with.
+    # Reporting only the best and worst bands leaves a silent remainder, which on a board
+    # page is a figure that does not add up. Zero-count bands are dropped rather than
+    # printed as "0", so the sentence stays short when the picture is simple.
+    clauses = [
+        (b["within"], f'{b["within"]} confirmed within the last {t // 2} days'),
+        (b["approaching"], f'{b["approaching"]} between {t // 2 + 1} and {t} days ago'),
+        (b["beyond"], f'{b["beyond"]} between {t + 1} and {t * 2} days ago'),
+    ]
+    bits = [text for count, text in clauses if count]
     old = c["wellBeyond"]
     if old:
         shown = old[:5]
         ids = ", ".join(r["id"] for r in shown)
         more = f", and {len(old) - len(shown)} more" if len(old) > len(shown) else ""
-        bits.append(f'{len(old)} have not been confirmed in over {t * 2} days '
-                    f'({ids}{more})')
+        bits.append(f'{len(old)} not confirmed in over {t * 2} days ({ids}{more})')
     if c["undated"]:
-        bits.append(f'{c["undated"]} carry no confirmation record')
-    return (f'<div class="note">Of {c["live"]} live risks, ' + "; ".join(bits) + '. '
+        bits.append(f'{c["undated"]} carrying no confirmation record')
+    return (f'<div class="note">Of {c["live"]} live risks: ' + "; ".join(bits) + '. '
             f'Scores do not expire — age is reported so the board can judge it.</div>')
 
 
