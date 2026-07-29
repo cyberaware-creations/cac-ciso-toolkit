@@ -516,6 +516,41 @@ def compute_completeness(assessments: list[dict], index: dict, core: dict) -> di
     }
 
 
+# --- Age bands ----------------------------------------------------------------
+# One notion of "old", anchored to the Profile's own configurable threshold T
+# (settings.reporting.ageThresholdDays, default 180) so the engine never holds two.
+#
+#   within       d <= T//2
+#   approaching  d <= T
+#   beyond       d <= 2T
+#   wellBeyond   d >  2T
+#
+# `olderThanThreshold` is unchanged and must always equal beyond + wellBeyond. The
+# self-test asserts that identity at two different thresholds, because holding at 180
+# alone would be an accident of the default rather than a property of the model.
+AGE_BANDS = ("within", "approaching", "beyond", "wellBeyond")
+
+
+def age_band(days: int, threshold_days: int) -> str:
+    """Which band `days` of age falls in, relative to threshold `threshold_days`.
+
+    Every boundary is inclusive of the lower band, so a rating at exactly T is
+    `approaching` and not yet `beyond` — the threshold is a cadence the reader chose to
+    aim at, and hitting it is meeting it.
+
+    Nothing here is a statement about confidence. The engine reports age; the reader
+    judges what age means for a given Subcategory, because a governance outcome and an
+    asset inventory go stale at completely different rates.
+    """
+    if days <= threshold_days // 2:
+        return "within"
+    if days <= threshold_days:
+        return "approaching"
+    if days <= threshold_days * 2:
+        return "beyond"
+    return "wellBeyond"
+
+
 # --- Evidence accretion: derived, never stored ---------------------------------
 #
 # Every state below is computed from `assessments` + `intake` on demand. None of it
@@ -663,6 +698,9 @@ def derive_evidence(assessments: list[dict], intake: list[dict], index: dict, co
                 if states[a["subcategoryId"]] == "confirmed" and a.get("confirmedAt")]
         undated = sum(1 for a in subset
                       if states[a["subcategoryId"]] == "confirmed" and not a.get("confirmedAt"))
+        bands = {b: 0 for b in AGE_BANDS}
+        for d in ages:
+            bands[age_band(d, age_days)] += 1
         return {
             "dated": len(ages),
             # A rating carried over from a v1 Profile has no confirmation date. It is
@@ -672,6 +710,10 @@ def derive_evidence(assessments: list[dict], intake: list[dict], index: dict, co
             "medianDays": _median_int(ages),
             "oldestDays": max(ages) if ages else None,
             "olderThanThreshold": sum(1 for d in ages if d > age_days),
+            # A graded distribution rather than one count past one line. `undated` is
+            # NOT a band: it is the absence of a date, not a distance from one, and
+            # folding it in would report a guess as a measurement.
+            "bands": bands,
         }
 
     by_fn = _group(assessments, index, "functionId")
@@ -3658,6 +3700,51 @@ def _cmd_self_test(_args):
     eq(age["medianDays"], 198, "median of 129, 198, 421")
     eq(age["olderThanThreshold"], 2, "two ratings older than 180 days")
     eq(ev["age"]["thresholdDays"], 180, "the threshold is reported with the counts")
+
+    # --- Age bands: graded distance from the cadence the reader chose ---
+    #
+    # Band names are deliberately not confidence words. `within` / `beyond` state how far
+    # a determination sits from a chosen cadence; they never claim how sure anyone should
+    # be that it is still true.
+    #
+    # Boundary tests go through age_band() directly rather than through the fixture,
+    # because the interesting cases are the three exact edges and a fixture cannot sit on
+    # all of them at once.
+    eq(age_band(0, 180), "within", "a confirmation made today is within")
+    eq(age_band(90, 180), "within", "exactly T//2 is still within — the edge is inclusive")
+    eq(age_band(91, 180), "approaching", "one day past T//2 is approaching")
+    eq(age_band(180, 180), "approaching", "exactly T is still approaching")
+    eq(age_band(181, 180), "beyond", "one day past T is beyond")
+    eq(age_band(360, 180), "beyond", "exactly 2T is still beyond")
+    eq(age_band(361, 180), "wellBeyond", "one day past 2T is wellBeyond")
+    eq(age_band(129, 365), "within", "bands rescale with T: 129 days is within at T=365")
+    eq(age_band(421, 365), "beyond", "bands rescale with T: 421 days is beyond at T=365")
+
+    # The fixture's three dated ages are 129, 198 and 421 days at today=2026-07-27.
+    eq(age["bands"], {"within": 0, "approaching": 1, "beyond": 1, "wellBeyond": 1},
+       "the band counter partitions the fixture's three dated ages")
+    eq(sum(age["bands"].values()), age["dated"],
+       "every dated confirmation lands in exactly one band")
+    eq(age["bands"]["beyond"] + age["bands"]["wellBeyond"], age["olderThanThreshold"],
+       "beyond + wellBeyond IS olderThanThreshold — the two notions cannot drift")
+    eq(set(age["bands"]), set(AGE_BANDS), "the counter carries every band and no others")
+
+    # The identity has to hold at a rescaled threshold too, or it is an accident of 180.
+    ev365 = derive_evidence(fx_assess, fx_intake, index, core, today="2026-07-27",
+                            threshold_pct=60, age_days=365)
+    age365 = ev365["age"]["overall"]
+    eq(age365["bands"], {"within": 1, "approaching": 1, "beyond": 1, "wellBeyond": 0},
+       "at T=365 the same three ages redistribute")
+    eq(age365["bands"]["beyond"] + age365["bands"]["wellBeyond"],
+       age365["olderThanThreshold"], "the identity holds at T=365, not just at T=180")
+    eq(ev365["age"]["thresholdDays"], 365, "the rescaled threshold is reported back")
+    # Per-Function bands follow the fixture's actual Function membership: the 198-day
+    # rating is PR.DS-11, so `beyond` sits under PR, while ID carries the 129-day
+    # (approaching) and 421-day (wellBeyond) ratings.
+    eq(ev["age"]["byFunction"]["PR"]["bands"]["beyond"], 1,
+       "bands are reported per Function as well as overall")
+    eq(ev["age"]["byFunction"]["ID"]["bands"]["wellBeyond"], 1,
+       "the per-Function partition puts ID's 421-day rating in wellBeyond, not PR's")
 
     g = ev["scopeGuard"]
     eq(g["assessed"], 3, "scope guard numerator is assessed in-scope")
