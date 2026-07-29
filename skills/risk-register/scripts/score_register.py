@@ -26,6 +26,10 @@ Mutations (each appends an append-only history event and writes a schema-valid f
                                          statement; clears `provisionalTitle`.
   set-score    <register.rr> <id> [--inherent L I] [--residual L I] --why ...
   accept       <register.rr> <id> --approver ... --justification ... --revalidate DATE
+  confirm      <register.rr> <id> --why ... [--review YYYY-MM-DD]
+                                         Record that a risk was reviewed and nothing
+                                         changed. Resets confirmation age; changes no
+                                         score, status or band.
   set-status   <register.rr> <id> <open|in-treatment|monitoring|closed> [--why ...]
   add-theme    <register.rr> --id ID --name 'Display Name' [--description ...]
   set-theme    <register.rr> <risk-id> <theme-id|none> [--why ...]
@@ -41,6 +45,7 @@ Usage:
 
 from __future__ import annotations
 
+import contextlib
 import csv
 import io
 import json
@@ -459,6 +464,17 @@ def _cmd_self_test(_: list[str]) -> int:
     def eq(name, got, want):
         checks.append((name, got, want))
 
+    def _quiet(fn, argv):
+        """Run a mutating command with its console output swallowed.
+
+        The fixture's chatter is not the suite's output: an unscoped-register warning and a
+        temp path printed mid-run read like failures to anyone running self-test. Errors
+        still propagate — redirect_stdout restores on the way out — so the refusal tests
+        below are unaffected.
+        """
+        with contextlib.redirect_stdout(io.StringIO()):
+            return fn(argv)
+
     # exposure / band (scoring.test.ts)
     eq("exposure(4,5)", exposure(4, 5), 20)
     eq("band(4,5)", band(4, 5), "low")
@@ -509,6 +525,135 @@ def _cmd_self_test(_: list[str]) -> int:
     eq("PRIORITY_SEED[critical]", PRIORITY_SEED["critical"], 5)
     eq("PRIORITY_SEED[low]", PRIORITY_SEED["low"], 2)
 
+    # --- Age bands and the age-affirming event taxonomy ---
+    eq("age_band(0,180)", age_band(0, 180), "within")
+    eq("age_band(90,180) edge", age_band(90, 180), "within")
+    eq("age_band(91,180)", age_band(91, 180), "approaching")
+    eq("age_band(180,180) edge", age_band(180, 180), "approaching")
+    eq("age_band(181,180)", age_band(181, 180), "beyond")
+    eq("age_band(360,180) edge", age_band(360, 180), "beyond")
+    eq("age_band(361,180)", age_band(361, 180), "wellBeyond")
+    # Rescaling, shown with one fixed age against two cadences rather than one lucky
+    # number: 200 days is past the line at a 180-day cadence and comfortably short of it
+    # at 365. (365//2 == 182, so 200 is `approaching` there, not `within` — the floor
+    # division is the thing worth pinning.)
+    eq("age_band rescales at T=365", age_band(200, 365), "approaching")
+    eq("age_band(200,180) for contrast", age_band(200, 180), "beyond")
+    eq("age_band(182,365) floor-division edge", age_band(182, 365), "within")
+    eq("AGE_BANDS", AGE_BANDS, ("within", "approaching", "beyond", "wellBeyond"))
+
+    # Affirming means a human asserted something about the risk's magnitude or its
+    # treatment decision. A note, a theme move, a status flip and a snapshot do not.
+    eq("score-changed affirms", "score-changed" in AGE_AFFIRMING, True)
+    eq("risk-confirmed affirms", "risk-confirmed" in AGE_AFFIRMING, True)
+    eq("risk-added affirms", "risk-added" in AGE_AFFIRMING, True)
+    eq("risk-accepted affirms", "risk-accepted" in AGE_AFFIRMING, True)
+    eq("risk-updated does NOT affirm", "risk-updated" in AGE_AFFIRMING, False)
+    eq("theme-changed does NOT affirm", "theme-changed" in AGE_AFFIRMING, False)
+    eq("status-changed does NOT affirm", "status-changed" in AGE_AFFIRMING, False)
+    eq("snapshot-created does NOT affirm", "snapshot-created" in AGE_AFFIRMING, False)
+    eq("import-merged does NOT affirm", "import-merged" in AGE_AFFIRMING, False)
+    # Totality: a new event type must be classified deliberately, not default to
+    # "does not affirm age" by omission. The emitted set is scraped from this file's own
+    # source rather than hand-listed, so adding an emitting call is what breaks the suite.
+    _emitted = _emitted_event_types()
+    eq("every affirming type is a known type", AGE_AFFIRMING - KNOWN_EVENT_TYPES, set())
+    eq("every type score_register can write is classified", _emitted - KNOWN_EVENT_TYPES, set())
+    # ...and the scrape itself is not vacuous. Without this, a regex that matches nothing
+    # makes the check above pass over an empty set — green proving nothing.
+    eq("the emitted-type scrape found real calls",
+       {"risk-added", "score-changed", "risk-confirmed", "status-changed"} - _emitted, set())
+
+    # --- confirm: "I looked at this and nothing changed" has a home ---
+    import tempfile as _tf
+    _d = _tf.mkdtemp()
+    _rr = os.path.join(_d, "c.rr")
+    _quiet(_cmd_init, [_rr, "--client", "Fixture Co", "--assessor", "D. Alleyne"])
+    _quiet(_cmd_add, [_rr, "--title", "Supplier concentration", "--il", "4", "--ii", "4",
+                     "--rl", "3", "--ri", "4", "--why", "fixture"])
+    _before = json.load(open(_rr))
+    _n_before = len(_before["history"])
+    # The before-state as `confirm` itself will see it. Comparing a raw json.load against
+    # a post-save file would fail on load_register's v1->v2 normalization (it defaults
+    # provisionalTitle/provisionalScore, which `add` never wrote) and blame `confirm` for
+    # it. Normalize both sides so the comparison can only fail on a real mutation.
+    _norm_before = load_register(_rr)
+    _quiet(_cmd_confirm, [_rr, "R-001", "--why", "reviewed at the monthly risk forum; unchanged"])
+    _after = json.load(open(_rr))
+    _ev = _after["history"][-1]
+    eq("confirm appends exactly one event", len(_after["history"]) - _n_before, 1)
+    eq("confirm writes risk-confirmed", _ev["type"], "risk-confirmed")
+    eq("confirm names the risk", _ev["riskId"], "R-001")
+    eq("confirm records the rationale", _ev["rationale"],
+       "reviewed at the monthly risk forum; unchanged")
+    eq("confirm records the actor", _ev["actor"], "D. Alleyne")
+    eq("confirm carries a timestamp", bool(_ev.get("ts")), True)
+    # Confirming asserts nothing new about magnitude, treatment or status.
+    _r_before = [r for r in _norm_before["risks"] if r["id"] == "R-001"][0]
+    _r_after = [r for r in load_register(_rr)["risks"] if r["id"] == "R-001"][0]
+    eq("confirm changes no score", _r_after["residual"], _r_before["residual"])
+    eq("confirm changes no status", _r_after["status"], _r_before["status"])
+    eq("confirm changes no response", _r_after["response"], _r_before["response"])
+    # The three above name three fields. This one is the assertion that actually holds the
+    # line: without --review, `confirm` is permitted to change *nothing* on the risk, so a
+    # future version that quietly edits owner, priority or a field invented next year is
+    # caught here rather than shipping unnoticed.
+    eq("confirm changes nothing whatsoever on the risk", _r_after, _r_before)
+
+    # --why is a hard refusal, and a refused mutation leaves the file byte-identical.
+    _raw_before = open(_rr, "rb").read()
+    try:
+        _quiet(_cmd_confirm, [_rr, "R-001"])
+        _refused = False
+    except ValueError:
+        _refused = True
+    eq("confirm without --why is refused", _refused, True)
+    eq("a refused confirm leaves the register untouched", open(_rr, "rb").read(), _raw_before)
+
+    # --review sets the next review date in the same breath as the confirmation,
+    # because that is the actual review-meeting workflow.
+    _quiet(_cmd_confirm, [_rr, "R-001", "--why", "forum re-affirmed", "--review", "2027-01-31"])
+    _r3 = [r for r in json.load(open(_rr))["risks"] if r["id"] == "R-001"][0]
+    eq("--review sets the next review date", _r3["reviewDate"], "2027-01-31")
+    # reviewDate is the one field --review is licensed to write. Nothing else may move.
+    eq("--review changes nothing but reviewDate",
+       {k: v for k, v in _r3.items() if k != "reviewDate"},
+       {k: v for k, v in _r_after.items() if k != "reviewDate"})
+
+    # A bare --review with no date is a typo, not a request for a default. Silently
+    # dropping it would send a reviewer out of the meeting believing the next review is
+    # booked when nothing was written.
+    try:
+        _quiet(_cmd_confirm, [_rr, "R-001", "--why", "still stands", "--review"])
+        _bare_review = False
+    except ValueError:
+        _bare_review = True
+    eq("a bare --review is refused", _bare_review, True)
+    try:
+        _quiet(_cmd_confirm, [_rr, "R-001", "--why", "still stands", "--review", "31/01/2027"])
+        _bad_date = False
+    except ValueError:
+        _bad_date = True
+    eq("a non-ISO --review is refused", _bad_date, True)
+
+    # An unknown risk id is an error, not a silently-created risk.
+    try:
+        _quiet(_cmd_confirm, [_rr, "R-999", "--why", "typo"])
+        _bad_id = False
+    except ValueError:
+        _bad_id = True
+    eq("confirm on an unknown id is refused", _bad_id, True)
+
+    # Confirming a *closed* risk is allowed on purpose — see the note in _cmd_confirm.
+    # "We re-checked this closed risk and it stays closed" is a claim reviewers make and
+    # ask about, and refusing it would push people to reopen a risk just to record it.
+    _quiet(_cmd_set_status, [_rr, "R-001", "closed", "--why", "treatment complete"])
+    _quiet(_cmd_confirm, [_rr, "R-001", "--why", "re-checked at the forum; stays closed"])
+    _closed = json.load(open(_rr))
+    eq("confirm works on a closed risk", _closed["history"][-1]["type"], "risk-confirmed")
+    eq("confirming a closed risk does not reopen it",
+       [r for r in _closed["risks"] if r["id"] == "R-001"][0]["status"], "closed")
+
     failures = [(n, g, w) for (n, g, w) in checks if g != w]
     for n, g, w in checks:
         status = "ok " if (g == w) else "FAIL"
@@ -526,6 +671,94 @@ def _cmd_self_test(_: list[str]) -> int:
 
 STATUSES = {"open", "in-treatment", "monitoring", "closed"}
 RESPONSES = {"accept", "transfer", "mitigate", "avoid"}
+
+# --- Age bands and the age-affirming event taxonomy ---------------------------
+# The twin of skills/nist-csf/scripts/profile_analysis.py's age_band(), and that file
+# carries the matching note pointing here. Deliberately duplicated: the obvious cleanup —
+# one shared module, say skills/_shared/age.py — is rejected because every shipped script
+# must run standalone, so a cross-skill import needs sys.path surgery and breaks outright
+# the moment a single skill directory is used on its own. The obligation that replaces it:
+# the two copies are edited together, and each skill's own self-test is the only thing
+# pinning them to the same semantics. Grep the sibling path above before moving a boundary.
+#
+#   within       d <= T//2
+#   approaching  d <= T
+#   beyond       d <= 2T
+#   wellBeyond   d >  2T
+AGE_BANDS = ("within", "approaching", "beyond", "wellBeyond")
+
+
+def age_band(days: int, threshold_days: int) -> str:
+    """Which band `days` of age falls in, relative to threshold `threshold_days`.
+
+    Boundaries are inclusive of the lower band: at exactly T a determination is
+    `approaching`, not yet `beyond`. The threshold is a cadence somebody chose to aim
+    at, and hitting it is meeting it.
+
+    These are not confidence words. The engine reports how old a determination is; it
+    never claims how sure anyone should be that it is still true.
+
+    A negative `days` — an affirming event dated in the future — reports as `within`,
+    matching the twin. This is a pure distance measurement and an `impossible` band would
+    smuggle a validation verdict into the distribution; a future-dated event is a file
+    defect and belongs wherever the file is validated, not hidden inside a band a reader
+    would take as good news.
+    """
+    if days <= threshold_days // 2:
+        return "within"
+    if days <= threshold_days:
+        return "approaching"
+    if days <= threshold_days * 2:
+        return "beyond"
+    return "wellBeyond"
+
+
+# Events where a human asserted something about a risk's magnitude or its treatment
+# decision. Only these reset confirmation age. A note, a rewording, a theme move, a
+# status flip and a snapshot deliberately do not: an age that any edit resets makes the
+# confirmation-age report worthless.
+AGE_AFFIRMING = frozenset({
+    "risk-added", "score-changed", "risk-confirmed", "risk-accepted",
+    # Nothing writes this yet; references/schema.md documents it, and it is an
+    # affirmation when it arrives. Classified now so it behaves correctly then.
+    "acceptance-revalidated",
+})
+
+# Every type this file can write, plus every type references/schema.md documents. The
+# self-test derives the emitted set from this file's own source and asserts it is a subset,
+# so a newly-emitted type fails the suite until somebody decides whether it affirms age.
+# Without that, a new event would default to "does not affirm" by omission — and silently
+# resetting, or silently failing to reset, staleness is what makes a staleness report
+# worthless.
+KNOWN_EVENT_TYPES = frozenset({
+    "register-created", "risk-added", "risk-updated", "score-changed", "response-changed",
+    "status-changed", "risk-accepted", "acceptance-revalidated", "risk-confirmed",
+    "risk-closed", "risk-reopened", "risk-deleted", "theme-changed", "settings-changed",
+    "snapshot-created", "import-merged",
+})
+
+
+def _emitted_event_types() -> set:
+    """Every event type this file actually writes, scraped from its own source text.
+
+    Derived rather than hand-listed on purpose. The self-test asserts this is a subset of
+    KNOWN_EVENT_TYPES; if both sides were hand-maintained constants the check could not
+    fail, because whoever added an emitting call would be the same person updating the
+    list — green over an unclassified event type. Reading the source means the new call
+    itself is what breaks the suite.
+
+    The pattern below does not match its own text (the literal here is `_append_event\\(`,
+    with a backslash), so this function never counts itself.
+
+    If the source cannot be read, this returns a sentinel that is deliberately not a valid
+    event type, so the totality check fails loudly rather than passing over an empty set.
+    """
+    try:
+        with open(os.path.abspath(__file__), encoding="utf-8") as fh:
+            src = fh.read()
+    except OSError:
+        return {"<source-unreadable>"}
+    return set(re.findall(r'_append_event\(\s*reg\s*,\s*"([a-z-]+)"', src))
 
 
 def _now() -> str:
@@ -850,6 +1083,73 @@ def _cmd_accept(args):
     return 0
 
 
+def _cmd_confirm(args):
+    """Record that a risk was looked at and nothing changed.
+
+    Before this existed, the only way to re-affirm a risk was `set-score` at an identical
+    value — which writes a `score-changed` event where no score changed, corroding the
+    audit trail the skill exists to keep honest. "I reviewed this and it still stands" is
+    a material claim and deserves its own event type and its own rationale.
+
+    Changes no score, no status, no response, no band. The only optional write is
+    `--review`, because setting the next review date in the same breath is the actual
+    review-meeting workflow.
+
+    Confirming a *closed* risk is allowed, deliberately. "We re-checked this and it stays
+    closed" is a claim reviewers make and auditors ask about, and refusing it would push
+    people to reopen a risk purely to have somewhere to record the re-check — a worse
+    audit trail than the one we are protecting. The corollary belongs downstream: a
+    confirmation-age report must exclude closed risks rather than let a re-checked closed
+    risk pad a freshness figure the board reads as live coverage.
+
+    Ordering: every refusal below happens before the single in-memory write, and the only
+    statement after that write is _append_event + save_register, neither of which
+    validates. So a refused confirm never reaches save_register and the file on disk stays
+    byte-identical — asserted in the self-test, not merely intended.
+
+    KNOWN INTERACTION, not yet fixed — renderers/_common.py::_rationales_since_baseline
+    takes the *last* rationale logged per risk since the baseline snapshot and shows it on
+    the board as the why behind this period's move. A `risk-confirmed` rationale is a
+    rationale, so confirming a risk that genuinely moved earlier in the period replaces the
+    explanation of the move with "reviewed at the forum; unchanged". Reproduced: score
+    R-001 from residual 2x2 to 5x5 with a rationale, then confirm it, and the board reads
+    the confirmation text against a low-to-critical jump. The fix belongs in that picker
+    (prefer a rationale from an event that actually changed a field, or exclude
+    risk-confirmed there) and is left to the renderer task rather than done here, so this
+    note is the handover.
+    """
+    pos, opt = parse_flags(args)
+    if len(pos) < 2:
+        raise ValueError("usage: confirm <register.rr> <id> --why '...' [--review YYYY-MM-DD]")
+    reg = load_register(pos[0])
+    r = _find(reg, pos[1])
+    if not (isinstance(opt.get("why"), (str, list)) and _s(opt["why"]).strip()):
+        raise ValueError("confirm: --why is required. Asserting that a risk is still right "
+                         "is a material claim and belongs in the audit trail on the same "
+                         "terms as a score change.")
+    review = None
+    if "review" in opt:
+        # A bare `--review` with no date is a typo, not a request for a default. There is
+        # no sane default next-review date, and silently dropping the flag would send a
+        # reviewer out of the meeting believing the next review is booked.
+        if opt["review"] is True:
+            raise ValueError("confirm: --review needs a date (YYYY-MM-DD). Bare --review "
+                             "sets nothing, and a next review you think is booked but "
+                             "isn't is worse than no date at all.")
+        review = _s(opt["review"])
+        try:
+            datetime.strptime(review, "%Y-%m-%d")
+        except ValueError:
+            raise ValueError(f"confirm: --review {review!r} is not a YYYY-MM-DD date.")
+        r["reviewDate"] = review
+    _append_event(reg, "risk-confirmed", riskId=pos[1], rationale=opt["why"])
+    save_register(reg, pos[0])
+    print(f"{pos[1]} confirmed by {reg['meta'].get('assessor') or 'unknown'}.")
+    if review:
+        print(f"  Next review: {review}")
+    return 0
+
+
 def _cmd_set_status(args):
     pos, opt = parse_flags(args)
     if len(pos) < 3:
@@ -925,6 +1225,7 @@ COMMANDS = {
     "score": _cmd_score, "import-gaps": _cmd_import_gaps, "self-test": _cmd_self_test,
     "init": _cmd_init, "set-text": _cmd_set_text,
     "add": _cmd_add, "set-score": _cmd_set_score, "accept": _cmd_accept,
+    "confirm": _cmd_confirm,
     "set-status": _cmd_set_status, "snapshot": _cmd_snapshot, "export-csv": _cmd_export_csv,
     "add-theme": _cmd_add_theme, "set-theme": _cmd_set_theme,
 }
