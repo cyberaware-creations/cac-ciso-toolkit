@@ -186,11 +186,21 @@ def parse_args(argv: list[str], description: str, default_out: str) -> argparse.
     p.add_argument("--offline", action="store_true",
                    help="omit the Google Fonts links so the file makes no external request; "
                         "falls back to the system font stack")
+    p.add_argument("--age-threshold", type=int, default=180, metavar="DAYS",
+                   help="confirmation-age band width T: within <= T/2, approaching <= T, "
+                        "beyond <= 2T, wellBeyond over 2T. Reporting only — no threshold "
+                        "here expires, suppresses or rescores anything "
+                        "(default: 180, matching nist-csf's ageThresholdDays)")
     args = p.parse_args(argv)
     try:
         date.fromisoformat(args.today)
     except ValueError:
         p.error(f"--today {args.today!r} is not a YYYY-MM-DD date")
+    # A zero or negative T collapses every band into wellBeyond, which reports as
+    # "everything is ancient" rather than as the misconfiguration it is.
+    if args.age_threshold <= 0:
+        p.error(f"--age-threshold must be a positive number of days "
+                f"(got {args.age_threshold})")
     return args
 
 
@@ -256,6 +266,23 @@ def _overdue(value: str | None, today: str) -> bool:
     return bool(value) and str(value)[:10] <= today
 
 
+def _days_since(value: str | None, today: str) -> int | None:
+    """Whole days from an ISO date (or timestamp) to `today`; None if absent or malformed.
+
+    Tolerant on purpose. `_overdue()` above compares strings and can never raise, so a
+    register carrying a typo'd date still renders — and worse, a typo like "2026-02-30"
+    sorts as *past*, so `_overdue()` flags it and hands it straight to this function.
+    Age must not be the one field that turns a bad date into a traceback on the evening
+    a board pack is being produced: it reports "unknown", which is what it actually knows.
+    """
+    if not value:
+        return None
+    try:
+        return (date.fromisoformat(today) - date.fromisoformat(str(value)[:10])).days
+    except ValueError:
+        return None
+
+
 def live_summary(risks: list, size: int, appetite: str) -> dict:
     """`summarize()` over the risks a board is actually being asked about.
 
@@ -305,6 +332,9 @@ class Context:
         self.args = args
         self.offline = bool(getattr(args, "offline", False))
         self.today = args.today
+        # Band width for confirmation age. Reporting furniture only: nothing in this
+        # skill expires, suppresses or rescores on age. See references/dashboards.md.
+        self.age_threshold = int(getattr(args, "age_threshold", 180) or 180)
         self.register_path = args.register
         self.out_path = args.out
         self.reg = sr.load_register(args.register)
@@ -351,15 +381,52 @@ class Context:
         self.owner_load = self._owner_load()
         self.theme_rollup = self._theme_rollup()
         self.decisions = self._decisions()
+        self.confirmation = self._confirmation_rollup()
 
     # -- per risk --
 
     def _history_for(self, rid: str) -> list[dict]:
         return [e for e in self.reg.get("history", []) if e.get("riskId") == rid]
 
+    def _confirmation(self, hist: list[dict]) -> dict:
+        """When this risk was last affirmed, by whom, and how old that is.
+
+        Derived from history[] and nothing else — there is no stored age field and there
+        must never be one, on the same grounds as every other derived value here.
+
+        Only `sr.AGE_AFFIRMING` events count: someone asserting something about the
+        risk's magnitude or its treatment decision. A note, a rewording, a theme move, a
+        status flip and a snapshot deliberately do not, because an age that any edit
+        resets makes a "stalest" list worthless — the same rule nist-csf states in
+        references/schema.md.
+
+        A risk with no affirming event — a v1 register, a fresh import-gaps — yields
+        None rather than a guess, and is counted in its own undated bucket.
+
+        Ties on `ts` are reachable: `_now()` has second resolution and one `set-score`
+        writes two `score-changed` events. History is append-only, so the later-appended
+        of two events sharing a timestamp is the later assertion, and the index tiebreak
+        below picks it. `max()` alone would have kept the earlier one.
+        """
+        affirming = [e for e in hist
+                     if e.get("type") in sr.AGE_AFFIRMING and e.get("ts")]
+        if not affirming:
+            return {"lastConfirmedAt": None, "lastConfirmedBy": None,
+                    "confirmationAgeDays": None, "confirmationBand": None}
+        last = max(enumerate(affirming), key=lambda t: (t[1]["ts"], t[0]))[1]
+        days = _days_since(last["ts"], self.today)
+        return {
+            "lastConfirmedAt": str(last["ts"])[:10],
+            "lastConfirmedBy": (last.get("actor") or "").strip() or None,
+            "confirmationAgeDays": days,
+            "confirmationBand": (sr.age_band(days, self.age_threshold)
+                                 if days is not None else None),
+        }
+
     def _enrich(self, r: dict) -> dict:
         tid = r.get("theme")
         acc = r.get("acceptance") or None
+        hist = self._history_for(r["id"])
         prior = self._prior.get(r["id"])
         if prior is None:
             velocity = "new" if self.baseline else "steady"
@@ -378,13 +445,21 @@ class Context:
             "reviewDate": r.get("reviewDate") or "",
             "reviewOverdue": (r.get("status") != "closed"
                               and _overdue(r.get("reviewDate"), self.today)),
+            # A reviewDate is a deadline a human committed to, so passing it is a fact,
+            # not decay — the flag stays boolean. The day count exists only so renderers
+            # can rank by how badly it slipped, without changing the semantics.
+            "reviewOverdueDays": (_days_since(r.get("reviewDate"), self.today)
+                                  if (r.get("status") != "closed"
+                                      and _overdue(r.get("reviewDate"), self.today))
+                                  else None),
             "unowned": not (r.get("owner") or "").strip(),
             "acceptance": acc,
             "acceptanceDue": bool(acc) and _overdue(acc.get("revalidationDate"), self.today),
             "acceptanceExpired": bool(acc) and _overdue(acc.get("expiryDate"), self.today),
             "acceptanceIncomplete": bool(acc) and not (acc.get("approver")
                                                        and acc.get("justification")),
-            "history": self._history_for(r["id"]),
+            **self._confirmation(hist),
+            "history": hist,
             "translation": self.tr.risk(r["id"]),
         }
 
@@ -404,8 +479,28 @@ class Context:
                        "current": True})
         return series
 
+    # Event types whose rationale can explain a change-log entry. `risk-confirmed` is
+    # deliberately absent: it asserts that nothing changed, so letting it supply the "why"
+    # for a score move renders "residual Low → Critical — 'reviewed at the forum;
+    # unchanged'" on a board page. Its rationale is not worthless — it is the audit trail
+    # for the confirmation itself, and the confirmation-age panel is where it belongs.
+    # `snapshot-created` is absent because it carries no riskId to key on.
+    #
+    # Asserted a subset of sr.KNOWN_EVENT_TYPES in confirmation-age.sh, against the
+    # taxonomy score_register partitions rather than against a second copy of this list,
+    # so a typo'd name here fails the suite instead of silently never matching.
+    CHANGE_EXPLAINING = frozenset({
+        "risk-added", "risk-updated", "score-changed", "status-changed", "theme-changed",
+        "risk-accepted", "acceptance-revalidated", "response-changed", "import-merged",
+    })
+
     def _rationales_since_baseline(self) -> dict[str, str]:
-        """Rationales logged after the last snapshot — the 'why' behind this period's moves."""
+        """Rationales logged after the last snapshot — the 'why' behind this period's moves.
+
+        Newest-wins per risk, but only among events that actually changed something. See
+        CHANGE_EXPLAINING: an event asserting that nothing changed must never caption a
+        change.
+        """
         hist = self.reg.get("history", [])
         cut = 0
         for i, e in enumerate(hist):
@@ -413,7 +508,8 @@ class Context:
                 cut = i + 1
         out = {}
         for e in hist[cut:]:
-            if e.get("riskId") and e.get("rationale"):
+            if (e.get("riskId") and e.get("rationale")
+                    and e.get("type") in self.CHANGE_EXPLAINING):
                 out[e["riskId"]] = e["rationale"]
         return out
 
@@ -583,6 +679,40 @@ class Context:
                        f'scheduled review date ({", ".join(r["id"] for r in stale)}).')
         out.extend(self.tr.decisions)
         return out
+
+    def _confirmation_rollup(self) -> dict:
+        """Confirmation-age distribution over the live register.
+
+        Live only, for the same reason live_summary() exists: a closed risk keeps its
+        last confirmation date forever, and letting it sit in the distribution means the
+        freshness picture never improves as risks are treated out. `confirm` deliberately
+        allows confirming a closed risk — "we re-checked this and it stays closed" is a
+        real claim — so excluding closed risks here is the corollary obligation, not an
+        optimisation.
+
+        `undated` is not a band. It is the absence of a date rather than a distance from
+        one, and folding it into `within` would report a guess as a measurement while
+        folding it into `wellBeyond` would invent an age nobody recorded.
+        """
+        live = [r for r in self.risks if r.get("status") != "closed"]
+        bands = {b: 0 for b in sr.AGE_BANDS}
+        undated = 0
+        for r in live:
+            band = r["confirmationBand"]
+            if band is None:
+                undated += 1
+            else:
+                bands[band] += 1
+        return {
+            "bands": bands,
+            "undated": undated,
+            "live": len(live),
+            "thresholdDays": self.age_threshold,
+            # Oldest first, so a renderer can name the worst few without re-sorting.
+            "wellBeyond": sorted(
+                (r for r in live if r["confirmationBand"] == "wellBeyond"),
+                key=lambda r: -(r["confirmationAgeDays"] or 0)),
+        }
 
     # -- helpers renderers share --
 

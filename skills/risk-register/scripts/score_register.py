@@ -1299,16 +1299,11 @@ def _cmd_confirm(args):
     validates. So a refused confirm never reaches save_register and the file on disk stays
     byte-identical — asserted in the self-test, not merely intended.
 
-    KNOWN INTERACTION, not yet fixed — renderers/_common.py::_rationales_since_baseline
-    takes the *last* rationale logged per risk since the baseline snapshot and shows it on
-    the board as the why behind this period's move. A `risk-confirmed` rationale is a
-    rationale, so confirming a risk that genuinely moved earlier in the period replaces the
-    explanation of the move with "reviewed at the forum; unchanged". Reproduced: score
-    R-001 from residual 2x2 to 5x5 with a rationale, then confirm it, and the board reads
-    the confirmation text against a low-to-critical jump. The fix belongs in that picker
-    (prefer a rationale from an event that actually changed a field, or exclude
-    risk-confirmed there) and is left to the renderer task rather than done here, so this
-    note is the handover.
+    This event's rationale is deliberately not eligible to caption a change on the board.
+    `renderers/_common.py::Context.CHANGE_EXPLAINING` excludes `risk-confirmed`, because a
+    claim that nothing changed cannot explain a change — left in, it printed "residual Low
+    → Critical — 'reviewed at the forum; unchanged'" on the board page. The rationale is
+    still kept in history and belongs to the confirmation-age view.
     """
     pos, opt = parse_flags(args)
     if len(pos) < 2:
