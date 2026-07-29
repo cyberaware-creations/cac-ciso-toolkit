@@ -72,13 +72,16 @@ against that log as evidence arrives.
   resolving several Subcategories at once. One answer becomes one recorded source, never several
   ratings: gathering four Subcategories' worth of material in one question saves evidence
   collection, not the four decisions.
-- **The scope guard suppresses rather than caveats.** Below 60% of in-scope Subcategories assessed,
-  the headline coverage figure does not render at all. A percentage with a warning beside it is still
-  a percentage, and people read the number. This binds *both* dashboards — otherwise the suppressed
-  figure just reappears one document over.
+- **The scope guard measures coverage, not currency — and suppresses rather than caveats.** Below
+  60% of in-scope Subcategories *assessed*, the headline coverage figure does not render at all. A
+  percentage with a warning beside it is still a percentage, and people read the number. This binds
+  *both* dashboards — otherwise the suppressed figure just reappears one document over. The 60%
+  counts how much of the framework anyone has assessed; it says nothing about how old any rating is,
+  and no threshold anywhere in this toolkit expires one. Age is governed entirely by the next bullet.
 - **Ratings do not expire.** A rating is questioned when newer material is recorded against it, or
-  when it carries no confirmation date to compare against — not because a timer ran out. Age is
-  reported; the reader judges.
+  when it carries no confirmation date to compare against — never because a timer ran out. Age is
+  reported and the reader judges: a governance outcome and an asset inventory go stale at completely
+  different rates, so the engine declines to pick a decay rate on your behalf.
 - **Bundled framework data** — the full CSF 2.0 Core (6 Functions / 22 Categories / 106
   Subcategories) with all 363 Implementation Examples and the Informative References, generated from
   the NIST CPRT catalog, plus verbatim Tier text from NIST CSWP 29.
