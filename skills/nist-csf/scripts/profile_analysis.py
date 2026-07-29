@@ -3850,6 +3850,7 @@ def _cmd_self_test(_args):
     # An intra-skill import, the same shape as csfa_compat.py's: this file and the
     # renderers ship and version together. Not a cross-skill import, which is the thing
     # the note above AGE_BANDS rules out.
+    #
     # Bytecode writing is off for this import, for two reasons. A shipped skill directory
     # is not ours to leave build artefacts in, and it may not even be writable. More
     # usefully: a mutation test that edits _common.py to the same byte length within the
@@ -3900,10 +3901,12 @@ def _cmd_self_test(_args):
     ok(all(_rc.AGE_BAND_FILL[b] not in set(_rc.EVIDENCE_FILL.values()) for b in AGE_BANDS),
        "no age band reuses an evidence-state fill — the two strips sit one above the other")
 
-    # The ranges must agree with age_band() itself, or the label and the count it sits on
-    # describe different things. Walked day by day across both thresholds rather than
-    # spot-checked: the upper bound of each range is read back out of the label and fed to
-    # age_band, so an off-by-one in either direction shows up as a mismatch.
+    # The ranges must agree with age_band() itself, or a label and the count beneath it
+    # describe different populations. Checked at the boundaries, which is where the two can
+    # disagree: the last day each range claims is read back out of the label string and fed
+    # to age_band, and the day after it must land in a different band. That catches an
+    # off-by-one in either direction. Three thresholds, including T=198, which puts a
+    # fixture rating exactly on a line — the same reason the identity checks below use it.
     for _T in (180, 365, 198):
         _r = _rc.age_band_ranges(_T)
         _upper = {"within": _T // 2, "approaching": _T, "beyond": _T * 2}
