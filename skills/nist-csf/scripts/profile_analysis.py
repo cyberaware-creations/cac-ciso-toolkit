@@ -541,16 +541,19 @@ def compute_completeness(assessments: list[dict], index: dict, core: dict) -> di
 # rating sitting exactly on the boundary. With 180 and 365 alone, flipping _age()'s
 # `>` to `>=` breaks the identity and every test still passes.
 #
-# When risk-register grows the same age reporting, a near-identical age_band() belongs
-# in skills/risk-register/scripts/score_register.py. It is not there yet; this note
-# exists so the second copy is written knowingly rather than found later and "tidied".
-# The duplication is deliberate. The obvious cleanup — one shared module, say
+# A byte-identical twin of this function lives in
+# skills/risk-register/scripts/score_register.py, which carries the matching note back to
+# here. The duplication is deliberate. The obvious cleanup — one shared module, say
 # skills/_shared/age.py — is rejected: every shipped script must run standalone (this
 # one also resolves its assets from _SKILL_ROOT off __file__), so a cross-skill import
 # needs sys.path surgery and breaks outright the moment a single skill directory is used
 # on its own. The obligation that replaces it: the two copies are edited together, and
 # each skill's own self-test is the only thing pinning them to the same semantics.
 # Grep the sibling path above before changing any boundary below.
+#
+# What must match is the SEMANTICS — the four boundaries and the band names. What must
+# NOT converge is the rendered wording: each skill's AGE_BAND_LABEL sits in a different
+# sentence shape, and those live in the renderers, not here.
 AGE_BANDS = ("within", "approaching", "beyond", "wellBeyond")
 
 

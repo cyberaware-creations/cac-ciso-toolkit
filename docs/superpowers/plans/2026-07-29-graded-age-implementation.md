@@ -924,7 +924,15 @@ Expected: `62/62 checks passed.` (34 baseline + 28 new), followed by `Parity con
 
 - [ ] **Step 7: Prove the `--why` refusal actually leaves the file untouched**
 
-The byte-identity assertion is the one most likely to pass for the wrong reason — if `_cmd_confirm` raised *before* ever opening the file, it would pass trivially and still pass if the guard later moved after the write. Confirm the ordering binds:
+The byte-identity assertion is the one most likely to pass for the wrong reason — if `_cmd_confirm` raised *before* ever opening the file, it would pass trivially. Confirm the ordering binds.
+
+> **The mutant must move the guard past `save_register`, not merely past `_append_event`.**
+> An earlier draft of this step moved it between the two, which is behaviourally a **no-op**:
+> `_append_event` only appends to the in-memory dict, and `save_register` is the sole writer,
+> so nothing reaches disk either way and the mutant survives at full green. Reading that as
+> "the ordering is not asserted" would have been a false alarm — the assertion is sound, the
+> mutant was not. A mutant that cannot change observable behaviour proves nothing about the
+> test that fails to catch it.
 
 ```bash
 cd /Users/darren/Documents/GitHub/cac-ciso-toolkit
@@ -941,9 +949,9 @@ guard = """    if not (isinstance(opt.get("why"), (str, list)) and _s(opt["why"]
 """
 assert guard in s, "guard block not found — adjust the mutant to match the file"
 s = s.replace(guard, "", 1)
-s = s.replace('    _append_event(reg, "risk-confirmed", riskId=pos[1], rationale=opt["why"])',
-              '    _append_event(reg, "risk-confirmed", riskId=pos[1], rationale=opt.get("why"))\n'
-              + guard.rstrip("\n"), 1)
+# Past save_register, not merely past _append_event: save_register is the only writer.
+s = s.replace('    save_register(reg, pos[0])',
+              '    save_register(reg, pos[0])\n' + guard.rstrip("\n"), 1)
 p.write_text(s)
 PY
 python3 skills/risk-register/scripts/score_register.py self-test 2>&1 | tail -4
