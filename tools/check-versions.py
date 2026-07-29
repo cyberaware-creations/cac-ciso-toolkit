@@ -38,9 +38,19 @@ MANIFESTS = (
 )
 
 # Path prefixes whose contents reach a user's install. Changing any of them obliges a
-# version bump. docs/, tools/, .github/ and the top-level prose files are excluded on
-# purpose -- a spec or a CI tweak is not a release.
-SHIPPED = ("skills/", "assets/", ".claude-plugin/", ".codex-plugin/", ".agents/")
+# version bump. docs/, tools/ and .github/ are excluded on purpose -- a spec or a CI
+# tweak is not a release.
+#
+# LICENSE and NOTICE are bare filenames rather than prefixes, and they are here for a
+# harder reason than the directories are: marketplace.json declares `"source": "./"`,
+# so the repository root IS the plugin and both files land on a user's disk. Apache-2.0
+# section 4(d) requires the NOTICE to travel with the distribution, so an updated
+# attribution that never reaches an install is a licence problem, not just a stale file.
+# README.md and SECURITY.md ship too but are deliberately absent: prose that describes
+# the plugin is not the plugin, and gating a typo fix on a release would train people to
+# bump for nothing -- which is how a guard stops being believed.
+SHIPPED = ("skills/", "assets/", ".claude-plugin/", ".codex-plugin/", ".agents/",
+           "LICENSE", "NOTICE")
 
 
 def _dig(doc, keypath):
@@ -291,9 +301,17 @@ def self_test():
 
         # docs-only change against the new base -> no bump required
         (repo / "docs" / "note.md").write_text("note v2\n", encoding="utf-8")
-        _git_commit(repo, "docs only")
+        base3 = _git_commit(repo, "docs only")
         ok(check_bump(base2, str(repo)) is True,
            "docs-only change needs no version bump")
+
+        # NOTICE is a bare filename in SHIPPED, not a prefix. It ships because the repo
+        # root is the plugin, and Apache-2.0 4(d) obliges it to travel -- so an updated
+        # attribution with no bump must fail exactly like a skills/ change does.
+        (repo / "NOTICE").write_text("attribution v2\n", encoding="utf-8")
+        _git_commit(repo, "NOTICE change, no bump")
+        ok(check_bump(base3, str(repo)) is False,
+           "a NOTICE change without a version bump fails")
 
         ok(check_bump("nosuchref", str(repo)) is False,
            "an unresolvable base ref fails")

@@ -167,6 +167,9 @@ python3 skills/nist-csf/scripts/profile_analysis.py self-test      # engine math
 python3 skills/nist-csf/scripts/csfa_compat.py self-test           # .csfa port + gaps-CSV parity
 python3 skills/nist-csf/evals/score-conversations.py self-test     # the eval scorer's own tests
 python3 skills/nist-csf/evals/score-triggers.py self-test         # routing scorer's own tests
+
+./tools/check-versions.py                                # the four plugin version strings agree
+./tools/check-versions.py --self-test                    # and the guard's own tests
 ```
 
 Each prints its own count. Don't pin those counts in prose — three of them have already gone

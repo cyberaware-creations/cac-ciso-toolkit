@@ -1,4 +1,4 @@
-# The three suites README.md says to "run all three before any release", run on every push
+# The suites README.md says to "run all of these before any release", run on every push
 # instead — because that instruction was already in the README when v0.1.4 shipped a
 # Python-3.12-only construct that made a whole dashboard fail to import. A release checklist
 # a human has to remember is not a check.
@@ -95,3 +95,12 @@ jobs:
       - name: Shipped changes carry a version bump
         if: github.event_name == 'pull_request'
         run: ./tools/check-versions.py --base "${{ github.event.pull_request.base.sha }}"
+
+      # Defence in depth. The PR check above is only worth anything if this job is a
+      # *required* status check -- a direct push or an admin merge bypasses it entirely,
+      # and consistency alone would not have caught 18cfec5 (that commit was internally
+      # consistent at every step; only the bump check catches it). Guarded against the
+      # all-zero `before` that a branch's first push reports, which resolves to nothing.
+      - name: Shipped changes carry a version bump (direct push)
+        if: github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000'
+        run: ./tools/check-versions.py --base "${{ github.event.before }}"

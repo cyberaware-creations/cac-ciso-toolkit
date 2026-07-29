@@ -78,7 +78,7 @@ ambiguity that caused the stale-cache incident.
 This task deliberately ends **red**. The repo is currently in the drifted state, so a correct
 check must fail here. Task 2 turns it green by fixing the data, not the check.
 
-- [ ] **Step 1: Write the script with the consistency check only**
+- [x] **Step 1: Write the script with the consistency check only**
 
 Create `tools/check-versions.py` with exactly this content:
 
@@ -188,13 +188,13 @@ if __name__ == "__main__":
 `check_bump` and `self_test` are added in Task 3. Until then `--base` and `--self-test`
 raise `NameError`, which is fine — nothing calls them yet and Task 3 lands before CI does.
 
-- [ ] **Step 2: Make it executable**
+- [x] **Step 2: Make it executable**
 
 ```bash
 chmod +x tools/check-versions.py
 ```
 
-- [ ] **Step 3: Run it and verify it FAILS**
+- [x] **Step 3: Run it and verify it FAILS**
 
 ```bash
 ./tools/check-versions.py; echo "exit=$?"
@@ -216,7 +216,7 @@ exit=1
 If it exits 0, the check is wrong — the drift is real and documented above. Stop and fix
 the script before continuing.
 
-- [ ] **Step 4: Verify it runs on the Python floor (3.9)**
+- [x] **Step 4: Verify it runs on the Python floor (3.9)**
 
 ```bash
 python3 -c 'import sys; print(sys.version_info[:2])'
@@ -226,7 +226,7 @@ python3 -m py_compile tools/check-versions.py && echo "compiles"
 Expected: `compiles`. If a 3.9 interpreter is available, prefer
 `python3.9 -m py_compile tools/check-versions.py`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tools/check-versions.py
@@ -252,7 +252,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 - Modify: `.claude-plugin/marketplace.json:14`
 - Modify: `.codex-plugin/plugin.json:3`
 
-- [ ] **Step 1: Set all four strings to 0.4.2**
+- [x] **Step 1: Set all four strings to 0.4.2**
 
 `.claude-plugin/plugin.json` line 4 — change:
 
@@ -302,7 +302,7 @@ to:
   "version": "0.4.2",
 ```
 
-- [ ] **Step 2: Run the check and verify it PASSES**
+- [x] **Step 2: Run the check and verify it PASSES**
 
 ```bash
 ./tools/check-versions.py; echo "exit=$?"
@@ -319,7 +319,7 @@ consistency: all 4 version strings agree (0.4.2).
 exit=0
 ```
 
-- [ ] **Step 3: Verify all four files are still valid JSON**
+- [x] **Step 3: Verify all four files are still valid JSON**
 
 ```bash
 for f in .claude-plugin/plugin.json .claude-plugin/marketplace.json .codex-plugin/plugin.json .agents/plugins/marketplace.json; do
@@ -329,7 +329,7 @@ done
 
 Expected: four `ok` lines. A trailing comma or a missing quote from a hand edit shows up here.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add .claude-plugin/plugin.json .claude-plugin/marketplace.json .codex-plugin/plugin.json
@@ -354,7 +354,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 This is the check that would have caught four of the five commits on the current branch.
 
-- [ ] **Step 1: Write the self-test first (it will fail — `check_bump` does not exist)**
+- [x] **Step 1: Write the self-test first (it will fail — `check_bump` does not exist)**
 
 Insert these functions into `tools/check-versions.py`, immediately **after** `check_consistency`
 and **before** `main`:
@@ -450,7 +450,7 @@ def self_test():
     return all(checks)
 ```
 
-- [ ] **Step 2: Run the self-test and verify it fails on the missing function**
+- [x] **Step 2: Run the self-test and verify it fails on the missing function**
 
 ```bash
 ./tools/check-versions.py --self-test; echo "exit=$?"
@@ -459,7 +459,7 @@ def self_test():
 Expected: the two consistency checks print `PASS`, then a traceback ending in
 `NameError: name 'check_bump' is not defined`. That is the red state.
 
-- [ ] **Step 3: Implement `check_bump`**
+- [x] **Step 3: Implement `check_bump`**
 
 Insert this function immediately **after** `check_consistency` and **before** the
 `# -- self-test` divider added in Step 1:
@@ -514,7 +514,7 @@ def check_bump(base, root="."):
     return False
 ```
 
-- [ ] **Step 4: Run the self-test and verify it passes**
+- [x] **Step 4: Run the self-test and verify it passes**
 
 ```bash
 ./tools/check-versions.py --self-test; echo "exit=$?"
@@ -534,7 +534,7 @@ self-test: 5/5 checks passed
 exit=0
 ```
 
-- [ ] **Step 5: Verify the real repo still passes consistency**
+- [x] **Step 5: Verify the real repo still passes consistency**
 
 ```bash
 ./tools/check-versions.py; echo "exit=$?"
@@ -542,7 +542,7 @@ exit=0
 
 Expected: `consistency: all 4 version strings agree (0.4.2).` and `exit=0`.
 
-- [ ] **Step 6: Verify it compiles on the Python floor**
+- [x] **Step 6: Verify it compiles on the Python floor**
 
 ```bash
 python3 -m py_compile tools/check-versions.py && echo "compiles"
@@ -550,7 +550,7 @@ python3 -m py_compile tools/check-versions.py && echo "compiles"
 
 Expected: `compiles`.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add tools/check-versions.py
@@ -577,7 +577,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 **Files:**
 - Modify: `.github/workflows/evals.yml`
 
-- [ ] **Step 1: Add the `manifests` job**
+- [x] **Step 1: Add the `manifests` job**
 
 Append this job to the end of `.github/workflows/evals.yml`, at the same indentation as the
 existing `floor:` and `rendered:` jobs (two spaces):
@@ -612,7 +612,7 @@ existing `floor:` and `rendered:` jobs (two spaces):
         run: ./tools/check-versions.py --base "${{ github.event.pull_request.base.sha }}"
 ```
 
-- [ ] **Step 2: Verify the workflow file is valid YAML**
+- [x] **Step 2: Verify the workflow file is valid YAML**
 
 ```bash
 python3 -c "
@@ -631,7 +631,7 @@ print('ok')
 Expected: `jobs: ['floor', 'manifests', 'rendered']` then `ok` — or the skip line if
 PyYAML is not installed, which is acceptable since the workflow is parsed by GitHub anyway.
 
-- [ ] **Step 3: Simulate the PR check locally against main**
+- [x] **Step 3: Simulate the PR check locally against main**
 
 ```bash
 ./tools/check-versions.py --base "$(git merge-base main HEAD)"; echo "exit=$?"
@@ -641,7 +641,7 @@ Expected: `exit=0`, reporting that shipped files changed and the version moved
 `0.4.0 -> 0.4.2`. (Shipped files changed on this branch include
 `skills/risk-register/references/schema.md` from the earlier name fix.)
 
-- [ ] **Step 4: Confirm the pre-existing suites are still green**
+- [x] **Step 4: Confirm the pre-existing suites are still green**
 
 ```bash
 python3 skills/risk-register/scripts/score_register.py self-test | tail -2
@@ -651,7 +651,7 @@ python3 skills/nist-csf/scripts/profile_analysis.py self-test | tail -1
 Expected: `34/34 checks passed.` and `self-test: 472/472 checks passed`. Neither should have
 moved — this plan touches no engine code.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add .github/workflows/evals.yml
@@ -678,7 +678,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 data from its published sources." `check-versions.py` does not, so the description is now false.
 The load-bearing claim — *not part of the plugin* — stays exactly as it is.
 
-- [ ] **Step 1: Replace the opening paragraphs**
+- [x] **Step 1: Replace the opening paragraphs**
 
 Change lines 1–8 from:
 
@@ -715,7 +715,7 @@ something a user should be shipped.
 | `check-versions.py` | The four plugin version strings agree, and they move whenever shipped content moves. Run by the `manifests` job in `.github/workflows/evals.yml`. |
 ```
 
-- [ ] **Step 2: Verify the file still reads correctly**
+- [x] **Step 2: Verify the file still reads correctly**
 
 ```bash
 head -25 tools/README.md
@@ -724,7 +724,7 @@ head -25 tools/README.md
 Expected: the new opening, with the "Regenerating the CSF 2.0 Core" heading still intact
 below it.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add tools/README.md
@@ -753,7 +753,7 @@ graded-age implementation (§5 of
 `docs/superpowers/specs/2026-07-29-staleness-graded-age-design.md`) and must **not** be added
 here — it would describe behaviour that does not exist yet.
 
-- [ ] **Step 1: Replace both bullets**
+- [x] **Step 1: Replace both bullets**
 
 Change `README.md` lines 75–81 from:
 
@@ -782,7 +782,7 @@ to:
   different rates, so the engine declines to pick a decay rate on your behalf.
 ```
 
-- [ ] **Step 2: Verify both concepts are now named explicitly**
+- [x] **Step 2: Verify both concepts are now named explicitly**
 
 ```bash
 grep -n "coverage, not currency" README.md
@@ -793,7 +793,7 @@ grep -n "declines to pick a decay rate" README.md
 Expected: one line number from each — 75, 79 and 84 respectively, give or take the reflow.
 Zero hits from any of them means the edit did not land.
 
-- [ ] **Step 3: Confirm no band wording leaked in early**
+- [x] **Step 3: Confirm no band wording leaked in early**
 
 ```bash
 grep -ni "ageThresholdDays\|age band\|wellBeyond" README.md || echo "clean — no unimplemented behaviour described"
@@ -802,7 +802,7 @@ grep -ni "ageThresholdDays\|age band\|wellBeyond" README.md || echo "clean — n
 Expected: `clean — no unimplemented behaviour described`. Any hit means Task 6 has
 described the graded-age feature before it exists.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add README.md
@@ -824,7 +824,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 ## Final verification
 
-- [ ] **Run everything that CI will run**
+- [x] **Run everything that CI will run**
 
 ```bash
 cd "$(git rev-parse --show-toplevel)"
@@ -843,7 +843,7 @@ Expected: `5/5 checks passed`, `all 4 version strings agree (0.4.2)`, a bump lin
 `0.4.0 -> 0.4.2`, `34/34 checks passed.`, `472/472 checks passed`, and clean runs from
 `csfa_compat`, `python-compat.sh` and `board-safety.sh`.
 
-- [ ] **Confirm the tree is clean and the history reads correctly**
+- [x] **Confirm the tree is clean and the history reads correctly**
 
 ```bash
 git status --short
