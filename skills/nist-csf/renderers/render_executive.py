@@ -88,16 +88,6 @@ def evidence_block(ctx: c.Context) -> str:
             cells.append(("oldest", f'{age["oldestDays"]} days'))
         if thr is not None and age.get("olderThanThreshold") is not None:
             cells.append((f"older than {thr} days", f'{age["olderThanThreshold"]}'))
-    # The band distribution, not a second copy of the threshold count. `beyond` and
-    # `wellBeyond` together ARE the "older than T" figure above — the engine asserts that
-    # identity — so this grid grades the same population rather than restating its total.
-    bands = age.get("bands") or {}
-    if thr is not None and any(bands.values()):
-        for key, label in (("within", f"confirmed within {thr // 2} days"),
-                           ("approaching", f"within {thr} days"),
-                           ("beyond", f"within {thr * 2} days"),
-                           ("wellBeyond", f"over {thr * 2} days")):
-            cells.append((label, f'{bands.get(key, 0)}'))
     # Counts both revisit reasons (derive_evidence): confirmedAt set with newer
     # material against it, and confirmedAt unset (a v1-migrated rating) with any
     # material against it at all — "newer" would overclaim the second, so the
@@ -106,6 +96,12 @@ def evidence_block(ctx: c.Context) -> str:
     age_html = ('<div class="agegrid">' + "".join(
         f'<div class="agecell"><div class="an">{c.esc(v)}</div>'
         f'<div class="muted">{c.esc(k)}</div></div>' for k, v in cells) + '</div>')
+    # The band distribution grades the same population the `older than T days` cell above
+    # counts — `beyond` + `wellBeyond` IS that figure, an identity the engine asserts. So
+    # it goes below the grid as one strip rather than in it as four more tiles, which
+    # would have set five numbers side by side with no denominator among them.
+    if thr is not None:
+        age_html += c.age_band_bar(age, thr)
     if age.get("dated"):
         if age.get("undated"):
             age_html += (f'<div class="muted" style="margin-top:8px">'

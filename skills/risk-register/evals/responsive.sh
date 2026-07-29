@@ -182,6 +182,18 @@ done
 "$PY" "$CSF/renderers/render_operational.py" --in "$work/v2ex.json" \
   --out "$work/csf_ops_v2ex.html" --offline >/dev/null || {
     echo "responsive: FIXTURE FAILED — v2 example render_operational errored"; exit 1; }
+# Prove the confirmation-age bands actually reach both pages, and reach them saying the
+# same thing. Rendering alone proved nothing: the executive band strip could be deleted
+# outright and every check in this suite still passed, and for a while that strip labelled
+# `beyond` — ratings PAST the cadence — as "within 360 days", the opposite valence to the
+# operational view's "beyond cadence", on the board-facing page of the two. --today is
+# fixed above, so these counts and ranges are deterministic and can be pinned exactly.
+grep -q "beyond cadence (181–360d)" "$work/csf_exec_v2ex.html" || {
+    echo "responsive: FIXTURE FAILED — executive page shows no graded age bands"; exit 1; }
+grep -q "well beyond cadence (over 360d)" "$work/csf_exec_v2ex.html" || {
+    echo "responsive: FIXTURE FAILED — executive age bands are not exclusive ranges"; exit 1; }
+grep -q "beyond cadence (198d)" "$work/csf_ops_v2ex.html" || {
+    echo "responsive: FIXTURE FAILED — stalest rows carry no confirmation-age band"; exit 1; }
 
 # An overlay-enabled Profile. The Cyber AI overlay adds an ordering disclosure to
 # the operational gap table and the executive shortfall list, plus a provenance
@@ -206,6 +218,11 @@ grep -q "Cyber AI Profile overlay" "$work/csf_ops_overlay.html" || {
     echo "responsive: FIXTURE FAILED — operational page carries no overlay disclosure"; exit 1; }
 grep -q "Cyber AI Profile overlay" "$work/csf_exec_overlay.html" || {
     echo "responsive: FIXTURE FAILED — executive page carries no overlay disclosure"; exit 1; }
+# This one is built from the v1 example, whose ratings carry no confirmedAt at all — so it
+# is the fixture that exercises the other branch: a stalest row must say the confirmation
+# date is missing rather than be handed a band it has not earned.
+grep -q "no confirmation date" "$work/csf_ops_overlay.html" || {
+    echo "responsive: FIXTURE FAILED — an unconfirmed stalest row claims a band"; exit 1; }
 
 "$CHROME" --headless=new --disable-gpu --remote-debugging-port="$PORT" \
   --user-data-dir="$work/chrome-profile" --no-first-run \

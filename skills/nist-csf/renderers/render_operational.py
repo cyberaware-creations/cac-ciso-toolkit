@@ -314,26 +314,16 @@ def by_source(ctx: c.Context) -> str:
             f'{"".join(cards)}</section>')
 
 
-# Distance from the cadence the Profile chose — never a claim about how sure anyone
-# should be that the rating still holds. The engine measures how old a determination is;
-# what that means for a given Subcategory is the reader's call.
-#
-# A same-named AGE_BAND_LABEL is coming to the risk-register dashboard with DIFFERENT
-# values: these read as a trailing clause after a date ("confirmed 2026-01-10, beyond
-# cadence"), and that sentence shape is not the one over there. The two are not to be
-# unified — the skills cannot import each other (each resolves its assets from its own
-# __file__ and must run standalone), so a shared module is not available even in
-# principle. Edit them together; each skill's own tests are what pin the wording.
-AGE_BAND_LABEL = {"within": "within cadence", "approaching": "approaching cadence",
-                  "beyond": "beyond cadence", "wellBeyond": "well beyond cadence"}
-
-
 def _age_note(row: dict) -> str:
     """The confirmation age of one stalest row, or an honest blank.
 
+    The band vocabulary is c.AGE_BAND_LABEL, shared with the executive view so the two
+    dashboards cannot put opposite words on one band — they did, briefly, and the
+    flattering wording was the one on the board page.
+
     Three cases, and the difference between the last two matters:
 
-    - A band, with a date behind it: say both.
+    - A band, with a date behind it: name the band and its age in days.
     - `confirmationBand` present and None: the rating was reviewed but never confirmed.
       A rating carried over from a v1 Profile has no confirmedAt, and the whole point of
       not backfilling it is to avoid inventing the attribution — so the row says the date
@@ -343,16 +333,30 @@ def _age_note(row: dict) -> str:
       is known about this row's confirmation either way, so nothing is said. Printing
       "no confirmation date" here would turn a gap in the payload into a claim about
       the Profile.
+
+    The confirmation date is printed only when it DIFFERS from the lastReviewed date the
+    row already leads with. `set` writes both from one timestamp, so on a Profile built
+    under v2 they are equal on every row, and naming the date twice per row was pure
+    noise dressed up as rigour. They are still two different facts — the section hint
+    says so once — and the row shows both the moment they diverge, which is what a bare
+    `set --reviewed` after a confirmation produces. An unexpected band value renders as
+    itself rather than raising KeyError, and a band arriving with no date renders without
+    a dangling "confirmed ,": both are unreachable from this engine and both are exactly
+    the payload skew the three-way split above exists to absorb.
     """
     if "confirmationBand" not in row:
         return ""
     band = row["confirmationBand"]
     if not band:
         return '<span class="muted"> · no confirmation date</span>'
+    bits = []
+    confirmed_at = row.get("confirmedAt")
+    if confirmed_at and confirmed_at != row.get("lastReviewed"):
+        bits.append(f'confirmed {c.esc(confirmed_at)}')
     days = row.get("confirmationAgeDays")
-    age = f" ({days}d)" if days is not None else ""
-    return (f'<span class="muted"> · confirmed {c.esc(row.get("confirmedAt"))}, '
-            f'{AGE_BAND_LABEL[band]}{age}</span>')
+    bits.append(c.esc(c.AGE_BAND_LABEL.get(band, band))
+                + (f" ({days}d)" if days is not None else ""))
+    return f'<span class="muted"> · {", ".join(bits)}</span>'
 
 
 def attention(ctx: c.Context) -> str:
@@ -365,10 +369,11 @@ def attention(ctx: c.Context) -> str:
         ("Never reviewed", "Why has nobody looked at these at all?",
          [f'<span class="mono">{c.esc(r["subcategoryId"])}</span> {c.esc(c.trunc(r["text"], 70))}'
           for r in a.get("neverReviewed", [])]),
-        # Ordered by lastReviewed, banded on confirmedAt. Both dates are shown because
-        # they answer different questions — "when did anyone look" and "when was this
-        # decided, with a source behind it" — and a row with no confirmation date says
-        # so rather than being handed a band it has not earned.
+        # Ordered on lastReviewed, banded on confirmedAt — two different facts, and the
+        # section hint below says so, because `set` writes both from one timestamp and
+        # printing the date twice on every row said it ten times over and taught nothing.
+        # A row with no confirmation date says so rather than taking a band it has not
+        # earned; a row where the two dates diverge shows both.
         ("Stalest", "Is this rating still true, or just old?",
          [f'<span class="mono">{c.esc(r["subcategoryId"])}</span> '
           f'<span class="muted">{c.esc(r["lastReviewed"])}</span> '
@@ -395,7 +400,11 @@ def attention(ctx: c.Context) -> str:
                      f'<div class="q muted">{c.esc(question)}</div><ul>{body}</ul></div>')
     return (f'<section><h2>Needs attention</h2>'
             f'<div class="hint">Never-reviewed and stalest are separate lists on purpose — '
-            f'"nobody ever looked" is a different problem from "nobody looked lately".</div>'
+            f'"nobody ever looked" is a different problem from "nobody looked lately". '
+            f'Stalest is ordered by the date somebody last looked; the cadence note on '
+            f'each row measures a different date, the day the rating was decided with a '
+            f'source behind it. A row names that second date whenever it differs from '
+            f'the first.</div>'
             f'<div class="grid">{"".join(cards)}</div></section>')
 
 

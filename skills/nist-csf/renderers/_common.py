@@ -64,6 +64,43 @@ EVIDENCE_ORDER = ["confirmed", "evidence-pending", "unrated", "not-applicable"]
 EVIDENCE_KEY = {"confirmed": "confirmed", "evidence-pending": "evidencePending",
                 "unrated": "unrated", "not-applicable": "notApplicable"}
 
+# --- Confirmation age: the four graded bands ----------------------------------
+#
+# Ordered ascending by age, tracking AGE_BANDS in ../scripts/profile_analysis.py. The
+# engine owns this vocabulary and emits the counts; this module only names and draws
+# them. Both renderers read from here, so the operational and board views cannot put
+# opposite words on one number — which they did: the board page called `beyond`
+# "within 360 days" while the working view called it "beyond cadence".
+#
+# The LABELS are this skill's own and must NOT be merged with the near-identical
+# AGE_BAND_LABEL coming to skills/risk-register/renderers/render_dashboard.py. Only the
+# KEY SET is shared, and only because both track AGE_BANDS. The wording is meant to
+# diverge — these read as a trailing clause after a date ("confirmed 2026-01-10, beyond
+# cadence"), which is not the sentence shape over there — so "keep the two in step"
+# applies to the keys and to nothing else. Do not converge the values.
+#
+# What holds the keys and the rendered ranges honest is `_cmd_self_test` in
+# profile_analysis.py: it asserts these key sets against AGE_BANDS and pins
+# age_band_ranges(180) to fixed strings. That is the only thing standing between a
+# relabelling and a quietly flattering board page, so it is not optional.
+AGE_BAND_ORDER = ["within", "approaching", "beyond", "wellBeyond"]
+AGE_BAND_LABEL = {"within": "within cadence", "approaching": "approaching cadence",
+                  "beyond": "beyond cadence", "wellBeyond": "well beyond cadence"}
+# A single-hue sequential ramp, light to dark: never the coverage ramp and never a RAG
+# scale. Age is a distance from a cadence the reader chose — not a severity, not a
+# confidence — and a governance outcome and an asset inventory go stale at completely
+# different rates. Colouring `wellBeyond` red would make that judgement for the reader,
+# on the one page where it would carry the most weight. Lightness carries the ordering
+# instead, which is what an ordinal measure asks for.
+#
+# Warm neutrals off the workbench, deliberately NOT the cool greys in EVIDENCE_FILL: on
+# the executive page this strip sits directly beneath the evidence strip, and a shared
+# grey would have read as one continuous scale across two unrelated questions.
+# Luminance is strictly descending, and every fill clears AA against text_on(fill) —
+# lowest is `beyond` at 5.16:1. Retune one and re-check both properties.
+AGE_BAND_FILL = {"within": "#E4DFD2", "approaching": "#C0B49B",
+                 "beyond": "#786C54", "wellBeyond": "#4A4335"}
+
 # Two font modes. The brand faces come from Google Fonts, which means opening a report
 # makes an outbound request — for a document full of a client's risk data, that is a real
 # (if small) disclosure, and the dashboards were documented as making "no external calls".
@@ -518,6 +555,73 @@ def evidence_bar(split: dict) -> str:
             f'were arrived at.</div>')
     return (f'<div class="ebar">{"".join(segs)}</div>'
             f'<div class="elegend">{"".join(legend)}</div>{note}')
+
+
+# --- Confirmation age: the band distribution ----------------------------------
+# Shared by both renderers for the same reason evidence_bar is.
+
+def age_band_ranges(threshold_days: int) -> dict:
+    """The day range each band covers, as a qualifier on its label.
+
+    EXCLUSIVE ranges, and that is the entire point of this function. The counts these
+    annotate partition the dated population, so a cumulative phrase over one of them is
+    simply false. The board grid briefly read "confirmed within 90 days / within 180 days
+    / within 360 days / over 360 days" against four exclusive counts: three of the four
+    were wrong, and `beyond` — ratings PAST the cadence — was labelled "within 360 days",
+    which reads as meeting a deadline.
+
+    Every boundary is derived from `threshold_days`; none is hardcoded. They mirror
+    age_band() in ../scripts/profile_analysis.py exactly: each band is inclusive of its
+    upper bound, and `within` runs to T//2.
+    """
+    half = threshold_days // 2
+    return {"within": f"0–{half}d",
+            "approaching": f"{half + 1}–{threshold_days}d",
+            "beyond": f"{threshold_days + 1}–{threshold_days * 2}d",
+            "wellBeyond": f"over {threshold_days * 2}d"}
+
+
+def age_band_bar(age: dict, threshold_days: int) -> str:
+    """The band distribution as one proportional strip, with its denominator in view.
+
+    Four bare counts as peer tiles beside the `older than T days` cell gave a reader five
+    numbers, one of them the sum of two others, and a denominator for none of them. Same
+    shape and same markup as evidence_bar: mutually-exclusive counts partitioning a
+    stated total, drawn as one bar rather than as competing tiles, so the bands read as a
+    grading OF the population that cell counts rather than as a rival to it.
+
+    A band absent from the payload is dropped, never defaulted to 0: analyze output from
+    an engine that predates banding does not carry these counts, and a rendered 0 would
+    be a claim it never made. A band present and genuinely 0 has no width to draw either,
+    so the caption states outright that an unlisted band is zero — the reader is never
+    left inferring it.
+    """
+    bands = age.get("bands") or {}
+    segs, legend = [], []
+    ranges = age_band_ranges(threshold_days)
+    for band in AGE_BAND_ORDER:
+        if band not in bands:
+            continue
+        n = bands[band] or 0
+        if not n:
+            continue
+        fill = AGE_BAND_FILL[band]
+        fg = text_on(fill)
+        label = f"{AGE_BAND_LABEL[band]} ({ranges[band]})"
+        segs.append(f'<div class="eseg" style="flex:{n};background:{fill};color:{fg}" '
+                    f'title="{esc(label)}: {n}">{n}</div>')
+        legend.append(f'<span class="eleg"><i style="background:{fill}"></i>'
+                      f'{esc(label)} {n}</span>')
+    if not segs:
+        return ""
+    dated = age.get("dated") or 0
+    return (f'<div class="ebar">{"".join(segs)}</div>'
+            f'<div class="elegend">{"".join(legend)}</div>'
+            f'<div class="muted" style="margin-top:6px">Graded across the {dated} dated '
+            f'confirmation{"" if dated == 1 else "s"} counted above, against the '
+            f'{threshold_days}-day cadence this Profile set for itself. A band not listed '
+            f'here is zero. This is distance from that cadence — ratings do not expire, '
+            f'and none of this says how much to trust a rating.</div>')
 
 
 EVIDENCE_CSS = f"""
