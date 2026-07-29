@@ -1968,6 +1968,41 @@ sentence cannot silently disappear or drift off the board's own denominator."
 - Modify: `skills/nist-csf/references/dashboards.md`
 - Modify: `README.md` (the non-expiry bullet, around lines 75-85)
 
+> ### Behaviour changes Tasks 3 and 4 shipped that this task MUST document
+>
+> Three of these reject input the CLI previously accepted, on flags the docs tell people to
+> type. Shipping them undocumented is worse than not shipping them.
+>
+> **1. `confirm` exists.** Absent from `SKILL.md`'s mutation list (~line 143) and from the
+> required-flag table in `references/history-and-review.md` (~line 50); the table row is
+> `confirm` | `--why`. `risk-confirmed` is missing from `schema.md`'s event list, which Step 1
+> below rewrites anyway.
+>
+> **2. Date flags now refuse previously-accepted input.** `--review` (on `add` and `confirm`)
+> and `--revalidate` / `--expiry` / `--accepted` (on `accept`) require canonical
+> `YYYY-MM-DD`. Both `2027-2-01` and the basic form `20270201` are rejected. State it as a
+> house-wide rule: `nist-csf` enforces the identical one and its `references/schema.md:245`
+> already gives the reason — *"`2026-3-14` sorts after `2026-12-01` and would make every
+> revisit flag and age figure downstream quietly wrong."* Risk-register compared the same
+> fields lexically and did not validate them, so an unpadded `reviewDate` made an
+> eight-month-overdue review render as on time.
+>
+> **Critically: validation guards writes only.** A pre-existing register hand-carrying
+> `"reviewDate": "2027-3-01"` still loads, scores and renders; only a *new write* of that date
+> is refused. Verified both ways. Document that as deliberate, or someone will "fix" it into a
+> validator that makes an existing user's file unopenable — a worse outcome than the bug.
+>
+> **3. `confirm` and `accept` both refuse while `provisionalScore` is true.** The reason is an
+> invariant, not fussiness: **no affirming event may attach to a provisional-score risk.**
+> `risk-added` comes only from `add`, which creates the risk and never sets the flags; the
+> importer writes only the non-affirming `import-merged`. So `confirm` and `accept` were the
+> last two doors, and closing both means every confirmation age in the register rests on a
+> number some human put their name to. `set-score` is the sanctioned way through — it affirms
+> *and* clears the flag. A provisional *title* only warns, because wording is a
+> board-eligibility question rather than a magnitude one.
+>
+> `score_register.py` carries a `DOCS HANDOVER (Task 8)` note; **remove it** once these land.
+
 - [ ] **Step 1: Fix and extend the risk-register event list**
 
 In `skills/risk-register/references/schema.md`, replace lines 122-124:
