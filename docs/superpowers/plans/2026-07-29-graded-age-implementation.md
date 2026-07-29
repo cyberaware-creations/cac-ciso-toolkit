@@ -673,7 +673,13 @@ Insert immediately after it:
     eq("age_band(181,180)", age_band(181, 180), "beyond")
     eq("age_band(360,180) edge", age_band(360, 180), "beyond")
     eq("age_band(361,180)", age_band(361, 180), "wellBeyond")
-    eq("age_band rescales at T=365", age_band(200, 365), "within")
+    # 365//2 == 182, so 200 days is `approaching` at T=365 and `beyond` at T=180 — the same
+    # age, two cadences, two answers. (An earlier draft of this plan asserted "within" here,
+    # which is wrong: floor division puts the within/approaching line at 182, not 200.)
+    eq("age_band(200,180)", age_band(200, 180), "beyond")
+    eq("age_band(200,365) rescales", age_band(200, 365), "approaching")
+    eq("age_band(182,365) floor-division edge", age_band(182, 365), "within")
+    eq("age_band(183,365) floor-division edge", age_band(183, 365), "approaching")
     eq("AGE_BANDS", AGE_BANDS, ("within", "approaching", "beyond", "wellBeyond"))
 
     # Affirming means a human asserted something about the risk's magnitude or its
@@ -1321,7 +1327,66 @@ and add the confirmation fields to the same returned dict, immediately before `"
             "history": self._history_for(r["id"]),
 ```
 
-- [ ] **Step 7: Add the rollup**
+- [ ] **Step 7: Stop a "nothing changed" rationale from explaining a change**
+
+**A board-facing defect that Task 3 created and handed here.** Reproduced on real rendered
+output: score a risk from residual 2×2 to 5×5 with a rationale, then `confirm` it, and the
+board change log reads
+
+> **worsened** — R-001 Third-party access — residual **Low → Critical** · now over appetite —
+> *"reviewed at the forum; unchanged"*
+
+Self-contradictory, on the artifact directors actually read. The cause is
+`_rationales_since_baseline`: it walks history forward and does `out[e["riskId"]] = e["rationale"]`,
+so the **last** rationale wins — and a `risk-confirmed` rationale now overwrites the
+`score-changed` one that actually explains the move.
+
+`_cmd_confirm`'s docstring in `score_register.py` carries a `KNOWN INTERACTION` handover note
+with the reproduction. **Remove that note as part of this step**, once the defect is closed.
+
+Replace `_rationales_since_baseline` (around line 407) with:
+
+```python
+    # Event types whose rationale can explain a change-log entry. `risk-confirmed` is
+    # deliberately absent: it asserts that nothing changed, so letting it supply the "why"
+    # for a score move renders "residual Low → Critical — 'reviewed at the forum;
+    # unchanged'" on a board page. Its rationale is not worthless — it is the audit trail
+    # for the confirmation itself, and the confirmation-age panel is where it belongs.
+    # `snapshot-created` is absent because it carries no riskId to key on.
+    CHANGE_EXPLAINING = frozenset({
+        "risk-added", "risk-updated", "score-changed", "status-changed", "theme-changed",
+        "risk-accepted", "acceptance-revalidated", "response-changed", "import-merged",
+    })
+
+    def _rationales_since_baseline(self) -> dict[str, str]:
+        """Rationales logged after the last snapshot — the 'why' behind this period's moves.
+
+        Newest-wins per risk, but only among events that actually changed something. See
+        CHANGE_EXPLAINING: an event asserting that nothing changed must never caption a
+        change.
+        """
+        hist = self.reg.get("history", [])
+        cut = 0
+        for i, e in enumerate(hist):
+            if e.get("type") == "snapshot-created":
+                cut = i + 1
+        out = {}
+        for e in hist[cut:]:
+            if (e.get("riskId") and e.get("rationale")
+                    and e.get("type") in self.CHANGE_EXPLAINING):
+                out[e["riskId"]] = e["rationale"]
+        return out
+```
+
+Add a check to `confirmation-age.sh` reproducing the exact scenario — score a risk with one
+rationale, confirm it with another, render the board, and assert the change-log entry for that
+risk carries the **score** rationale and not the confirmation one. Then **prove it binds**: add
+`"risk-confirmed"` to `CHANGE_EXPLAINING` and confirm the check fails.
+
+`CHANGE_EXPLAINING` must be a subset of `sr.KNOWN_EVENT_TYPES` — assert that too, so a typo'd
+event name here fails the suite rather than silently never matching.
+
+- [ ] **Step 8: Add the rollup**
 
 In `skills/risk-register/renderers/_common.py`, add this method to `Context`, immediately **after** `_decisions` (which ends at line 585 with `return out`):
 
@@ -1358,13 +1423,13 @@ In `skills/risk-register/renderers/_common.py`, add this method to `Context`, im
         }
 ```
 
-- [ ] **Step 8: Run the test to verify it passes**
+- [ ] **Step 9: Run the test to verify it passes**
 
 Run: `./skills/risk-register/evals/confirmation-age.sh 2>&1 | tail -20`
 
 Expected: 14 checks, all `PASS`, ending `confirmation-age: all checks passed`.
 
-- [ ] **Step 9: Prove the non-affirming test binds**
+- [ ] **Step 10: Prove the non-affirming test binds**
 
 The check that matters most is "R-002 still dates from risk-added". Confirm it dies when the mechanism does:
 
@@ -1390,7 +1455,7 @@ cp /tmp/sr2.bak skills/risk-register/scripts/score_register.py
 
 Expected: the mutant run FAILS on `R-002 still dates from risk-added` (and the score_register self-test would independently fail its `does NOT affirm` assertions). The restore returns all checks to PASS.
 
-- [ ] **Step 10: Confirm the existing suites are untouched and commit**
+- [ ] **Step 11: Confirm the existing suites are untouched and commit**
 
 ```bash
 python3 skills/risk-register/scripts/score_register.py self-test 2>&1 | tail -2
