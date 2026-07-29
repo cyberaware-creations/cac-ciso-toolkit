@@ -90,6 +90,32 @@ the assertion dies.** Where one property is held up by two independent expressio
 each separately — passing one mutant proves only half. If a mutant survives, the test is
 decoration; fix the test before writing more code. Each task's mutation steps are mandatory.
 
+Two refinements learned the hard way, both from mutants in this plan:
+
+**A surviving mutant is not automatically a bad test.** Ask first whether the mutant could
+change anything a user can see. Task 3's ordering mutant moved a guard between an in-memory
+append and the only disk writer — unobservable, so it survived at full green, and the plan
+told the implementer to read that as "the ordering is not asserted." The assertion was sound;
+the mutant was broken. Killing such a mutant would mean pinning an implementation detail.
+
+**The fixture is where vacuity hides.** Six of this plan's assertions could not fail, and
+every one failed for a fixture reason rather than a logic reason:
+
+| assertion | why it could not fail |
+|---|---|
+| bands on a stalest row | `example-profile.csfp` has **zero** `confirmedAt`, so the filter matched nothing |
+| "R-002 still dates from `risk-added`" | every event the CLI writes shares one calendar date, so any pick was right |
+| "`--age-threshold` reaches the derivation" | checked storage on the Context, not that a band moved |
+| the rollup's live-only rule | the fixture had no closed risk, so `live == len(risks)` |
+| "not-overdue carries no day count" | `all()` over a filter with no positive counterpart |
+| the malformed-date case | `"not-a-date"` is not lexically overdue, so the tolerant helper was never called |
+
+The rule that follows: **never write `all(...)` over a filter without also pinning the row
+count**, and before trusting any assertion, check that the fixture can actually produce the
+failing case. Prefer exact-list or exact-dict equality against a hand-computed literal. If the
+shipped fixture cannot express the case, build one that can — do not weaken the assertion to
+fit the fixture.
+
 ---
 
 ### Task 1: Age bands in `nist-csf`
