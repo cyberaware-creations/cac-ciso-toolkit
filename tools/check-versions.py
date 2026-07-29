@@ -79,6 +79,145 @@ def check_consistency(root="."):
     return False
 
 
+def _git(args, root="."):
+    return subprocess.run(["git", "-C", str(root)] + args, check=True,
+                          capture_output=True, text=True).stdout
+
+
+def check_bump(base, root="."):
+    """If anything under SHIPPED changed against `base`, the version must have moved.
+
+    Diffs with `base...HEAD` (three dots) so the comparison is against the merge base,
+    not the tip of the base branch -- otherwise unrelated commits landing on main
+    while a PR is open would be counted as this PR's changes.
+    """
+    try:
+        changed = _git(["diff", "--name-only", "{}...HEAD".format(base)], root).split()
+    except subprocess.CalledProcessError:
+        print("ERROR: cannot diff against base ref {!r}.".format(base))
+        print("       Does this checkout have full history? CI needs fetch-depth: 0.")
+        return False
+
+    shipped = sorted(f for f in changed if f.startswith(SHIPPED))
+    if not shipped:
+        print("bump: no shipped file changed against {}; no bump required.".format(base))
+        return True
+
+    path, keypath = MANIFESTS[0]
+    try:
+        before = _dig(json.loads(_git(["show", "{}:{}".format(base, path)], root)),
+                      keypath)
+    except (subprocess.CalledProcessError, KeyError, ValueError):
+        print("bump: {} unreadable at {}; treating as a first release.".format(
+            path, base))
+        return True
+
+    now = _dig(json.loads((Path(root) / path).read_text(encoding="utf-8")), keypath)
+    if now != before:
+        print("bump: {} shipped file(s) changed and the version moved {} -> {}.".format(
+            len(shipped), before, now))
+        return True
+
+    print("ERROR: {} shipped file(s) changed against {}, but the version is still "
+          "{}.".format(len(shipped), base, now))
+    for f in shipped[:10]:
+        print("         {}".format(f))
+    if len(shipped) > 10:
+        print("         ... and {} more".format(len(shipped) - 10))
+    print("       An unchanged version makes `claude plugin update` a silent no-op.")
+    return False
+
+
+# -- self-test ------------------------------------------------------------------
+
+
+def _write_manifests(root, version):
+    """Lay down the four version strings in a scratch tree."""
+    (root / ".claude-plugin").mkdir(parents=True, exist_ok=True)
+    (root / ".codex-plugin").mkdir(parents=True, exist_ok=True)
+    (root / ".claude-plugin" / "plugin.json").write_text(
+        json.dumps({"version": version}), encoding="utf-8")
+    (root / ".claude-plugin" / "marketplace.json").write_text(
+        json.dumps({"version": version, "plugins": [{"version": version}]}),
+        encoding="utf-8")
+    (root / ".codex-plugin" / "plugin.json").write_text(
+        json.dumps({"version": version}), encoding="utf-8")
+
+
+def _git_commit(root, message):
+    """Commit everything in a scratch repo, with identity supplied inline so the
+    check never depends on the runner's global git config."""
+    subprocess.run(["git", "-C", str(root), "add", "-A"], check=True,
+                   capture_output=True)
+    subprocess.run(
+        ["git", "-C", str(root),
+         "-c", "user.email=selftest@example.invalid", "-c", "user.name=selftest",
+         "commit", "-q", "-m", message],
+        check=True, capture_output=True)
+    return subprocess.run(["git", "-C", str(root), "rev-parse", "HEAD"],
+                          check=True, capture_output=True, text=True).stdout.strip()
+
+
+def self_test():
+    checks = []
+
+    def ok(cond, label):
+        checks.append(bool(cond))
+        print("{:<4} {}".format("PASS" if cond else "FAIL", label))
+
+    with tempfile.TemporaryDirectory() as tmp:
+        # -- consistency, no git needed --
+        agree = Path(tmp) / "agree"
+        agree.mkdir()
+        _write_manifests(agree, "1.2.3")
+        ok(check_consistency(str(agree)) is True,
+           "four matching version strings pass consistency")
+
+        drift = Path(tmp) / "drift"
+        drift.mkdir()
+        _write_manifests(drift, "1.2.3")
+        (drift / ".codex-plugin" / "plugin.json").write_text(
+            json.dumps({"version": "1.2.4"}), encoding="utf-8")
+        ok(check_consistency(str(drift)) is False,
+           "one divergent version string fails consistency")
+
+        # -- bump-on-change, needs a real repo --
+        repo = Path(tmp) / "repo"
+        repo.mkdir()
+        subprocess.run(["git", "-C", str(repo), "init", "-q"], check=True,
+                       capture_output=True)
+        _write_manifests(repo, "1.0.0")
+        (repo / "skills").mkdir()
+        (repo / "skills" / "SKILL.md").write_text("v1\n", encoding="utf-8")
+        (repo / "docs").mkdir()
+        (repo / "docs" / "note.md").write_text("note\n", encoding="utf-8")
+        base = _git_commit(repo, "base")
+
+        # shipped file changed, version did not -> must fail
+        (repo / "skills" / "SKILL.md").write_text("v2\n", encoding="utf-8")
+        _git_commit(repo, "shipped change, no bump")
+        ok(check_bump(base, str(repo)) is False,
+           "shipped change without a version bump fails")
+
+        # same change, now with a bump -> must pass
+        _write_manifests(repo, "1.0.1")
+        _git_commit(repo, "bump")
+        ok(check_bump(base, str(repo)) is True,
+           "shipped change with a version bump passes")
+
+        # docs-only change against the new base -> no bump required
+        base2 = subprocess.run(["git", "-C", str(repo), "rev-parse", "HEAD"],
+                               check=True, capture_output=True,
+                               text=True).stdout.strip()
+        (repo / "docs" / "note.md").write_text("note v2\n", encoding="utf-8")
+        _git_commit(repo, "docs only")
+        ok(check_bump(base2, str(repo)) is True,
+           "docs-only change needs no version bump")
+
+    print("\nself-test: {}/{} checks passed".format(sum(checks), len(checks)))
+    return all(checks)
+
+
 def main(argv):
     args = list(argv[1:])
     if "--self-test" in args:
