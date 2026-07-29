@@ -279,13 +279,32 @@ def _git_commit(root, message):
                           check=True, capture_output=True, text=True).stdout.strip()
 
 
+def _fs_holds(name):
+    """True if this filesystem's encoding can represent `name` as a filename."""
+    try:
+        name.encode(sys.getfilesystemencoding())
+        return True
+    except (UnicodeEncodeError, LookupError):
+        return False
+
+
 def self_test():
     _utf8_stdout()  # reachable without going through main()
-    checks = []
+    checks, skipped = [], []
 
     def ok(cond, label):
         checks.append(bool(cond))
         print("{:<4} {}".format("PASS" if cond else "FAIL", label))
+
+    # Decoding git's output and encoding our own are separate settings, and the café
+    # case below only reaches the second one on a filesystem that can hold the name --
+    # which Linux under LC_ALL=C cannot. This asserts the stdout half on its own, so
+    # the locale run still proves something where the filesystem forces a skip.
+    try:
+        print("     (stdout carries non-ASCII: café)")
+        ok(True, "stdout carries non-ASCII whatever the locale says")
+    except UnicodeEncodeError:
+        ok(False, "stdout carries non-ASCII whatever the locale says")
 
     with tempfile.TemporaryDirectory() as tmp:
         # -- consistency, no git needed --
@@ -467,20 +486,36 @@ def self_test():
            "one manifest new at base does not excuse the three that did not move")
 
         # -- git quotes non-ASCII paths by default; -z is what keeps them visible --
-        uni = Path(tmp) / "unicode"
-        uni.mkdir()
-        subprocess.run(["git", "-C", str(uni), "init", "-q"], check=True,
-                       capture_output=True)
-        _write_manifests(uni, "1.0.0")
-        (uni / "skills").mkdir()
-        (uni / "skills" / "café.md").write_text("v1\n", encoding="utf-8")
-        uni_base = _git_commit(uni, "base")
-        (uni / "skills" / "café.md").write_text("v2\n", encoding="utf-8")
-        _git_commit(uni, "shipped change to a non-ASCII path, no bump")
-        ok(check_bump(uni_base, str(uni)) is False,
-           "a non-ASCII shipped path is not lost to git's path quoting")
+        #
+        # This case needs a filesystem that can hold the name. Under LC_ALL=C on Linux
+        # sys.getfilesystemencoding() is 'ascii' and creating it raises before the check
+        # is ever reached -- macOS always encodes filenames as UTF-8, so a laptop cannot
+        # show you this. It is reported as a skip rather than a pass: a case that did not
+        # run has not proved anything, and counting it would be the vacuous green this
+        # file exists to argue against.
+        if _fs_holds("café.md"):
+            uni = Path(tmp) / "unicode"
+            uni.mkdir()
+            subprocess.run(["git", "-C", str(uni), "init", "-q"], check=True,
+                           capture_output=True)
+            _write_manifests(uni, "1.0.0")
+            (uni / "skills").mkdir()
+            (uni / "skills" / "café.md").write_text("v1\n", encoding="utf-8")
+            uni_base = _git_commit(uni, "base")
+            (uni / "skills" / "café.md").write_text("v2\n", encoding="utf-8")
+            _git_commit(uni, "shipped change to a non-ASCII path, no bump")
+            ok(check_bump(uni_base, str(uni)) is False,
+               "a non-ASCII shipped path is not lost to git's path quoting")
+        else:
+            skipped.append("non-ASCII shipped path")
+            print("SKIP a non-ASCII shipped path: filesystem encoding is {}, which "
+                  "cannot".format(sys.getfilesystemencoding()))
+            print("     represent the filename. The -z handling is covered by the same "
+                  "case under a UTF-8 filesystem.")
 
-    print("\nself-test: {}/{} checks passed".format(sum(checks), len(checks)))
+    print("\nself-test: {}/{} checks passed{}".format(
+        sum(checks), len(checks),
+        ", {} skipped ({})".format(len(skipped), "; ".join(skipped)) if skipped else ""))
     return all(checks)
 
 
