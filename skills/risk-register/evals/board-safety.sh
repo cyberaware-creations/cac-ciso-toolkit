@@ -259,6 +259,19 @@ PY
 # ("Current — confidence degrading", "Current (assumed)"); the answer was no, and this
 # check is what makes that refusal enforced rather than remembered.
 #
+# The list here is deliberately NARROW, and check 10 is why. A rendered board page carries
+# two populations of prose: the toolkit's own words, and the user's register content — risk
+# titles, rationales, acceptance justifications, the translated narrative. "Backups are
+# unreliable" is an honest risk statement; "this rating is unreliable" is the confidence
+# claim we refuse. A substring scan of the finished page cannot tell them apart, so widening
+# this list would start failing on a user's own honest wording — which is why `unreliable`
+# is here but the stem `reliab` is not, and why "no longer reliable" slips past this check.
+#
+# Check 10 closes that gap from the other side, where the ambiguity does not exist: in the
+# toolkit's SOURCE, none of this vocabulary has a legitimate use at all, so it can be banned
+# by stem. Any phrasing a future contributor picks has to appear as a string literal there.
+# The two checks are complementary — narrow over user-mixed output, broad over our own words.
+#
 # If a future fixture legitimately needs one of these words, change the fixture — not this
 # list. The list is the decision.
 #
@@ -302,6 +315,70 @@ for name in ("render_board", "render_report"):          # board-facing only
             start, end = max(0, i - 25), i + 25
             hits.append(f"{name}:{word}:...{text[start:end]}...")
 print("PASS" if not hits else "FAIL " + " | ".join(hits[:2]))
+PY
+)"
+
+# 10. No confidence vocabulary in the source that writes board-facing prose.
+#
+# The other half of check 9, over the population where the word list can afford to be broad.
+# Check 9 scans finished HTML, which mixes our prose with the user's register content, so it
+# has to stay narrow enough not to fail on an honest risk title like "backups are
+# unreliable" — and that narrowness is exactly what let "no longer reliable" through.
+#
+# In OUR source the ambiguity is gone: none of this vocabulary has a legitimate use in a
+# string the toolkit emits, so it is banned by stem. Whatever phrasing a contributor reaches
+# for has to appear as a literal here first, and stems catch the inflections a word list
+# cannot enumerate — degrade/degrading/degraded, reliable/reliability/unreliable.
+#
+# DOCSTRINGS ARE EXEMPT, and that exemption is load-bearing rather than a convenience: the
+# refusal has to be explainable, and every file involved carries a paragraph naming the claim
+# it declines to make. Comments are exempt for free — they are not in the AST at all. So this
+# scans exactly what ships to a page.
+#
+# _common.py is included because it builds the board freshness sentence. If an operational-
+# only string ever genuinely needs this vocabulary it belongs in render_dashboard.py, which
+# is not scanned here for the same reason it is not scanned by check 9.
+#
+# Stems chosen against the whole-word forms they would otherwise ban: `assumed` not `assum`
+# (an "assumption" is a legitimate word), `certainty`/`uncertain` not `certain` ("certain
+# risks" means "some"). Verified zero hits at the time of writing, so a hit is a change.
+chk 10 "no confidence vocabulary in the source of any board-facing view" "$("$PY" - "$repo" <<'PY'
+import ast, pathlib, sys
+repo = pathlib.Path(sys.argv[1])
+STEMS = ("confiden", "degrad", "decay", "reliab", "assumed",
+         "trust", "certainty", "uncertain", "doubt")
+FILES = ("skills/risk-register/renderers/render_board.py",
+         "skills/risk-register/renderers/render_report.py",
+         "skills/risk-register/renderers/_common.py")
+problems = []
+scanned = 0
+for rel in FILES:
+    path = repo / rel
+    if not path.exists():
+        problems.append("{}: missing — check read nothing".format(rel))
+        continue
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    docs = set()
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            text = ast.get_docstring(node, clean=False)
+            if text:
+                docs.add(text)
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Constant) and isinstance(node.value, str)):
+            continue
+        if node.value in docs:
+            continue
+        scanned += 1
+        low = node.value.lower()
+        for stem in STEMS:
+            if stem in low:
+                snippet = node.value.strip()[:60]
+                problems.append("{}:{} {} in {!r}".format(rel, node.lineno, stem, snippet))
+# A scan that reads no literals is not a pass. Same rule as the fixture guards above.
+if scanned == 0 and not problems:
+    problems.append("no string literals scanned at all — the walk is broken, not the source clean")
+print("PASS" if not problems else "FAIL " + "; ".join(problems[:2]))
 PY
 )"
 

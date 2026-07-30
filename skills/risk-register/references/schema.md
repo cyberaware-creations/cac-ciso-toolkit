@@ -184,7 +184,8 @@ inclusive of the lower band, so a risk at exactly `T` is `approaching` and not y
 
 The band names describe **distance from a cadence you chose**. They are not confidence words and
 never become them: age is derivable from stored data, confidence is not. `evals/board-safety.sh`
-check 9 fails if confidence vocabulary reaches a board-facing view.
+checks 9 and 10 fail if confidence vocabulary reaches a board-facing view — check 9 over the
+rendered page, check 10 over the source that writes it, by word stem.
 
 ### Three outcomes, not two
 
