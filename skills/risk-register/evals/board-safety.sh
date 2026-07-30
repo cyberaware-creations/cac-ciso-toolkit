@@ -194,6 +194,114 @@ print("PASS" if not problems else "FAIL " + "; ".join(problems[:2]))
 PY
 )"
 
+# 8. The board freshness line renders, and reports the LIVE population.
+#
+# The sentence opens on its own denominator, so the denominator is the part a director
+# actually reasons from — every clause after it is read as a share of that number. The
+# engine's summarize() counts closed risks (web-engine parity, see check 7), so "how many
+# risks are there" has two answers in this codebase and the board must be given the one
+# that shrinks when a risk is treated out.
+#
+# Matches BOTH "Of 1 live risk:" and "Of 105 live risks:" — freshness_line() pluralises,
+# and a pattern that only knew the plural would report the sentence missing from a
+# perfectly good single-risk page. Verified against both renderings, not assumed.
+#
+# The executive dashboard is required to carry it, because that is where it ships. The
+# printable report is asserted only IF it carries one — freshness_line() lives in
+# _common.py, so the report may grow one at any time, and this suite's own header records
+# what happens when a board guard is written for one renderer and not the other. Asserting
+# the report unconditionally would fail today for a reason this check is not about;
+# asserting it when present means the second page is covered the day it appears, without
+# anybody remembering to come back here.
+chk 8 "board freshness line present and counts live risks" "$("$PY" - "$work" <<'PY'
+import json, pathlib, re, sys
+work = pathlib.Path(sys.argv[1])
+reg = json.loads((work / "r.rr").read_text())
+live = [r for r in reg["risks"] if r.get("status") != "closed"]
+problems = []
+# Anti-vacuity, same discipline as check 7: with no closed risk, live == total and the
+# assertion below cannot tell the live population from the whole register.
+if len(live) == len(reg["risks"]):
+    problems.append("fixture has no closed risk — live == total, denominator proves nothing")
+
+found = {}
+for name in ("render_board", "render_report"):          # board-facing only
+    path = work / f"{name}.html"
+    # read_text() on a missing page raises, which does fail this check — but the traceback
+    # goes to stderr and chk is handed an empty string, so the suite prints a blank FAIL.
+    # Say what happened instead.
+    if not path.exists():
+        problems.append(f"{name}: not rendered — check read nothing")
+        continue
+    found[name] = re.findall(r"Of (\d+) live risks?:", path.read_text())
+if "render_board" in found and not found["render_board"]:
+    problems.append("freshness line absent from the executive dashboard")
+for name, hits in found.items():
+    if len(hits) > 1:
+        problems.append(f"{name}: freshness line rendered {len(hits)} times; it is one caveat")
+    elif hits and int(hits[0]) != len(live):
+        problems.append(f"{name}: freshness line says {hits[0]} live, register has {len(live)}")
+print("PASS" if not problems else "FAIL " + "; ".join(problems[:2]))
+PY
+)"
+
+# 9. No confidence vocabulary reaches a board-facing view.
+#
+# An INVERTED check: it fails if anyone later reintroduces the claim this toolkit
+# deliberately declines to make. The engine reports AGE — a number it derives from stored
+# timestamps. "Confidence" is a decay RATE it cannot derive, on risks whose real rates
+# differ wildly: a governance outcome and an asset inventory go stale at nothing like the
+# same speed. Naming an age band after confidence would commit the engine to exactly the
+# rate it argues is unknowable. External review asked for labelled confidence decay
+# ("Current — confidence degrading", "Current (assumed)"); the answer was no, and this
+# check is what makes that refusal enforced rather than remembered.
+#
+# If a future fixture legitimately needs one of these words, change the fixture — not this
+# list. The list is the decision.
+#
+# "expire" is deliberately ABSENT. "past expiry" already reaches board-facing prose from
+# pre-existing acceptance-expiry code, and the skill is supposed to *state* the non-expiry
+# stance; a substring blacklist cannot read a negation, so banning it would forbid the
+# correct sentence. _common.freshness_line() words its closing clause around the term for
+# this reason.
+#
+# Substring, not word-boundary: "decay" must also catch "decays"/"decayed", which is the
+# form a reintroduction would most likely take, and the board pages carry no embedded JSON
+# or script (render_dashboard does — its inline data repeats the key "acceptanceExpired"
+# 106 times, which is the substring collision this check avoids by not scanning it).
+#
+# render_dashboard is NOT scanned. It is the operational work queue and may legitimately
+# say things a board page must not — the same board-facing-only distinction as check 1.
+chk 9 "no confidence vocabulary in any board-facing view" "$("$PY" - "$work" <<'PY'
+import pathlib, sys
+work = pathlib.Path(sys.argv[1])
+banned = ("confidence", "degrading", "degraded", "decaying", "decay",
+          "current (assumed)", "assumed current", "unreliable")
+hits = []
+for name in ("render_board", "render_report"):          # board-facing only
+    path = work / f"{name}.html"
+    # An inverted check that reads nothing reports "clean". Prove there was a page.
+    if not path.exists():
+        hits.append(f"{name}: not rendered — check read nothing")
+        continue
+    text = path.read_text().lower()
+    if len(text) < 2000 or "regression co" not in text:
+        hits.append(f"{name}: {len(text)} bytes, no client name — not a rendered board page")
+        continue
+    for word in banned:
+        if word in text:
+            i = text.index(word)
+            # No comma inside an f-string replacement field anywhere in this file. bash
+            # brace-expands the body of a heredoc that sits inside "$( ... )", so
+            # {text[max(0, i - 25):i + 25]} arrives as the literal "text[max(0" — the
+            # check still fails, but it quotes this script instead of the offending page.
+            # zsh does not do this, so it only shows up in CI. Precompute the bounds.
+            start, end = max(0, i - 25), i + 25
+            hits.append(f"{name}:{word}:...{text[start:end]}...")
+print("PASS" if not hits else "FAIL " + " | ".join(hits[:2]))
+PY
+)"
+
 echo
 if [ "$fails" -eq 0 ]; then
   echo "board-safety: all checks passed"
