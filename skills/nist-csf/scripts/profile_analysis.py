@@ -1151,7 +1151,8 @@ def _crosswalk_agg(vals: list, how: str):
 
 
 def derive_crosswalk_coverage(assessments: list[dict], crosswalk: dict,
-                              settings: dict, agg: str = "min") -> dict:
+                              settings: dict, agg: str = "min",
+                              index: dict | None = None) -> dict:
     """Project a CSF assessment onto one crosswalk's controls and themes.
 
     Control coverage is **weakest-link**: the minimum rating across the CSF
@@ -1216,6 +1217,23 @@ def derive_crosswalk_coverage(assessments: list[dict], crosswalk: dict,
             "controlsScored": len(member_scores),
         })
 
+    # Optional: enough detail about every Subcategory this lens references for a
+    # consumer to answer "what sits behind this control?" without a second pass
+    # over the store. The gaps list cannot serve that — it omits fully-met and
+    # not-applicable rows, so a reverse lookup built on it would quietly lose
+    # exactly the outcomes that are doing well.
+    sub_detail = None
+    if index is not None:
+        sub_detail = {}
+        for sid in sorted(crosswalk["rev"]):
+            a = by_id.get(sid) or {}
+            sub_detail[sid] = {
+                "text": (index.get(sid) or {}).get("text"),
+                "current": a.get("current"),
+                "target": a.get("target"),
+                "applicability": a.get("applicability", "in-scope"),
+            }
+
     scale = (settings or {}).get("scale") or {}
     return {
         "frameworkId": crosswalk["catalog"].get("frameworkId"),
@@ -1231,6 +1249,7 @@ def derive_crosswalk_coverage(assessments: list[dict], crosswalk: dict,
                   "labels": scale.get("labels")},
         "aggregation": {"control": agg, "grouping": "mean"},
         "disclaimer": CROSSWALK_DISCLAIMER,
+        **({"subcategories": sub_detail} if sub_detail is not None else {}),
     }
 
 
@@ -2953,7 +2972,8 @@ def _cmd_analyze(args):
         crosswalks = {}
         for fid in lenses:
             cw = load_crosswalk(fid)
-            block = derive_crosswalk_coverage(store["assessments"], cw, settings)
+            block = derive_crosswalk_coverage(store["assessments"], cw, settings,
+                                              index=index)
             block["completeness"] = crosswalk_completeness(cw, store["assessments"])
             crosswalks[fid] = block
         out["crosswalks"] = crosswalks
