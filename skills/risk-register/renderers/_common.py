@@ -89,18 +89,17 @@ def age_bounds(threshold_days: int) -> dict:
     on a counted row; "within the last 90 days" in a board sentence) and must not converge
     on one string, but they must not each re-derive `t // 2` either.
 
-    NOT YET A CONSOLIDATION, and an earlier version of this docstring claimed it was. The
-    `t // 2` formula is written out character for character in FIVE places now, this being
-    the fifth: age_band() in ../scripts/score_register.py owns the semantics, the `edges`
-    dict in render_dashboard.confirmation_panel() builds its own copy, age_band_ranges() and
-    the age_band_bar() labels in skills/nist-csf/renderers/_common.py are the cross-skill
-    twins, and this function has exactly one caller — freshness_line() below.
+    THE ONLY `t // 2` IN THIS SKILL'S RENDERERS, which it was not when it was written: it
+    landed with a single caller — freshness_line() below — while render_dashboard's `edges`
+    dict still built its own copy, so it was the fifth statement of one formula rather than a
+    consolidation, and two docstrings said otherwise. Both callers now read it, the
+    render_dashboard copy is gone, and `age_band()` in ../scripts/score_register.py owns the
+    semantics this function restates.
 
-    WHAT REMAINS, and for whom: render_dashboard.py's `edges` dict should be rebuilt from
-    this function, which deletes the fourth copy and makes this a real consolidation. That
-    file was under review when this landed and is not edited here. The nist-csf pair stays
-    separate on purpose — that is a DECLARED cross-skill twin, like age_band and
-    AGE_BAND_LABEL, where the semantics must match and the wording must not.
+    age_band_ranges() and the age_band_bar() labels in skills/nist-csf/renderers/_common.py
+    stay separate on purpose. That is a DECLARED cross-skill twin, like age_band and
+    AGE_BAND_LABEL, where the semantics must match and the wording must not; it is not
+    something left undone here.
 
     EXCLUSIVE ranges, mirroring sr.age_band(): each band is inclusive of its upper bound
     and `within` runs to T // 2. Cumulative ranges over mutually-exclusive counts are both
@@ -131,19 +130,19 @@ def id_list(risks: list, cap: int) -> str:
     it raises, and a director who cannot name the record cannot ask about it. The cap keeps
     a row or clause that points into the register from becoming a second copy of it.
 
-    An UNDECLARED TWIN until now, which in this repo is the exception: render_dashboard.py's
-    module-private `_id_list()` is this function, character for character, with a default of
-    6. Every other intentional duplicate here is declared at both ends (age_band,
-    AGE_BAND_LABEL), so this one is declared too — and it should not survive as a duplicate.
-    render_dashboard.py's copy should be deleted in favour of this one; that file was under
-    review when this landed. Both of its call sites rely on the default rather than naming a
-    cap, so consolidating them means passing cap=6 explicitly at each — a visible change to
-    that file's prose budget, which is the reason to do it there rather than assume it here.
+    THE ONLY COPY. render_dashboard.py carried a module-private `_id_list()` that was this
+    function character for character, with a default of 6; it is deleted and both of its call
+    sites now read this one. That duplicate was undeclared, which in this repo is the
+    exception — every intentional twin is declared at both ends (age_band, AGE_BAND_LABEL) —
+    and the reason it is worth saying so here is that the two surfaces disagree about the cap
+    and always will, so the shared thing is the formatting and nothing else.
 
-    `cap` is REQUIRED. It carried a default of 6 that no caller ever used — both call sites
-    pass 5 — so the default was a third number for a reader to reconcile against two real
-    ones. A cap is a per-surface editorial judgement about how much of the register a
-    sentence may quote, and there is no defensible default for it.
+    `cap` is REQUIRED and carries no default. The board sentence passes 5 on both of its
+    clauses; the operational panel passes 6 on both of its rows, which is what the deleted
+    twin's default silently supplied. A default would therefore be a fifth number for a
+    reader to reconcile against four real ones, and it would let a new surface quote the
+    register by accident. A cap is a per-surface editorial judgement about how much of the
+    register one sentence or row may repeat, and there is no defensible default for it.
     """
     shown = ", ".join(esc(r["id"]) for r in risks[:cap])
     return shown + (f" +{len(risks) - cap} more" if len(risks) > cap else "")
@@ -942,12 +941,13 @@ class Context:
         from a confirmation dated after the reference date. Which of the three caused it is
         not something this rollup can know.
 
-        A THIRD PENDING CONSOLIDATION, recorded rather than left to be rediscovered:
-        render_dashboard.confirmation_panel() derives this same list inline with its own
-        comprehension over C.live_risks(ctx.risks) rather than reading `futureDatedRisks`,
-        so the rule currently lives in two places. Its row note is not the duplicate and
-        should stay — an operational reader is the one who can go and fix the file — but its
-        derivation should read these keys. That file was under review when this landed.
+        DERIVED ONCE, HERE. render_dashboard.confirmation_panel() used to re-derive this same
+        list inline with its own comprehension over live_risks(), so one rule lived in two
+        places and the count on its row could disagree with the list beside it; it now reads
+        `futureDated` and `futureDatedRisks`. Both renderers therefore get the same
+        most-impossible-first ordering, and both are subject to the "no diagnosis" rule above
+        — the operational note may be blunter than the board's, because its reader is the one
+        who can go and look at the file, but it may not name a cause either.
         """
         open_risks = live_risks(self.risks)
         bands = {b: 0 for b in sr.AGE_BANDS}
@@ -1009,9 +1009,11 @@ class Context:
     # explicitly, because the zone says how the date is INTERPRETED — every comparison behind
     # this page reads it as a UTC calendar date whoever supplied it.
     #
-    # NOT applied to render_report.py, which builds its own "As of {ctx.today}" at line 40
-    # instead of calling this. That file is outside this change's scope; the divergence is
-    # recorded in the accompanying report so it can be routed.
+    # Read directly by render_report.py's cover(), which builds its own "As of {ctx.today}"
+    # rather than calling as_of_line() — that helper's trailing snapshot clause is already
+    # printed on that cover as its own badge, so the report takes the zone string and not the
+    # whole line. That is the reason ZONE is a class attribute and not a local: three surfaces
+    # print the reference date and there is one spelling of the zone between them.
     ZONE = "UTC"
 
     def as_of_line(self) -> str:
@@ -1046,13 +1048,13 @@ def freshness_line(ctx: Context) -> str:
     caveat on the whole document, not an ask. The missed-review line in _decisions() is the
     right home for "somebody missed a commitment" and is unchanged by this.
 
-    HERE, not in render_board.py, because there are TWO board-facing renderers and this is
-    wired into one. render_report.py::exec_summary() has the identical two-branch shape and
-    no freshness line yet; board-safety.sh's header exists because the title guard was
-    written into the executive dashboard first and the printable report kept exposing raw
-    framework wording for a full release. A module-private helper is what makes that mistake
-    easy to repeat, so the sentence has one home and the second renderer is one call away.
-    DEFERRED, not overlooked — see the Task 8/9 note in the report accompanying this change.
+    HERE, not in render_board.py, because there are TWO board-facing renderers and BOTH call
+    it: render_board.summary_block() and render_report.exec_summary(), on both branches of
+    each, which is four call sites over two artifacts. board-safety.sh's header exists because
+    the title guard was written into the executive dashboard first and the printable report
+    kept exposing raw framework wording for a full release afterwards; a module-private helper
+    is what makes that mistake easy to repeat. Any third board-facing surface calls this and
+    does not copy it.
 
     Every clause is an EXCLUSIVE band, and together with the three non-band states they
     partition the live register — so the numbers here sum to the "Of N live risks" the
@@ -1145,8 +1147,14 @@ def freshness_line(ctx: Context) -> str:
          f'({id_list(old, cap=5)})'),
         # The fact, not the cause. See the docstring: an explicit --today behind the
         # register puts sound records here, and this clause must be true of those too.
+        #
+        # `today` is escaped even though parse_args() rejects anything date.fromisoformat()
+        # will not accept, because parse_args is not the only door: Context takes a Namespace
+        # and the evals build one directly, so a caller that skips the CLI puts an unchecked
+        # string into board-facing HTML. render_dashboard's equivalent row note escapes it for
+        # the same reason, and one of the two doing it would be the more confusing state.
         (len(future),
-         f'{len(future)} dated after the {ctx.today} reference date, so no age can be '
+         f'{len(future)} dated after the {esc(ctx.today)} reference date, so no age can be '
          f'measured for them ({id_list(future, cap=5)})'),
         (c["undated"], f'{c["undated"]} carrying no confirmation record'),
         # "Confirmed", explicitly. The confirmation and its confirmer are on record and it

@@ -46,7 +46,7 @@ mkdir -p "$work"
 # asserts what the operational panel and the attention cards actually say. A check added
 # to one does not change the other, and neither number is the total.
 EXPECTED_CHECKS=52
-EXPECTED_RENDER_CHECKS=24
+EXPECTED_RENDER_CHECKS=27
 
 fails=0
 chk() {
@@ -581,17 +581,17 @@ add("no age field is persisted to the register",
                                     "reviewOverdueDays")))
 
 # ================= age_bounds restates age_band's boundaries =====================
-# renderers/_common.age_bounds() is the one place the t // 2 arithmetic lives now that a
-# second consumer in this skill wants it (render_dashboard's own comment asks for exactly
-# this move). It restates sr.age_band()'s boundaries, and two statements of one rule that
-# nothing compares will drift — so every edge is walked against the engine, at three
-# cadences including one absurdly small. The literal for T=180 is the independent
-# statement rule 3 requires: checked against age_band() alone, a mutant that broke both
-# consistently would still agree with itself.
-# id_list is the one route by which a count on a board page names the risks behind it, and
-# the cap is the part no fixture below reaches: the mixed register has two wellBeyond risks
-# and five would be needed. Asserted directly rather than left uncovered, escaping included —
-# an id is register data and reaches HTML unquoted otherwise.
+# renderers/_common.age_bounds() is the one place the t // 2 arithmetic lives in this
+# skill's renderers: the board sentence and render_dashboard's `edges` dict both read it,
+# and neither derives a boundary of its own any more. It restates sr.age_band()'s
+# boundaries, and two statements of one rule that nothing compares will drift — so every
+# edge is walked against the engine, at three cadences including one absurdly small. The
+# literal for T=180 is the independent statement rule 3 requires: checked against
+# age_band() alone, a mutant that broke both consistently would still agree with itself.
+# id_list is the one route by which a count on a board page or an operational row names the
+# risks behind it, and the cap is the part no fixture below reaches: the widest list any of
+# them produces is three IDs, against caps of 5 and 6. Asserted directly rather than left
+# uncovered, escaping included — an id is register data and reaches HTML unquoted otherwise.
 # `cap` is passed at every call, here included: it has no default, because the one it had
 # was 6 and no caller ever used it.
 add("id_list caps, says how many it withheld, and escapes",
@@ -715,9 +715,10 @@ t120="$(day_off 120)" || die "could not compute $today + 120"
 t200="$(day_off 200)" || die "could not compute $today + 200"
 t400="$(day_off 400)" || die "could not compute $today + 400"
 
-# EIGHT renders, because a panel is only as testable as the states a fixture can reach.
-# Three registers the derivation block already built — a.rr all-dated, u.rr one unreadable
-# ts, b.rr no affirming event at all — read as of five different days and two cadences:
+# NINE renders, because a panel is only as testable as the states a fixture can reach.
+# Four registers the derivation block already built — a.rr all-dated, u.rr one unreadable
+# ts, b.rr no affirming event at all, m.rr every state at once — read as of five different
+# days and two cadences:
 #
 #   dash_a       $today       T=180   every live risk age 0            -> within 3
 #   dash_u       $today       T=180   one unreadable ts                -> within 2, unread. 1
@@ -727,14 +728,24 @@ t400="$(day_off 400)" || die "could not compute $today + 400"
 #   dash_beyond  e.rr + 200   T=180   ages of 200, later edits ignored -> beyond 3
 #   dash_far     $today + 400 T=180   ages of 400                      -> wellBeyond 3
 #   dash_t365    $today + 400 T=365   the SAME 400 days, other cadence -> beyond 3
+#   dash_m       $today       T=180   m.rr: every state at once, and only ONE of the three
+#                                     `within` risks is future-dated
 #
-# The last four are not padding. With only the first three, every dated risk sits in
+# The last five are not padding. With only the first three, every dated risk sits in
 # `within` and nothing rendered can distinguish a band count from the constant 0: pinning
 # [3,0,0,0,0,0] on a fixture that cannot produce a nonzero `beyond` is the vacuity class
 # this plan tabulated. And read at T=180 alone the ranges cannot tell "derived from t" from
 # "the argparse default", which is the mutant that survived a whole earlier suite — so the
 # eighth render puts the same 400-day age against a different cadence, exactly as the
 # derivation block's 180/1000 pair does for the bands.
+#
+# dash_m closes the last one of that class on this panel. On dash_fut all three live risks
+# are future-dated, so `bands["within"]` and `futureDated` are BOTH 3 and the row's
+# disclosure cannot tell one from the other — wiring the count to the band count survives.
+# m.rr puts 2 in `within` of which 1 is future-dated, so the two numbers differ and the
+# panel has to be reading the right one. It is the same register the board sentence is
+# asserted on, deliberately: the two artifacts are read side by side over one register, and
+# rendering both from m.rr is what lets them be compared.
 for fx in a u b; do
   "$PY" "$RR/renderers/render_dashboard.py" "$work/$fx.rr" "$work/dash_$fx.html" \
     --offline --today "$today" >/dev/null || die "render_dashboard errored on $fx.rr"
@@ -750,6 +761,8 @@ done
 "$PY" "$RR/renderers/render_dashboard.py" "$work/a.rr" "$work/dash_t365.html" \
   --offline --today "$t400" --age-threshold 365 >/dev/null \
   || die "render_dashboard errored at --age-threshold 365"
+"$PY" "$RR/renderers/render_dashboard.py" "$work/m.rr" "$work/dash_m.html" \
+  --offline --today "$today" >/dev/null || die "render_dashboard errored on m.rr"
 
 # THREE board renders of the mixed register. Operational views get the distribution; the
 # board gets one sentence, so the sentence is asserted on rendered prose — the defect this
@@ -784,9 +797,31 @@ done
   "$work/board_asof.html" --offline --today 2026-06-30 >/dev/null \
   || die "render_board errored on the shipped example at --today 2026-06-30"
 
+# TWO renders of the PRINTABLE REPORT, which is the second board-facing artifact and the one
+# board-safety.sh's own header is about: the title guard was written into the executive
+# dashboard first and the report kept exposing raw framework wording for a full release
+# afterwards. A board caveat wired into one of two board pages is that mistake in progress,
+# so the report's freshness sentence gets asserted on rendered prose exactly as the board's
+# does — same register, same reference date, so the two sentences can be compared directly
+# rather than each being checked against its own idea of the register.
+#
+# Both branches of exec_summary(), for the same reason board_m180/board_mtr are both here:
+# the placeholder branch is the page most likely to be read off the numbers alone, and the
+# narrative branch is the one a real board pack takes. Deleting the call from either has to
+# fail, and with one render only, one of the two deletions ships.
+#
+#   report_m180  T=180, no sidecar      the placeholder branch
+#   report_mtr   T=180, --translations  the narrative branch
+"$PY" "$RR/renderers/render_report.py" "$work/m.rr" "$work/report_m180.html" \
+  --offline --today "$today" >/dev/null || die "render_report errored on m.rr"
+"$PY" "$RR/renderers/render_report.py" "$work/m.rr" "$work/report_mtr.html" \
+  --offline --today "$today" --translations "$work/tr.json" >/dev/null \
+  || die "render_report errored on m.rr with --translations"
+
 set +e
 "$PY" - "$work" "$RR" "$today" <<'PY' > "$work/render_out.txt" 2> "$work/render_err.txt"
 import argparse, json, pathlib, re, sys
+from datetime import date, timedelta
 work, rr, today = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2]), sys.argv[3]
 sys.path.insert(0, str(rr / "renderers"))
 sys.path.insert(0, str(rr / "scripts"))
@@ -795,9 +830,10 @@ import render_dashboard as rd
 import score_register as sr
 
 HTML = {k: (work / ("dash_%s.html" % k)).read_text()
-        for k in ("a", "u", "b", "fut", "appr", "beyond", "far", "t365")}
+        for k in ("a", "u", "b", "fut", "appr", "beyond", "far", "t365", "m")}
 BOARD = {k: (work / ("board_%s.html" % k)).read_text()
          for k in ("m180", "mtr", "m365", "asof")}
+REPORT = {k: (work / ("report_%s.html" % k)).read_text() for k in ("m180", "mtr")}
 
 emitted = [0]
 
@@ -834,6 +870,14 @@ NOTES = ["no affirming event exists at all — not an age of zero",
 # shipped once on the board renderer, where "within 360 days" captioned the count of
 # determinations PAST the cadence.
 CUMULATIVE = ["0–180d", "0–360d"]
+# Causes no surface in this skill may claim for a future-dated confirmation. Shared by the
+# operational panel and the board sentence deliberately: the rule is the same on both, and
+# the difference between them is how blunt the FACT may be, not whether a diagnosis is
+# allowed. references/dashboards.md tells the reader to pass --today for a reproducible
+# "as of" view, which puts entirely sound records in that state, so "a file defect" is not a
+# stricter statement of the truth — it is a false one. It shipped on both pages.
+DIAGNOSES = ["record defect", "file defect", "broken record", "not a recent review",
+             "rather than a recent review", "hand-edited", "clock"]
 
 PANEL = re.compile(r'<h3>Confirmation age <span class="cnt">(\d+)</span></h3>(.*?)</ul>',
                    re.S)
@@ -958,13 +1002,39 @@ add("a future-dated confirmation is named rather than printed as negative days",
 # as `within` on purpose, so those records land on the "0–90d" row — false in the flattering
 # direction, and the exact shape of the labelling defect this panel's own comments cite.
 # Disclosed on the row rather than rebanded; the arithmetic in age_band() is untouched.
-pfu = panel("fut")
+pfu, pm = panel("fut"), panel("m")
+yday = (date.fromisoformat(today) - timedelta(days=1)).isoformat()
 add("the within row discloses future-dated records instead of absorbing them",
     pfu["rows"][0][0] == 3
-    and "includes 3 dated in the future (R-001, R-002, R-004)" in pfu["rows"][0][2]
-    and "a negative age is a file defect" in pfu["rows"][0][2]
+    and ("includes 3 dated after the %s reference date (R-001, R-002, R-004), so no age "
+         "can be measured for them" % yday) in pfu["rows"][0][2]
     # ...and only when there are any. A note that always says it says nothing.
     and pa["rows"][0][2] == RANGES[0])
+# The count on that note, against a fixture where it is NOT the band count. On dash_fut all
+# three live risks are future-dated, so `bands["within"]` and `futureDated` are both 3 and
+# wiring the disclosure to the band — or rebuilding the list with a comprehension that drifts
+# from the rollup's — passes the check above. m.rr puts 2 risks in `within` of which 1 is
+# future-dated, so the row must print 2 and disclose 1, and no single number satisfies both.
+# The whole vector is pinned with it, because this is the only render where all six rows are
+# nonzero at once and the panel's own "these six rows account for all N" claim can be checked
+# against a real distribution rather than against one clause carrying everybody.
+add("the disclosure counts the future-dated records, not the whole within band",
+    vec(pm) == [2, 1, 1, 2, 2, 1] and sum(vec(pm)) == pm["live"] == 9
+    and labels(pm) == LABELS
+    and pm["rows"][0][2].startswith(RANGES[0] + " · includes 1 dated after the ")
+    and ("includes 1 dated after the %s reference date (R-008), so no age can be measured "
+         "for them" % today) in pm["rows"][0][2]
+    and pm["rows"][3][2] == "over 360d · R-005, R-004")
+# The fact, never the cause — the same rule the board sentence is held to, asserted here on
+# the operational page. This reader is the one who can go and look at the file, which lowers
+# the bar on how blunt the fact may be and does not license a diagnosis: the row said "a
+# negative age is a file defect", which is simply false on the documented --today workflow.
+# Asserted on both fixtures that reach the state, and the positive half is what stops it
+# being an inverted check that reads a page with no such note on it.
+add("the panel's future-dated note states the fact and never diagnoses a cause",
+    not any(d in p["markup"] for p in (pfu, pm) for d in DIAGNOSES)
+    and all("dated after the" in p["markup"] and "so no age can be measured for them"
+            in p["markup"] for p in (pfu, pm)))
 # A count the reader cannot act on is not a work queue. A wellBeyond risk that is not over
 # appetite, overdue, unowned or accepted appears on no attention card and in no column of
 # the register table, so the row names it. IDs, never titles.
@@ -990,10 +1060,14 @@ add("the panel is its own section, not one of the attention lists",
 FRESH = re.compile(r'<div class="note freshness">(.*?)</div>', re.S)
 
 
-def sentence(key):
-    """The freshness sentence as plain text, or None if the page has none."""
-    m = FRESH.search(BOARD[key])
+def fresh_text(html):
+    """The freshness sentence of any rendered page as plain text, or None if it has none."""
+    m = FRESH.search(html)
     return re.sub(r"<[^>]+>", "", m.group(1)).strip() if m else None
+
+
+def sentence(key):
+    return fresh_text(BOARD[key])
 
 
 s180, str_, s365 = sentence("m180"), sentence("mtr"), sentence("m365")
@@ -1018,6 +1092,32 @@ add("the freshness sentence renders on both summary_block branches",
     # rendering with a copy of itself and cannot fail.
     and "Executive narrative from the ciso-board-translation skill" in BOARD["mtr"]
     and C.PLACEHOLDER in BOARD["m180"])
+
+# THE SECOND BOARD-FACING RENDERER, and the reason this check exists rather than being left
+# to whoever remembers. board-safety.sh's header records what happened last time: the title
+# guard was written into the executive dashboard first, and the printable report — the artifact
+# most likely to be handed round a table on paper — kept exposing raw framework wording for a
+# full release. freshness_line() lives in _common.py so that both renderers call one sentence;
+# this asserts that both actually do.
+#
+# Identical prose, not merely "a sentence is present". The same register at the same reference
+# date must produce the same caveat on both pages, because a director and the CISO read these
+# artifacts over one register and two freshness wordings would be two things to keep in step
+# forever. Compared against s180 — the board's own — rather than against a literal, so the two
+# cannot drift apart while both still matching a copied expectation.
+#
+# Both branches of exec_summary(), and the two pages are proved to BE the two branches: with
+# one render only, deleting the call from the other branch ships. The report's attribution note
+# is worded differently from the board's ("generated by" against "from"), which is why the
+# branch is identified by that page's own string and not by the board's.
+r180, rtr = fresh_text(REPORT["m180"]), fresh_text(REPORT["mtr"])
+add("the printable report carries the same freshness sentence, on both branches",
+    r180 is not None and rtr is not None and rendered
+    and r180 == rtr == s180
+    and REPORT["m180"].count('class="note freshness"') == 1
+    and REPORT["mtr"].count('class="note freshness"') == 1
+    and "Executive narrative generated by the ciso-board-translation skill" in REPORT["mtr"]
+    and C.PLACEHOLDER in REPORT["m180"])
 
 
 def sum_problem(s):
@@ -1123,9 +1223,9 @@ add("a future-dated confirmation is named, not absorbed into the freshest clause
 # 2026-06-30. Calling those "a record defect" libels good records on a board page over a
 # documented workflow, and no wording here may diagnose a cause this code cannot know.
 # Asserted on the as-of render, where the population is entirely sound, and on the mixed
-# one, where it is genuinely skewed: the same clause has to be true of both.
-DIAGNOSES = ["record defect", "file defect", "broken record", "not a recent review",
-             "rather than a recent review", "hand-edited", "clock"]
+# one, where it is genuinely skewed: the same clause has to be true of both. DIAGNOSES is
+# declared once at the top of this block and shared with the operational panel's version of
+# this check — one rule, two surfaces.
 add("the future-dated clause states the fact and never diagnoses a cause",
     rendered and s_asof is not None
     # The as-of fixture is the non-vacuity guard: without a sound population in this
@@ -1140,16 +1240,23 @@ add("the future-dated clause states the fact and never diagnoses a cause",
 # The reference date is a UTC calendar date, so every surface that prints it says so. On the
 # evening of 2026-07-29 PDT the board page read "As of 2026-07-30" — tomorrow's date, to a
 # reader who had asked for no such thing. The date was right; the label was missing. Asserted
-# on a board render AND an operational one, because as_of_line() feeds both, and with the
-# negative lookahead so that "UTC appears somewhere" cannot stand in for "every printed
-# reference date carries it".
+# on all THREE renderers, and with the negative lookahead so that "UTC appears somewhere"
+# cannot stand in for "every printed reference date carries it".
+#
+# The printable report is included because it is the one page that does NOT get its line from
+# as_of_line(): cover() builds its own "As of {ctx.today} {ctx.ZONE}", since as_of_line()'s
+# trailing snapshot clause is already printed on that cover as its own badge. So it is the
+# surface where an unstamped date can reappear without touching the shared helper, and it is
+# the surface that gets printed — it shipped unstamped for exactly that reason.
 add("the reference date is stamped with its zone wherever it is printed",
     ("As of %s UTC" % today) in BOARD["m180"]
     and ("generated %s UTC from m.rr" % today) in BOARD["m180"]
     and "As of 2026-06-30 UTC" in BOARD["asof"]
     and ("As of %s UTC" % today) in HTML["a"]
+    and ("As of %s UTC" % today) in REPORT["m180"]
+    and ("generated %s UTC from m.rr" % today) in REPORT["m180"]
     and all(re.search(r"As of \d{4}-\d\d-\d\d(?! UTC)", h) is None
-            for h in (BOARD["m180"], BOARD["asof"], HTML["a"])))
+            for h in (BOARD["m180"], BOARD["asof"], HTML["a"], REPORT["m180"])))
 add("the sentence closes by denying that age suppresses or rescores anything",
     rendered and s180.endswith("Age is reported so the board can weigh it, and nothing on "
                                "this page is rescored or re-ranked because of it.")

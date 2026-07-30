@@ -90,13 +90,28 @@ def _confirmed_note(r: dict) -> str:
     "never confirmed" would be a lie about it. The bad date is printed rather than
     swallowed, because the reader of this screen is the person who can go and fix it.
 
-    A fourth arm for the same reason. A negative age is routine rather than exotic:
-    score_register writes `ts` in UTC and `--today` defaults to the LOCAL date, so every
-    event written after 17:00 in California is dated tomorrow and comes back as -1 days.
+    A fourth arm for the same reason, and it is not defensive padding — a negative age is
+    routine, and THREE separate routes reach it (see _confirmation_rollup in _common.py):
+
+      1. An explicit `--today` behind the register's newest confirmation. references/
+         dashboards.md tells the reader to pass --today for a reproducible "as of" view, so
+         `--today 2026-06-30` over a register confirmed in July puts every sound record
+         here. This is the common route, and the record is not defective.
+      2. A hand-edited or imported register carrying a genuinely wrong ts.
+      3. Clock skew between whatever wrote the register and whoever renders it.
+
+    This skill's own CLI was a fourth route until _today_utc() closed it: score_register
+    writes every `ts` in UTC while `--today` defaulted to the LOCAL date, so an event
+    written after 17:00 in California came back as -1 days. That route is gone; the other
+    three are not, and the premise of an earlier version of this paragraph — that the
+    branch exists to catch a local/UTC skew — is now false.
+
     age_band() deliberately reports a negative age as `within` — it is a pure distance and
     an `impossible` band would smuggle a validation verdict into the distribution — but
     "confirmed -1d ago" is not a sentence, and rounding it to "confirmed today" would hide
-    a file defect from the one reader who can see the file. So it is named, with its date.
+    from this reader the one fact that matters: no age can be measured from that record
+    against the date this page was rendered for. So it is named, with its date, and which
+    of the three routes produced it is left to the reader, who can go and look.
     """
     when = r.get("lastConfirmedAt")
     if not when:
@@ -140,18 +155,6 @@ def _confirmed_note(r: dict) -> str:
 # this panel suppresses, expires or rescores anything, and no label may imply otherwise.
 AGE_BAND_LABEL = {"within": "inside the cadence", "approaching": "nearing the cadence",
                   "beyond": "past the cadence", "wellBeyond": "far past the cadence"}
-
-
-def _id_list(risks: list, cap: int = 6) -> str:
-    """`R-001, R-002, R-004` — IDs only, capped, escaped.
-
-    IDs and never titles, even on the working view where a provisional title IS shown on
-    the attention cards: those carry the `unreworded` tag beside them and this note has
-    nowhere to put one. The cap keeps a row that names a work queue from becoming a second
-    copy of the register.
-    """
-    shown = ", ".join(C.esc(r["id"]) for r in risks[:cap])
-    return shown + (f' +{len(risks) - cap} more' if len(risks) > cap else "")
 
 
 def confirmation_panel(ctx: C.Context) -> str:
@@ -207,37 +210,51 @@ def confirmation_panel(ctx: C.Context) -> str:
     if not c["live"]:
         return ""
     t = c["thresholdDays"]
-    half = t // 2
-    # EXCLUSIVE, and every boundary derived from t rather than typed out. Cumulative
-    # ranges over mutually-exclusive counts are both false and flattering: "0–360d"
-    # against the count of determinations that are PAST the cadence reads as reassurance.
-    # Mirrors age_band(): each band is inclusive of its upper bound, `within` runs to T//2.
+    # EXCLUSIVE ranges, and no boundary arithmetic here at all. C.age_bounds() owns the
+    # `t // 2` derivation for this skill; this dict is only the WORDING, which is this view's
+    # own and must not converge with the board sentence's ("0–90d" on a counted row against
+    # "within the last 90 days" in prose). Cumulative ranges over mutually-exclusive counts
+    # are both false and flattering: "0–360d" against the count of determinations that are
+    # PAST the cadence reads as reassurance, and that shipped on the board renderer.
     #
-    # This is now the FOURTH character-for-character copy of one formula, en-dash included:
-    # age_band_ranges() in skills/nist-csf/renderers/_common.py is the twin, and the board
-    # sentence will want it next. It belongs in this skill's own renderers/_common.py beside
-    # DEFAULT_AGE_THRESHOLD, which is where a second consumer in this skill should put it —
-    # flagged rather than moved here, because _common.py is under review elsewhere.
-    edges = {"within": f"0–{half}d", "approaching": f"{half + 1}–{t}d",
-             "beyond": f"{t + 1}–{t * 2}d", "wellBeyond": f"over {t * 2}d"}
+    # The open-ended band takes `beyond`'s upper bound rather than recomputing `t * 2`, so
+    # the two adjacent rows cannot disagree about where one ends and the next begins — the
+    # same expression the board sentence uses for its own last clause.
+    bounds = C.age_bounds(t)
+    edges = {b: (f'over {bounds["beyond"][1]}d' if hi is None else f"{lo}–{hi}d")
+             for b, (lo, hi) in bounds.items()}
     notes = dict(edges)
 
     # A future-dated confirmation is a negative age, which age_band() reports as `within` on
     # purpose — it is a pure distance, and an `impossible` band would smuggle a validation
     # verdict into the distribution. But then the `within` row silently captions those
-    # records "0–{half}d", which is false in the flattering direction while every attention
-    # card on the same page says "dated in the future". Disclosed here rather than rebanded:
-    # the cause is a UTC ts read against a local --today, so this is routine, not exotic.
-    future = [r for r in C.live_risks(ctx.risks)
-              if r.get("confirmationAgeDays") is not None and r["confirmationAgeDays"] < 0]
+    # records with the freshest range, which is false in the flattering direction while every
+    # attention card on the same page names them. Disclosed here rather than rebanded.
+    #
+    # Routine rather than exotic, and the common route is an explicitly-passed `--today`:
+    # references/dashboards.md documents doing that for a reproducible "as of" view, which
+    # makes every confirmation later than the chosen date land here. The other two routes are
+    # a genuinely wrong ts in a hand-edited or imported register, and clock skew. So the note
+    # states the FACT — dated after the reference date, so no age can be measured — and never
+    # the cause. An earlier version of it called a negative age "a file defect", which is a
+    # diagnosis this code cannot make and is simply wrong on the documented route; the board
+    # sentence had the same overclaim removed. The bar is lower here than on a board page
+    # because this reader is the one who can go and look, but a false diagnosis is still
+    # false, and the IDs are what make looking possible.
+    #
+    # The list comes from the rollup, which derives it once and sorts it most-impossible
+    # first. It was re-derived inline here with a second comprehension over C.live_risks(),
+    # so one rule lived in two places and the count could disagree with the list.
+    future = c["futureDatedRisks"]
     if future:
-        notes["within"] = (f'{edges["within"]} · includes {len(future)} dated in the future '
-                           f'({_id_list(future)}) — a negative age is a file defect, '
-                           f'not an age of 0–{half}d')
+        notes["within"] = (f'{edges["within"]} · includes {c["futureDated"]} dated after the '
+                           f'{C.esc(ctx.today)} reference date ({C.id_list(future, cap=6)}), '
+                           f'so no age can be measured for them')
     # Named, oldest first, from the list the rollup built for this. Capped: the row is a
     # pointer into the register, not a second register.
     if c["wellBeyond"]:
-        notes["wellBeyond"] = f'{edges["wellBeyond"]} · {_id_list(c["wellBeyond"])}'
+        notes["wellBeyond"] = (f'{edges["wellBeyond"]} · '
+                               f'{C.id_list(c["wellBeyond"], cap=6)}')
 
     def row(n, label: str, note: str) -> str:
         return f'<li><b>{n}</b> {label}<span class="d">{note}</span></li>'
