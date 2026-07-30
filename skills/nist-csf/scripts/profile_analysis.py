@@ -2249,6 +2249,104 @@ def _iso_date(raw, label: str) -> str:
                      f"strings, so an unpadded month or day compares wrong.") from None
 
 
+def _cmd_crosswalk(args):
+    """Read a Profile through another framework's controls. Never writes.
+
+    Distinct from `overlay`, which enables the Cyber AI Profile and does rewrite
+    the store. A crosswalk is a projection: it needs no re-assessment, changes
+    nothing, and is chosen when you report rather than when you assess.
+    """
+    pos, opt = parse_flags(args)
+    usage = ("usage: crosswalk list\n"
+             "       crosswalk coverage <store.csfp> --lens iso-27001-2022 [--agg min|mean] [--json]\n"
+             "       crosswalk reverse  <store.csfp> --control 'A.8.9' [--lens iso-27001-2022]")
+    if not pos:
+        raise ValueError(usage)
+    sub = pos[0]
+
+    if sub == "list":
+        for fid, want in sorted(CROSSWALK_EXPECTED.items()):
+            cw = load_crosswalk(fid)
+            cat = cw["catalog"]
+            print(f"{fid:18} {cat.get('name')} ({cat.get('version')})")
+            print(f"{'':18} {want['edges']} edges · {want['controls']} controls · "
+                  f"{len(cw['fwd'])} mapped · authority {cw['authority']}")
+            print(f"{'':18} labels: {want['labelSource']} · licence {cat.get('license')}")
+        print("\nProjections are derived from your CSF assessment — not an audit or "
+              "certification.")
+        return 0
+
+    path = _require_store(pos[1:], usage)
+    core = load_core(); index = index_subcategories(core)
+    store = load_store(path)
+    settings = store["profile"]["settings"]
+    asmts = store["assessments"]
+    lens = _s(opt.get("lens")) if isinstance(opt.get("lens"), (str, list)) else None
+    if not lens:
+        raise ValueError("--lens is required. " + usage)
+    cw = load_crosswalk(lens)
+    scale_max = settings.get("scale", {}).get("max")
+
+    if sub == "coverage":
+        agg = _s(opt.get("agg")) if isinstance(opt.get("agg"), (str, list)) else "min"
+        cov = derive_crosswalk_coverage(asmts, cw, settings, agg=agg)
+        comp = crosswalk_completeness(cw, asmts)
+        if opt.get("json"):
+            cov["completeness"] = comp
+            sys.stdout.write(json.dumps(cov, indent=2, ensure_ascii=False) + "\n")
+            return 0
+        print(f"{cov['frameworkName']} ({cov['frameworkVersion']}) — projected from "
+              f"{store['profile'].get('name', 'this Profile')}")
+        print(f"  bands are a share of this Profile's 0-{scale_max} scale · "
+              f"control = {agg} of mapped Subcategories · theme = mean of member controls")
+        print(f"  mapping authority: {cov['mappingAuthority']}\n")
+        for g in cov["groupings"]:
+            if not g["controlsScored"]:
+                continue
+            n = g["controlsScored"]
+            print(f"  {g['groupingId']:8} {g['band']:9} {g['score']:<5} "
+                  f"({n} control{'' if n == 1 else 's'})  {g['label']}")
+        rated = [c for c in cov["controls"] if c["score"] is not None]
+        print(f"\n  {len(rated)} of {len(cov['controls'])} mapped controls have a rating behind them")
+        outside = len(comp["controlsOutsideCSF"])
+        if outside:
+            print(f"  {outside} control{'' if outside == 1 else 's'} no CSF Subcategory reaches — "
+                  f"assess {'it' if outside == 1 else 'those'} directly against the standard")
+        if comp["csfNotInLens"]:
+            print(f"  {len(comp['csfNotInLens'])} rated CSF outcomes this lens cannot see: "
+                  f"{', '.join(comp['csfNotInLens'][:6])}"
+                  f"{' ...' if len(comp['csfNotInLens']) > 6 else ''}")
+        print(f"\n  {CROSSWALK_DISCLAIMER}")
+        return 0
+
+    if sub == "reverse":
+        control = _s(opt.get("control")) if isinstance(opt.get("control"), (str, list)) else None
+        if not control:
+            raise ValueError("--control is required. " + usage)
+        rl = crosswalk_reverse_lookup(cw, control, asmts, settings)
+        print(f"{rl['controlId']}  {rl['label'] or ''}")
+        if rl["note"]:
+            print(f"  {rl['note']}")
+        if rl["behind"]:
+            print(f"  derived {rl['band']}"
+                  + (f" (score {rl['score']} of {scale_max})" if rl["score"] is not None else "")
+                  + " — weakest link of:")
+            for b in rl["behind"]:
+                cur = "unrated" if b["current"] is None else f"{b['current']}/{scale_max}"
+                na = "  [not applicable]" if b["applicability"] != "in-scope" else ""
+                txt = index.get(b["csfSubId"], {}).get("text", "")
+                print(f"    {b['csfSubId']:11} {cur:>9}{na}  {trunc_text(txt, 62)}")
+        print(f"\n  {CROSSWALK_DISCLAIMER}")
+        return 0
+
+    raise ValueError(usage)
+
+
+def trunc_text(s: str, n: int) -> str:
+    s = (s or "").strip()
+    return s if len(s) <= n else s[: n - 1].rstrip() + "…"
+
+
 def _cmd_intake(args):
     """Record that a source bears on some Subcategories. Writes no ratings, ever.
 
@@ -2836,6 +2934,29 @@ def _cmd_analyze(args):
     # never opted in, which is exactly what the parity assertion forbids.
     if overlay_block:
         out["overlay"] = overlay_block
+
+    # Crosswalk lenses are a report-time choice, so they appear only when asked
+    # for and are never written back to the store. Same omit-when-absent rule as
+    # the overlay block above.
+    want_lenses = opt.get("crosswalk")
+    if want_lenses:
+        lenses = [want_lenses] if isinstance(want_lenses, str) else list(want_lenses)
+        unknown = [x for x in lenses if x not in CROSSWALK_EXPECTED]
+        if unknown:
+            raise ValueError(
+                f"unknown crosswalk lens {', '.join(repr(u) for u in unknown)}; "
+                f"available: {', '.join(sorted(CROSSWALK_EXPECTED))}")
+        cw_problems = check_crosswalks(index)
+        if cw_problems:
+            raise ValueError("Refusing to project onto corrupt crosswalk data: "
+                             + "; ".join(cw_problems))
+        crosswalks = {}
+        for fid in lenses:
+            cw = load_crosswalk(fid)
+            block = derive_crosswalk_coverage(store["assessments"], cw, settings)
+            block["completeness"] = crosswalk_completeness(cw, store["assessments"])
+            crosswalks[fid] = block
+        out["crosswalks"] = crosswalks
 
     text = json.dumps(out, indent=2, ensure_ascii=False)
     dest = _s(opt.get("out")) if isinstance(opt.get("out"), (str, list)) else None
@@ -4837,7 +4958,7 @@ COMMANDS = {
     "init": _cmd_init, "set": _cmd_set, "set-tier": _cmd_set_tier,
     "quickstart-target": _cmd_quickstart_target,
     "snapshot": _cmd_snapshot, "diff": _cmd_diff, "action": _cmd_action,
-    "intake": _cmd_intake, "overlay": _cmd_overlay,
+    "intake": _cmd_intake, "overlay": _cmd_overlay, "crosswalk": _cmd_crosswalk,
     "queue": _cmd_queue, "elicit": _cmd_elicit,
     "analyze": _cmd_analyze, "export-gaps": _cmd_export_gaps,
 }

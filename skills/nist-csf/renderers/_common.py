@@ -45,6 +45,37 @@ COVERAGE_FULL = "#4A7C59"
 UNTARGETED_FILL = WB_LINE          # hatched in CSS; must never read as 0% or 100%
 NA_FILL = WB
 
+# Crosswalk band fills. A THIRD ramp, and deliberately so: this skill already has
+# two measures that must not be confused, and a crosswalk band is a third one.
+# COVERAGE_RAMP encodes coverage against a Target; the register's RAG ramp encodes
+# risk severity; a crosswalk band encodes a derived share of the Profile's own
+# rating scale. Sharing a ramp across two of those would assert an equivalence
+# none of them have. Single-hue slate blue, so it also cannot be mistaken for
+# patina, which never encodes a measurement.
+#
+# Validated with the dataviz skill's validate_palette.js --ordinal against the
+# workbench surface: monotone lightness, adjacent ΔL >= 0.06, light end 2.09:1,
+# hue spread 8°. ALL CHECKS PASS. Re-run it if any step moves.
+CROSSWALK_BAND_FILL = {
+    "minimal": "#98AEBE",
+    "weak": "#7595A8",
+    "moderate": "#4E768B",
+    "strong": "#2D4C5E",
+}
+# "unknown" is not a low value on the ramp — it is the absence of one, so it sits
+# off the ramp entirely and is hatched in CSS. Same discipline as UNTARGETED_FILL:
+# nothing rated must never be confusable with rated-and-weak.
+CROSSWALK_UNKNOWN_FILL = WB_LINE
+CROSSWALK_BAND_ORDER = ["strong", "moderate", "weak", "minimal", "unknown"]
+CROSSWALK_BAND_LABEL = {
+    "strong": "strong", "moderate": "moderate", "weak": "weak",
+    "minimal": "minimal", "unknown": "not yet rated",
+}
+
+
+def crosswalk_fill(band: str) -> str:
+    return CROSSWALK_BAND_FILL.get(band, CROSSWALK_UNKNOWN_FILL)
+
 PRIORITY_COLOR = {"low": "#6A7180", "medium": "#5F7A8A", "high": "#A6603A", "critical": "#7C3A32"}
 
 # Evidence states are STATES, not measurements, so they must not sit on the coverage
@@ -119,6 +150,11 @@ def fonts(offline: bool = False) -> str:
 
 
 DISCLAIMER = "A Cyber Aware Creation · Not affiliated with NIST"
+# A crosswalk view names ISO and CIS controls, so the non-affiliation line has to
+# cover them too. Selected by Context.footer() from the content actually rendered
+# rather than passed in by each renderer: a report that shows ISO or CIS material
+# must not be able to ship the NIST-only wording by omission.
+DISCLAIMER_CROSSWALK = "A Cyber Aware Creation · Not affiliated with NIST, ISO, or CIS"
 
 PLACEHOLDER = ("Board narrative not supplied. Run the ciso-board-translation skill over this "
                "Profile and pass its output with --translations to replace this block.")
@@ -364,6 +400,10 @@ class Context:
         # not as a disabled badge, which would advertise a feature to someone
         # who never asked for it.
         self.overlay = self.a.get("overlay") or {}
+        # Absent unless `analyze --crosswalk <id>` was asked for. Crosswalks are a
+        # report-time choice, never stored, so an analysis JSON without them is
+        # the normal case and every consumer renders nothing at all.
+        self.crosswalks = self.a.get("crosswalks") or {}
         self.today = self.a.get("generated", {}).get("today", "")
         self.scale_max = self.profile.get("settings", {}).get("scale", {}).get("max", 3)
         self.tr = Translations.load(args.translations)
@@ -378,7 +418,7 @@ class Context:
         return f"As of {self.today} · no snapshot yet, so no trend is available"
 
     def footer(self, extra: str = "") -> str:
-        bits = [DISCLAIMER,
+        bits = [DISCLAIMER_CROSSWALK if self.crosswalks else DISCLAIMER,
                 f'{self.framework.get("name", "framework")} {self.framework.get("version", "")}'.strip(),
                 f"generated {self.today}"]
         if extra:

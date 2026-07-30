@@ -9,35 +9,45 @@
     "assessedAt": "2026-07-29"
   },
   "ratings": {
-    "ID.AM-01": {
-      "tier": 4
-    },
-    "ID.AM-08": {
-      "tier": 1
-    },
-    "PR.AA-01": {
-      "tier": 3
-    },
-    "PR.AA-05": {
-      "tier": 3
-    },
-    "PR.DS-11": {
-      "tier": 4
-    },
-    "RC.RP-03": {
-      "tier": 4
+    "GV.OC-01": {
+      "tier": 3,
+      "na": false
     },
     "GV.RR-01": {
-      "tier": 2
-    },
-    "GV.OC-01": {
-      "tier": 3
-    },
-    "ID.AM-04": {
-      "na": true
+      "tier": 2,
+      "na": false
     },
     "GV.SC-04": {
-      "tier": 2
+      "tier": 2,
+      "na": false
+    },
+    "ID.AM-01": {
+      "tier": 4,
+      "na": false
+    },
+    "ID.AM-04": {
+      "tier": null,
+      "na": true
+    },
+    "ID.AM-08": {
+      "tier": 1,
+      "na": false
+    },
+    "PR.AA-01": {
+      "tier": 3,
+      "na": false
+    },
+    "PR.AA-05": {
+      "tier": 3,
+      "na": false
+    },
+    "PR.DS-11": {
+      "tier": 4,
+      "na": false
+    },
+    "RC.RP-03": {
+      "tier": 4,
+      "na": false
     }
   },
   "targets": {
