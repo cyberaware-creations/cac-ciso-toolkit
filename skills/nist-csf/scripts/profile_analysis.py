@@ -4909,6 +4909,16 @@ def _cmd_self_test(_args):
     except ValueError:
         ok(True, "load_crosswalk rejects an unknown framework")
 
+    # A lens is opt-in. The trigger eval routes prompts to skills and cannot see
+    # sub-modes, so the "plain CSF ask must not produce a crosswalk" requirement is
+    # asserted here instead, where it is deterministic: no --crosswalk, no key at
+    # all. `"crosswalks": null` would be a diff on every existing Profile.
+    _no_lens = derive_crosswalk_coverage(cw_asmts, synth, s3)
+    ok("subcategories" not in _no_lens,
+       "crosswalk coverage omits Subcategory detail unless an index is supplied")
+    ok(load_crosswalk("cis-8.1", DEFAULT_CROSSWALK_DIR)["authority"] == "cis-authored",
+       "load_crosswalk honours an explicit data directory")
+
     # Real-data parity against a hand-verified golden fixture. The synthetic
     # checks above lock the math; this locks the math against the actual bundled
     # catalogs, so a data refresh that moves a mapping cannot pass unnoticed.
