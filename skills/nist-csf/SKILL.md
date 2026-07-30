@@ -287,9 +287,14 @@ headline CSF coverage figure, and it uses the same setting.
 **Two things a lens cannot see, and both get reported.** Controls no CSF Subcategory maps to must
 be assessed directly against the standard — CSF says nothing about them. Rated CSF outcomes no
 control in the lens references drop out of that view, so work already done earns no credit there.
-Where a catalogue ships only the mapped subset, an empty "outside CSF" list means the unmapped
-controls are not catalogued, **not** that none exist — CIS currently ships the 49 mapped
-safeguards, not all 153.
+All three catalogues hold their full control set, so both lists are real: ISO reports 31 Annex A
+controls outside CSF, CIS reports 104 of its 153 Safeguards.
+
+For CIS, the 104 unmapped Safeguards are **identifiers only** — no label. The CIS Controls are
+CC BY-NC-ND, and ND forbids distributing transformed material, so paraphrasing a safeguard we only
+ever need to name would take a licensing risk for no benefit. Give the identifier and point the user
+at their own licensed copy. The 49 CSF-referenced Safeguards do carry our labels, because they
+appear in the coverage table; a mapped control without a label is refused by the validator.
 
 Full contract and invariants: `references/framework-abstraction.md`.
 

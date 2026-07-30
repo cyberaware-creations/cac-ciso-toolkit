@@ -3,7 +3,7 @@
  "name": "NIST SP 800-53 Rev 5",
  "version": "Rev 5",
  "license": "public-domain",
- "provenance": "NIST-developed CSF\u2192800-53 mapping (public domain). Family names verbatim; per-control titles pending a titles ingest.",
+ "provenance": "NIST-developed CSF\u2192800-53 mapping (public domain). Family names and all per-control titles verbatim from NIST SP 800-53 Rev 5, a US Government work.",
  "sourceExport": {
   "tool": "NIST CSF 2.0 Reference Export (xlsx)",
   "retrievedAt": "2026-07-29"

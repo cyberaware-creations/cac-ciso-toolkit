@@ -11,17 +11,23 @@ projection of an existing CSF assessment. The enforced contract is in
 |---|---|---|---|---|
 | `800-53-r5` | 731 | 206 controls / 20 families | verbatim NIST titles | `nist-developed` |
 | `iso-27001-2022` | 329 | 119 (93 Annex A + 26 ISMS clauses) / 5 groups | ours | `mixed-third-party` |
-| `cis-8.1` | 62 | 49 mapped safeguards / 16 controls | ours | `cis-authored` |
+| `cis-8.1` | 62 | 153 safeguards / 18 controls | ours on the 49 mapped; the rest ids only | `cis-authored` |
 
 The edges are facts from the NIST CPRT export's Informative References. The **labels are ours** for
-ISO and CIS, and only 800-53 carries verbatim titles.
+ISO and CIS, and only 800-53 carries verbatim titles. For CIS, 104 of the 153 Safeguards carry no
+label at all — see "New labels" below.
 
 ## Licensing — the reason the labels are ours
 
 ISO/IEC 27001:2022 and the CIS Controls are copyrighted. Their control **titles and normative text
-are not redistributable**, so this data carries identifiers plus our own short paraphrases and no
-normative text at all. A reader who needs the official wording looks it up in their own licensed
-copy; the identifier is there so they can.
+are not redistributable**, so this data carries identifiers and no normative text at all. A reader
+who needs the official wording looks it up in their own licensed copy; the identifier is there so
+they can.
+
+Where a control is reachable from CSF it also carries a short label of our own, because it appears
+in the coverage table and a bare identifier there is unreadable. Where it is not reachable — and so
+is only ever named in the "assess this directly" list — CIS Safeguards carry the identifier alone,
+since the CIS licence is CC BY-NC-ND and ND covers transformed material.
 
 NIST SP 800-53 Rev 5 is a work of the US Government and not subject to copyright, so its family
 names and all 206 control titles are verbatim.
@@ -33,7 +39,8 @@ This boundary is enforced in two places rather than trusted:
 - `tools/crosswalks/validate_crosswalks.py`, the build-time checker that owns the rules.
 
 Both run in CI. A catalogue that carries ISO or CIS `text`, or marks an ISO or CIS label anything
-other than `cac-generated`, fails the build.
+other than `cac-generated` (or `id-only`, for an unmapped CIS Safeguard), fails the build — as does
+an `id-only` entry that carries a label, or a mapped control that does not.
 
 Label wording conventions: `label-style.md`.
 
@@ -90,8 +97,22 @@ labels. Those are **reviewed by a human before shipping** — the 168 ISO and CI
 were reviewed and approved on 2026-07-29. A generated label that has not been read is a claim about
 a standard nobody checked, so treat the review as part of the data, not a formality.
 
-Known gap: the CIS catalogue holds the **49 mapped safeguards, not all 153**. Its "controls outside
-CSF" honesty list is therefore empty, and the report says so explicitly rather than implying no such
-safeguards exist. Completing it requires ~104 new labels and a review round.
+The CIS catalogue holds all **153 Safeguards**, but only the 49 the NIST export references carry a
+label. The other 104 are identifiers alone, `labelSource: "id-only"`.
+
+That is a licensing decision. The CIS Controls are CC BY-NC-ND; ND forbids distributing material
+that remixes, transforms, or builds upon the original, and a paraphrase of a safeguard is arguably
+exactly that. An unmapped safeguard is only ever rendered as "no CSF maps here — assess this
+directly", where the identifier is the whole answer, so a label would add licensing exposure and no
+information. Both validators enforce the pairing: an `id-only` entry must carry no label, and a
+control CSF maps to must carry one, because that one appears in the coverage table.
+
+The Safeguard enumeration came from the CIS Controls **v8.0** workbook while the catalogue is
+`cis-8.1`, and `sourceExport.enumeration` records exactly that rather than papering over it. v8.1
+renumbered nothing — all 49 ids the v8.1 OLIR references cites appear in the v8.0 set — but the file
+actually read is what gets written down. The workbook itself is **not vendored**: it carries CIS
+titles and descriptions, so only the per-Control Safeguard counts live in the builder, as 18
+integers. Those ids are recovered positionally, because the workbook stores them as floats and
+corrupts 3.10, 4.10, 8.10, 13.10 and 16.10 into duplicates of 3.1, 4.1, 8.1, 13.1 and 16.1.
 
 *A Cyber Aware Creation · Not affiliated with NIST, ISO, or CIS*

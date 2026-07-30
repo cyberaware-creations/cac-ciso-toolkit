@@ -3,10 +3,16 @@
  "name": "CIS Critical Security Controls v8.1",
  "version": "8.1",
  "license": "cis-cc-by-nc-nd",
- "provenance": "CSF\u2194CIS relationships are CIS-authored (used as facts, tagged; CIS document not republished). Labels are CAC paraphrases. CIS content is CC BY-NC-ND.",
+ "provenance": "CSF\u2194CIS relationships are CIS-authored (used as facts, tagged; CIS document not republished). CIS content is CC BY-NC-ND: the 49 CSF-referenced Safeguards carry CAC paraphrases, and the remaining 104 are identifiers only (labelSource id-only) rather than paraphrases, because ND forbids distributing transformed material. No CIS title or description is reproduced.",
  "sourceExport": {
   "tool": "NIST CSF 2.0 Reference Export (xlsx)",
-  "retrievedAt": "2026-07-29"
+  "retrievedAt": "2026-07-29",
+  "enumeration": {
+   "tool": "CIS Controls v8.0 workbook (CC BY-NC-ND)",
+   "provides": "Safeguard counts per Control only; no CIS wording",
+   "appliesToVersion": "8.1",
+   "note": "Enumeration taken from v8.0 and applied to the 8.1 catalogue because 8.1 did not renumber Safeguards; all 49 ids the v8.1 OLIR references cites are present in the v8.0 set. Ids recovered positionally, since the workbook stores them as floats and corrupts 3.10, 4.10, 8.10, 13.10 and 16.10."
+  }
  },
  "groupings": [
   {
@@ -42,6 +48,10 @@
    "label": "Audit log management"
   },
   {
+   "id": "CIS-9",
+   "label": "Email & web browser protections"
+  },
+  {
    "id": "CIS-10",
    "label": "Malware defenses"
   },
@@ -72,6 +82,10 @@
   {
    "id": "CIS-17",
    "label": "Incident response management"
+  },
+  {
+   "id": "CIS-18",
+   "label": "Penetration testing"
   }
  ],
  "controls": [
@@ -87,6 +101,27 @@
    "label": "Handle unauthorized assets",
    "groupingId": "CIS-1",
    "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 1.3",
+   "label": null,
+   "groupingId": "CIS-1",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 1.4",
+   "label": null,
+   "groupingId": "CIS-1",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 1.5",
+   "label": null,
+   "groupingId": "CIS-1",
+   "labelSource": "id-only",
    "text": null
   },
   {
@@ -111,10 +146,38 @@
    "text": null
   },
   {
+   "id": "CIS 2.4",
+   "label": null,
+   "groupingId": "CIS-2",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
    "id": "CIS 2.5",
    "label": "Allowlist authorized software",
    "groupingId": "CIS-2",
    "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 2.6",
+   "label": null,
+   "groupingId": "CIS-2",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 2.7",
+   "label": null,
+   "groupingId": "CIS-2",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 3.1",
+   "label": null,
+   "groupingId": "CIS-3",
+   "labelSource": "id-only",
    "text": null
   },
   {
@@ -132,10 +195,24 @@
    "text": null
   },
   {
+   "id": "CIS 3.4",
+   "label": null,
+   "groupingId": "CIS-3",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
    "id": "CIS 3.5",
    "label": "Dispose of data securely",
    "groupingId": "CIS-3",
    "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 3.6",
+   "label": null,
+   "groupingId": "CIS-3",
+   "labelSource": "id-only",
    "text": null
   },
   {
@@ -150,6 +227,13 @@
    "label": "Document data flows",
    "groupingId": "CIS-3",
    "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 3.9",
+   "label": null,
+   "groupingId": "CIS-3",
+   "labelSource": "id-only",
    "text": null
   },
   {
@@ -174,6 +258,20 @@
    "text": null
   },
   {
+   "id": "CIS 3.13",
+   "label": null,
+   "groupingId": "CIS-3",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 3.14",
+   "label": null,
+   "groupingId": "CIS-3",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
    "id": "CIS 4.1",
    "label": "Maintain secure-config process",
    "groupingId": "CIS-4",
@@ -188,10 +286,108 @@
    "text": null
   },
   {
+   "id": "CIS 4.3",
+   "label": null,
+   "groupingId": "CIS-4",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 4.4",
+   "label": null,
+   "groupingId": "CIS-4",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 4.5",
+   "label": null,
+   "groupingId": "CIS-4",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 4.6",
+   "label": null,
+   "groupingId": "CIS-4",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 4.7",
+   "label": null,
+   "groupingId": "CIS-4",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 4.8",
+   "label": null,
+   "groupingId": "CIS-4",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 4.9",
+   "label": null,
+   "groupingId": "CIS-4",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 4.10",
+   "label": null,
+   "groupingId": "CIS-4",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 4.11",
+   "label": null,
+   "groupingId": "CIS-4",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 4.12",
+   "label": null,
+   "groupingId": "CIS-4",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
    "id": "CIS 5.1",
    "label": "Maintain account inventory",
    "groupingId": "CIS-5",
    "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 5.2",
+   "label": null,
+   "groupingId": "CIS-5",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 5.3",
+   "label": null,
+   "groupingId": "CIS-5",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 5.4",
+   "label": null,
+   "groupingId": "CIS-5",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 5.5",
+   "label": null,
+   "groupingId": "CIS-5",
+   "labelSource": "id-only",
    "text": null
   },
   {
@@ -213,6 +409,34 @@
    "label": "Define access-revoking process",
    "groupingId": "CIS-6",
    "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 6.3",
+   "label": null,
+   "groupingId": "CIS-6",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 6.4",
+   "label": null,
+   "groupingId": "CIS-6",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 6.5",
+   "label": null,
+   "groupingId": "CIS-6",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 6.6",
+   "label": null,
+   "groupingId": "CIS-6",
+   "labelSource": "id-only",
    "text": null
   },
   {
@@ -244,10 +468,108 @@
    "text": null
   },
   {
+   "id": "CIS 7.3",
+   "label": null,
+   "groupingId": "CIS-7",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 7.4",
+   "label": null,
+   "groupingId": "CIS-7",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 7.5",
+   "label": null,
+   "groupingId": "CIS-7",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 7.6",
+   "label": null,
+   "groupingId": "CIS-7",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 7.7",
+   "label": null,
+   "groupingId": "CIS-7",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 8.1",
+   "label": null,
+   "groupingId": "CIS-8",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
    "id": "CIS 8.2",
    "label": "Collect audit logs",
    "groupingId": "CIS-8",
    "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 8.3",
+   "label": null,
+   "groupingId": "CIS-8",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 8.4",
+   "label": null,
+   "groupingId": "CIS-8",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 8.5",
+   "label": null,
+   "groupingId": "CIS-8",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 8.6",
+   "label": null,
+   "groupingId": "CIS-8",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 8.7",
+   "label": null,
+   "groupingId": "CIS-8",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 8.8",
+   "label": null,
+   "groupingId": "CIS-8",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 8.9",
+   "label": null,
+   "groupingId": "CIS-8",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 8.10",
+   "label": null,
+   "groupingId": "CIS-8",
+   "labelSource": "id-only",
    "text": null
   },
   {
@@ -258,6 +580,62 @@
    "text": null
   },
   {
+   "id": "CIS 8.12",
+   "label": null,
+   "groupingId": "CIS-8",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 9.1",
+   "label": null,
+   "groupingId": "CIS-9",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 9.2",
+   "label": null,
+   "groupingId": "CIS-9",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 9.3",
+   "label": null,
+   "groupingId": "CIS-9",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 9.4",
+   "label": null,
+   "groupingId": "CIS-9",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 9.5",
+   "label": null,
+   "groupingId": "CIS-9",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 9.6",
+   "label": null,
+   "groupingId": "CIS-9",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 9.7",
+   "label": null,
+   "groupingId": "CIS-9",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
    "id": "CIS 10.1",
    "label": "Deploy anti-malware",
    "groupingId": "CIS-10",
@@ -265,10 +643,52 @@
    "text": null
   },
   {
+   "id": "CIS 10.2",
+   "label": null,
+   "groupingId": "CIS-10",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 10.3",
+   "label": null,
+   "groupingId": "CIS-10",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 10.4",
+   "label": null,
+   "groupingId": "CIS-10",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 10.5",
+   "label": null,
+   "groupingId": "CIS-10",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 10.6",
+   "label": null,
+   "groupingId": "CIS-10",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
    "id": "CIS 10.7",
    "label": "Use behavior-based anti-malware",
    "groupingId": "CIS-10",
    "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 11.1",
+   "label": null,
+   "groupingId": "CIS-11",
+   "labelSource": "id-only",
    "text": null
   },
   {
@@ -286,10 +706,24 @@
    "text": null
   },
   {
+   "id": "CIS 11.4",
+   "label": null,
+   "groupingId": "CIS-11",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
    "id": "CIS 11.5",
    "label": "Test recovery",
    "groupingId": "CIS-11",
    "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 12.1",
+   "label": null,
+   "groupingId": "CIS-12",
+   "labelSource": "id-only",
    "text": null
   },
   {
@@ -300,6 +734,48 @@
    "text": null
   },
   {
+   "id": "CIS 12.3",
+   "label": null,
+   "groupingId": "CIS-12",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 12.4",
+   "label": null,
+   "groupingId": "CIS-12",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 12.5",
+   "label": null,
+   "groupingId": "CIS-12",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 12.6",
+   "label": null,
+   "groupingId": "CIS-12",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 12.7",
+   "label": null,
+   "groupingId": "CIS-12",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 12.8",
+   "label": null,
+   "groupingId": "CIS-12",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
    "id": "CIS 13.1",
    "label": "Centralize security-event alerting",
    "groupingId": "CIS-13",
@@ -307,10 +783,129 @@
    "text": null
   },
   {
+   "id": "CIS 13.2",
+   "label": null,
+   "groupingId": "CIS-13",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 13.3",
+   "label": null,
+   "groupingId": "CIS-13",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 13.4",
+   "label": null,
+   "groupingId": "CIS-13",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 13.5",
+   "label": null,
+   "groupingId": "CIS-13",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 13.6",
+   "label": null,
+   "groupingId": "CIS-13",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 13.7",
+   "label": null,
+   "groupingId": "CIS-13",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 13.8",
+   "label": null,
+   "groupingId": "CIS-13",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 13.9",
+   "label": null,
+   "groupingId": "CIS-13",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 13.10",
+   "label": null,
+   "groupingId": "CIS-13",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 13.11",
+   "label": null,
+   "groupingId": "CIS-13",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
    "id": "CIS 14.1",
    "label": "Run security awareness program",
    "groupingId": "CIS-14",
    "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 14.2",
+   "label": null,
+   "groupingId": "CIS-14",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 14.3",
+   "label": null,
+   "groupingId": "CIS-14",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 14.4",
+   "label": null,
+   "groupingId": "CIS-14",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 14.5",
+   "label": null,
+   "groupingId": "CIS-14",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 14.6",
+   "label": null,
+   "groupingId": "CIS-14",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 14.7",
+   "label": null,
+   "groupingId": "CIS-14",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 14.8",
+   "label": null,
+   "groupingId": "CIS-14",
+   "labelSource": "id-only",
    "text": null
   },
   {
@@ -377,6 +972,104 @@
    "text": null
   },
   {
+   "id": "CIS 16.2",
+   "label": null,
+   "groupingId": "CIS-16",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 16.3",
+   "label": null,
+   "groupingId": "CIS-16",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 16.4",
+   "label": null,
+   "groupingId": "CIS-16",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 16.5",
+   "label": null,
+   "groupingId": "CIS-16",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 16.6",
+   "label": null,
+   "groupingId": "CIS-16",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 16.7",
+   "label": null,
+   "groupingId": "CIS-16",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 16.8",
+   "label": null,
+   "groupingId": "CIS-16",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 16.9",
+   "label": null,
+   "groupingId": "CIS-16",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 16.10",
+   "label": null,
+   "groupingId": "CIS-16",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 16.11",
+   "label": null,
+   "groupingId": "CIS-16",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 16.12",
+   "label": null,
+   "groupingId": "CIS-16",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 16.13",
+   "label": null,
+   "groupingId": "CIS-16",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 16.14",
+   "label": null,
+   "groupingId": "CIS-16",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 17.1",
+   "label": null,
+   "groupingId": "CIS-17",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
    "id": "CIS 17.2",
    "label": "Keep incident reporting contacts",
    "groupingId": "CIS-17",
@@ -384,10 +1077,24 @@
    "text": null
   },
   {
+   "id": "CIS 17.3",
+   "label": null,
+   "groupingId": "CIS-17",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
    "id": "CIS 17.4",
    "label": "Maintain incident-response process",
    "groupingId": "CIS-17",
    "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 17.5",
+   "label": null,
+   "groupingId": "CIS-17",
+   "labelSource": "id-only",
    "text": null
   },
   {
@@ -416,6 +1123,41 @@
    "label": "Set incident thresholds",
    "groupingId": "CIS-17",
    "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 18.1",
+   "label": null,
+   "groupingId": "CIS-18",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 18.2",
+   "label": null,
+   "groupingId": "CIS-18",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 18.3",
+   "label": null,
+   "groupingId": "CIS-18",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 18.4",
+   "label": null,
+   "groupingId": "CIS-18",
+   "labelSource": "id-only",
+   "text": null
+  },
+  {
+   "id": "CIS 18.5",
+   "label": null,
+   "groupingId": "CIS-18",
+   "labelSource": "id-only",
    "text": null
   }
  ]

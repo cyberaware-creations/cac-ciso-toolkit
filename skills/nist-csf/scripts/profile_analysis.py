@@ -130,8 +130,12 @@ CROSSWALK_EXPECTED = {
                        "labelSource": "verbatim-public-domain", "verbatimAllowed": True},
     "iso-27001-2022": {"edges": 329, "controls": 119, "groupings": 5,
                        "labelSource": "cac-generated", "verbatimAllowed": False},
-    "cis-8.1":        {"edges": 62,  "controls": 49,  "groupings": 16,
-                       "labelSource": "cac-generated", "verbatimAllowed": False},
+    # 153: the full Safeguard set, so the "no CSF maps here" list can exist for CIS
+    # as it does for ISO. Only the 49 the NIST export references carry a label; the
+    # rest are identifiers alone. See the id-only note in check_crosswalks().
+    "cis-8.1":        {"edges": 62,  "controls": 153, "groupings": 18,
+                       "labelSource": "cac-generated", "verbatimAllowed": False,
+                       "idOnlyAllowed": True, "labelled": 49},
 }
 
 _SKILL_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -298,6 +302,11 @@ def check_crosswalks(index: dict, path: str | None = None) -> list[str]:
             problems.append(f"[{fid}] expected {want['groupings']} groupings, found {len(groupings)}")
         if len(edges) != want["edges"]:
             problems.append(f"[{fid}] expected {want['edges']} edges, found {len(edges)}")
+        if want.get("labelled") is not None:
+            n_lab = sum(1 for c in controls if (c.get("label") or "").strip())
+            if n_lab != want["labelled"]:
+                problems.append(f"[{fid}] expected {want['labelled']} labelled controls, "
+                                f"found {n_lab}")
 
         for field in ("frameworkId", "name", "version", "license", "provenance", "sourceExport"):
             if not cat.get(field):
@@ -307,6 +316,7 @@ def check_crosswalks(index: dict, path: str | None = None) -> list[str]:
 
         declared = {g.get("id") for g in groupings}
         seen: set[str] = set()
+        id_only: set[str] = set()
         for ctl in controls:
             cid = ctl.get("id")
             if not cid:
@@ -315,9 +325,21 @@ def check_crosswalks(index: dict, path: str | None = None) -> list[str]:
             if cid in seen:
                 problems.append(f"[{fid}] duplicate control id {cid}")
             seen.add(cid)
-            if not (ctl.get("label") or "").strip():
+            # id-only: an identifier with no label, legal only where no CSF
+            # Subcategory maps to the control. The CIS Controls are CC BY-NC-ND and
+            # ND forbids distributing transformed material, so a paraphrase of an
+            # unmapped safeguard is a risk taken for no benefit — the honesty list
+            # renders ids. A MAPPED control still needs a label, because it appears
+            # in the coverage table; that is asserted after the edges are read.
+            is_id_only = (ctl.get("labelSource") == "id-only"
+                          and want.get("idOnlyAllowed"))
+            if is_id_only:
+                id_only.add(cid)
+                if (ctl.get("label") or "").strip():
+                    problems.append(f"[{fid}] {cid} is id-only but carries a label")
+            elif not (ctl.get("label") or "").strip():
                 problems.append(f"[{fid}] {cid} has an empty label")
-            if ctl.get("labelSource") != want["labelSource"]:
+            if not is_id_only and ctl.get("labelSource") != want["labelSource"]:
                 problems.append(f"[{fid}] {cid} labelSource is {ctl.get('labelSource')!r}, "
                                 f"must be {want['labelSource']!r}")
             # The licensing line. ISO and CIS text is copyrighted; shipping it
@@ -339,6 +361,10 @@ def check_crosswalks(index: dict, path: str | None = None) -> list[str]:
                                 f"which is not a CSF Subcategory")
             if not e.get("authority"):
                 problems.append(f"[{fid}] edge {sub}->{ctl_id} has no authority tag")
+            if ctl_id in id_only:
+                problems.append(f"[{fid}] {ctl_id} is id-only but CSF maps to it via "
+                                f"{sub}; a control that appears in the coverage table "
+                                f"needs a label")
 
     return problems
 

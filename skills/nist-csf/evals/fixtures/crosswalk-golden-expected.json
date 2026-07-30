@@ -150,8 +150,8 @@
       },
       "completeness": {
         "controlsMapped": 49,
-        "controlsOutsideCSF": 0,
-        "controlsTotal": 49,
+        "controlsOutsideCSF": 104,
+        "controlsTotal": 153,
         "csfNotInLens": [
           "GV.OC-01"
         ]

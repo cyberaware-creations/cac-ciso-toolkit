@@ -15,7 +15,9 @@ Three things this renderer will not do, each for a stated reason:
   carries the band word as text, so the report survives greyscale printing,
   colour-vision deficiency, and forced-colours mode.
 - It never shows ISO or CIS control titles. Those are copyrighted; the labels here
-  are our own paraphrases, and the label source is stated per lens.
+  are our own paraphrases, and the label source is stated per lens. Some CIS
+  Safeguards carry no label at all — unmapped ones are identifiers only, because
+  the CIS licence forbids distributing transformed material.
 """
 import json
 import sys
@@ -286,10 +288,10 @@ def honesty(block: dict) -> str:
             f'assess {"it" if len(outside) == 1 else "them"} directly against the standard.</p>'
             f'<p class="subs">{c.esc(", ".join(outside))}</p>')
     else:
-        parts.append('<p><strong>Every control in the bundled catalogue is reachable from '
-                     'CSF.</strong> Where a catalogue holds only the mapped subset, this list '
-                     'is empty because the unmapped controls are not catalogued, not because '
-                     'none exist.</p>')
+        parts.append('<p><strong>Every control in this catalogue is reachable from CSF.</strong> '
+                     'The catalogue holds the framework&rsquo;s full control set, so this list is '
+                     'empty because no control falls outside CSF &mdash; not because the rest were '
+                     'left out.</p>')
     if not_in:
         parts.append(
             f'<p><strong>{len(not_in)} rated CSF outcome'

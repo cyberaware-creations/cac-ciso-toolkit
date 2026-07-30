@@ -24,8 +24,17 @@ DATA = sys.argv[1] if len(sys.argv) > 1 else _BUNDLED
 LABEL_RULE = {
     "800-53-r5": {"verbatim-public-domain"},
     "iso-27001-2022": {"cac-generated"},
-    "cis-8.1": {"cac-generated"},
+    "cis-8.1": {"cac-generated", "id-only"},
 }
+# An identifier with no label at all. Legal ONLY for a control no CSF Subcategory
+# maps to, and enforced that way below: an unmapped control is only ever listed as
+# "assess this directly", where the id is the whole answer, whereas a mapped control
+# appears in the coverage table and would render as a blank row.
+#
+# It exists because the CIS Controls are CC BY-NC-ND and ND forbids distributing
+# transformed material; a paraphrase of a safeguard is arguably a transform. Shipping
+# the identifier alone makes the honesty list possible without that question.
+ID_ONLY = "id-only"
 
 def load(p):
     with open(p) as f: return json.load(f)
@@ -38,11 +47,19 @@ def main():
         ids = set()
         groupings = {g["id"] for g in c.get("groupings", [])}
         want = LABEL_RULE.get(fid)
+        id_only = set()
         for ctl in c.get("controls", []):
             cid = ctl["id"]
             if cid in ids: errors.append(f"[{fid}] duplicate control id {cid}")
             ids.add(cid)
-            if not ctl.get("label", "").strip():
+            if ctl.get("labelSource") == ID_ONLY:
+                id_only.add(cid)
+                # An id-only entry must be exactly that: no label, no text. A
+                # half-filled one is worse than either, because a consumer cannot
+                # tell whether the wording is ours or theirs.
+                if (ctl.get("label") or "").strip():
+                    errors.append(f"[{fid}] {cid} is {ID_ONLY} but carries a label")
+            elif not (ctl.get("label") or "").strip():
                 errors.append(f"[{fid}] {cid} has empty label")
             if want and ctl.get("labelSource") not in want:
                 errors.append(f"[{fid}] {cid} labelSource={ctl.get('labelSource')} but rule requires one of {sorted(want)}")
@@ -51,6 +68,7 @@ def main():
             if ctl.get("groupingId") and ctl["groupingId"] not in groupings:
                 errors.append(f"[{fid}] {cid} groupingId {ctl['groupingId']} not declared")
         c["_ids"] = ids
+        c["_id_only"] = id_only
         se = c.get("sourceExport", {})
         if "TODO" in json.dumps(se) or "TODO" in c.get("_status", ""):
             warns.append(f"[{fid}] provenance/status still TODO (starter slice, expected pre-ingest)")
@@ -64,6 +82,12 @@ def main():
                 errors.append(f"[{fid}] edge {e['csfSubId']}->{e['controlId']} unresolved in catalog")
             if not e.get("authority"):
                 errors.append(f"[{fid}] edge {e['csfSubId']}->{e['controlId']} missing authority tag")
+            # The whole justification for a label-less entry is that it is only ever
+            # rendered as "assess this directly", where the id is the answer. A mapped
+            # control appears in the coverage table, so it must carry a label.
+            if e["controlId"] in cat.get("_id_only", ()):
+                errors.append(f"[{fid}] {e['controlId']} is {ID_ONLY} but CSF maps to it "
+                              f"({e['csfSubId']}); a mapped control needs a label")
 
     for w in warns: print(f"WARN  {w}")
     for e in errors: print(f"ERROR {e}")
