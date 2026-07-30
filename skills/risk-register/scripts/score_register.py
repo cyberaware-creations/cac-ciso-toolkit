@@ -882,29 +882,6 @@ def _cmd_self_test(_: list[str]) -> int:
 STATUSES = {"open", "in-treatment", "monitoring", "closed"}
 RESPONSES = {"accept", "transfer", "mitigate", "avoid"}
 
-# DOCS HANDOVER (Task 8 owns the reference files; this note is the input it needs).
-# Three behaviour changes landed here that the prose does not yet describe:
-#
-#   1. `confirm` exists at all. SKILL.md's mutation list (~line 143) and
-#      references/history-and-review.md's required-flag table (~line 50) both predate it.
-#      Table row: `confirm` | `--why`. And `risk-confirmed` is missing from schema.md's
-#      event-type list (~line 122), which is separately wrong in five other ways — the doc
-#      lists five types nothing emits and omits two that are emitted.
-#   2. Date flags now REFUSE input they previously accepted: `--review` (add, confirm) and
-#      `--revalidate` / `--expiry` / `--accepted` (accept) require canonical YYYY-MM-DD.
-#      `2027-2-01` and `20270201` are both rejected where the first used to be stored
-#      verbatim and then compared lexically, reading an overdue date as on time. Worth
-#      stating as a rule, since it is now house-wide: nist-csf enforces the identical rule
-#      and its schema.md:245 already explains why.
-#      Validation guards WRITES ONLY — an existing register hand-carrying `2027-3-01` still
-#      loads and renders, deliberately, because a validator that made a user's file
-#      unopenable would be worse than the bug. Say so, or someone will "fix" it.
-#   3. `confirm` and `accept` both REFUSE while `provisionalScore` is true, and the reason
-#      is the invariant, not fussiness: no affirming event may attach to a provisional-score
-#      risk, because confirmation age is derived from affirming events and would otherwise
-#      reset to zero on the importer's seed number. `set-score` is the way through. A
-#      provisional *title* only warns.
-
 # --- Age bands and the age-affirming event taxonomy ---------------------------
 # The twin of skills/nist-csf/scripts/profile_analysis.py's age_band(), and that file
 # carries the matching note pointing here. Deliberately duplicated: the obvious cleanup —

@@ -38,10 +38,11 @@ log with rationale, named review snapshots, structured risk acceptance, and repo
 themes, trend, and operational, executive, and printable board outputs.
 
 - **Deterministic engine** — `scripts/score_register.py` is ported from the Limen Labs web tool and
-  verified identical to it (`self-test` → 34/34 parity checks).
-- **Tooled persistence** — every mutation (`add`, `set-score`, `accept`, `set-status`, `snapshot`,
-  `export-csv`) appends a history event and writes a schema-valid file, so the audit trail is
-  enforced by tooling, not by hand.
+  verified identical to it; `self-test` asserts the parity case by case and prints its own count.
+- **Tooled persistence** — every mutation (`add`, `set-text`, `set-score`, `accept`, `confirm`,
+  `set-status`, `add-theme`, `set-theme`, `snapshot`, `export-csv`) appends a history event and writes
+  a schema-valid file, so the audit trail is enforced by tooling, not by hand. `confirm` is how
+  "reviewed, and nothing changed" gets recorded without faking a score move.
 - **Renderers** — self-contained, brand-consistent HTML dashboards and a printable PDF board report.
 
 ### `nist-csf`
@@ -84,7 +85,13 @@ against that log as evidence arrives.
   different rates, so the engine declines to pick a decay rate on your behalf. There *is* an
   `ageThresholdDays` (default 180), and it is reporting furniture: it counts how many ratings sit
   past it so the number can appear on a dashboard. It flags nothing, gates nothing, suppresses
-  nothing, and changes no score.
+  nothing, and changes no score. Age is reported in four bands derived from that same threshold `T` —
+  `within` (≤ T/2), `approaching` (≤ T), `beyond` (≤ 2T), `wellBeyond` (> 2T) — with identical
+  boundaries in both skills, over CSF ratings in one and over risk confirmations in the other. They
+  are **distance-from-cadence labels, not confidence labels**: age is derivable from stored data and
+  confidence is not, so the engine reports how old a determination is and the reader judges what that
+  means. An inverted check in `risk-register/evals/board-safety.sh` fails if confidence vocabulary
+  ever reaches one of its board-facing views, so the claim stays unmade rather than merely un-typed.
 - **Bundled framework data** — the full CSF 2.0 Core (6 Functions / 22 Categories / 106
   Subcategories) with all 363 Implementation Examples and the Informative References, generated from
   the NIST CPRT catalog, plus verbatim Tier text from NIST CSWP 29.
@@ -124,7 +131,7 @@ skills/
     references/                schema, history & review, dashboards, CSF import, fixtures
     assets/                    brand tokens, PDF report layout
     examples/                  worked v2 register
-    evals/                     board-safety, python-compat, responsive suites
+    evals/                     board-safety, confirmation-age, python-compat, responsive suites
   nist-csf/
     SKILL.md
     scripts/profile_analysis.py  CSF Profile engine + persistence (stdlib only)
@@ -163,6 +170,7 @@ That floor is enforced, not asserted:
 ```bash
 ./skills/risk-register/evals/python-compat.sh            # compiles every shipped file on 3.9
 PY=/usr/bin/python3 ./skills/risk-register/evals/board-safety.sh   # and runs the suite there
+./skills/risk-register/evals/confirmation-age.sh         # age bands, the three outcomes, the board line
 ./skills/risk-register/evals/responsive.sh               # width + WCAG AA contrast, in a browser
 
 python3 skills/risk-register/scripts/score_register.py self-test   # web-engine parity
