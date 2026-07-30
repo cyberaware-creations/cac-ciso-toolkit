@@ -46,7 +46,7 @@ mkdir -p "$work"
 # asserts what the operational panel and the attention cards actually say. A check added
 # to one does not change the other, and neither number is the total.
 EXPECTED_CHECKS=46
-EXPECTED_RENDER_CHECKS=9
+EXPECTED_RENDER_CHECKS=15
 
 fails=0
 chk() {
@@ -495,30 +495,62 @@ n=$((n + 1))
 today="$("$PY" -c 'import json,sys
 print(max(e["ts"] for e in json.load(open(sys.argv[1]))["history"])[:10])' "$work/a.rr")" \
   || die "could not read the register's newest timestamp"
-yday="$("$PY" -c 'import datetime,sys
-print((datetime.date.fromisoformat(sys.argv[1]) - datetime.timedelta(days=1)).isoformat())' \
-  "$today")" || die "could not compute the day before $today"
+day_off() { "$PY" -c 'import datetime,sys
+print((datetime.date.fromisoformat(sys.argv[1])
+       + datetime.timedelta(days=int(sys.argv[2]))).isoformat())' "$today" "$1"; }
+yday="$(day_off -1)"  || die "could not compute the day before $today"
+t120="$(day_off 120)" || die "could not compute $today + 120"
+t200="$(day_off 200)" || die "could not compute $today + 200"
+t400="$(day_off 400)" || die "could not compute $today + 400"
 
-# Four registers the derivation block already built, each reaching a state the others
-# cannot: a.rr all-dated, u.rr one unreadable ts, b.rr no affirming event at all. The
-# fourth render is a.rr as of YESTERDAY, which is the future-dated case — the only way to
-# reach it without hand-editing a ts, and the case a UTC/local skew produces by itself.
+# EIGHT renders, because a panel is only as testable as the states a fixture can reach.
+# Three registers the derivation block already built — a.rr all-dated, u.rr one unreadable
+# ts, b.rr no affirming event at all — read as of five different days and two cadences:
+#
+#   dash_a       $today       T=180   every live risk age 0            -> within 3
+#   dash_u       $today       T=180   one unreadable ts                -> within 2, unread. 1
+#   dash_b       $today       T=180   no affirming event               -> undated 3
+#   dash_fut     $today - 1   T=180   ages of -1: future-dated records
+#   dash_appr    $today + 120 T=180   ages of 120                      -> approaching 3
+#   dash_beyond  e.rr + 200   T=180   ages of 200, later edits ignored -> beyond 3
+#   dash_far     $today + 400 T=180   ages of 400                      -> wellBeyond 3
+#   dash_t365    $today + 400 T=365   the SAME 400 days, other cadence -> beyond 3
+#
+# The last four are not padding. With only the first three, every dated risk sits in
+# `within` and nothing rendered can distinguish a band count from the constant 0: pinning
+# [3,0,0,0,0,0] on a fixture that cannot produce a nonzero `beyond` is the vacuity class
+# this plan tabulated. And read at T=180 alone the ranges cannot tell "derived from t" from
+# "the argparse default", which is the mutant that survived a whole earlier suite — so the
+# eighth render puts the same 400-day age against a different cadence, exactly as the
+# derivation block's 180/1000 pair does for the bands.
 for fx in a u b; do
   "$PY" "$RR/renderers/render_dashboard.py" "$work/$fx.rr" "$work/dash_$fx.html" \
     --offline --today "$today" >/dev/null || die "render_dashboard errored on $fx.rr"
 done
 "$PY" "$RR/renderers/render_dashboard.py" "$work/a.rr" "$work/dash_fut.html" \
   --offline --today "$yday" >/dev/null || die "render_dashboard errored at --today $yday"
+"$PY" "$RR/renderers/render_dashboard.py" "$work/a.rr" "$work/dash_appr.html" \
+  --offline --today "$t120" >/dev/null || die "render_dashboard errored at --today $t120"
+"$PY" "$RR/renderers/render_dashboard.py" "$work/e.rr" "$work/dash_beyond.html" \
+  --offline --today "$t200" >/dev/null || die "render_dashboard errored on e.rr"
+"$PY" "$RR/renderers/render_dashboard.py" "$work/a.rr" "$work/dash_far.html" \
+  --offline --today "$t400" >/dev/null || die "render_dashboard errored at --today $t400"
+"$PY" "$RR/renderers/render_dashboard.py" "$work/a.rr" "$work/dash_t365.html" \
+  --offline --today "$t400" --age-threshold 365 >/dev/null \
+  || die "render_dashboard errored at --age-threshold 365"
 
 set +e
 "$PY" - "$work" "$RR" "$today" <<'PY' > "$work/render_out.txt" 2> "$work/render_err.txt"
-import pathlib, re, sys
+import argparse, pathlib, re, sys
 work, rr, today = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2]), sys.argv[3]
 sys.path.insert(0, str(rr / "renderers"))
 sys.path.insert(0, str(rr / "scripts"))
 import _common as C
+import render_dashboard as rd
+import score_register as sr
 
-HTML = {k: (work / ("dash_%s.html" % k)).read_text() for k in ("a", "u", "b", "fut")}
+HTML = {k: (work / ("dash_%s.html" % k)).read_text()
+        for k in ("a", "u", "b", "fut", "appr", "beyond", "far", "t365")}
 
 emitted = [0]
 
@@ -528,16 +560,29 @@ def add(name, good):
     print(("PASS" if good else "FAIL") + "\t" + name, flush=True)
 
 
+def cx(path="a.rr", **over):
+    """A Context over one of the fixture registers, for the two checks that need one."""
+    args = argparse.Namespace(register=str(work / path), out=str(work / "y.html"),
+                              today=today, translations=None, offline=True,
+                              age_threshold=C.DEFAULT_AGE_THRESHOLD)
+    for k, v in over.items():
+        setattr(args, k, v)
+    return C.Context(args)
+
+
 # The six rows and the four rendered ranges, as independent literals. NOT read from
 # render_dashboard.AGE_BAND_LABEL or recomputed from the threshold: rule 3 in the header —
 # a fixture derived from the constant under test moves with the mutant, and a cumulative
 # range built from the same expression as the panel's cannot disagree with it.
 BANDS = ["inside the cadence", "nearing the cadence", "past the cadence",
          "far past the cadence"]
-RANGES = ["0–90d", "91–180d", "181–360d", "over 360d"]
+RANGES = ["0–90d", "91–180d", "181–360d", "over 360d"]           # T=180, the default
+RANGES_365 = ["0–182d", "183–365d", "366–730d", "over 730d"]     # T=365, and 365//2 == 182
 UNDATED = "with no confirmation on record"
 UNREADABLE = "confirmed, but the date will not parse"
 LABELS = BANDS + [UNDATED, UNREADABLE]
+NOTES = ["no affirming event exists at all — not an age of zero",
+         "an affirming event exists — only the distance is unknown"]
 # What the same four rows would say if the ranges were made cumulative — the defect that
 # shipped once on the board renderer, where "within 360 days" captioned the count of
 # determinations PAST the cadence.
@@ -564,20 +609,45 @@ def panel(key):
 
 pa, pu, pb = panel("a"), panel("u"), panel("b")
 
+
+def vec(p):
+    """The six counts, in row order."""
+    return [k for k, _, _ in p["rows"]]
+
+
+def labels(p):
+    return [lab for _, lab, _ in p["rows"]]
+
+
 # Deleting the call to confirmation_panel() has to fail something, and the denominator is
-# pinned at the same time: the register holds 4 risks and 1 is closed, so a rollup that
-# lets the closed one in reads 4 here.
+# pinned at the same time: the register holds 4 risks and 1 is closed, so a rollup that lets
+# the closed one in reads 4 here. Read on all three fixtures, because `live` taken as
+# sum(bands.values()) is right on a.rr and silently drops both non-band states on the other
+# two — while the caption above it still says it accounts for every live risk.
 add("the panel renders with the live population as its denominator",
-    pa is not None and pa["live"] == 3)
+    pa is not None and pu is not None and pb is not None
+    and (pa["live"], pu["live"], pb["live"]) == (3, 3, 3))
 # Ranges checked as (label, range) pairs, not as a set of substrings: "181–360d" present
 # somewhere in the panel does not say it is sitting on the row it describes.
 add("the band ranges are exclusive, not cumulative",
     [(lab, note) for _, lab, note in pa["rows"][:4]] == list(zip(BANDS, RANGES))
     and not any(x in pa["markup"] for x in CUMULATIVE))
+# The same four rows at T=365 — 400 days of age against a cadence that is not the argparse
+# default. Read at 180 alone, "0–90d" cannot tell a boundary derived from t from a hardcoded
+# 90, because 180 is also the default: `half = 90` survives every check above it. The
+# derivation block learned this in writing about thresholdDays; the ranges have the same
+# hole, and the caption's own denominator is pinned with them.
+pt = panel("t365")
+add("the ranges rescale with the cadence, they are not the argparse default",
+    [(lab, note) for _, lab, note in pt["rows"][:4]] == list(zip(BANDS, RANGES_365))
+    and "against the 365-day cadence" in HTML["t365"]
+    and RANGES_365[0] not in HTML["a"])
+# Full triples, so the sub-notes are pinned too. With labels and counts alone, swapping the
+# undated row's note for "confirmed within the cadence" — a flattering caption contradicting
+# its own correct label — passed everything.
 add("the six rows partition the live population, band by band",
-    [lab for _, lab, _ in pa["rows"]] == LABELS
-    and [k for k, _, _ in pa["rows"]] == [3, 0, 0, 0, 0, 0]
-    and sum(k for k, _, _ in pa["rows"]) == pa["live"] == 3)
+    pa["rows"] == list(zip([3, 0, 0, 0, 0, 0], LABELS, RANGES + NOTES))
+    and sum(vec(pa)) == pa["live"] == 3)
 # The two non-band states are the ones a renderer conflates. u.rr has a confirmation with
 # a named confirmer and an unreadable ts; b.rr has no affirming event at all. Folding the
 # two rows into one leaves five rows and fails both halves.
@@ -585,14 +655,41 @@ add("undated and unreadableDate are never folded into one line",
     [(k, lab) for k, lab, _ in pu["rows"]] == list(zip([2, 0, 0, 0, 0, 1], LABELS))
     and [(k, lab) for k, lab, _ in pb["rows"]] == list(zip([0, 0, 0, 0, 3, 0], LABELS))
     and UNDATED != UNREADABLE)
-# BAND is a fill ramp: as text on the white card it runs 1.68–2.61:1. Asserted as a
-# measured ratio rather than as an expected hex, so the check states the property that
-# matters and cannot be satisfied by a different unreadable colour. The panel is drawn
-# with a coloured word in every state, so this is never vacuous — and the count is pinned
-# so a colour added without a contrast opinion cannot slip past it.
+# Every band count read from its own band. Nothing above this can fail if `approaching`,
+# `beyond` and `wellBeyond` are hardcoded to 0 or read from each other's keys, because on
+# a.rr, u.rr and b.rr they ARE 0 — every dated risk in those three is age 0. So the same
+# three risks are read at three ages, one per band, and the vector is pinned each time. The
+# fourth arm is the payoff of the eighth render: identical data, identical ages, a different
+# cadence, and therefore a different row — a band count wired to a constant cannot do that.
+pap, pbe, pfa = panel("appr"), panel("beyond"), panel("far")
+add("every band count is read from its own band, not from a neighbour or a constant",
+    vec(pap) == [0, 3, 0, 0, 0, 0] and vec(pbe) == [0, 0, 3, 0, 0, 0]
+    and vec(pfa) == [0, 0, 0, 3, 0, 0] and vec(pt) == [0, 0, 3, 0, 0, 0]
+    and labels(pap) == labels(pbe) == labels(pfa) == LABELS)
+# Not "is the hex we expect" but "is it readable, and did anyone hand-copy a colour". The
+# panel takes .warnmark, the class this page already uses for a broken record, so the
+# judgement lives once in CSS; BAND as text runs 1.68:1 (medium) to 5.44:1 (critical), with
+# `high` at 2.61:1, and four hand-copied copies of one such judgement is what text_on()
+# exists to prevent. Both halves are needed: the ratio catches BAND swapped for BAND_TEXT in
+# the CSS rule, the emptiness catches a colour re-inlined into the panel to dodge the class.
 inline = re.findall(r"color:(#[0-9A-Fa-f]{6})", pa["markup"])
-add("every coloured word in the panel clears AA on the card surface",
-    len(inline) == 1 and all(C.contrast_ratio(c, C.WB_SURF) >= 4.5 for c in inline))
+css = re.search(r"<style>(.*?)</style>", HTML["a"], re.S).group(1)
+used = sorted({c for grp in re.findall(r'class="([^"]+)"', pa["markup"]) for c in grp.split()})
+declared = {}
+for cls in used:
+    rule = re.search(r"\.%s\{([^}]*)\}" % re.escape(cls), css)
+    hit = re.search(r"color:(#[0-9A-Fa-f]{6})", rule.group(1)) if rule else None
+    if hit:
+        declared[cls] = hit.group(1)
+add("the panel hand-inlines no colour, and every class it does use clears AA",
+    not inline and "warnmark" in declared
+    and all(C.contrast_ratio(v, C.WB_SURF) >= 4.5 for v in declared.values()))
+# The keys, against the engine's own tuple rather than against a second copy of the list.
+# A missing key only raises KeyError at render time and an extra one is silent, so nothing
+# in the renderer notices either. nist-csf pins the equivalent in its self-test and says
+# outright that it is not optional; this is that check for this side.
+add("AGE_BAND_LABEL covers exactly the engine's four bands, no more",
+    sorted(rd.AGE_BAND_LABEL) == sorted(sr.AGE_BANDS) and len(sr.AGE_BANDS) == 4)
 
 # ---- the per-risk note on an attention card -------------------------------------
 # Beside the existing detail, not instead of it: a review date is a deadline somebody
@@ -608,6 +705,32 @@ add("a genuinely unconfirmed risk says so on its card",
 add("a future-dated confirmation is named rather than printed as negative days",
     ("confirmed %s, dated in the future" % today) in HTML["fut"]
     and "-1d ago" not in HTML["fut"])
+
+# ---- what the panel does with the states the cards refuse to flatter -------------
+# The same page, one card apart, must not say two things. age_band() reports a negative age
+# as `within` on purpose, so those records land on the "0–90d" row — false in the flattering
+# direction, and the exact shape of the labelling defect this panel's own comments cite.
+# Disclosed on the row rather than rebanded; the arithmetic in age_band() is untouched.
+pfu = panel("fut")
+add("the within row discloses future-dated records instead of absorbing them",
+    pfu["rows"][0][0] == 3
+    and "includes 3 dated in the future (R-001, R-002, R-004)" in pfu["rows"][0][2]
+    and "a negative age is a file defect" in pfu["rows"][0][2]
+    # ...and only when there are any. A note that always says it says nothing.
+    and pa["rows"][0][2] == RANGES[0])
+# A count the reader cannot act on is not a work queue. A wellBeyond risk that is not over
+# appetite, overdue, unowned or accepted appears on no attention card and in no column of
+# the register table, so the row names it. IDs, never titles.
+add("the wellBeyond row names the risks it counts",
+    pfa["rows"][3][2] == "over 360d · R-001, R-002, R-004"
+    and pa["rows"][3][2] == RANGES[3]
+    and not any(r["title"][:20] in pfa["markup"] for r in cx().risks))
+# Not an attention list. Inside attgrid under "Needs attention" the panel said that risks
+# INSIDE the cadence are risks needing attention, and gave .cnt two meanings on one screen.
+add("the panel is its own section, not one of the attention lists",
+    "Confirmation age" not in rd.attention_lists(cx())
+    and "<h2>How old these determinations are</h2>" in HTML["a"]
+    and "<h2>Needs attention</h2>" in HTML["a"])
 
 print("#DONE\t%d" % emitted[0], flush=True)
 PY

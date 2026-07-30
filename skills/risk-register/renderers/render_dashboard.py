@@ -129,10 +129,29 @@ def _confirmed_note(r: dict) -> str:
 # 360 days", and three of its four labels were arithmetically wrong in the flattering
 # direction. `beyond` reads "past the cadence" here for that reason.
 #
+# What holds this honest is the rendered-HTML block in evals/confirmation-age.sh: it pins
+# this key set against sr.AGE_BANDS, and it pins the rendered ranges at TWO thresholds. A
+# missing key here only raises KeyError at render time and an extra one is silent, and the
+# ranges read at 180 alone cannot tell "derived from t" from "the argparse default" — so
+# that block is the only thing standing between a relabelling and a quietly flattering
+# working view. It is not optional.
+#
 # These are distances from a cadence the reader chose, never confidence words. Nothing in
 # this panel suppresses, expires or rescores anything, and no label may imply otherwise.
 AGE_BAND_LABEL = {"within": "inside the cadence", "approaching": "nearing the cadence",
                   "beyond": "past the cadence", "wellBeyond": "far past the cadence"}
+
+
+def _id_list(risks: list, cap: int = 6) -> str:
+    """`R-001, R-002, R-004` — IDs only, capped, escaped.
+
+    IDs and never titles, even on the working view where a provisional title IS shown on
+    the attention cards: those carry the `unreworded` tag beside them and this note has
+    nowhere to put one. The cap keeps a row that names a work queue from becoming a second
+    copy of the register.
+    """
+    shown = ", ".join(C.esc(r["id"]) for r in risks[:cap])
+    return shown + (f' +{len(risks) - cap} more' if len(risks) > cap else "")
 
 
 def confirmation_panel(ctx: C.Context) -> str:
@@ -142,6 +161,19 @@ def confirmation_panel(ctx: C.Context) -> str:
     deciding what to look at next, and "three risks have not been re-affirmed in over a
     year" is a work queue. The board page gets one sentence instead; operational views get
     the distribution.
+
+    Its own section, NOT one of the attention lists. Filed inside `attgrid` under "Needs
+    attention" it said that three risks inside the cadence are three things needing
+    attention — the exact judgement the rest of this docstring refuses to make — and it
+    gave `.cnt` two meanings on one screen, "flagged risks" on every sibling card and "live
+    population" on this one. references/dashboards.md also enumerates the attention lists,
+    and this is not one of them.
+
+    The `wellBeyond` row names the risks it counts. The rollup builds that list oldest-first
+    for exactly this, and without it the row is a number the reader cannot act on: a risk
+    that is stale but not over appetite, overdue, unowned or accepted appears on no
+    attention card, carries no confirmation column in the register table, and is therefore
+    unfindable from a screen that just told you it exists.
 
     Six rows, always drawn, even at zero. They partition the live population exactly
     (`_confirmation_rollup` asserts that), so a reader can add them up against the
@@ -180,24 +212,54 @@ def confirmation_panel(ctx: C.Context) -> str:
     # ranges over mutually-exclusive counts are both false and flattering: "0–360d"
     # against the count of determinations that are PAST the cadence reads as reassurance.
     # Mirrors age_band(): each band is inclusive of its upper bound, `within` runs to T//2.
+    #
+    # This is now the FOURTH character-for-character copy of one formula, en-dash included:
+    # age_band_ranges() in skills/nist-csf/renderers/_common.py is the twin, and the board
+    # sentence will want it next. It belongs in this skill's own renderers/_common.py beside
+    # DEFAULT_AGE_THRESHOLD, which is where a second consumer in this skill should put it —
+    # flagged rather than moved here, because _common.py is under review elsewhere.
     edges = {"within": f"0–{half}d", "approaching": f"{half + 1}–{t}d",
              "beyond": f"{t + 1}–{t * 2}d", "wellBeyond": f"over {t * 2}d"}
+    notes = dict(edges)
+
+    # A future-dated confirmation is a negative age, which age_band() reports as `within` on
+    # purpose — it is a pure distance, and an `impossible` band would smuggle a validation
+    # verdict into the distribution. But then the `within` row silently captions those
+    # records "0–{half}d", which is false in the flattering direction while every attention
+    # card on the same page says "dated in the future". Disclosed here rather than rebanded:
+    # the cause is a UTC ts read against a local --today, so this is routine, not exotic.
+    future = [r for r in C.live_risks(ctx.risks)
+              if r.get("confirmationAgeDays") is not None and r["confirmationAgeDays"] < 0]
+    if future:
+        notes["within"] = (f'{edges["within"]} · includes {len(future)} dated in the future '
+                           f'({_id_list(future)}) — a negative age is a file defect, '
+                           f'not an age of 0–{half}d')
+    # Named, oldest first, from the list the rollup built for this. Capped: the row is a
+    # pointer into the register, not a second register.
+    if c["wellBeyond"]:
+        notes["wellBeyond"] = f'{edges["wellBeyond"]} · {_id_list(c["wellBeyond"])}'
 
     def row(n, label: str, note: str) -> str:
         return f'<li><b>{n}</b> {label}<span class="d">{note}</span></li>'
 
-    rows = "".join(row(c["bands"][b], AGE_BAND_LABEL[b], edges[b]) for b in C.sr.AGE_BANDS)
+    rows = "".join(row(c["bands"][b], AGE_BAND_LABEL[b], notes[b]) for b in C.sr.AGE_BANDS)
     rows += row(c["undated"], "with no confirmation on record",
                 "no affirming event exists at all — not an age of zero")
     # The one coloured word in the panel, and it is not an age verdict: an affirming event
-    # whose ts will not parse is a broken record, and this is the same warning mark the
-    # screen already puts on an overdue review or a missing owner. BAND_TEXT, not BAND —
-    # the fill ramp runs 1.68–2.61:1 as text on this card and is unreadable.
+    # whose ts will not parse is a broken record, and `.warnmark` is already this page's ink
+    # for a broken record — an overdue review, a missing owner. Taking the CLASS rather than
+    # re-inlining its colour: BAND is a fill ramp and reads 1.68:1 (medium) to 5.44:1
+    # (critical) as text, with `high` at 2.61:1, and a hand-copied colour judgement is the
+    # thing text_on() and this file's four-copies note exist to stop.
+    #
+    # The note claims only what the count can support. "The confirmer is on record" was an
+    # inference: an affirming event with a blank actor AND an unreadable ts lands in this row
+    # with lastConfirmedBy None, so the panel would have asserted a confirmer while the card
+    # correctly showed none.
     rows += row(c["unreadableDate"],
-                f'<span style="color:{C.BAND_TEXT["high"]};font-weight:700">'
-                f'confirmed, but the date will not parse</span>',
-                "the confirmer is on record; only the distance is unknown")
-    return (f'<div class="att" style="border-left-color:{C.SLATE}">'
+                '<span class="warnmark">confirmed, but the date will not parse</span>',
+                "an affirming event exists — only the distance is unknown")
+    return (f'<div class="att">'
             f'<h3>Confirmation age <span class="cnt">{c["live"]}</span></h3>'
             f'<div class="d" style="margin-bottom:8px">How long since anyone affirmed each '
             f'live risk’s score or treatment decision, against the {t}-day cadence this '
@@ -247,7 +309,7 @@ def attention_lists(ctx: C.Context) -> str:
         cards = ('<div class="att" style="border-left-color:' + C.BAND["low"] + '">'
                  '<h3>Nothing flagged</h3><p class="d">No risk is over appetite, past review, '
                  'unowned, or carrying a stale acceptance.</p></div>')
-    return cards + confirmation_panel(ctx)
+    return cards
 
 
 def owner_table(ctx: C.Context) -> str:
@@ -531,6 +593,12 @@ def render(ctx: C.Context) -> str:
     note = C.provisional_note(ctx.live)
     prov_banner = (f'<div class="sub provisional"><div class="wrap">{note}</div></div>'
                    if note else "")
+    # Its own section, deliberately not an attention list — see confirmation_panel(). Built
+    # here rather than interpolated inline so a register with no live risk renders no heading
+    # over an empty card.
+    conf = confirmation_panel(ctx)
+    conf_section = (f'<div class="section"><h2>How old these determinations are</h2>{conf}'
+                    f'</div>' if conf else "")
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Risk Register — Working View{title_tail}</title>
@@ -569,6 +637,7 @@ def render(ctx: C.Context) -> str:
   </div>
   <div class="section"><h2>Needs attention</h2>
     <div class="attgrid">{attention_lists(ctx)}</div></div>
+  {conf_section}
   <div class="section"><h2>Owner load — open risk per owner</h2>
     <div class="tscroll slim">{owner_table(ctx)}</div></div>
   <footer>{C.esc(ctx.footer("operational working view"))}</footer>
