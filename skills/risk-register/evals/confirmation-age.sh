@@ -45,7 +45,7 @@ mkdir -p "$work"
 # four derived fields and the rollup through the Context, and the rendered-HTML block
 # asserts what the operational panel and the attention cards actually say. A check added
 # to one does not change the other, and neither number is the total.
-EXPECTED_CHECKS=52
+EXPECTED_CHECKS=55
 EXPECTED_RENDER_CHECKS=27
 
 fails=0
@@ -375,6 +375,33 @@ add("an unreadable ts is counted apart from undated",
 add("...and the three still partition the live population",
     sum(cu.confirmation["bands"].values()) + cu.confirmation["undated"]
     + cu.confirmation["unreadableDate"] == cu.confirmation["live"])
+
+# One corrupt event must not cost a risk the good confirmation sitting beside it. This is
+# the ordering half of the same trap: "not-a-date" sorts above every ISO date ('n' > '2'),
+# so a plain lexicographic max hands the latest-affirming slot to the corrupt event and the
+# risk reports unreadableDate while holding a readable, genuinely later one. A readable ts
+# has to win regardless of how the two compare as strings.
+rawmix = json.loads((work / "a.rr").read_text())
+_seen = False
+for e in rawmix["history"]:
+    if e.get("riskId") == "R-001" and e["type"] in AFFIRMING_LITERAL and not _seen:
+        e["ts"] = "not-a-date"          # sorts ABOVE any ISO date
+        _seen = True
+rawmix["history"].append({"ts": base.isoformat() + "T09:00:00Z", "actor": "D. Alleyne",
+                          "riskId": "R-001", "type": "risk-confirmed",
+                          "rationale": "readable, and later in real time"})
+(work / "mix.rr").write_text(json.dumps(rawmix))
+add("the corrupt event the fixture needs really is there and really does sort highest",
+    _seen and max(str(e["ts"]) for e in rawmix["history"]
+                  if e.get("riskId") == "R-001") == "not-a-date")
+cmix = ctx("mix.rr")
+add("a readable ts wins over an unreadable one that sorts above it",
+    cmix.by_id["R-001"]["lastConfirmedAt"] == base.isoformat()
+    and cmix.by_id["R-001"]["confirmationAgeDays"] == 0
+    and cmix.by_id["R-001"]["confirmationBand"] == "within")
+add("so one corrupt event does not push the risk into unreadableDate",
+    cmix.confirmation["unreadableDate"] == 0 and cmix.confirmation["undated"] == 0
+    and sum(cmix.confirmation["bands"].values()) == cmix.confirmation["live"] == 3)
 
 # =================== --age-threshold reaches the derivation ======================
 # Not "is it stored on the Context" — the same register, aged 400 days, must band

@@ -598,7 +598,17 @@ class Context:
         if not affirming:
             return {"lastConfirmedAt": None, "lastConfirmedBy": None,
                     "confirmationAgeDays": None, "confirmationBand": None}
-        last = max(enumerate(affirming), key=lambda t: (str(t[1]["ts"]), t[0]))[1]
+        # A READABLE ts always beats an unreadable one, whatever they sort like as strings.
+        # Without that first key the comparison is plain lexicographic, and "not-a-date"
+        # sorts above every ISO date because 'n' > '2' — so a risk holding a good, later
+        # confirmation alongside one corrupt event reported `unreadableDate` and lost both
+        # its age and its band. That is the same conflation the three-outcome model exists
+        # to prevent (see _confirmation_rollup), arriving through the sort instead of
+        # through the buckets. `unreadableDate` is now reached only when NO affirming
+        # event is readable, which is what the docstring above claims it means.
+        last = max(enumerate(affirming),
+                   key=lambda t: (_days_since(t[1]["ts"], self.today) is not None,
+                                  str(t[1]["ts"]), t[0]))[1]
         days = _days_since(last["ts"], self.today)
         return {
             "lastConfirmedAt": str(last["ts"])[:10],
