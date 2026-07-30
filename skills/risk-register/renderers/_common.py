@@ -85,12 +85,22 @@ def age_bounds(threshold_days: int) -> dict:
     """The four confirmation-age bands as inclusive day boundaries, derived from T.
 
     `{band: (low, high)}`, with `high is None` for the open-ended top band. Boundaries
-    only — no wording. The two views that print them are in different sentence shapes
-    ("0–90d" on a counted row; "within the last 90 days" in a board sentence) and must not
-    converge on one string, but they must not each re-derive `t // 2` either: that formula
-    is currently written out character for character in four places, and render_dashboard's
-    own comment asks the second consumer in this skill to move the arithmetic here. This is
-    that move, arithmetic only.
+    only — no wording. The views that print them are in different sentence shapes ("0–90d"
+    on a counted row; "within the last 90 days" in a board sentence) and must not converge
+    on one string, but they must not each re-derive `t // 2` either.
+
+    NOT YET A CONSOLIDATION, and an earlier version of this docstring claimed it was. The
+    `t // 2` formula is written out character for character in FIVE places now, this being
+    the fifth: age_band() in ../scripts/score_register.py owns the semantics, the `edges`
+    dict in render_dashboard.confirmation_panel() builds its own copy, age_band_ranges() and
+    the age_band_bar() labels in skills/nist-csf/renderers/_common.py are the cross-skill
+    twins, and this function has exactly one caller — freshness_line() below.
+
+    WHAT REMAINS, and for whom: render_dashboard.py's `edges` dict should be rebuilt from
+    this function, which deletes the fourth copy and makes this a real consolidation. That
+    file was under review when this landed and is not edited here. The nist-csf pair stays
+    separate on purpose — that is a DECLARED cross-skill twin, like age_band and
+    AGE_BAND_LABEL, where the semantics must match and the wording must not.
 
     EXCLUSIVE ranges, mirroring sr.age_band(): each band is inclusive of its upper bound
     and `within` runs to T // 2. Cumulative ranges over mutually-exclusive counts are both
@@ -107,7 +117,7 @@ def age_bounds(threshold_days: int) -> dict:
             "wellBeyond": (threshold_days * 2 + 1, None)}
 
 
-def id_list(risks: list, cap: int = 6) -> str:
+def id_list(risks: list, cap: int) -> str:
     """`R-001, R-002, R-004 +2 more` — IDs only, capped, escaped.
 
     IDs and never titles, on every surface. An imported CSF gap carries raw framework
@@ -117,8 +127,23 @@ def id_list(risks: list, cap: int = 6) -> str:
     fourth. risk_title() exists for the places a title is genuinely wanted and can carry a
     placeholder; a count's supporting list is not one of them and has nowhere to put one.
 
-    The cap keeps a row or clause that points into the register from becoming a second copy
-    of it.
+    Naming them is the point, not a concession: _decisions() cites IDs for every board item
+    it raises, and a director who cannot name the record cannot ask about it. The cap keeps
+    a row or clause that points into the register from becoming a second copy of it.
+
+    An UNDECLARED TWIN until now, which in this repo is the exception: render_dashboard.py's
+    module-private `_id_list()` is this function, character for character, with a default of
+    6. Every other intentional duplicate here is declared at both ends (age_band,
+    AGE_BAND_LABEL), so this one is declared too — and it should not survive as a duplicate.
+    render_dashboard.py's copy should be deleted in favour of this one; that file was under
+    review when this landed. Both of its call sites rely on the default rather than naming a
+    cap, so consolidating them means passing cap=6 explicitly at each — a visible change to
+    that file's prose budget, which is the reason to do it there rather than assume it here.
+
+    `cap` is REQUIRED. It carried a default of 6 that no caller ever used — both call sites
+    pass 5 — so the default was a third number for a reader to reconcile against two real
+    ones. A cap is a per-surface editorial judgement about how much of the register a
+    sentence may quote, and there is no defensible default for it.
     """
     shown = ", ".join(esc(r["id"]) for r in risks[:cap])
     return shown + (f" +{len(risks) - cap} more" if len(risks) > cap else "")
@@ -238,13 +263,37 @@ def _today_utc() -> str:
     register skewed one day forward therefore reports as fresher than it is, on the board
     page as well as the working one.
 
-    The tension, recorded rather than glossed: `reviewDate` is a human calendar commitment
-    and reads local-ish, while `ts` is a machine timestamp and is UTC. One reference date
-    cannot be locally correct for both. UTC wins because the two errors are not the same
-    size — a ≤1-day boundary difference on a review deadline is immaterial and self-
-    corrects tomorrow, whereas an age that goes negative and reads as "fresh" is a wrong
-    answer in the flattering direction on the artifact a board reads. Pass --today
-    explicitly for any date that must be evaluated in a particular local zone.
+    THE RESIDUAL, in full, because half of it is a trade and not a win. One reference date
+    serves two kinds of date and cannot be locally correct for both: history `ts` is a
+    machine timestamp in UTC, while these six are human calendar commitments somebody made
+    in a local zone —
+
+        reviewDate           -> reviewOverdue, reviewOverdueDays, the _decisions() line
+                                "N risks are past the scheduled review date", and an
+                                attention list on the working view
+        revalidationDate     -> acceptanceDue, the third KPI TILE on the board page, and
+                                the _decisions() line "Re-validate N risk acceptances"
+        expiryDate           -> acceptanceExpired, the "past expiry" figure beside that
+                                tile, and the _decisions() line "N acceptances have passed
+                                the expiry date and no longer carry approval"
+        acceptance.accepted  -> stamped by `accept` from _now()[:10], so already UTC
+        snapshot ts          -> trend x-axis labels, already UTC
+        meta timestamps      -> display only
+
+    So for the first three, a renderer WEST of UTC now flags a deadline up to a day early,
+    and one EAST of UTC flags it up to a day late. Late is the flattering direction, and it
+    is the same direction this fix removes from confirmation age. That is not a free trade
+    and it should not be described as one: what makes it the right trade is asymmetry of
+    magnitude, not of direction. A deadline misread by one day at the boundary is off by one
+    day and self-corrects tomorrow; a negative age is not off by one day, it inverts — it
+    lands in `within`, the freshest band, and reports a register as CURRENT.
+
+    Neither error is eliminated by choosing the other zone; the ≤1-day boundary error simply
+    moves onto the ages, where it inverts instead of shifting. The real fix is a
+    per-register reporting timezone, which settings.reporting defers (see parse_args). Until
+    then: `--today` is a UTC calendar date, every artifact stamps the zone beside it so a
+    reader in California is not silently told tomorrow's date, and anyone who needs a
+    deadline evaluated in a particular local zone passes --today explicitly.
 
     nist-csf's profile_analysis._today() is the same helper, written the same way; the two
     skills compare UTC timestamps against a UTC reference or the comparison is incoherent
@@ -872,10 +921,33 @@ class Context:
         say "this many of the fresh ones are a broken record, not a recent review" instead
         of quietly presenting a file defect as the best band on the page.
 
-        Reachable only from a hand-edited or imported register now that --today is UTC (see
-        _today_utc(), which fixed the CLI route into this state), which puts it in exactly
-        the population `unreadableDate` already serves: a record that is wrong rather than
-        missing. That is the precedent for giving it a name of its own.
+        NOT a defect count, and nothing here may caption it as one. Three separate routes
+        reach this state and only one of them is a broken file:
+
+          1. An explicit `--today` behind the register's newest confirmation. This is a
+             DOCUMENTED workflow — references/dashboards.md tells the reader to pass
+             --today for a reproducible "as of" view — so `--today 2026-06-30` over a
+             register confirmed in July puts every sound record in this bucket. It is the
+             common case, not the exotic one.
+          2. A hand-edited or imported register carrying a genuinely wrong ts. This is the
+             one that is a file defect, and it is the population `unreadableDate` already
+             serves: a record that is wrong rather than missing.
+          3. Clock skew between whatever wrote the register and whoever renders it.
+
+        _today_utc() closed the fourth route, which was this skill's own CLI defaulting
+        --today to the local date against UTC timestamps. It did not close route 1, and an
+        earlier version of this comment claimed it had.
+
+        What the three share, and all a renderer may say, is that no age can be measured
+        from a confirmation dated after the reference date. Which of the three caused it is
+        not something this rollup can know.
+
+        A THIRD PENDING CONSOLIDATION, recorded rather than left to be rediscovered:
+        render_dashboard.confirmation_panel() derives this same list inline with its own
+        comprehension over C.live_risks(ctx.risks) rather than reading `futureDatedRisks`,
+        so the rule currently lives in two places. Its row note is not the duplicate and
+        should stay — an operational reader is the one who can go and fix the file — but its
+        derivation should read these keys. That file was under review when this landed.
         """
         open_risks = live_risks(self.risks)
         bands = {b: 0 for b in sr.AGE_BANDS}
@@ -929,19 +1001,173 @@ class Context:
             counts[r[view]["impact"] - 1][r[view]["likelihood"] - 1] += 1
         return counts, skipped
 
+    # The zone, stamped, and not negotiable now that --today is a UTC calendar date. On the
+    # evening of 2026-07-29 PDT this line read "As of 2026-07-30" — tomorrow's date, on a
+    # board artifact, to a reader in California who had asked for no such thing. The date is
+    # right and the reader's reading of it was wrong, which is a labelling problem and is
+    # fixed by labelling. Stamped unconditionally, including when --today was passed
+    # explicitly, because the zone says how the date is INTERPRETED — every comparison behind
+    # this page reads it as a UTC calendar date whoever supplied it.
+    #
+    # NOT applied to render_report.py, which builds its own "As of {ctx.today}" at line 40
+    # instead of calling this. That file is outside this change's scope; the divergence is
+    # recorded in the accompanying report so it can be routed.
+    ZONE = "UTC"
+
     def as_of_line(self) -> str:
         if self.baseline:
-            return (f'As of {self.today} · compared against '
+            return (f'As of {self.today} {self.ZONE} · compared against '
                     f'{self.baseline.get("label", "the last snapshot")}')
-        return f"As of {self.today} · no snapshot yet, so no trend is available"
+        return f"As of {self.today} {self.ZONE} · no snapshot yet, so no trend is available"
 
     def footer(self, extra: str = "") -> str:
-        bits = [DISCLAIMER, f"generated {self.today} from {Path(self.register_path).name}"]
+        # Zone-stamped for the same reason as as_of_line(): this is the second place a bare
+        # UTC date reached a board artifact and read as tomorrow to a reader west of
+        # Greenwich. "generated" is also slightly wrong — it is the reference date, which
+        # --today can move — but that wording predates this change and is left alone.
+        bits = [DISCLAIMER,
+                f"generated {self.today} {self.ZONE} from {Path(self.register_path).name}"]
         if extra:
             bits.append(extra)
         if self.tr.absent:
             bits.append("board narrative not supplied")
         return " · ".join(bits)
+
+
+def freshness_line(ctx: Context) -> str:
+    """One sentence on how current a board-facing picture is. IDs only, never titles.
+
+    Operational views get the distribution; board views get one sentence. A board does not
+    need a histogram — render_dashboard's confirmation_panel() is the work queue, and its
+    reader is deciding what to look at next. The reader here is deciding whether to act on
+    the page in front of them, so what they need is whether the page is current.
+
+    Filed in the executive summary rather than under "Decisions for the board": it is a
+    caveat on the whole document, not an ask. The missed-review line in _decisions() is the
+    right home for "somebody missed a commitment" and is unchanged by this.
+
+    HERE, not in render_board.py, because there are TWO board-facing renderers and this is
+    wired into one. render_report.py::exec_summary() has the identical two-branch shape and
+    no freshness line yet; board-safety.sh's header exists because the title guard was
+    written into the executive dashboard first and the printable report kept exposing raw
+    framework wording for a full release. A module-private helper is what makes that mistake
+    easy to repeat, so the sentence has one home and the second renderer is one call away.
+    DEFERRED, not overlooked — see the Task 8/9 note in the report accompanying this change.
+
+    Every clause is an EXCLUSIVE band, and together with the three non-band states they
+    partition the live register — so the numbers here sum to the "Of N live risks" the
+    sentence opens with, and a director can add them up. An earlier draft of this reported
+    only the best and worst bands, which leaves a silent remainder: a board figure that does
+    not add up. Zero-count clauses are dropped rather than printed as "0", so the sentence
+    stays short when the picture is simple, and the sum still holds because a dropped clause
+    contributes nothing.
+
+    Boundaries come from age_bounds() and are never re-derived here. Cumulative ranges over
+    mutually-exclusive counts are false in the flattering direction, and the board renderer
+    is where that shipped: "within 360 days" once captioned the count of determinations PAST
+    the chosen cadence.
+
+    Clauses run freshest to oldest, deliberately matching confirmation_panel()'s row order
+    rather than leading with the worst. A director and the CISO read these two artifacts over
+    one register, often side by side, and two orderings of one distribution is a difference
+    a reader has to reconcile before they can trust either. The wellBeyond clause names its
+    IDs, which is what makes it findable without being first.
+
+    THREE things that are not bands, kept apart, because conflating any two of them makes
+    this sentence assert something false about a specific register:
+
+      undated         no affirming event exists at all — "nobody has ever re-affirmed this".
+      unreadableDate  a confirmation IS on record and the date will not parse. It must
+                      never be captioned as an absent confirmation; only the distance is
+                      unknown.
+      futureDated     a confirmation dated after the reference date. age_band() reports a
+                      negative age as `within`, so these arrive inside the freshest band;
+                      leaving them there would count a record nobody can measure as the best
+                      news on the page, so they are subtracted out and named.
+
+    That last clause states the FACT and not a diagnosis, and the distinction is not
+    pedantry. `--today` is a user-supplied reference date that references/dashboards.md tells
+    people to pass explicitly for a reproducible "as of" view, so `--today 2026-06-30` over a
+    register confirmed in July puts every sound record in this clause. Calling those a
+    "record defect" would libel nine good records on a board page over a documented
+    workflow. "Dated after the reference date" is true whichever cause applies, and which
+    cause it is — a skewed file, or an as-of date behind the register — is not something this
+    function can know.
+
+    Titles are withheld on purpose. An imported gap still carries raw CSF framework wording
+    until somebody rewords it, and this line would otherwise be a fourth route for that
+    wording onto a board page — the third one shipped for a full release before anybody
+    noticed it. id_list() gives IDs, capped; IDs carry no such payload. Naming them is the
+    point: _decisions() names IDs for every board item it raises, and a director who cannot
+    name the record cannot ask about it.
+
+    Says nothing about confidence. It reports how long ago each risk was affirmed and
+    leaves the reader to decide what that means, because a supplier concentration and a
+    patching backlog go stale at completely different rates. Nothing here expires,
+    suppresses or rescores anything, and no wording in it may imply otherwise.
+    """
+    c = ctx.confirmation
+    if not c["live"]:
+        return ""
+    bounds = age_bounds(c["thresholdDays"])
+    # Future-dated records are already counted inside the band their negative age fell in
+    # (`within`, per age_band), so they are moved OUT of the band counts before any clause
+    # is written — otherwise they are reported twice and the sum overshoots its own
+    # denominator. Decremented from the band each one actually landed in rather than from
+    # `within` by name, so the partition holds by construction.
+    future = c["futureDatedRisks"]
+    bands = dict(c["bands"])
+    for r in future:
+        if r["confirmationBand"] in bands:
+            bands[r["confirmationBand"]] -= 1
+    # DEFENSIVE, and unreachable through age_band() as written: a negative age always lands
+    # in `within` for any threshold parse_args accepts, so `old` cannot differ from the
+    # decremented wellBeyond count above. It is here so the ID LIST and the count can never
+    # disagree if that ever stops being true — the count comes from the loop above and this
+    # list does not, and a clause that says "2" beside three names is worse than either.
+    # Labelled rather than left looking load-bearing.
+    future_ids = {r["id"] for r in future}
+    old = [r for r in c["wellBeyond"] if r["id"] not in future_ids]
+
+    clauses = [
+        (bands["within"],
+         f'{bands["within"]} confirmed within the last {bounds["within"][1]} days'),
+        (bands["approaching"],
+         f'{bands["approaching"]} last confirmed between {bounds["approaching"][0]} and '
+         f'{bounds["approaching"][1]} days ago'),
+        (bands["beyond"],
+         f'{bands["beyond"]} last confirmed between {bounds["beyond"][0]} and '
+         f'{bounds["beyond"][1]} days ago'),
+        # Named, oldest first, from the list the rollup built for exactly this. A count a
+        # board cannot ask a question about is not worth the words.
+        (len(old),
+         f'{len(old)} not confirmed in over {bounds["beyond"][1]} days '
+         f'({id_list(old, cap=5)})'),
+        # The fact, not the cause. See the docstring: an explicit --today behind the
+        # register puts sound records here, and this clause must be true of those too.
+        (len(future),
+         f'{len(future)} dated after the {ctx.today} reference date, so no age can be '
+         f'measured for them ({id_list(future, cap=5)})'),
+        (c["undated"], f'{c["undated"]} carrying no confirmation record'),
+        # "Confirmed", explicitly. The confirmation and its confirmer are on record and it
+        # would be a lie to file this under an absent one.
+        (c["unreadableDate"],
+         f'{c["unreadableDate"]} confirmed on a date the register cannot read'),
+    ]
+    bits = [text for count, text in clauses if count]
+    plural = "s" if c["live"] != 1 else ""
+    # The closing clause says what the sentence is NOT, because a distribution of ages
+    # printed on a board page invites the reading that old determinations have been marked
+    # down. Nothing in this skill expires, suppresses or rescores on age.
+    #
+    # It says so without the word "expire", which is a preference and not a constraint: the
+    # confidence-vocabulary guard on board views does not list that word, and "past expiry"
+    # already reaches this page from _decisions(). The phrasing below states the
+    # non-suppression half directly, which is the part a director would otherwise infer
+    # wrongly, so there was no reason to spend the word.
+    return (f'<div class="note freshness">Of {c["live"]} live risk{plural}: '
+            + "; ".join(bits) + '. Age is reported so the board can weigh it, and nothing '
+            'on this page is rescored or re-ranked because of it.</div>')
 
 
 def build(argv: list[str], description: str, default_out: str) -> Context:

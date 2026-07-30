@@ -45,8 +45,8 @@ mkdir -p "$work"
 # four derived fields and the rollup through the Context, and the rendered-HTML block
 # asserts what the operational panel and the attention cards actually say. A check added
 # to one does not change the other, and neither number is the total.
-EXPECTED_CHECKS=51
-EXPECTED_RENDER_CHECKS=21
+EXPECTED_CHECKS=52
+EXPECTED_RENDER_CHECKS=24
 
 fails=0
 chk() {
@@ -122,15 +122,24 @@ rm -f "$work"/*.rr
 # ---- m.rr: one register that reaches EVERY confirmation state at once -------------
 # The board sentence's whole claim is that its numbers add up, and that claim cannot fail
 # on a fixture where one clause carries the entire live population: every other clause is
-# dropped at zero, and the sum is then "8 == 8" over a single number. Trap A in this file's
+# dropped at zero, and the sum is then "9 == 9" over a single number. Trap A in this file's
 # header, and the one Task 5 repeated on a fresh fixture — three of its six panel rows had
 # no failing check because every rendered fixture had a nonzero count only in `within`.
 #
-# So this register is built with nine risks by the real CLI and then re-dated in the
-# derivation block below, one risk per state: within, approaching, beyond, wellBeyond ×2,
-# future-dated, unreadable ts, no affirming event at all, and one closed risk that must not
-# appear in any of them. Titles are deliberately long, because a check that no title
-# fragment reaches a board sentence proves nothing over titles too short to notice.
+# So this register is built with TEN risks by the real CLI and then re-dated in the
+# derivation block below: within, approaching, beyond, wellBeyond ×2, future-dated,
+# unreadable ts, NO AFFIRMING EVENT AT ALL ×2, and one closed risk that must not appear in
+# any of them.
+#
+# The ×2 on undated is not symmetry for its own sake. With undated and unreadableDate both
+# at exactly 1, no NUMBER in the sentence can tell them apart and only the captions are
+# pinned — so swapping the two count expressions while leaving the captions alone passed the
+# whole suite. That is the same vacuity this fixture was built to close, closed for the four
+# bands and left open for the two states most easily conflated. Distinct counts make the
+# cross-wiring arithmetically visible.
+#
+# Titles are deliberately long, because a check that no title fragment reaches a board
+# sentence proves nothing over titles too short to notice.
 "$PY" "$SR" init "$work/m.rr" --client "Mixed Co" --assessor "D. Alleyne" >/dev/null \
   || die "init m.rr"
 while IFS= read -r t; do
@@ -146,10 +155,11 @@ Third-party data processor onboarded without an assessment
 Detection coverage absent across the finance estate
 Incident response plan not exercised since 2024
 Unpatched internet-facing file transfer service
+Shadow IT sanctioned without a security review
 Retired file share still reachable from the corporate LAN
 TITLES
-"$PY" "$SR" set-status "$work/m.rr" R-009 closed \
-  --why "decommissioned and verified" >/dev/null || die "set-status R-009 closed"
+"$PY" "$SR" set-status "$work/m.rr" R-010 closed \
+  --why "decommissioned and verified" >/dev/null || die "set-status R-010 closed"
 
 set +e
 "$PY" - "$work" "$RR" <<'PY' > "$work/out.txt" 2> "$work/err.txt"
@@ -424,12 +434,18 @@ add("DEFAULT_AGE_THRESHOLD is the only default, and argparse uses it",
 # share a local date, so `east == west` fails for date.today() at every instant, and
 # membership in the UTC date sampled either side pins WHICH date it is without a
 # midnight-rollover flake.
-def _default_today(tz):
+def _in_zone(tz, thunk):
+    """Run `thunk` with TZ forced to `tz`, restoring TZ whatever happens.
+
+    Both the assignment and the tzset are INSIDE the try. With the assignment outside it, a
+    platform where time.tzset() does not exist leaks TZ into every check after this one
+    instead of restoring it.
+    """
     old = os.environ.get("TZ")
-    os.environ["TZ"] = tz
-    time.tzset()
     try:
-        return C.parse_args([str(work / "a.rr")], "d", "o.html").today
+        os.environ["TZ"] = tz
+        time.tzset()
+        return thunk()
     finally:
         if old is None:
             os.environ.pop("TZ", None)
@@ -438,12 +454,31 @@ def _default_today(tz):
         time.tzset()
 
 
+EAST, WEST = "Pacific/Kiritimati", "Etc/GMT+12"      # UTC+14 and UTC-12, 26 hours apart
+
+
+def _default_today(tz):
+    return _in_zone(tz, lambda: C.parse_args([str(work / "a.rr")], "d", "o.html").today)
+
+
+# THE POSITIVE CONTROL, and the check below is worthless without it. The whole argument is
+# that two offsets 26 hours apart can never share a local date, so `east == west` cannot be
+# satisfied by date.today(). That argument silently evaporates on an image with no zone
+# database — a python:3-alpine or a -slim without tzdata — where both names fail to resolve,
+# both collapse to UTC+0, and the local-date mutant passes. So the zones are proved to be
+# doing something first: they must yield DIFFERENT local dates, which is exactly the
+# property the next check relies on and exactly what a missing tzdata destroys.
+_zones_bind = _in_zone(EAST, lambda: date.today().isoformat()) \
+    != _in_zone(WEST, lambda: date.today().isoformat())
+add("the two test zones really are a day apart (tzdata present)", _zones_bind)
 _u1 = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-_east = _default_today("Pacific/Kiritimati")        # UTC+14
-_west = _default_today("Etc/GMT+12")                # UTC-12
+_east = _default_today(EAST)
+_west = _default_today(WEST)
 _u2 = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+# Guarded by the control above rather than merely accompanied by it: without `_zones_bind`
+# this reports PASS on a machine where it proved nothing at all.
 add("--today defaults to the UTC date and does not move with the local zone",
-    _east == _west and _east in (_u1, _u2))
+    _zones_bind and _east == _west and _east in (_u1, _u2))
 
 # ============================== reviewOverdueDays ================================
 # A missed deadline is a fact with a magnitude, still boolean-gated. Both halves are
@@ -557,12 +592,15 @@ add("no age field is persisted to the register",
 # the cap is the part no fixture below reaches: the mixed register has two wellBeyond risks
 # and five would be needed. Asserted directly rather than left uncovered, escaping included —
 # an id is register data and reaches HTML unquoted otherwise.
+# `cap` is passed at every call, here included: it has no default, because the one it had
+# was 6 and no caller ever used it.
 add("id_list caps, says how many it withheld, and escapes",
     C.id_list([{"id": "R-%03d" % i} for i in range(1, 9)], cap=5)
     == "R-001, R-002, R-003, R-004, R-005 +3 more"
     and C.id_list([{"id": "R-001"}], cap=5) == "R-001"
-    and C.id_list([{"id": "R-1 & 2"}]) == "R-1 &amp; 2"
-    and C.id_list([]) == "")
+    and C.id_list([{"id": "R-1 & 2"}], cap=5) == "R-1 &amp; 2"
+    and C.id_list([], cap=5) == ""
+    and raises(lambda: C.id_list([{"id": "R-001"}])))
 
 add("age_bounds restates age_band's boundaries exactly",
     all(sr.age_band(lo, t) == b
@@ -583,13 +621,20 @@ add("age_bounds restates age_band's boundaries exactly",
 #   R-003    age 200      beyond        (T=180: 181–360)
 #   R-004    age 400      wellBeyond    named second — 400 days
 #   R-005    age 500      wellBeyond    named first  — oldest
-#   R-006    ts unreadable              confirmed, distance unknown
-#   R-007    no affirming event         never confirmed
+#   R-006    ts unreadable              confirmed, distance unknown          -> 1 of these
+#   R-007    no affirming event         never confirmed                      -> 2 of these,
+#   R-009    no affirming event         never confirmed                         so the two
+#                                                                              non-band
+#                                                                              states differ
+#                                                                              by count and
+#                                                                              not only by
+#                                                                              caption
 #   R-008    age -3       future-dated  lands in `within` per age_band, and must not be
 #                                       reported there
-#   R-009    closed                     in none of the above
+#   R-010    closed                     in none of the above
 MIXED_AGES = {"R-001": 0, "R-002": 120, "R-003": 200, "R-004": 400, "R-005": 500,
               "R-008": -3}
+MIXED_UNDATED = ("R-007", "R-009")
 rawm = json.loads((work / "m.rr").read_text())
 keep = []
 for e in rawm["history"]:
@@ -598,7 +643,7 @@ for e in rawm["history"]:
         e["ts"] = (base - timedelta(days=MIXED_AGES[rid])).isoformat() + "T09:00:00Z"
     elif e["type"] in AFFIRMING_LITERAL and rid == "R-006":
         e["ts"] = "2026-02-30T09:00:00Z"          # lexically fine, arithmetically not
-    elif e["type"] in AFFIRMING_LITERAL and rid == "R-007":
+    elif e["type"] in AFFIRMING_LITERAL and rid in MIXED_UNDATED:
         continue                                   # never affirmed at all
     keep.append(e)
 rawm["history"] = keep
@@ -618,12 +663,14 @@ cm = ctx("m.rr")
 add("the mixed fixture reaches every confirmation state at once",
     cm.confirmation["bands"] == {"within": 2, "approaching": 1,
                                  "beyond": 1, "wellBeyond": 2}
-    and cm.confirmation["undated"] == 1 and cm.confirmation["unreadableDate"] == 1
+    # Different numbers, deliberately: equal counts here make every downstream check blind
+    # to the two being cross-wired.
+    and cm.confirmation["undated"] == 2 and cm.confirmation["unreadableDate"] == 1
     and cm.confirmation["futureDated"] == 1
     and [r["id"] for r in cm.confirmation["futureDatedRisks"]] == ["R-008"]
     and [r["id"] for r in cm.confirmation["wellBeyond"]] == ["R-005", "R-004"]
-    and cm.confirmation["live"] == 8 and len(cm.risks) == 9
-    and cm.by_id["R-009"]["status"] == "closed")
+    and cm.confirmation["live"] == 9 and len(cm.risks) == 10
+    and cm.by_id["R-010"]["status"] == "closed")
 
 # The completion sentinel, reached only if nothing above raised. Without it, a block
 # dying halfway reports every check it managed to reach as a pass and the suite exits 0.
@@ -727,6 +774,15 @@ done
 "$PY" "$RR/renderers/render_board.py" "$work/m.rr" "$work/board_m365.html" \
   --offline --today "$today" --age-threshold 365 >/dev/null \
   || die "render_board errored on m.rr at --age-threshold 365"
+# A FOURTH board render, on the shipped example register with an --today behind every
+# confirmation in it. references/dashboards.md tells the reader to pass --today for a
+# reproducible "as of" view, and doing so makes every sound record "dated after the
+# reference date": nine good records that a clause calling them a defect would libel on a
+# board page. Rendered from examples/ rather than a built fixture on purpose — this is the
+# artifact a user gets by following the documentation.
+"$PY" "$RR/renderers/render_board.py" "$RR/examples/example-register-v2.rr" \
+  "$work/board_asof.html" --offline --today 2026-06-30 >/dev/null \
+  || die "render_board errored on the shipped example at --today 2026-06-30"
 
 set +e
 "$PY" - "$work" "$RR" "$today" <<'PY' > "$work/render_out.txt" 2> "$work/render_err.txt"
@@ -741,7 +797,7 @@ import score_register as sr
 HTML = {k: (work / ("dash_%s.html" % k)).read_text()
         for k in ("a", "u", "b", "fut", "appr", "beyond", "far", "t365")}
 BOARD = {k: (work / ("board_%s.html" % k)).read_text()
-         for k in ("m180", "mtr", "m365")}
+         for k in ("m180", "mtr", "m365", "asof")}
 
 emitted = [0]
 
@@ -941,6 +997,10 @@ def sentence(key):
 
 
 s180, str_, s365 = sentence("m180"), sentence("mtr"), sentence("m365")
+# The documented as-of workflow, on the SHIPPED example register: --today behind every
+# confirmation in the file. Every record in it is sound, and the future-dated clause has to
+# be true of them anyway. This is the fixture the reviewer's finding was reproduced on.
+s_asof = sentence("asof")
 # Every check below leads with this rather than substring-testing a None and taking the
 # whole block down with a TypeError. A missing sentence must report as the failure it is —
 # "cites IDs, never titles" and "is never captioned as absent" would BOTH be vacuously true
@@ -984,12 +1044,19 @@ def sum_problem(s):
 
 # The clause counts are pinned as well as summed. A sum alone cannot fail on a register
 # where one clause carries everybody: seven clauses at T=180 and six at T=365 (wellBeyond
-# empties at the wider cadence) is what makes the sum a real constraint. 8 is an independent
-# literal — m.rr holds nine risks and closes one — so a denominator computed AS the sum of
-# the clauses, which would make this check tautological, fails here.
+# empties at the wider cadence) is what makes the sum a real constraint.
+#
+# WHAT THIS CHECK DOES NOT CATCH, stated because the comment here previously claimed the
+# opposite: a denominator computed AS the sum of the clauses passes, and was verified to
+# pass. The partition guarantees sum == live, so the two expressions agree on every register
+# that satisfies the rollup's own invariant, and no fixture can separate them. What the sum
+# does catch is the defect it was written for — a clause dropped, doubled, or made cumulative
+# so the printed numbers stop accounting for the printed denominator. The independent literal
+# below ("Of 9 live risks", against a register of ten with one closed) is what pins the
+# denominator itself.
 add("the freshness clauses sum to the sentence's own denominator, at two cadences",
     rendered and sum_problem(s180) == "" and sum_problem(s365) == ""
-    and s180.startswith("Of 8 live risks: ")
+    and s180.startswith("Of 9 live risks: ")
     and len(s180.split(";")) == 7 and len(s365.split(";")) == 6)
 
 # IDs only, never titles. An imported gap carries raw CSF framework wording until somebody
@@ -999,7 +1066,7 @@ add("the freshness clauses sum to the sentence's own denominator, at two cadence
 mreg = json.loads((work / "m.rr").read_text())
 mtitles = [r["title"] for r in mreg["risks"]]
 add("the freshness sentence cites IDs and never titles",
-    rendered and len([t for t in mtitles if len(t) > 25]) == 9
+    rendered and len([t for t in mtitles if len(t) > 25]) == 10
     and not any(t[:25] in s180 for t in mtitles)
     and not any(t[:25] in s365 for t in mtitles)
     # ...and it does name the risks it counts, or "contains no title" is also true of a
@@ -1009,10 +1076,16 @@ add("the freshness sentence cites IDs and never titles",
 # The three non-band states, kept apart in the prose. `unreadableDate` means a confirmation
 # and a confirmer ARE on record and only the distance is unknown; captioning it as an absent
 # confirmation is the one thing that state exists to prevent.
+# Pinned with their COUNTS attached, and the counts differ (2 undated, 1 unreadable). With
+# both at 1 the two clauses were distinguishable only by caption, so swapping the two count
+# expressions while leaving the captions in place passed all 73 checks — the exact
+# cross-wiring the two states exist to prevent. Now each caption carries the other's number
+# under that swap and both halves fail.
 add("an unreadable confirmation date is never captioned as an absent one",
     rendered and "1 confirmed on a date the register cannot read" in s180
-    and "1 carrying no confirmation record" in s180
+    and "2 carrying no confirmation record" in s180
     and s180.count("carrying no confirmation record") == 1
+    and s180.count("confirmed on a date the register cannot read") == 1
     and "never confirmed" not in s180)
 
 # Exclusive, and derived from the cadence rather than from the argparse default. The
@@ -1035,15 +1108,52 @@ add("the sentence's ranges are exclusive and rescale with the cadence",
 
 # A future-dated confirmation has a negative age, and age_band() reports that as `within` on
 # purpose. So the rollup's `within` count is 2 while the sentence's freshest clause says 1:
-# the defect is subtracted out and named rather than absorbed into the best news on the
-# page. Both halves are the check — the rollup number and the prose number must DIFFER here,
-# which is what makes it impossible to satisfy by reporting the band count verbatim.
+# it is subtracted out and named rather than absorbed into the best news on the page. Both
+# halves are the check — the rollup number and the prose number must DIFFER here, which is
+# what makes it impossible to satisfy by reporting the band count verbatim.
 add("a future-dated confirmation is named, not absorbed into the freshest clause",
-    rendered and "1 carrying a confirmation date in the future (R-008)" in s180
-    and "a record defect rather than a recent review" in s180
+    rendered and ("1 dated after the %s reference date" % today) in s180
+    and "(R-008)" in s180
     and "1 confirmed within the last 90 days" in s180
     and cx("m.rr").confirmation["bands"]["within"] == 2
     and cx("m.rr").confirmation["futureDated"] == 1)
+# ...and it states the FACT, never the cause. references/dashboards.md tells the reader to
+# pass --today for a reproducible "as of" view, so an as-of date behind the register puts
+# every SOUND record in this clause — nine of them on the shipped example at --today
+# 2026-06-30. Calling those "a record defect" libels good records on a board page over a
+# documented workflow, and no wording here may diagnose a cause this code cannot know.
+# Asserted on the as-of render, where the population is entirely sound, and on the mixed
+# one, where it is genuinely skewed: the same clause has to be true of both.
+DIAGNOSES = ["record defect", "file defect", "broken record", "not a recent review",
+             "rather than a recent review", "hand-edited", "clock"]
+add("the future-dated clause states the fact and never diagnoses a cause",
+    rendered and s_asof is not None
+    # The as-of fixture is the non-vacuity guard: without a sound population in this
+    # clause, "no diagnosis present" is also true of a page that never renders the clause.
+    and "9 dated after the 2026-06-30 reference date" in s_asof
+    and not any(d in s_asof or d in s180 for d in DIAGNOSES)
+    and "so no age can be measured for them" in s_asof)
+# The closing clause is load-bearing prose: a distribution of ages on a board page invites
+# the reading that old determinations have been marked down, and this is the sentence that
+# denies it. Pinned on its own rather than left to sum_problem's right anchor, where anyone
+# rewording it got an arithmetic failure about arithmetic that was fine.
+# The reference date is a UTC calendar date, so every surface that prints it says so. On the
+# evening of 2026-07-29 PDT the board page read "As of 2026-07-30" — tomorrow's date, to a
+# reader who had asked for no such thing. The date was right; the label was missing. Asserted
+# on a board render AND an operational one, because as_of_line() feeds both, and with the
+# negative lookahead so that "UTC appears somewhere" cannot stand in for "every printed
+# reference date carries it".
+add("the reference date is stamped with its zone wherever it is printed",
+    ("As of %s UTC" % today) in BOARD["m180"]
+    and ("generated %s UTC from m.rr" % today) in BOARD["m180"]
+    and "As of 2026-06-30 UTC" in BOARD["asof"]
+    and ("As of %s UTC" % today) in HTML["a"]
+    and all(re.search(r"As of \d{4}-\d\d-\d\d(?! UTC)", h) is None
+            for h in (BOARD["m180"], BOARD["asof"], HTML["a"])))
+add("the sentence closes by denying that age suppresses or rescores anything",
+    rendered and s180.endswith("Age is reported so the board can weigh it, and nothing on "
+                               "this page is rescored or re-ranked because of it.")
+    and s_asof.endswith("because of it."))
 
 print("#DONE\t%d" % emitted[0], flush=True)
 PY

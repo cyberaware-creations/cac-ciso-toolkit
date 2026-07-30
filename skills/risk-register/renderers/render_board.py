@@ -149,120 +149,25 @@ def changed_block(ctx: C.Context) -> str:
     return out
 
 
-def freshness_line(ctx: C.Context) -> str:
-    """One sentence on how current this picture is. IDs only, never titles.
-
-    Operational views get the distribution; board views get one sentence. A board does not
-    need a histogram — render_dashboard's confirmation_panel() is the work queue, and its
-    reader is deciding what to look at next. The reader here is deciding whether to act on
-    the page in front of them, so what they need is whether the page is current.
-
-    Filed in the executive summary rather than under "Decisions for the board": it is a
-    caveat on the whole document, not an ask. The missed-review line in _decisions() is the
-    right home for "somebody missed a commitment" and is unchanged by this.
-
-    Every clause is an EXCLUSIVE band, and together with the three non-band states they
-    partition the live register — so the numbers here sum to the "Of N live risks" the
-    sentence opens with, and a director can add them up. An earlier draft of this reported
-    only the best and worst bands, which leaves a silent remainder: a board figure that does
-    not add up. Zero-count clauses are dropped rather than printed as "0", so the sentence
-    stays short when the picture is simple, and the sum still holds because a dropped clause
-    contributes nothing.
-
-    Boundaries come from C.age_bounds() and are never re-derived here. Cumulative ranges
-    over mutually-exclusive counts are false in the flattering direction, and this renderer
-    is where that shipped: "within 360 days" once captioned the count of determinations PAST
-    the chosen cadence.
-
-    THREE things that are not bands, kept apart, because conflating any two of them makes
-    this sentence assert something false about a specific register:
-
-      undated         no affirming event exists at all — "nobody has ever re-affirmed this".
-      unreadableDate  a confirmation IS on record and the date will not parse. It must
-                      never be captioned as an absent confirmation; only the distance is
-                      unknown.
-      futureDated     a confirmation dated after today. age_band() reports a negative age
-                      as `within`, so these arrive inside the freshest band; reporting them
-                      there would present a broken record as the best news on the page, so
-                      they are subtracted out and named. See _confirmation_rollup().
-
-    Titles are withheld on purpose. An imported gap still carries raw CSF framework wording
-    until somebody rewords it, and this line would otherwise be a fourth route for that
-    wording onto a board page — the third one shipped for a full release before anybody
-    noticed it. C.id_list() gives IDs, capped; IDs carry no such payload.
-
-    Says nothing about confidence. It reports how long ago each risk was affirmed and
-    leaves the reader to decide what that means, because a supplier concentration and a
-    patching backlog go stale at completely different rates. Nothing here expires,
-    suppresses or rescores anything, and no wording in it may imply otherwise.
-    """
-    c = ctx.confirmation
-    if not c["live"]:
-        return ""
-    bounds = C.age_bounds(c["thresholdDays"])
-    # Future-dated records are already counted inside the band their negative age fell in
-    # (`within`, per age_band), so they are moved OUT of the band counts before any clause
-    # is written — otherwise they are reported twice and the sum overshoots its own
-    # denominator. Decremented from the band each one actually landed in rather than from
-    # `within` by assumption, so the partition holds by construction.
-    future = c["futureDatedRisks"]
-    bands = dict(c["bands"])
-    for r in future:
-        if r["confirmationBand"] in bands:
-            bands[r["confirmationBand"]] -= 1
-    future_ids = {r["id"] for r in future}
-    old = [r for r in c["wellBeyond"] if r["id"] not in future_ids]
-
-    clauses = [
-        (bands["within"],
-         f'{bands["within"]} confirmed within the last {bounds["within"][1]} days'),
-        (bands["approaching"],
-         f'{bands["approaching"]} last confirmed between {bounds["approaching"][0]} and '
-         f'{bounds["approaching"][1]} days ago'),
-        (bands["beyond"],
-         f'{bands["beyond"]} last confirmed between {bounds["beyond"][0]} and '
-         f'{bounds["beyond"][1]} days ago'),
-        # Named, oldest first, from the list the rollup built for exactly this. A count a
-        # board cannot ask a question about is not worth the words.
-        (len(old),
-         f'{len(old)} not confirmed in over {bounds["beyond"][1]} days '
-         f'({C.id_list(old, cap=5)})'),
-        (len(future),
-         f'{len(future)} carrying a confirmation date in the future '
-         f'({C.id_list(future, cap=5)}) — a record defect rather than a recent review'),
-        (c["undated"], f'{c["undated"]} carrying no confirmation record'),
-        # "Confirmed", explicitly. The confirmation and its confirmer are on record and it
-        # would be a lie to file this under an absent one.
-        (c["unreadableDate"],
-         f'{c["unreadableDate"]} confirmed on a date the register cannot read'),
-    ]
-    bits = [text for count, text in clauses if count]
-    plural = "s" if c["live"] != 1 else ""
-    # The closing clause says what the sentence is NOT, because a distribution of ages
-    # printed on a board page invites the reading that old determinations have been marked
-    # down. Nothing in this skill expires, suppresses or rescores on age.
-    #
-    # It deliberately avoids the word "expire" even though it would be denying it. A
-    # board-facing view is checked against a blacklist of confidence vocabulary, a blacklist
-    # matches substrings and cannot read a negation, and being right in a way that trips the
-    # guard is not worth one word. Reworded, not exempted.
-    return (f'<div class="note freshness">Of {c["live"]} live risk{plural}: '
-            + "; ".join(bits) + '. Age is reported so the board can weigh it, and nothing '
-            'on this page is rescored or re-ranked because of it.</div>')
-
-
 def summary_block(ctx: C.Context) -> str:
-    # freshness_line() goes on BOTH branches. It is a caveat on the figures, and the
+    # C.freshness_line() goes on BOTH branches. It is a caveat on the figures, and the
     # figures are present either way — a page whose narrative slot is a placeholder is
     # exactly the page most likely to be read off the numbers alone.
+    #
+    # It lives in _common.py rather than here because render_report.py::exec_summary() has
+    # this identical two-branch shape and still has no freshness line. That renderer is the
+    # printable board report — the artifact most likely to be handed round a table on paper,
+    # and the one board-safety.sh's own header records as having kept exposing raw framework
+    # wording for a full release after the executive dashboard was fixed. One sentence in
+    # one place, so wiring the second consumer is a one-line change rather than a copy.
     if ctx.tr.executive_summary:
         return (f'<p class="lead">{C.esc(ctx.tr.executive_summary)}</p>'
                 f'<div class="note">Executive narrative from the ciso-board-translation skill.</div>'
-                + freshness_line(ctx))
+                + C.freshness_line(ctx))
     return (f'<p class="lead placeholder">{C.PLACEHOLDER}</p>'
             f'<div class="note">The figures on this page are derived from the register and are '
             f'complete; only the narrative is missing.</div>'
-            + freshness_line(ctx))
+            + C.freshness_line(ctx))
 
 
 CSS = f"""
