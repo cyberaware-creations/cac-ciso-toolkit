@@ -123,7 +123,7 @@ fit the fixture.
 **Files:**
 - Modify: `skills/nist-csf/scripts/profile_analysis.py` (add constants + `age_band()` near `_median_int` at line 525; extend `_age()` at line 661; extend self-test after line 3660)
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 In `skills/nist-csf/scripts/profile_analysis.py`, find this block in `_cmd_self_test` (line 3655):
 
@@ -214,13 +214,13 @@ Function the whole Profile, and the identity assertions pass when `_age`'s `>` b
 because drift is only observable with a rating exactly on the line. Assertions that cannot
 fail are the defect this repo has shipped most often; these five can.
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `python3 skills/nist-csf/scripts/profile_analysis.py self-test 2>&1 | tail -5`
 
 Expected: FAIL — a `NameError: name 'age_band' is not defined` traceback, because `age_band` does not exist yet.
 
-- [ ] **Step 3: Add the constants and the band function**
+- [x] **Step 3: Add the constants and the band function**
 
 In `skills/nist-csf/scripts/profile_analysis.py`, immediately **before** `def _median_int(` (line 525), insert:
 
@@ -260,7 +260,7 @@ def age_band(days: int, threshold_days: int) -> str:
     return "wellBeyond"
 ```
 
-- [ ] **Step 4: Add the band counter to `_age()`**
+- [x] **Step 4: Add the band counter to `_age()`**
 
 In `skills/nist-csf/scripts/profile_analysis.py`, replace the body of `_age()` (line 661, inside `derive_evidence`) — currently:
 
@@ -309,7 +309,7 @@ with:
         }
 ```
 
-- [ ] **Step 5: Run the test to verify it passes**
+- [x] **Step 5: Run the test to verify it passes**
 
 Run: `python3 skills/nist-csf/scripts/profile_analysis.py self-test 2>&1 | tail -3`
 
@@ -318,7 +318,7 @@ not treat that number as the goal: the goal is 472 plus however many assertions 
 wrote. If it is *below* 472, you deleted a test, and that is the only outcome here that is a
 failure.
 
-- [ ] **Step 6: Prove the tests bind — three mutants, not one**
+- [x] **Step 6: Prove the tests bind — three mutants, not one**
 
 A test that cannot fail is not a test, and this repo has shipped that defect more than any
 other. Each mutant below targets one of the three independent things these assertions claim.
@@ -388,13 +388,13 @@ python3 skills/nist-csf/scripts/profile_analysis.py self-test 2>&1 | tail -2
 Expected: FAILS, naming one or both of the per-Function band assertions. The final restore
 returns to green.
 
-- [ ] **Step 7: Confirm the Python floor**
+- [x] **Step 7: Confirm the Python floor**
 
 Run: `PY=/usr/bin/python3 ./skills/risk-register/evals/python-compat.sh /usr/bin/python3 2>&1 | tail -2`
 
 Expected: `python-compat: all N shipped files compile on 3.9.6`
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add skills/nist-csf/scripts/profile_analysis.py
@@ -417,7 +417,7 @@ The band names state distance from a chosen cadence, never confidence."
 - Modify: `skills/nist-csf/renderers/render_executive.py` (age cell grid, around line 88-96)
 - Modify: `skills/nist-csf/renderers/render_operational.py` (stalest panel, line 325-327)
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 In `skills/nist-csf/scripts/profile_analysis.py`, find this in `_cmd_self_test` (line 2625):
 
@@ -450,13 +450,13 @@ Insert immediately after it:
        "stalest bands honour a rescaled age threshold")
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `python3 skills/nist-csf/scripts/profile_analysis.py self-test 2>&1 | tail -6`
 
 Expected: FAIL — `TypeError: attention_lists() got an unexpected keyword argument 'age_days'`.
 
-- [ ] **Step 3: Extend `attention_lists()`**
+- [x] **Step 3: Extend `attention_lists()`**
 
 In `skills/nist-csf/scripts/profile_analysis.py`, replace the signature and `_brief` (lines 1081-1091) — currently:
 
@@ -503,7 +503,7 @@ def attention_lists(store: dict, index: dict, today: str, top: int = 10,
                                      if confirmed_at else None)}
 ```
 
-- [ ] **Step 4: Pass the configured threshold at the call site**
+- [x] **Step 4: Pass the configured threshold at the call site**
 
 In `skills/nist-csf/scripts/profile_analysis.py` line 2355, inside `_cmd_analyze`, replace:
 
@@ -520,13 +520,13 @@ with:
 
 (`rep = settings["reporting"]` is already bound at line 2255 in the same function.)
 
-- [ ] **Step 5: Run the test to verify it passes**
+- [x] **Step 5: Run the test to verify it passes**
 
 Run: `python3 skills/nist-csf/scripts/profile_analysis.py self-test 2>&1 | tail -3`
 
 Expected: `self-test: 494/494 checks passed` (490 + 4 new).
 
-- [ ] **Step 6: Show the distribution on the executive age grid**
+- [x] **Step 6: Show the distribution on the executive age grid**
 
 In `skills/nist-csf/renderers/render_executive.py`, find this block (around line 86-96):
 
@@ -585,7 +585,7 @@ sum to a total with the denominator in view.
 shipped fixture exercises all four, which is exactly how the defect above survived. This is
 the only check that would have caught it.
 
-- [ ] **Step 7: Show the band on each stalest row**
+- [x] **Step 7: Show the band on each stalest row**
 
 In `skills/nist-csf/renderers/render_operational.py`, replace the "Stalest" panel entry (lines 325-328) — currently:
 
@@ -632,7 +632,7 @@ def _age_note(row: dict) -> str:
             f'{AGE_BAND_LABEL[band]} ({row["confirmationAgeDays"]}d)</span>')
 ```
 
-- [ ] **Step 8: Verify both renderers still render**
+- [x] **Step 8: Verify both renderers still render**
 
 ```bash
 cd /Users/darren/Documents/GitHub/cac-ciso-toolkit
@@ -648,7 +648,7 @@ grep -c 'cadence\|no confirmation date' "$work/ops.html"
 
 Expected: both renderers exit 0, and both greps print a count of at least 1. If `skills/nist-csf/examples/example-profile.csfp` is not the fixture path, find it with `ls skills/nist-csf/examples/` and substitute.
 
-- [ ] **Step 9: Run the full nist-csf suite**
+- [x] **Step 9: Run the full nist-csf suite**
 
 ```bash
 python3 skills/nist-csf/scripts/profile_analysis.py self-test 2>&1 | tail -2
@@ -657,7 +657,7 @@ python3 skills/nist-csf/scripts/csfa_compat.py self-test 2>&1 | tail -1
 
 Expected: `self-test: 494/494 checks passed` and `csfa-compat self-test: 47/47 checks passed`.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add skills/nist-csf/scripts/profile_analysis.py \
@@ -678,7 +678,7 @@ rather than one it has not earned."
 **Files:**
 - Modify: `skills/risk-register/scripts/score_register.py` (module docstring line 27; constants near line 526; new `_cmd_confirm` before `_cmd_set_status` at line 853; `COMMANDS` at line 924; self-test before line 513)
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 In `skills/risk-register/scripts/score_register.py`, find the end of `_cmd_self_test` (line 510-513):
 
@@ -777,13 +777,13 @@ Insert immediately after it:
     eq("confirm on an unknown id is refused", _bad_id, True)
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `python3 skills/risk-register/scripts/score_register.py self-test 2>&1 | tail -5`
 
 Expected: FAIL — `NameError: name 'age_band' is not defined`.
 
-- [ ] **Step 3: Add the constants and the band function**
+- [x] **Step 3: Add the constants and the band function**
 
 In `skills/risk-register/scripts/score_register.py`, immediately **after** these lines (line 526-527):
 
@@ -856,7 +856,7 @@ _EMITTED_EVENT_TYPES = frozenset({
 })
 ```
 
-- [ ] **Step 4: Add the `confirm` command**
+- [x] **Step 4: Add the `confirm` command**
 
 In `skills/risk-register/scripts/score_register.py`, immediately **before** `def _cmd_set_status(args):` (line 853), insert:
 
@@ -900,7 +900,7 @@ def _cmd_confirm(args):
 
 ```
 
-- [ ] **Step 5: Register the command and document it**
+- [x] **Step 5: Register the command and document it**
 
 In `skills/risk-register/scripts/score_register.py`, replace the `COMMANDS` dict (line 924):
 
@@ -942,13 +942,13 @@ insert:
                                          score, status or band.
 ```
 
-- [ ] **Step 6: Run the test to verify it passes**
+- [x] **Step 6: Run the test to verify it passes**
 
 Run: `python3 skills/risk-register/scripts/score_register.py self-test 2>&1 | tail -3`
 
 Expected: `62/62 checks passed.` (34 baseline + 28 new), followed by `Parity confirmed: scoring matches the Limen Labs web engine.`
 
-- [ ] **Step 7: Prove the `--why` refusal actually leaves the file untouched**
+- [x] **Step 7: Prove the `--why` refusal actually leaves the file untouched**
 
 The byte-identity assertion is the one most likely to pass for the wrong reason — if `_cmd_confirm` raised *before* ever opening the file, it would pass trivially. Confirm the ordering binds.
 
@@ -987,7 +987,7 @@ python3 skills/risk-register/scripts/score_register.py self-test 2>&1 | tail -2
 
 Expected: the mutant run FAILS naming `a refused confirm leaves the register untouched`, and the restore returns to 62/62. If the mutant passes, the ordering is not asserted and the test must be strengthened.
 
-- [ ] **Step 8: Check the Python floor and commit**
+- [x] **Step 8: Check the Python floor and commit**
 
 ```bash
 PY=/usr/bin/python3 ./skills/risk-register/evals/python-compat.sh /usr/bin/python3 2>&1 | tail -1
@@ -1011,7 +1011,7 @@ age, rather than defaulting to 'no' by omission."
 **Files:**
 - Modify: `skills/risk-register/renderers/_common.py` (`parse_args` at line 175; `_days_since` near `_overdue` at line 254; `Context.__init__` at line 304; `_enrich` at line 360; new `_confirmation_rollup`)
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `skills/risk-register/evals/confirmation-age.sh`:
 
@@ -1178,13 +1178,13 @@ exit $([ "$fails" -eq 0 ] && echo 0 || echo 1)
 
 Then: `chmod +x skills/risk-register/evals/confirmation-age.sh`
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `./skills/risk-register/evals/confirmation-age.sh 2>&1 | tail -20`
 
 Expected: FAIL — an `AttributeError: 'Namespace' object has no attribute ...` or `KeyError: 'lastConfirmedAt'` traceback, because none of the fields exist yet.
 
-- [ ] **Step 3: Add the `--age-threshold` flag**
+- [x] **Step 3: Add the `--age-threshold` flag**
 
 In `skills/risk-register/renderers/_common.py`, in `parse_args` (line 175), after the `--offline` argument:
 
@@ -1229,7 +1229,7 @@ change it to:
     return args
 ```
 
-- [ ] **Step 4: Add the date helper**
+- [x] **Step 4: Add the date helper**
 
 In `skills/risk-register/renderers/_common.py`, immediately **after** `_overdue` (line 254-257):
 
@@ -1258,7 +1258,7 @@ def _days_since(value: str | None, today: str) -> int | None:
         return None
 ```
 
-- [ ] **Step 5: Read the threshold in `Context.__init__`**
+- [x] **Step 5: Read the threshold in `Context.__init__`**
 
 In `skills/risk-register/renderers/_common.py`, in `Context.__init__` (line 304), after:
 
@@ -1288,7 +1288,7 @@ insert:
 
 Note the ordering: `_confirmation_rollup()` reads `self.risks`, which is built at line 346, so it must come after that. `self.decisions` is already the last line, so appending here is correct.
 
-- [ ] **Step 6: Derive the per-risk fields**
+- [x] **Step 6: Derive the per-risk fields**
 
 In `skills/risk-register/renderers/_common.py`, add this method to `Context`, immediately **after** `_history_for` (line 357-358):
 
@@ -1361,7 +1361,7 @@ and add the confirmation fields to the same returned dict, immediately before `"
             "history": self._history_for(r["id"]),
 ```
 
-- [ ] **Step 7: Stop a "nothing changed" rationale from explaining a change**
+- [x] **Step 7: Stop a "nothing changed" rationale from explaining a change**
 
 **A board-facing defect that Task 3 created and handed here.** Reproduced on real rendered
 output: score a risk from residual 2×2 to 5×5 with a rationale, then `confirm` it, and the
@@ -1420,7 +1420,7 @@ risk carries the **score** rationale and not the confirmation one. Then **prove 
 `CHANGE_EXPLAINING` must be a subset of `sr.KNOWN_EVENT_TYPES` — assert that too, so a typo'd
 event name here fails the suite rather than silently never matching.
 
-- [ ] **Step 8: Add the rollup**
+- [x] **Step 8: Add the rollup**
 
 In `skills/risk-register/renderers/_common.py`, add this method to `Context`, immediately **after** `_decisions` (which ends at line 585 with `return out`):
 
@@ -1457,13 +1457,13 @@ In `skills/risk-register/renderers/_common.py`, add this method to `Context`, im
         }
 ```
 
-- [ ] **Step 9: Run the test to verify it passes**
+- [x] **Step 9: Run the test to verify it passes**
 
 Run: `./skills/risk-register/evals/confirmation-age.sh 2>&1 | tail -20`
 
 Expected: 14 checks, all `PASS`, ending `confirmation-age: all checks passed`.
 
-- [ ] **Step 10: Prove the non-affirming test binds**
+- [x] **Step 10: Prove the non-affirming test binds**
 
 The check that matters most is "R-002 still dates from risk-added". Confirm it dies when the mechanism does:
 
@@ -1489,7 +1489,7 @@ cp /tmp/sr2.bak skills/risk-register/scripts/score_register.py
 
 Expected: the mutant run FAILS on `R-002 still dates from risk-added` (and the score_register self-test would independently fail its `does NOT affirm` assertions). The restore returns all checks to PASS.
 
-- [ ] **Step 11: Confirm the existing suites are untouched and commit**
+- [x] **Step 11: Confirm the existing suites are untouched and commit**
 
 ```bash
 python3 skills/risk-register/scripts/score_register.py self-test 2>&1 | tail -2
@@ -1518,7 +1518,7 @@ field that turns a typo into a traceback on a board night."
 **Files:**
 - Modify: `skills/risk-register/renderers/render_dashboard.py` (`attention_lists` at line 79)
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `skills/risk-register/evals/confirmation-age.sh`, immediately **before** the final `echo` / summary block (i.e. after the `while IFS=... done < "$work/out.txt"` loop):
 
@@ -1537,13 +1537,13 @@ chk "$n" "per-risk card shows when it was last confirmed" \
 n=$((n + 1))
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `./skills/risk-register/evals/confirmation-age.sh 2>&1 | tail -6`
 
 Expected: the two new checks report `FAIL`.
 
-- [ ] **Step 3: Add the panel**
+- [x] **Step 3: Add the panel**
 
 In `skills/risk-register/renderers/render_dashboard.py`, in `attention_lists`, replace:
 
@@ -1607,7 +1607,7 @@ def confirmation_panel(ctx: C.Context) -> str:
 
 Note `colour` is defined for symmetry with the band ramp but the row markup uses `C.BAND_TEXT` directly, because these are coloured words on the light workbench rather than fills — `C.BAND` values run 1.5–2.6:1 as text and are unreadable. Delete the unused `colour` dict if your linter objects.
 
-- [ ] **Step 4: Add the per-risk confirmation line**
+- [x] **Step 4: Add the per-risk confirmation line**
 
 In `skills/risk-register/renderers/render_dashboard.py`, in `attention_lists`, replace the `items` assignment:
 
@@ -1643,13 +1643,13 @@ def _confirmed_note(r: dict) -> str:
     return f' · confirmed {days}d ago' + (f' · {C.esc(who)}' if who else "")
 ```
 
-- [ ] **Step 5: Run the test to verify it passes**
+- [x] **Step 5: Run the test to verify it passes**
 
 Run: `./skills/risk-register/evals/confirmation-age.sh 2>&1 | tail -6`
 
 Expected: 16 checks, all `PASS`, ending `confirmation-age: all checks passed`.
 
-- [ ] **Step 6: Check layout and contrast did not regress**
+- [x] **Step 6: Check layout and contrast did not regress**
 
 ```bash
 ./skills/risk-register/evals/responsive.sh 2>&1 | tail -3
@@ -1658,7 +1658,7 @@ node skills/risk-register/evals/contrast-check.mjs 2>&1 | tail -3
 
 Expected: both pass. The new panel adds coloured band words on the light workbench, which is exactly the class of change `contrast-check.mjs` exists to catch — `BAND` fill values run 1.5–2.6:1 as text, which is why `_confirmed_note` and `confirmation_panel` use `BAND_TEXT`.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add skills/risk-register/renderers/render_dashboard.py \
@@ -1682,7 +1682,7 @@ light workbench and is unreadable."
 **Files:**
 - Modify: `skills/risk-register/renderers/render_board.py` (`summary_block` at line 152)
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `skills/risk-register/evals/confirmation-age.sh`, immediately before the final summary block:
 
@@ -1742,13 +1742,13 @@ using a fixture that actually has a risk in that band. If your fixture has every
 `within`, the check passes trivially and proves nothing: build one with a spread first, the
 same lesson as correction **C4**.
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `./skills/risk-register/evals/confirmation-age.sh 2>&1 | tail -6`
 
 Expected: `board renders one freshness sentence` reports `FAIL`.
 
-- [ ] **Step 0: Fix the UTC/local skew that makes a stale register look fresh**
+- [x] **Step 0: Fix the UTC/local skew that makes a stale register look fresh**
 
 **Commit this separately, before the sentence.** It is a live defect in shipped code, not a
 test problem, and the board sentence is the second place it surfaces.
@@ -1787,7 +1787,7 @@ Add an assertion pinning the default to the UTC date, and a mutant reverting it 
 `within` — after this fix it is unreachable via the CLI, so it becomes a hand-edited/imported
 register concern, the same population `unreadableDate` serves.
 
-- [ ] **Step 3: Add the sentence**
+- [x] **Step 3: Add the sentence**
 
 In `skills/risk-register/renderers/render_board.py`, replace `summary_block` (line 152):
 
@@ -1857,13 +1857,13 @@ def summary_block(ctx: C.Context) -> str:
             + freshness_line(ctx))
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `./skills/risk-register/evals/confirmation-age.sh 2>&1 | tail -6`
 
 Expected: 18 checks, all `PASS`.
 
-- [ ] **Step 5: Run the board-safety and layout suites**
+- [x] **Step 5: Run the board-safety and layout suites**
 
 ```bash
 ./skills/risk-register/evals/board-safety.sh 2>&1 | tail -3
@@ -1872,7 +1872,7 @@ Expected: 18 checks, all `PASS`.
 
 Expected: `board-safety: all checks passed` (still 7 checks — Task 7 adds to it) and responsive passes.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add skills/risk-register/renderers/render_board.py \
@@ -1895,7 +1895,7 @@ framework text onto a board page."
 **Files:**
 - Modify: `skills/risk-register/evals/board-safety.sh` (add checks 8 and 9 before the final summary block)
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 In `skills/risk-register/evals/board-safety.sh`, immediately **before** the final block:
 
@@ -1952,13 +1952,13 @@ PY
 )"
 ```
 
-- [ ] **Step 2: Run it to verify both checks are meaningful**
+- [x] **Step 2: Run it to verify both checks are meaningful**
 
 Run: `./skills/risk-register/evals/board-safety.sh 2>&1 | tail -6`
 
 Expected: 9 checks, all `PASS`, ending `board-safety: all checks passed`. Check 8 exercises the code added in Task 6; check 9 should already pass, which is correct — it is a regression guard, not a bug report.
 
-- [ ] **Step 3: Prove check 9 can actually fail**
+- [x] **Step 3: Prove check 9 can actually fail**
 
 An inverted test that cannot fail is decoration. Confirm it bites:
 
@@ -1980,7 +1980,7 @@ cp /tmp/rb.bak skills/risk-register/renderers/render_board.py
 
 Expected: the mutant run FAILS check 9, naming `confidence` and `degrading`. The restore returns all 9 to PASS. If the mutant passes, the word list is not reaching the rendered HTML and the check must be fixed before continuing.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add skills/risk-register/evals/board-safety.sh
@@ -2061,7 +2061,7 @@ sentence cannot silently disappear or drift off the board's own denominator."
 >
 > `score_register.py` carries a `DOCS HANDOVER (Task 8)` note; **remove it** once these land.
 
-- [ ] **Step 1: Fix and extend the risk-register event list**
+- [x] **Step 1: Fix and extend the risk-register event list**
 
 In `skills/risk-register/references/schema.md`, replace lines 122-124:
 
@@ -2102,7 +2102,7 @@ self-test until somebody classifies it, rather than defaulting to "does not affi
 omission.
 ```
 
-- [ ] **Step 2: Document the confirmation-age model**
+- [x] **Step 2: Document the confirmation-age model**
 
 In `skills/risk-register/references/schema.md`, immediately after the block you just replaced, add:
 
@@ -2158,7 +2158,7 @@ to record one was `set-score` at an identical value, which writes a `score-chang
 where no score changed.
 ```
 
-- [ ] **Step 3: Document the surfacing**
+- [x] **Step 3: Document the surfacing**
 
 In `skills/risk-register/references/dashboards.md`, append:
 
@@ -2190,7 +2190,7 @@ and changes no score. Settings-level parity with `nist-csf`'s
 `board-safety.sh` check 9 fails if confidence vocabulary ever reaches a board-facing view.
 ```
 
-- [ ] **Step 4: Document the command in SKILL.md**
+- [x] **Step 4: Document the command in SKILL.md**
 
 In `skills/risk-register/SKILL.md`, find the command list that names `accept` and add a
 `confirm` entry alongside it, matching the file's existing formatting:
@@ -2205,7 +2205,7 @@ In `skills/risk-register/SKILL.md`, find the command list that names `accept` an
 Read the surrounding lines first and match their exact bullet style — do not assume the
 format above matches.
 
-- [ ] **Step 5: Document the bands in nist-csf**
+- [x] **Step 5: Document the bands in nist-csf**
 
 In `skills/nist-csf/references/schema.md`, find the existing passage on age and staleness
 (search for `ageThresholdDays`) and add after it:
@@ -2250,7 +2250,7 @@ shows both, and a rating with no confirmation date says so instead of being give
 has not earned.
 ```
 
-- [ ] **Step 6: Complete the README bullet**
+- [x] **Step 6: Complete the README bullet**
 
 In `README.md`, find the non-expiry bullet (around line 80, beginning `- **Ratings do not
 expire.**`). Read it, then extend the `ageThresholdDays` sentence so it names the bands.
@@ -2267,7 +2267,7 @@ Append to that bullet:
 Do not restructure the surrounding bullets. The coverage-vs-currency disambiguation landed
 in #15 and is correct as it stands.
 
-- [ ] **Step 7: Verify no doc drifted from the code**
+- [x] **Step 7: Verify no doc drifted from the code**
 
 ```bash
 cd /Users/darren/Documents/GitHub/cac-ciso-toolkit
@@ -2288,7 +2288,7 @@ PY
 Expected: `MATCH` and `affirming ⊆ known : True`. A mismatch means `_EMITTED_EVENT_TYPES`
 is stale — fix it, since the self-test's totality assertion depends on it being honest.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add skills/risk-register/references/schema.md \
@@ -2315,7 +2315,7 @@ nist-csf side, which is exactly why the two skills read as disagreeing."
 **Files:**
 - Modify: `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json` (two places), `.codex-plugin/plugin.json`
 
-- [ ] **Step 1: Move all four version strings forward together**
+- [x] **Step 1: Move all four version strings forward together**
 
 Current version is `0.4.2`. This adds a subcommand and new derived output, so the target is
 `0.5.0`.
@@ -2357,7 +2357,7 @@ The occurrence counts are asserted rather than assumed, so a manifest that gains
 time: the guard exists because four strings drifted apart once already, and the whole point is
 that they move together.
 
-- [ ] **Step 2: Run every suite in the repo**
+- [x] **Step 2: Run every suite in the repo**
 
 ```bash
 cd /Users/darren/Documents/GitHub/cac-ciso-toolkit
@@ -2394,7 +2394,7 @@ going further. These are the *measured* end state, not the predictions this plan
 carried: it estimated 62 / 494 / 18, and reviews drove the real counts far higher because
 roughly thirty assertions turned out to be unfalsifiable and had to be rebuilt.
 
-- [ ] **Step 3: Confirm the derived-not-stored rule still holds**
+- [x] **Step 3: Confirm the derived-not-stored rule still holds**
 
 The single most important invariant in both skills. Assert no age field leaked into a
 written file:
@@ -2421,7 +2421,7 @@ PY
 
 Expected: `PASS: no derived age field is stored`.
 
-- [ ] **Step 4: Commit and push as one PR**
+- [x] **Step 4: Commit and push as one PR**
 
 ```bash
 cd /Users/darren/Documents/GitHub/cac-ciso-toolkit
