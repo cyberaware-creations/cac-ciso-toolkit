@@ -19,7 +19,7 @@ repo="$(cd "$skill/../.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=36
+EXPECTED_CHECKS=39
 checks=0
 fails=0
 
@@ -100,7 +100,14 @@ d=json.load(open(sys.argv[1]))['crosswalks']
 print($1)" "$analysis" 2>/dev/null
 }
 is "ISO scores 88 mapped controls"        "$(read_num "len(d['iso-27001-2022']['controls'])")" "88"
-is "ISO reports 31 controls outside CSF"  "$(read_num "len(d['iso-27001-2022']['completeness']['controlsOutsideCSF'])")" "31"
+is "ISO reports 28 controls outside CSF"  "$(read_num "len(d['iso-27001-2022']['completeness']['controlsOutsideCSF'])")" "28"
+# The other 3 of the 31 unmapped are referenced by the source at Category level, so CSF
+# does reach them — telling a reader to assess them from scratch would be false. They
+# get their own list; this pins that they left the outside-CSF one.
+is "ISO reports 3 reached at Category level only" \
+   "$(read_num "len(d['iso-27001-2022']['completeness']['controlsCategoryOnly'])")" "3"
+is "and A.5.33 is one of them, not outside CSF" \
+   "$(read_num "'A.5.33' in d['iso-27001-2022']['completeness']['controlsCategoryOnly'] and 'A.5.33' not in d['iso-27001-2022']['completeness']['controlsOutsideCSF']")" "True"
 # Every catalogue declares whether it holds its framework's full control set. Without
 # it an empty outside-CSF list is ambiguous between "CSF reaches everything" and
 # "nothing else is catalogued" — opposite claims, and two of these three are the second.
@@ -148,6 +155,8 @@ has "800-53 titles are verbatim"                        "$report" "Audit Record 
 has "ISO labels are ours"                               "$report" "our own paraphrases"
 has "report names the withheld state"                   "$report" "too little rated"
 has "an un-enumerable list says so, not blank"          "$report" "This list cannot be produced"
+has "Category-only controls are told apart from unreached ones" \
+                                                        "$report" "only at Category level"
 # --offline must make the file self-contained: no outbound request when it is opened.
 hasnt "offline report makes no font request"            "$report" "fonts.googleapis.com"
 

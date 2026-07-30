@@ -133,11 +133,17 @@ FW={
 }
 rows=read_rows(SRC,'CSF 2.0')
 edges={k:set() for k in FW}
+# The export also hangs references off Function and Category rows, which have no
+# Subcategory to key an edge on. Those rows are not edges — a crosswalk projects
+# Subcategory ratings — but a control named ONLY there is not unmapped either, and
+# dropping the row silently put three real ISO controls on the "CSF does not reach
+# this" list that NIST does in fact reach, just at a coarser grain.
+coarse={k:set() for k in FW}
 cur=None
 for r in rows:
     sub=r[2]
-    if isinstance(sub,str) and SUB.match(sub): cur=sub.split(':',1)[0].strip()
-    else: continue
+    is_sub=isinstance(sub,str) and bool(SUB.match(sub))
+    if is_sub: cur=sub.split(':',1)[0].strip()
     cell=r[4]
     if not isinstance(cell,str): continue
     for line in cell.split(chr(10)):
@@ -145,7 +151,10 @@ for r in rows:
         for k,spec in FW.items():
             if line.startswith(spec['pre']+':'):
                 for cid,grp in spec['parse'](line[len(spec['pre'])+1:]):
-                    edges[k].add((cur,cid,grp))
+                    if is_sub: edges[k].add((cur,cid,grp))
+                    else: coarse[k].add(cid)
+# Category-level only: referenced by the export, but never at Subcategory grain.
+CATONLY={k: coarse[k]-{cid for _,cid,_ in edges[k]} for k in FW}
 
 def catalog(fid, ctrl_ids):
     spec=FW[fid]; controls=[]; groupings=[]
@@ -171,6 +180,11 @@ def catalog(fid, ctrl_ids):
             title=TITLES.get(cid)
             controls.append({"id":cid,"label":title or cid,"groupingId":fam,
                              "labelSource":"verbatim-public-domain" if title else "pending-verbatim-title","text":None})
+    # Stamped, not derived at read time: whether the export mentions a control only
+    # at Category grain is a fact about the source, and the shipped engine has no
+    # access to the source. Absent = the ordinary case.
+    for c in controls:
+        if c["id"] in CATONLY[fid]: c["csfReference"]="category-only"
     return {"frameworkId":fid,"name":spec['name'],"version":spec['ver'],"license":spec['lic'],
             "provenance":PROV[fid],"sourceExport":{"tool":"NIST CSF 2.0 Reference Export (xlsx)","retrievedAt":RETRIEVED},
             # Declared, not inferred. Whether a catalogue holds its framework's whole
@@ -194,20 +208,24 @@ SCOPE={
           "that CSF reaches every 800-53 control."),
   "completable":True},
 "iso-27001-2022":{"coverage":"full",
-  "note":"Holds the full Annex A control set plus the ISMS clauses, so the outside-CSF list is real.",
+  "note":("Holds the full Annex A control set plus the ISMS clauses, so the outside-CSF list is "
+          "real. NIST's export references 91 of these 119 identifiers — 88 at Subcategory grain, "
+          "3 only at Category grain; the remaining 28 are the standard's own numbering, added "
+          "precisely so that “not reached by CSF” could be answered at all."),
   "completable":True},
 "cis-8.1":{"coverage":"referenced-subset",
-  "note":("Holds the Safeguards the NIST CSF export references. The rest are deliberately not "
-          "enumerated: the CIS Controls are CC BY-NC-ND, and republishing their Safeguard set — "
-          "even as bare identifiers taken from CIS materials — is not something that licence "
-          "permits. Check your own licensed copy for Safeguards CSF does not reach."),
+  "note":("Holds the 49 Safeguards that NIST's CSF 2.0 informative references cite for v8.1 — "
+          "every CIS identifier here was taken from that NIST export, not from CIS's own control "
+          "materials. That export carries no others, so this is the whole of what the source "
+          "offers; enumerating the remaining Safeguards would mean working from CIS's own "
+          "materials, and we do not. Check your licensed copy for Safeguards CSF does not reach."),
   "completable":False},
 }
 
 PROV={
 "800-53-r5":"NIST-developed CSF→800-53 mapping (public domain). Family names verbatim; per-control titles pending a titles ingest.",
-"iso-27001-2022":"Control/clause IDs referenced from NIST's CSF 2.0 informative references (mixed/third-party authority). Labels are CAC paraphrases — ISO/IEC text is copyright; bring your own copy.",
-"cis-8.1":"CSF↔CIS relationships are CIS-authored (used as facts, tagged; CIS document not republished). Labels are CAC paraphrases. CIS content is CC BY-NC-ND.",
+"iso-27001-2022":"Mapped control/clause IDs come from NIST's CSF 2.0 informative references (mixed/third-party authority); the rest of the Annex A numbering completes the set (see catalogueScope). Labels are CAC paraphrases — ISO/IEC text is copyright; bring your own copy.",
+"cis-8.1":"Safeguard IDs and CSF↔CIS relationships come from NIST's CSF 2.0 informative references, which publish them without licence terms attached; CIS's own control materials were not used and no CIS document is republished. Labels are CAC paraphrases. The underlying CIS Controls remain CC BY-NC-ND.",
 }
 for fid,spec in FW.items():
     es=sorted({(a,b) for a,b,_ in edges[fid]})

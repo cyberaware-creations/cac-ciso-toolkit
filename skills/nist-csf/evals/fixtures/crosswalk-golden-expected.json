@@ -10,6 +10,7 @@
       },
       "completeness": {
         "catalogueScope": "referenced-subset",
+        "controlsCategoryOnly": 0,
         "controlsMapped": 206,
         "controlsOutsideCSF": 0,
         "controlsTotal": 206,
@@ -151,6 +152,7 @@
       },
       "completeness": {
         "catalogueScope": "referenced-subset",
+        "controlsCategoryOnly": 0,
         "controlsMapped": 49,
         "controlsOutsideCSF": 0,
         "controlsTotal": 49,
@@ -295,8 +297,9 @@
       },
       "completeness": {
         "catalogueScope": "full",
+        "controlsCategoryOnly": 3,
         "controlsMapped": 88,
-        "controlsOutsideCSF": 31,
+        "controlsOutsideCSF": 28,
         "controlsTotal": 119,
         "csfNotInLens": []
       },

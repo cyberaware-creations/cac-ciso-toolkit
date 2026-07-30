@@ -23,6 +23,14 @@ are not redistributable**, so this data carries identifiers plus our own short p
 normative text at all. A reader who needs the official wording looks it up in their own licensed
 copy; the identifier is there so they can.
 
+Two things are worth separating, because they are easy to run together. **Where the identifiers came
+from:** every mapped ISO and CIS identifier here was read out of NIST's CSF 2.0 informative-reference
+export, where those organizations' references are published without licence terms attached — not out
+of ISO's or CIS's own control materials, which were never used. **What was done with them:** an
+identifier is a fact and a reference, and the only prose beside it is ours. Neither standard's
+expression is reproduced, so a no-derivatives clause has nothing here to bite on. The provenance
+string on each catalogue records the first; the `cac-generated` rule below enforces the second.
+
 NIST SP 800-53 Rev 5 is a work of the US Government and not subject to copyright, so its family
 names and all 206 control titles are verbatim.
 
@@ -93,21 +101,48 @@ a standard nobody checked, so treat the review as part of the data, not a formal
 ## Why the CIS catalogue is only the mapped subset
 
 The CIS catalogue holds the **49 Safeguards the NIST CSF export references** and no others, so its
-"controls outside CSF" honesty list is empty. That is a licensing constraint, not an unfinished
-task, and it will not be closed by doing more work.
+"controls outside CSF" honesty list is empty. That is a sourcing boundary, not an unfinished task,
+and more work of the same kind will not close it.
 
-The CIS Controls are published under CC BY-NC-ND. The ND term forbids distributing material that
-remixes, transforms, or builds upon the original, and commercial use requires prior approval from
-CIS. Enumerating their full Safeguard set — even as bare identifiers derived from their own
-workbook — is using the information in their control materials, which their licence as written does
-not allow us to redistribute. So we do not.
+Those 49 are the complete set of `CIS Controls v8.1:` references the export carries — checked, not
+assumed — so there is nothing further to take from that source. Extending the catalogue to the rest
+of v8.1 would mean working from CIS's own control materials instead, and that is the line we do not
+cross: the CIS Controls are published under CC BY-NC-ND, whose ND term forbids distributing material
+that remixes, transforms, or builds upon the original, with commercial use requiring prior approval.
+Nothing about the 49 depends on that judgement — they arrived via NIST, unencumbered — but the
+remaining hundred-odd would.
 
 The consequence is stated in-product rather than hidden: an empty CIS "outside CSF" list means
 *not enumerated here*, not *none exist*, and the report tells the reader to check their own licensed
 copy of the CIS Controls for Safeguards CSF does not reach. ISO is different only because we hold a
-full Annex A control list; its 31-control list is real.
+full Annex A control list; its 28-control list is real.
 
 The 49 Safeguards we do carry are named by identifier from the NIST export — a US Government work —
 with CAC-authored labels, never CIS wording.
+
+## Why the ISO catalogue is the full set
+
+It is the one lens whose "outside CSF" list is real, and that is worth being precise about, because
+it is not purely an export read. NIST's export references **91 of the 119 identifiers** — 88 against
+a Subcategory, and 3 only against a Category. The other 28 are the standard's own numbering, added
+deliberately: a catalogue holding only what CSF already reaches cannot answer "what does CSF *not*
+reach", which is the question the honesty list exists for. Numbering is a reference, not expression,
+and every label against those 28 is CAC-authored like the rest. `catalogueScope.note` on the
+catalogue says the same thing, so the distinction travels with the data rather than living only here.
+
+## The third case: referenced only at Category level
+
+The export hangs references off Function and Category rows too, and those rows carry no Subcategory
+to key an edge on. Dropping them is right for the edge map — a crosswalk projects Subcategory
+ratings, and there is nothing at the right grain to project — but treating the controls as *unmapped*
+was wrong: **A.5.33, A.5.36 and A.8.27** sat on the "CSF does not reach this" list while NIST does in
+fact reach them, one grain up. A reader following that list would have gone and assessed all three
+from scratch.
+
+They now carry `csfReference: "category-only"` in the catalogue, stamped at build time because the
+shipped engine cannot see the source, and `crosswalk_completeness()` returns them as
+`controlsCategoryOnly` — a third list, neither scored nor disowned. The ISO outside-CSF list is 28,
+not 31. 800-53 has one such control (IR-9) which the catalogue does not hold at all, since it holds
+what the export references at Subcategory grain; CIS has none.
 
 *A Cyber Aware Creation · Not affiliated with NIST, ISO, or CIS*

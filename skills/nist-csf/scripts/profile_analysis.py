@@ -333,6 +333,12 @@ def check_crosswalks(index: dict, path: str | None = None) -> list[str]:
                                 f"forbidden for this framework")
             if ctl.get("groupingId") and ctl["groupingId"] not in declared:
                 problems.append(f"[{fid}] {cid} groupingId {ctl['groupingId']!r} is not declared")
+            # Optional, but not free-form: this field moves a control off the
+            # "CSF does not reach this" list, so an unrecognised value must fail
+            # loudly rather than be ignored into the default.
+            if ctl.get("csfReference") not in (None, "category-only"):
+                problems.append(f"[{fid}] {cid} csfReference is {ctl.get('csfReference')!r}; "
+                                f"the only recognised value is 'category-only'")
 
         if not mp.get("mappingAuthority"):
             problems.append(f"[{fid}] map is missing mappingAuthority")
@@ -1389,11 +1395,22 @@ def crosswalk_completeness(crosswalk: dict, assessments: list[dict]) -> dict:
     them would overstate what one CSF assessment can tell you. `csfNotInLens`
     are rated CSF outcomes no control in this lens references, i.e. work already
     done that this projection gives no credit for.
+
+    `controlsCategoryOnly` is the third case, and it is neither of the other two.
+    The source export also hangs references off Category rows, which carry no
+    Subcategory to key an edge on. A control named only there cannot be scored —
+    there is no rated outcome beneath it at the right grain — but telling a reader
+    CSF does not reach it would be false. It gets its own list rather than being
+    folded into either neighbour.
     """
     all_controls = set(crosswalk["controls"])
     mapped = set(crosswalk["fwd"])
     rated = {a["subcategoryId"] for a in in_scope(assessments)
              if a.get("current") is not None}
+    unmapped = sorted(all_controls - mapped, key=_crosswalk_sort_key)
+    coarse = [c for c in unmapped
+              if (crosswalk["controls"].get(c) or {}).get("csfReference") == "category-only"]
+    coarse_set = set(coarse)
     # The scope the catalogue declares about itself. Without it an empty
     # controlsOutsideCSF is ambiguous between "CSF reaches everything in this
     # framework" and "nothing else is catalogued here", and those are opposite
@@ -1402,7 +1419,8 @@ def crosswalk_completeness(crosswalk: dict, assessments: list[dict]) -> dict:
     return {
         "controlsTotal": len(all_controls),
         "controlsMapped": len(mapped & all_controls),
-        "controlsOutsideCSF": sorted(all_controls - mapped, key=_crosswalk_sort_key),
+        "controlsOutsideCSF": [c for c in unmapped if c not in coarse_set],
+        "controlsCategoryOnly": coarse,
         "csfNotInLens": sorted(rated - set(crosswalk["rev"])),
         "catalogueScope": scope.get("coverage"),
         "catalogueScopeNote": scope.get("note"),
@@ -2432,6 +2450,11 @@ def _cmd_crosswalk(args):
         if outside:
             print(f"  {outside} control{'' if outside == 1 else 's'} no CSF Subcategory reaches — "
                   f"assess {'it' if outside == 1 else 'those'} directly against the standard")
+        coarse = comp.get("controlsCategoryOnly") or []
+        if coarse:
+            print(f"  {len(coarse)} referenced only at CSF Category level, so not scored "
+                  f"here though CSF does reach {'it' if len(coarse) == 1 else 'them'}: "
+                  f"{', '.join(coarse)}")
         if comp["csfNotInLens"]:
             print(f"  {len(comp['csfNotInLens'])} rated CSF outcomes this lens cannot see: "
                   f"{', '.join(comp['csfNotInLens'][:6])}"
@@ -4919,6 +4942,12 @@ def _cmd_self_test(_args):
                      "labelSource": "cac-generated"},
             "X-99": {"id": "X-99", "label": "no CSF maps here", "groupingId": "G2",
                      "labelSource": "cac-generated"},
+            # Unmapped like X-99, but for a different reason: the source names it
+            # against a Category, so CSF does reach it and the two must not share
+            # a list. Without this the honesty list overstates itself.
+            "X-98": {"id": "X-98", "label": "reached at Category grain only",
+                     "groupingId": "G2", "labelSource": "cac-generated",
+                     "csfReference": "category-only"},
         },
         "fwd": {"X-1": ["S.A", "S.B"], "X-2": ["S.C"], "X-10": ["S.D", "S.E"]},
         "rev": {"S.A": ["X-1"], "S.B": ["X-1"], "S.C": ["X-2"],
@@ -5046,6 +5075,13 @@ def _cmd_self_test(_args):
     eq(comp["controlsOutsideCSF"], ["X-99"], "completeness lists controls outside CSF")
     eq(comp["csfNotInLens"], ["S.Z"], "completeness lists rated outcomes the lens cannot see")
     ok("S.E" not in comp["csfNotInLens"], "a not-applicable outcome is not owed lens credit")
+    # Both are unmapped; only one of them is outside CSF. Folding them together
+    # would tell a reader to go assess X-98 from scratch when CSF already reaches it.
+    eq(comp["controlsCategoryOnly"], ["X-98"], "a Category-only control gets its own list")
+    ok("X-98" not in comp["controlsOutsideCSF"],
+       "and is kept off the outside-CSF list, which would otherwise overstate by one")
+    eq(comp["controlsTotal"], 5, "the Category-only control still counts in the total")
+    eq(comp["controlsMapped"], 3, "and is not counted as mapped, because nothing scores it")
 
     # Bundled data: every edge resolves and the counts are the pinned ones.
     eq(check_crosswalks(index), [], "bundled crosswalk data is clean")
@@ -5123,7 +5159,9 @@ def _cmd_self_test(_args):
                 _gc = _byc.get(_cid)
                 eq({k: (_gc or {}).get(k) for k in _wc}, _wc,
                    f"golden {_fid} control {_cid}")
-            _got_comp = dict(_comp, controlsOutsideCSF=len(_comp["controlsOutsideCSF"]))
+            _got_comp = dict(_comp,
+                             controlsOutsideCSF=len(_comp["controlsOutsideCSF"]),
+                             controlsCategoryOnly=len(_comp["controlsCategoryOnly"]))
             eq({k: _got_comp.get(k) for k in _want_lens["completeness"]},
                _want_lens["completeness"], f"golden {_fid} completeness")
     else:

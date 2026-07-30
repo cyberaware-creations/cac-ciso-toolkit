@@ -3,14 +3,14 @@
  "name": "CIS Critical Security Controls v8.1",
  "version": "8.1",
  "license": "cis-cc-by-nc-nd",
- "provenance": "CSF\u2194CIS relationships are CIS-authored (used as facts, tagged; CIS document not republished). Labels are CAC paraphrases. CIS content is CC BY-NC-ND.",
+ "provenance": "Safeguard IDs and CSF\u2194CIS relationships come from NIST's CSF 2.0 informative references, which publish them without licence terms attached; CIS's own control materials were not used and no CIS document is republished. Labels are CAC paraphrases. The underlying CIS Controls remain CC BY-NC-ND.",
  "sourceExport": {
   "tool": "NIST CSF 2.0 Reference Export (xlsx)",
   "retrievedAt": "2026-07-29"
  },
  "catalogueScope": {
   "coverage": "referenced-subset",
-  "note": "Holds the Safeguards the NIST CSF export references. The rest are deliberately not enumerated: the CIS Controls are CC BY-NC-ND, and republishing their Safeguard set \u2014 even as bare identifiers taken from CIS materials \u2014 is not something that licence permits. Check your own licensed copy for Safeguards CSF does not reach.",
+  "note": "Holds the 49 Safeguards that NIST's CSF 2.0 informative references cite for v8.1 \u2014 every CIS identifier here was taken from that NIST export, not from CIS's own control materials. That export carries no others, so this is the whole of what the source offers; enumerating the remaining Safeguards would mean working from CIS's own materials, and we do not. Check your licensed copy for Safeguards CSF does not reach.",
   "completable": false
  },
  "groupings": [

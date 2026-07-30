@@ -298,6 +298,19 @@ def honesty(block: dict) -> str:
                      '<em>not enumerated</em>, not <em>none exist</em>.</p>'
                      + (f'<p class="muted" style="font-size:12.5px">{c.esc(comp.get("catalogueScopeNote") or "")}</p>'
                         if comp.get("catalogueScopeNote") else ''))
+    coarse = comp.get("controlsCategoryOnly") or []
+    if coarse:
+        # Deliberately its own paragraph rather than a footnote on the list above:
+        # these are the controls a reader would otherwise be told to go assess from
+        # scratch, when CSF does reach them — just not at a grain this can score.
+        parts.append(
+            f'<p><strong>{len(coarse)} control'
+            f'{"" if len(coarse) == 1 else "s"} CSF reaches only at Category level.</strong> '
+            f'The source names {"it" if len(coarse) == 1 else "them"} against a Category '
+            f'rather than a Subcategory, so there is no rating at the right grain to project '
+            f'&mdash; but {"it is" if len(coarse) == 1 else "they are"} not outside CSF, and '
+            f'{"it does" if len(coarse) == 1 else "they do"} not belong on the list above.</p>'
+            f'<p class="subs">{c.esc(", ".join(coarse))}</p>')
     if not_in:
         parts.append(
             f'<p><strong>{len(not_in)} rated CSF outcome'
@@ -365,10 +378,17 @@ def lookup_section(crosswalks: dict) -> str:
         }
     # Unmapped controls belong in the lookup too — "nothing maps here" is the
     # answer an auditor needs, and omitting them would look like a missing record.
+    # Category-only controls need a record for the same reason, and a different
+    # answer: "nothing maps here" would be wrong for them.
     for fid, block in crosswalks.items():
-        for cid in (block.get("completeness") or {}).get("controlsOutsideCSF") or []:
+        comp = block.get("completeness") or {}
+        for cid in comp.get("controlsOutsideCSF") or []:
             payload[fid]["controls"].setdefault(cid, {"label": "", "band": "not yet rated",
                                                       "score": None, "subs": []})
+        for cid in comp.get("controlsCategoryOnly") or []:
+            payload[fid]["controls"].setdefault(
+                cid, {"label": "", "band": "reached only at CSF Category level",
+                      "score": None, "subs": []})
     opts = "".join(f'<option value="{c.esc(f)}">{c.esc(b.get("frameworkName") or f)}</option>'
                    for f, b in crosswalks.items())
     blob = json.dumps(payload, ensure_ascii=False).replace("</", "<\\/")

@@ -3,14 +3,14 @@
  "name": "ISO/IEC 27001:2022",
  "version": "2022",
  "license": "iso-copyright",
- "provenance": "Control/clause IDs referenced from NIST's CSF 2.0 informative references (mixed/third-party authority). Labels are CAC paraphrases \u2014 ISO/IEC text is copyright; bring your own copy.",
+ "provenance": "Mapped control/clause IDs come from NIST's CSF 2.0 informative references (mixed/third-party authority); the rest of the Annex A numbering completes the set (see catalogueScope). Labels are CAC paraphrases \u2014 ISO/IEC text is copyright; bring your own copy.",
  "sourceExport": {
   "tool": "NIST CSF 2.0 Reference Export (xlsx)",
   "retrievedAt": "2026-07-29"
  },
  "catalogueScope": {
   "coverage": "full",
-  "note": "Holds the full Annex A control set plus the ISMS clauses, so the outside-CSF list is real.",
+  "note": "Holds the full Annex A control set plus the ISMS clauses, so the outside-CSF list is real. NIST's export references 91 of these 119 identifiers \u2014 88 at Subcategory grain, 3 only at Category grain; the remaining 28 are the standard's own numbering, added precisely so that \u201cnot reached by CSF\u201d could be answered at all.",
   "completable": true
  },
  "groupings": [
@@ -265,7 +265,8 @@
    "label": "Records protected from loss",
    "groupingId": "A.5",
    "labelSource": "cac-generated",
-   "text": null
+   "text": null,
+   "csfReference": "category-only"
   },
   {
    "id": "A.5.34",
@@ -286,7 +287,8 @@
    "label": "Compliance with security rules checked",
    "groupingId": "A.5",
    "labelSource": "cac-generated",
-   "text": null
+   "text": null,
+   "csfReference": "category-only"
   },
   {
    "id": "A.5.37",
@@ -636,7 +638,8 @@
    "label": "Secure architecture principles applied",
    "groupingId": "A.8",
    "labelSource": "cac-generated",
-   "text": null
+   "text": null,
+   "csfReference": "category-only"
   },
   {
    "id": "A.8.28",
