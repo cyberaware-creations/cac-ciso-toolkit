@@ -1,0 +1,422 @@
+{
+ "frameworkId": "cis-8.1",
+ "name": "CIS Critical Security Controls v8.1",
+ "version": "8.1",
+ "license": "cis-cc-by-nc-nd",
+ "provenance": "CSF\u2194CIS relationships are CIS-authored (used as facts, tagged; CIS document not republished). Labels are CAC paraphrases. CIS content is CC BY-NC-ND.",
+ "sourceExport": {
+  "tool": "NIST CSF 2.0 Reference Export (xlsx)",
+  "retrievedAt": "2026-07-29"
+ },
+ "groupings": [
+  {
+   "id": "CIS-1",
+   "label": "Enterprise asset inventory & control"
+  },
+  {
+   "id": "CIS-2",
+   "label": "Software asset inventory & control"
+  },
+  {
+   "id": "CIS-3",
+   "label": "Data protection"
+  },
+  {
+   "id": "CIS-4",
+   "label": "Secure configuration of assets/software"
+  },
+  {
+   "id": "CIS-5",
+   "label": "Account management"
+  },
+  {
+   "id": "CIS-6",
+   "label": "Access control management"
+  },
+  {
+   "id": "CIS-7",
+   "label": "Continuous vulnerability management"
+  },
+  {
+   "id": "CIS-8",
+   "label": "Audit log management"
+  },
+  {
+   "id": "CIS-10",
+   "label": "Malware defenses"
+  },
+  {
+   "id": "CIS-11",
+   "label": "Data recovery"
+  },
+  {
+   "id": "CIS-12",
+   "label": "Network infrastructure management"
+  },
+  {
+   "id": "CIS-13",
+   "label": "Network monitoring & defense"
+  },
+  {
+   "id": "CIS-14",
+   "label": "Security awareness & skills training"
+  },
+  {
+   "id": "CIS-15",
+   "label": "Service provider management"
+  },
+  {
+   "id": "CIS-16",
+   "label": "Application software security"
+  },
+  {
+   "id": "CIS-17",
+   "label": "Incident response management"
+  }
+ ],
+ "controls": [
+  {
+   "id": "CIS 1.1",
+   "label": "Maintain detailed asset inventory",
+   "groupingId": "CIS-1",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 1.2",
+   "label": "Handle unauthorized assets",
+   "groupingId": "CIS-1",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 2.1",
+   "label": "Maintain software inventory",
+   "groupingId": "CIS-2",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 2.2",
+   "label": "Keep software supported",
+   "groupingId": "CIS-2",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 2.3",
+   "label": "Handle unauthorized software",
+   "groupingId": "CIS-2",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 2.5",
+   "label": "Allowlist authorized software",
+   "groupingId": "CIS-2",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 3.2",
+   "label": "Maintain data inventory",
+   "groupingId": "CIS-3",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 3.3",
+   "label": "Set data access controls",
+   "groupingId": "CIS-3",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 3.5",
+   "label": "Dispose of data securely",
+   "groupingId": "CIS-3",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 3.7",
+   "label": "Maintain data classification scheme",
+   "groupingId": "CIS-3",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 3.8",
+   "label": "Document data flows",
+   "groupingId": "CIS-3",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 3.10",
+   "label": "Encrypt data in transit",
+   "groupingId": "CIS-3",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 3.11",
+   "label": "Encrypt data at rest",
+   "groupingId": "CIS-3",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 3.12",
+   "label": "Segment data by sensitivity",
+   "groupingId": "CIS-3",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 4.1",
+   "label": "Maintain secure-config process",
+   "groupingId": "CIS-4",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 4.2",
+   "label": "Secure network device configs",
+   "groupingId": "CIS-4",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 5.1",
+   "label": "Maintain account inventory",
+   "groupingId": "CIS-5",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 5.6",
+   "label": "Centralize account management",
+   "groupingId": "CIS-5",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 6.1",
+   "label": "Define access-granting process",
+   "groupingId": "CIS-6",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 6.2",
+   "label": "Define access-revoking process",
+   "groupingId": "CIS-6",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 6.7",
+   "label": "Centralize access control",
+   "groupingId": "CIS-6",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 6.8",
+   "label": "Maintain role-based access",
+   "groupingId": "CIS-6",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 7.1",
+   "label": "Maintain vulnerability-management process",
+   "groupingId": "CIS-7",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 7.2",
+   "label": "Maintain remediation process",
+   "groupingId": "CIS-7",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 8.2",
+   "label": "Collect audit logs",
+   "groupingId": "CIS-8",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 8.11",
+   "label": "Review audit logs",
+   "groupingId": "CIS-8",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 10.1",
+   "label": "Deploy anti-malware",
+   "groupingId": "CIS-10",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 10.7",
+   "label": "Use behavior-based anti-malware",
+   "groupingId": "CIS-10",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 11.2",
+   "label": "Automate backups",
+   "groupingId": "CIS-11",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 11.3",
+   "label": "Protect recovery data",
+   "groupingId": "CIS-11",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 11.5",
+   "label": "Test recovery",
+   "groupingId": "CIS-11",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 12.2",
+   "label": "Maintain secure network architecture",
+   "groupingId": "CIS-12",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 13.1",
+   "label": "Centralize security-event alerting",
+   "groupingId": "CIS-13",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 14.1",
+   "label": "Run security awareness program",
+   "groupingId": "CIS-14",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 14.9",
+   "label": "Train role-specific security skills",
+   "groupingId": "CIS-14",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 15.1",
+   "label": "Maintain service-provider inventory",
+   "groupingId": "CIS-15",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 15.2",
+   "label": "Set provider management policy",
+   "groupingId": "CIS-15",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 15.3",
+   "label": "Classify service providers",
+   "groupingId": "CIS-15",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 15.4",
+   "label": "Require security terms in contracts",
+   "groupingId": "CIS-15",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 15.5",
+   "label": "Assess service providers",
+   "groupingId": "CIS-15",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 15.6",
+   "label": "Monitor service providers",
+   "groupingId": "CIS-15",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 15.7",
+   "label": "Decommission providers securely",
+   "groupingId": "CIS-15",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 16.1",
+   "label": "Maintain secure-development process",
+   "groupingId": "CIS-16",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 17.2",
+   "label": "Keep incident reporting contacts",
+   "groupingId": "CIS-17",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 17.4",
+   "label": "Maintain incident-response process",
+   "groupingId": "CIS-17",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 17.6",
+   "label": "Define incident comms mechanisms",
+   "groupingId": "CIS-17",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 17.7",
+   "label": "Run incident-response exercises",
+   "groupingId": "CIS-17",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 17.8",
+   "label": "Hold post-incident reviews",
+   "groupingId": "CIS-17",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "CIS 17.9",
+   "label": "Set incident thresholds",
+   "groupingId": "CIS-17",
+   "labelSource": "cac-generated",
+   "text": null
+  }
+ ]
+}

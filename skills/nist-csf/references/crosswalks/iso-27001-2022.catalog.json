@@ -1,0 +1,868 @@
+{
+ "frameworkId": "iso-27001-2022",
+ "name": "ISO/IEC 27001:2022",
+ "version": "2022",
+ "license": "iso-copyright",
+ "provenance": "Control/clause IDs referenced from NIST's CSF 2.0 informative references (mixed/third-party authority). Labels are CAC paraphrases \u2014 ISO/IEC text is copyright; bring your own copy.",
+ "sourceExport": {
+  "tool": "NIST CSF 2.0 Reference Export (xlsx)",
+  "retrievedAt": "2026-07-29"
+ },
+ "groupings": [
+  {
+   "id": "A.5",
+   "label": "Organizational controls"
+  },
+  {
+   "id": "A.6",
+   "label": "People controls"
+  },
+  {
+   "id": "A.7",
+   "label": "Physical controls"
+  },
+  {
+   "id": "A.8",
+   "label": "Technological controls"
+  },
+  {
+   "id": "CL",
+   "label": "ISO 27001 management clauses (4\u201310)"
+  }
+ ],
+ "controls": [
+  {
+   "id": "A.5.1",
+   "label": "Approved security policy set, communicated",
+   "groupingId": "A.5",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.5.2",
+   "label": "Security roles and responsibilities defined",
+   "groupingId": "A.5",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.5.3",
+   "label": "Conflicting duties separated",
+   "groupingId": "A.5",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.5.4",
+   "label": "Management backs security expectations",
+   "groupingId": "A.5",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.5.5",
+   "label": "Ties kept with relevant authorities",
+   "groupingId": "A.5",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.5.6",
+   "label": "Engaged with security interest groups",
+   "groupingId": "A.5",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.5.7",
+   "label": "Threat intel gathered and used",
+   "groupingId": "A.5",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.5.8",
+   "label": "Security built into project work",
+   "groupingId": "A.5",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.5.9",
+   "label": "Assets inventoried with owners",
+   "groupingId": "A.5",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.5.10",
+   "label": "Acceptable-use rules for assets set",
+   "groupingId": "A.5",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.5.11",
+   "label": "Assets returned on exit",
+   "groupingId": "A.5",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.5.12",
+   "label": "Information classified by sensitivity",
+   "groupingId": "A.5",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.5.13",
+   "label": "Information labelled per classification",
+   "groupingId": "A.5",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.5.14",
+   "label": "Information transfers protected",
+   "groupingId": "A.5",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.5.15",
+   "label": "Access control rules established",
+   "groupingId": "A.5",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.5.16",
+   "label": "Identities managed across lifecycle",
+   "groupingId": "A.5",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.5.17",
+   "label": "Authentication secrets managed safely",
+   "groupingId": "A.5",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.5.18",
+   "label": "Access rights provisioned and reviewed",
+   "groupingId": "A.5",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.5.19",
+   "label": "Security governed in supplier relationships",
+   "groupingId": "A.5",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.5.20",
+   "label": "Security terms in supplier agreements",
+   "groupingId": "A.5",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.5.21",
+   "label": "ICT supply-chain security managed",
+   "groupingId": "A.5",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.5.22",
+   "label": "Supplier services monitored and reviewed",
+   "groupingId": "A.5",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.5.23",
+   "label": "Cloud service security governed",
+   "groupingId": "A.5",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.5.24",
+   "label": "Incident response planned and prepared",
+   "groupingId": "A.5",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.5.25",
+   "label": "Security events assessed and triaged",
+   "groupingId": "A.5",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.5.26",
+   "label": "Incidents responded to per plan",
+   "groupingId": "A.5",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.5.27",
+   "label": "Lessons learned from incidents",
+   "groupingId": "A.5",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.5.28",
+   "label": "Evidence collected and preserved",
+   "groupingId": "A.5",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.5.29",
+   "label": "Security sustained during disruption",
+   "groupingId": "A.5",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.5.30",
+   "label": "ICT ready for business continuity",
+   "groupingId": "A.5",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.5.31",
+   "label": "Legal and contractual duties tracked",
+   "groupingId": "A.5",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.5.32",
+   "label": "Intellectual property rights respected",
+   "groupingId": "A.5",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.5.33",
+   "label": "Records protected from loss",
+   "groupingId": "A.5",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.5.34",
+   "label": "Personal data privacy protected",
+   "groupingId": "A.5",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.5.35",
+   "label": "Security independently reviewed",
+   "groupingId": "A.5",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.5.36",
+   "label": "Compliance with security rules checked",
+   "groupingId": "A.5",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.5.37",
+   "label": "Operating procedures documented",
+   "groupingId": "A.5",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.6.1",
+   "label": "Personnel screened before hire",
+   "groupingId": "A.6",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.6.2",
+   "label": "Security duties in employment terms",
+   "groupingId": "A.6",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.6.3",
+   "label": "Staff trained on security",
+   "groupingId": "A.6",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.6.4",
+   "label": "Disciplinary process for violations",
+   "groupingId": "A.6",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.6.5",
+   "label": "Duties continue after role change",
+   "groupingId": "A.6",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.6.6",
+   "label": "Confidentiality agreements in place",
+   "groupingId": "A.6",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.6.7",
+   "label": "Remote working secured",
+   "groupingId": "A.6",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.6.8",
+   "label": "Staff report security events",
+   "groupingId": "A.6",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.7.1",
+   "label": "Physical perimeters secured",
+   "groupingId": "A.7",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.7.2",
+   "label": "Physical entry controlled",
+   "groupingId": "A.7",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.7.3",
+   "label": "Offices and facilities secured",
+   "groupingId": "A.7",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.7.4",
+   "label": "Physical spaces monitored",
+   "groupingId": "A.7",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.7.5",
+   "label": "Guarded against environmental threats",
+   "groupingId": "A.7",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.7.6",
+   "label": "Secure-area working rules set",
+   "groupingId": "A.7",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.7.7",
+   "label": "Clear desk and screen enforced",
+   "groupingId": "A.7",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.7.8",
+   "label": "Equipment sited and protected",
+   "groupingId": "A.7",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.7.9",
+   "label": "Off-site assets protected",
+   "groupingId": "A.7",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.7.10",
+   "label": "Storage media managed securely",
+   "groupingId": "A.7",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.7.11",
+   "label": "Supporting utilities safeguarded",
+   "groupingId": "A.7",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.7.12",
+   "label": "Cabling protected from interference",
+   "groupingId": "A.7",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.7.13",
+   "label": "Equipment maintained properly",
+   "groupingId": "A.7",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.7.14",
+   "label": "Equipment sanitized before reuse/disposal",
+   "groupingId": "A.7",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.8.1",
+   "label": "Endpoint devices protected",
+   "groupingId": "A.8",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.8.2",
+   "label": "Privileged access rights restricted",
+   "groupingId": "A.8",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.8.3",
+   "label": "Information access limited by need",
+   "groupingId": "A.8",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.8.4",
+   "label": "Source-code access controlled",
+   "groupingId": "A.8",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.8.5",
+   "label": "Strong authentication enforced",
+   "groupingId": "A.8",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.8.6",
+   "label": "Capacity managed for availability",
+   "groupingId": "A.8",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.8.7",
+   "label": "Malware defenses maintained",
+   "groupingId": "A.8",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.8.8",
+   "label": "Technical vulnerabilities managed",
+   "groupingId": "A.8",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.8.9",
+   "label": "Secure baseline configs set and held",
+   "groupingId": "A.8",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.8.10",
+   "label": "Information deleted when no longer needed",
+   "groupingId": "A.8",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.8.11",
+   "label": "Sensitive data masked",
+   "groupingId": "A.8",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.8.12",
+   "label": "Data leakage prevented",
+   "groupingId": "A.8",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.8.13",
+   "label": "Backups made and restore-tested",
+   "groupingId": "A.8",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.8.14",
+   "label": "Processing redundancy provided",
+   "groupingId": "A.8",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.8.15",
+   "label": "Events logged",
+   "groupingId": "A.8",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.8.16",
+   "label": "Activity monitored for anomalies",
+   "groupingId": "A.8",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.8.17",
+   "label": "Clocks synchronized",
+   "groupingId": "A.8",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.8.18",
+   "label": "Privileged utilities controlled",
+   "groupingId": "A.8",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.8.19",
+   "label": "Software installs on systems controlled",
+   "groupingId": "A.8",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.8.20",
+   "label": "Network security managed",
+   "groupingId": "A.8",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.8.21",
+   "label": "Network service security assured",
+   "groupingId": "A.8",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.8.22",
+   "label": "Networks segregated",
+   "groupingId": "A.8",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.8.23",
+   "label": "Web access filtered",
+   "groupingId": "A.8",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.8.24",
+   "label": "Cryptography applied under policy",
+   "groupingId": "A.8",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.8.25",
+   "label": "Secure development lifecycle followed",
+   "groupingId": "A.8",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.8.26",
+   "label": "Application security requirements defined",
+   "groupingId": "A.8",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.8.27",
+   "label": "Secure architecture principles applied",
+   "groupingId": "A.8",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.8.28",
+   "label": "Secure coding practiced",
+   "groupingId": "A.8",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.8.29",
+   "label": "Security testing in development",
+   "groupingId": "A.8",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.8.30",
+   "label": "Outsourced development overseen",
+   "groupingId": "A.8",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.8.31",
+   "label": "Dev, test, prod environments separated",
+   "groupingId": "A.8",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.8.32",
+   "label": "Changes managed and controlled",
+   "groupingId": "A.8",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.8.33",
+   "label": "Test data protected",
+   "groupingId": "A.8",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "A.8.34",
+   "label": "Systems protected during audit testing",
+   "groupingId": "A.8",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "Clause 4.1",
+   "label": "Organization context understood",
+   "groupingId": "CL",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "Clause 4.2",
+   "label": "Interested-party needs identified",
+   "groupingId": "CL",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "Clause 4.3",
+   "label": "ISMS scope determined",
+   "groupingId": "CL",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "Clause 4.4",
+   "label": "ISMS established and maintained",
+   "groupingId": "CL",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "Clause 5.1",
+   "label": "Leadership commits to security",
+   "groupingId": "CL",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "Clause 5.2",
+   "label": "Security policy set by leadership",
+   "groupingId": "CL",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "Clause 5.3",
+   "label": "Roles and authorities assigned",
+   "groupingId": "CL",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "Clause 6.1",
+   "label": "Risks and opportunities addressed",
+   "groupingId": "CL",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "Clause 6.1.1",
+   "label": "Risk/opportunity planning, general",
+   "groupingId": "CL",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "Clause 6.1.2",
+   "label": "Risk assessment process defined",
+   "groupingId": "CL",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "Clause 6.1.3",
+   "label": "Risk treatment process defined",
+   "groupingId": "CL",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "Clause 6.2",
+   "label": "Security objectives planned",
+   "groupingId": "CL",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "Clause 6.3",
+   "label": "Changes planned deliberately",
+   "groupingId": "CL",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "Clause 7.1",
+   "label": "Resources provided",
+   "groupingId": "CL",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "Clause 7.2",
+   "label": "Competence ensured",
+   "groupingId": "CL",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "Clause 7.3",
+   "label": "Staff aware of duties",
+   "groupingId": "CL",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "Clause 7.4",
+   "label": "Communication planned",
+   "groupingId": "CL",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "Clause 7.5",
+   "label": "Documented information controlled",
+   "groupingId": "CL",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "Clause 8.1",
+   "label": "Operations planned and controlled",
+   "groupingId": "CL",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "Clause 8.2",
+   "label": "Risk assessments performed",
+   "groupingId": "CL",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "Clause 8.3",
+   "label": "Risk treatment carried out",
+   "groupingId": "CL",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "Clause 9.1",
+   "label": "Performance monitored and measured",
+   "groupingId": "CL",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "Clause 9.2",
+   "label": "Internal audits conducted",
+   "groupingId": "CL",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "Clause 9.3",
+   "label": "Management reviews held",
+   "groupingId": "CL",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "Clause 10.1",
+   "label": "Continual improvement pursued",
+   "groupingId": "CL",
+   "labelSource": "cac-generated",
+   "text": null
+  },
+  {
+   "id": "Clause 10.2",
+   "label": "Nonconformities corrected",
+   "groupingId": "CL",
+   "labelSource": "cac-generated",
+   "text": null
+  }
+ ]
+}

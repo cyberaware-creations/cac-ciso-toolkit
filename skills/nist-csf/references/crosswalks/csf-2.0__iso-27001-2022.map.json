@@ -1,0 +1,1657 @@
+{
+ "csfFrameworkId": "csf-2.0",
+ "overlayFrameworkId": "iso-27001-2022",
+ "direction": "bidirectional",
+ "mappingAuthority": "mixed-third-party",
+ "sourceExport": {
+  "tool": "NIST CSF 2.0 Reference Export (xlsx)",
+  "retrievedAt": "2026-07-29"
+ },
+ "edges": [
+  {
+   "csfSubId": "DE.AE-02",
+   "controlId": "A.5.24",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "DE.AE-02",
+   "controlId": "A.5.25",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "DE.AE-03",
+   "controlId": "A.8.15",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "DE.AE-03",
+   "controlId": "A.8.16",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "DE.AE-04",
+   "controlId": "A.5.25",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "DE.AE-06",
+   "controlId": "A.5.26",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "DE.AE-07",
+   "controlId": "A.5.7",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "DE.AE-08",
+   "controlId": "A.5.25",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "DE.AE-08",
+   "controlId": "A.5.26",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "DE.CM-01",
+   "controlId": "A.8.16",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "DE.CM-02",
+   "controlId": "A.7.4",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "DE.CM-03",
+   "controlId": "A.7.4",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "DE.CM-03",
+   "controlId": "A.8.16",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "DE.CM-03",
+   "controlId": "Clause 9.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "DE.CM-06",
+   "controlId": "A.5.22",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "DE.CM-06",
+   "controlId": "A.8.16",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "DE.CM-09",
+   "controlId": "A.8.16",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.OC-01",
+   "controlId": "Clause 4.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.OC-01",
+   "controlId": "Clause 6.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.OC-01",
+   "controlId": "Clause 8.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.OC-01",
+   "controlId": "Clause 8.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.OC-01",
+   "controlId": "Clause 8.3",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.OC-02",
+   "controlId": "Clause 4.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.OC-02",
+   "controlId": "Clause 4.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.OC-02",
+   "controlId": "Clause 4.4",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.OC-02",
+   "controlId": "Clause 6.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.OC-02",
+   "controlId": "Clause 8.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.OC-02",
+   "controlId": "Clause 8.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.OC-02",
+   "controlId": "Clause 8.3",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.OC-03",
+   "controlId": "A.5.20",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.OC-03",
+   "controlId": "A.5.31",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.OC-03",
+   "controlId": "Clause 4.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.OC-04",
+   "controlId": "A.5.20",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.OC-04",
+   "controlId": "A.5.31",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.OC-04",
+   "controlId": "Clause 4.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.OC-05",
+   "controlId": "A.5.3",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.OV-01",
+   "controlId": "A.5.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.OV-01",
+   "controlId": "A.5.19",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.OV-01",
+   "controlId": "Clause 9.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.OV-02",
+   "controlId": "A.5.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.OV-02",
+   "controlId": "A.5.19",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.OV-02",
+   "controlId": "Clause 9.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.OV-03",
+   "controlId": "A.5.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.OV-03",
+   "controlId": "A.5.19",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.OV-03",
+   "controlId": "A.5.20",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.OV-03",
+   "controlId": "Clause 9.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.PO-01",
+   "controlId": "A.5.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.PO-01",
+   "controlId": "Clause 5.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.PO-02",
+   "controlId": "A.5.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.PO-02",
+   "controlId": "Clause 5.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.RM-01",
+   "controlId": "A.5.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.RM-01",
+   "controlId": "Clause 6.1.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.RM-01",
+   "controlId": "Clause 6.1.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.RM-02",
+   "controlId": "A.5.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.RM-02",
+   "controlId": "Clause 6.1.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.RM-03",
+   "controlId": "A.5.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.RM-03",
+   "controlId": "Clause 6.1.3",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.RM-04",
+   "controlId": "A.5.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.RM-04",
+   "controlId": "Clause 6.1.3",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.RM-05",
+   "controlId": "A.5.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.RM-05",
+   "controlId": "A.5.19",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.RM-05",
+   "controlId": "Clause 6.1.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.RM-05",
+   "controlId": "Clause 6.1.3",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.RM-06",
+   "controlId": "A.5.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.RM-06",
+   "controlId": "Clause 6.1.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.RR-01",
+   "controlId": "A.5.4",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.RR-01",
+   "controlId": "Clause 7.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.RR-02",
+   "controlId": "Clause 7.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.RR-03",
+   "controlId": "Clause 7.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.RR-03",
+   "controlId": "Clause 7.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.RR-04",
+   "controlId": "A.6.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.RR-04",
+   "controlId": "A.6.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.RR-04",
+   "controlId": "A.6.3",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.RR-04",
+   "controlId": "A.6.4",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.RR-04",
+   "controlId": "A.6.5",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.RR-04",
+   "controlId": "A.6.6",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.RR-04",
+   "controlId": "A.6.7",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.RR-04",
+   "controlId": "A.6.8",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.RR-04",
+   "controlId": "Clause 7.3",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-01",
+   "controlId": "A.5.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-01",
+   "controlId": "A.5.19",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-01",
+   "controlId": "A.5.20",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-01",
+   "controlId": "A.5.21",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-01",
+   "controlId": "A.5.22",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-01",
+   "controlId": "Clause 8.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-02",
+   "controlId": "A.5.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-02",
+   "controlId": "A.5.4",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-02",
+   "controlId": "Clause 5.3",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-03",
+   "controlId": "A.5.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-03",
+   "controlId": "A.5.19",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-03",
+   "controlId": "A.5.20",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-03",
+   "controlId": "A.5.21",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-03",
+   "controlId": "Clause 8.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-04",
+   "controlId": "A.5.19",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-04",
+   "controlId": "A.5.22",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-04",
+   "controlId": "Clause 6.1.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-04",
+   "controlId": "Clause 6.1.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-04",
+   "controlId": "Clause 6.1.3",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-05",
+   "controlId": "A.5.19",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-05",
+   "controlId": "A.5.20",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-05",
+   "controlId": "A.5.31",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-05",
+   "controlId": "Clause 4.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-06",
+   "controlId": "A.5.19",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-06",
+   "controlId": "A.5.20",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-06",
+   "controlId": "A.5.31",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-06",
+   "controlId": "Clause 4.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-07",
+   "controlId": "A.5.19",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-07",
+   "controlId": "A.5.20",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-07",
+   "controlId": "A.5.31",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-07",
+   "controlId": "Clause 6.1.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-07",
+   "controlId": "Clause 6.1.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-07",
+   "controlId": "Clause 6.1.3",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-08",
+   "controlId": "A.5.26",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-09",
+   "controlId": "A.5.19",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-09",
+   "controlId": "A.5.20",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-09",
+   "controlId": "A.5.21",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-09",
+   "controlId": "A.5.22",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-09",
+   "controlId": "Clause 6.1.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-09",
+   "controlId": "Clause 6.1.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-10",
+   "controlId": "A.5.19",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-10",
+   "controlId": "A.5.20",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-10",
+   "controlId": "A.5.21",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-10",
+   "controlId": "A.5.22",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-10",
+   "controlId": "Clause 6.1.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-10",
+   "controlId": "Clause 6.1.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "GV.SC-10",
+   "controlId": "Clause 6.1.3",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.AM-01",
+   "controlId": "A.5.9",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.AM-02",
+   "controlId": "A.5.9",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.AM-03",
+   "controlId": "A.5.14",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.AM-03",
+   "controlId": "A.8.20",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.AM-03",
+   "controlId": "A.8.21",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.AM-03",
+   "controlId": "A.8.22",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.AM-04",
+   "controlId": "A.5.22",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.AM-05",
+   "controlId": "A.5.12",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.AM-05",
+   "controlId": "A.5.13",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.AM-05",
+   "controlId": "A.5.9",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.AM-07",
+   "controlId": "A.5.9",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.AM-08",
+   "controlId": "A.5.12",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.AM-08",
+   "controlId": "A.5.13",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.AM-08",
+   "controlId": "A.5.19",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.AM-08",
+   "controlId": "A.5.22",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.AM-08",
+   "controlId": "A.5.8",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.AM-08",
+   "controlId": "A.5.9",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.AM-08",
+   "controlId": "A.7.10",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.AM-08",
+   "controlId": "A.7.13",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.AM-08",
+   "controlId": "A.7.14",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.IM-01",
+   "controlId": "A.5.35",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.IM-01",
+   "controlId": "Clause 10.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.IM-01",
+   "controlId": "Clause 10.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.IM-01",
+   "controlId": "Clause 9.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "A.5.19",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "A.5.35",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "Clause 10.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "Clause 10.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "Clause 9.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "Clause 9.3",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.IM-03",
+   "controlId": "A.5.27",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.IM-03",
+   "controlId": "Clause 9.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.IM-04",
+   "controlId": "A.5.24",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.IM-04",
+   "controlId": "A.5.26",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.IM-04",
+   "controlId": "A.5.27",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.IM-04",
+   "controlId": "Clause 9.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.RA-01",
+   "controlId": "A.8.8",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.RA-02",
+   "controlId": "A.5.22",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.RA-02",
+   "controlId": "A.5.7",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.RA-02",
+   "controlId": "A.8.16",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.RA-03",
+   "controlId": "A.5.22",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.RA-03",
+   "controlId": "A.5.7",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.RA-03",
+   "controlId": "A.8.16",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.RA-03",
+   "controlId": "Clause 6.1.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.RA-03",
+   "controlId": "Clause 6.1.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.RA-03",
+   "controlId": "Clause 6.1.3",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.RA-04",
+   "controlId": "Clause 6.1.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.RA-04",
+   "controlId": "Clause 6.1.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.RA-04",
+   "controlId": "Clause 6.1.3",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.RA-05",
+   "controlId": "A.5.7",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.RA-05",
+   "controlId": "Clause 6.1.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.RA-05",
+   "controlId": "Clause 6.1.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.RA-05",
+   "controlId": "Clause 6.1.3",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.RA-06",
+   "controlId": "A.5.7",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.RA-07",
+   "controlId": "A.8.32",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.RA-07",
+   "controlId": "Clause 6.1.3",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.RA-08",
+   "controlId": "Clause 6.1.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.RA-09",
+   "controlId": "A.5.19",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.RA-09",
+   "controlId": "A.5.20",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.RA-09",
+   "controlId": "A.5.22",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.RA-10",
+   "controlId": "A.5.19",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.RA-10",
+   "controlId": "A.5.20",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "ID.RA-10",
+   "controlId": "A.5.22",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.AA-01",
+   "controlId": "A.5.15",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.AA-01",
+   "controlId": "A.5.18",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.AA-01",
+   "controlId": "A.8.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.AA-01",
+   "controlId": "A.8.5",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.AA-02",
+   "controlId": "A.8.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.AA-02",
+   "controlId": "A.8.3",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.AA-02",
+   "controlId": "A.8.5",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.AA-03",
+   "controlId": "A.5.15",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.AA-03",
+   "controlId": "A.5.16",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.AA-03",
+   "controlId": "A.5.17",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.AA-03",
+   "controlId": "A.5.18",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.AA-03",
+   "controlId": "A.8.5",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.AA-04",
+   "controlId": "A.5.16",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.AA-05",
+   "controlId": "A.5.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.AA-05",
+   "controlId": "A.5.14",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.AA-05",
+   "controlId": "A.5.15",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.AA-05",
+   "controlId": "A.5.16",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.AA-05",
+   "controlId": "A.5.17",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.AA-05",
+   "controlId": "A.5.18",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.AA-05",
+   "controlId": "A.5.3",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.AA-05",
+   "controlId": "A.8.18",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.AA-05",
+   "controlId": "A.8.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.AA-05",
+   "controlId": "A.8.3",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.AA-05",
+   "controlId": "A.8.5",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.AA-06",
+   "controlId": "A.7.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.AA-06",
+   "controlId": "A.7.12",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.AA-06",
+   "controlId": "A.7.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.AA-06",
+   "controlId": "A.7.3",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.AA-06",
+   "controlId": "A.7.4",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.AT-01",
+   "controlId": "A.6.3",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.AT-01",
+   "controlId": "Clause 7.3",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.AT-02",
+   "controlId": "A.5.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.AT-02",
+   "controlId": "A.6.3",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.AT-02",
+   "controlId": "Clause 7.3",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-01",
+   "controlId": "A.5.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-01",
+   "controlId": "A.5.10",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-01",
+   "controlId": "A.5.13",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-01",
+   "controlId": "A.5.14",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-01",
+   "controlId": "A.5.15",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-01",
+   "controlId": "A.5.3",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-01",
+   "controlId": "A.6.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-01",
+   "controlId": "A.6.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-01",
+   "controlId": "A.6.5",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-01",
+   "controlId": "A.7.10",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-01",
+   "controlId": "A.7.7",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-01",
+   "controlId": "A.8.17",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-01",
+   "controlId": "A.8.19",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-01",
+   "controlId": "A.8.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-01",
+   "controlId": "A.8.22",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-01",
+   "controlId": "A.8.26",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-01",
+   "controlId": "A.8.3",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-01",
+   "controlId": "A.8.4",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-01",
+   "controlId": "A.8.7",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-01",
+   "controlId": "A.8.8",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-01",
+   "controlId": "Clause 4.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-01",
+   "controlId": "Clause 5.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-02",
+   "controlId": "A.5.10",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-02",
+   "controlId": "A.5.13",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-02",
+   "controlId": "A.5.14",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-02",
+   "controlId": "A.5.15",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-02",
+   "controlId": "A.5.3",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-02",
+   "controlId": "A.6.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-02",
+   "controlId": "A.6.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-02",
+   "controlId": "A.6.5",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-02",
+   "controlId": "A.8.17",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-02",
+   "controlId": "A.8.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-02",
+   "controlId": "A.8.20",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-02",
+   "controlId": "A.8.22",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-02",
+   "controlId": "A.8.26",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-02",
+   "controlId": "A.8.3",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-02",
+   "controlId": "A.8.4",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-02",
+   "controlId": "Clause 4.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-02",
+   "controlId": "Clause 5.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-10",
+   "controlId": "A.5.10",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-10",
+   "controlId": "A.5.13",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-10",
+   "controlId": "A.5.14",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-10",
+   "controlId": "A.5.15",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-10",
+   "controlId": "A.5.3",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-10",
+   "controlId": "A.6.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-10",
+   "controlId": "A.6.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-10",
+   "controlId": "A.6.5",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-10",
+   "controlId": "A.8.17",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-10",
+   "controlId": "A.8.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-10",
+   "controlId": "A.8.22",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-10",
+   "controlId": "A.8.26",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-10",
+   "controlId": "A.8.3",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-10",
+   "controlId": "A.8.4",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-10",
+   "controlId": "Clause 4.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-10",
+   "controlId": "Clause 5.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.DS-11",
+   "controlId": "A.8.13",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.IR-01",
+   "controlId": "A.8.20",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.IR-01",
+   "controlId": "A.8.21",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.IR-01",
+   "controlId": "A.8.22",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.IR-02",
+   "controlId": "A.7.5",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.IR-03",
+   "controlId": "A.5.29",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.IR-03",
+   "controlId": "A.8.14",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.IR-03",
+   "controlId": "Clause 4.2",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.IR-03",
+   "controlId": "Clause 6.1.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.IR-04",
+   "controlId": "A.8.6",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.PS-01",
+   "controlId": "A.8.9",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.PS-01",
+   "controlId": "Clause 9.3",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.PS-02",
+   "controlId": "A.5.9",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.PS-03",
+   "controlId": "A.5.9",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.PS-04",
+   "controlId": "A.8.15",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.PS-04",
+   "controlId": "A.8.17",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.PS-05",
+   "controlId": "A.8.19",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.PS-06",
+   "controlId": "A.8.25",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "PR.PS-06",
+   "controlId": "A.8.28",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "RC.CO-03",
+   "controlId": "A.5.28",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "RC.CO-03",
+   "controlId": "Clause 7.4",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "RC.CO-04",
+   "controlId": "Clause 7.4",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "RC.RP-01",
+   "controlId": "A.5.26",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "RC.RP-02",
+   "controlId": "A.5.26",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "RC.RP-03",
+   "controlId": "A.8.13",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "RC.RP-04",
+   "controlId": "Clause 8.1",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "RC.RP-05",
+   "controlId": "A.5.26",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "RC.RP-06",
+   "controlId": "A.5.27",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "RC.RP-06",
+   "controlId": "A.8.13",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "RS.AN-03",
+   "controlId": "A.5.25",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "RS.AN-03",
+   "controlId": "A.5.27",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "RS.AN-06",
+   "controlId": "A.5.28",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "RS.AN-07",
+   "controlId": "A.5.28",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "RS.AN-08",
+   "controlId": "A.5.25",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "RS.CO-02",
+   "controlId": "A.5.26",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "RS.CO-02",
+   "controlId": "Clause 7.4",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "RS.CO-03",
+   "controlId": "A.5.26",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "RS.CO-03",
+   "controlId": "Clause 7.4",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "RS.MA-01",
+   "controlId": "A.5.26",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "RS.MA-01",
+   "controlId": "A.5.27",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "RS.MA-01",
+   "controlId": "A.5.28",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "RS.MA-02",
+   "controlId": "A.5.24",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "RS.MA-02",
+   "controlId": "A.5.26",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "RS.MA-02",
+   "controlId": "A.5.27",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "RS.MA-02",
+   "controlId": "A.5.28",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "RS.MA-02",
+   "controlId": "A.6.8",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "RS.MA-03",
+   "controlId": "A.5.25",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "RS.MA-04",
+   "controlId": "A.5.26",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "RS.MA-05",
+   "controlId": "A.5.25",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "RS.MI-01",
+   "controlId": "A.5.26",
+   "authority": "mixed-third-party"
+  },
+  {
+   "csfSubId": "RS.MI-02",
+   "controlId": "A.5.26",
+   "authority": "mixed-third-party"
+  }
+ ]
+}

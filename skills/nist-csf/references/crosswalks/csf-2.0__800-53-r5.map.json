@@ -1,0 +1,3667 @@
+{
+ "csfFrameworkId": "csf-2.0",
+ "overlayFrameworkId": "800-53-r5",
+ "direction": "bidirectional",
+ "mappingAuthority": "nist-developed",
+ "sourceExport": {
+  "tool": "NIST CSF 2.0 Reference Export (xlsx)",
+  "retrievedAt": "2026-07-29"
+ },
+ "edges": [
+  {
+   "csfSubId": "DE.AE-02",
+   "controlId": "AU-6",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.AE-02",
+   "controlId": "CA-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.AE-02",
+   "controlId": "IR-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.AE-02",
+   "controlId": "SI-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.AE-03",
+   "controlId": "AU-6",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.AE-03",
+   "controlId": "CA-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.AE-03",
+   "controlId": "IR-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.AE-03",
+   "controlId": "IR-5",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.AE-03",
+   "controlId": "IR-8",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.AE-03",
+   "controlId": "PM-16",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.AE-03",
+   "controlId": "SI-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.AE-04",
+   "controlId": "PM-11",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.AE-04",
+   "controlId": "PM-18",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.AE-04",
+   "controlId": "PM-28",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.AE-04",
+   "controlId": "PM-30",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.AE-04",
+   "controlId": "PM-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.AE-06",
+   "controlId": "IR-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.AE-06",
+   "controlId": "PM-15",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.AE-06",
+   "controlId": "PM-16",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.AE-06",
+   "controlId": "RA-10",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.AE-06",
+   "controlId": "RA-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.AE-07",
+   "controlId": "PM-16",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.AE-07",
+   "controlId": "RA-10",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.AE-07",
+   "controlId": "RA-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.AE-08",
+   "controlId": "IR-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.AE-08",
+   "controlId": "IR-8",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.CM-01",
+   "controlId": "AC-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.CM-01",
+   "controlId": "AU-12",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.CM-01",
+   "controlId": "CA-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.CM-01",
+   "controlId": "CM-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.CM-01",
+   "controlId": "SC-5",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.CM-01",
+   "controlId": "SC-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.CM-01",
+   "controlId": "SI-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.CM-02",
+   "controlId": "CA-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.CM-02",
+   "controlId": "PE-20",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.CM-02",
+   "controlId": "PE-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.CM-02",
+   "controlId": "PE-6",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.CM-03",
+   "controlId": "AC-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.CM-03",
+   "controlId": "AU-12",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.CM-03",
+   "controlId": "AU-13",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.CM-03",
+   "controlId": "CA-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.CM-03",
+   "controlId": "CM-10",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.CM-03",
+   "controlId": "CM-11",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.CM-06",
+   "controlId": "CA-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.CM-06",
+   "controlId": "PS-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.CM-06",
+   "controlId": "SA-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.CM-06",
+   "controlId": "SA-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.CM-06",
+   "controlId": "SI-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.CM-09",
+   "controlId": "AC-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.CM-09",
+   "controlId": "AC-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.CM-09",
+   "controlId": "AU-12",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.CM-09",
+   "controlId": "CA-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.CM-09",
+   "controlId": "CM-10",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.CM-09",
+   "controlId": "CM-11",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.CM-09",
+   "controlId": "CM-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.CM-09",
+   "controlId": "CM-6",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.CM-09",
+   "controlId": "SC-34",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.CM-09",
+   "controlId": "SC-35",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.CM-09",
+   "controlId": "SI-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "DE.CM-09",
+   "controlId": "SI-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OC-01",
+   "controlId": "PM-11",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OC-02",
+   "controlId": "PM-18",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OC-02",
+   "controlId": "PM-30",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OC-02",
+   "controlId": "PM-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OC-02",
+   "controlId": "SR-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OC-02",
+   "controlId": "SR-5",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OC-02",
+   "controlId": "SR-6",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OC-02",
+   "controlId": "SR-8",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OC-03",
+   "controlId": "AC-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OC-03",
+   "controlId": "AT-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OC-03",
+   "controlId": "AU-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OC-03",
+   "controlId": "CA-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OC-03",
+   "controlId": "CM-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OC-03",
+   "controlId": "CP-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OC-03",
+   "controlId": "IA-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OC-03",
+   "controlId": "IR-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OC-03",
+   "controlId": "MA-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OC-03",
+   "controlId": "MP-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OC-03",
+   "controlId": "PE-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OC-03",
+   "controlId": "PL-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OC-03",
+   "controlId": "PM-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OC-03",
+   "controlId": "PM-28",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OC-03",
+   "controlId": "PS-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OC-03",
+   "controlId": "PT-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OC-03",
+   "controlId": "RA-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OC-03",
+   "controlId": "SA-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OC-03",
+   "controlId": "SC-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OC-03",
+   "controlId": "SI-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OC-03",
+   "controlId": "SR-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OC-04",
+   "controlId": "CP-2(08)",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OC-04",
+   "controlId": "PM-11",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OC-04",
+   "controlId": "PM-30(01)",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OC-04",
+   "controlId": "PM-8",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OC-04",
+   "controlId": "RA-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OC-05",
+   "controlId": "PM-11",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OC-05",
+   "controlId": "PM-30",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OC-05",
+   "controlId": "RA-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OC-05",
+   "controlId": "SA-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OC-05",
+   "controlId": "SR-5",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OV-01",
+   "controlId": "AC-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OV-01",
+   "controlId": "AT-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OV-01",
+   "controlId": "AU-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OV-01",
+   "controlId": "CA-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OV-01",
+   "controlId": "CM-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OV-01",
+   "controlId": "CP-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OV-01",
+   "controlId": "IA-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OV-01",
+   "controlId": "IR-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OV-01",
+   "controlId": "MA-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OV-01",
+   "controlId": "MP-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OV-01",
+   "controlId": "PE-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OV-01",
+   "controlId": "PL-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OV-01",
+   "controlId": "PM-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OV-01",
+   "controlId": "PM-18",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OV-01",
+   "controlId": "PM-30",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OV-01",
+   "controlId": "PM-31",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OV-01",
+   "controlId": "PM-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OV-01",
+   "controlId": "PS-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OV-01",
+   "controlId": "PT-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OV-01",
+   "controlId": "RA-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OV-01",
+   "controlId": "RA-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OV-01",
+   "controlId": "SA-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OV-01",
+   "controlId": "SC-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OV-01",
+   "controlId": "SI-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OV-01",
+   "controlId": "SR-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OV-01",
+   "controlId": "SR-6",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OV-02",
+   "controlId": "PM-19",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OV-02",
+   "controlId": "PM-30",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OV-02",
+   "controlId": "PM-31",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OV-02",
+   "controlId": "PM-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OV-02",
+   "controlId": "RA-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OV-02",
+   "controlId": "SR-6",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OV-03",
+   "controlId": "PM-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OV-03",
+   "controlId": "PM-6",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OV-03",
+   "controlId": "RA-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.OV-03",
+   "controlId": "SR-6",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.PO-01",
+   "controlId": "AC-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.PO-01",
+   "controlId": "AT-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.PO-01",
+   "controlId": "AU-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.PO-01",
+   "controlId": "CA-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.PO-01",
+   "controlId": "CM-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.PO-01",
+   "controlId": "CP-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.PO-01",
+   "controlId": "IA-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.PO-01",
+   "controlId": "IR-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.PO-01",
+   "controlId": "MA-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.PO-01",
+   "controlId": "MP-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.PO-01",
+   "controlId": "PE-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.PO-01",
+   "controlId": "PL-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.PO-01",
+   "controlId": "PM-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.PO-01",
+   "controlId": "PS-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.PO-01",
+   "controlId": "PT-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.PO-01",
+   "controlId": "RA-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.PO-01",
+   "controlId": "SA-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.PO-01",
+   "controlId": "SC-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.PO-01",
+   "controlId": "SI-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.PO-01",
+   "controlId": "SR-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.PO-02",
+   "controlId": "AC-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.PO-02",
+   "controlId": "AT-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.PO-02",
+   "controlId": "AU-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.PO-02",
+   "controlId": "CA-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.PO-02",
+   "controlId": "CM-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.PO-02",
+   "controlId": "CP-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.PO-02",
+   "controlId": "IA-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.PO-02",
+   "controlId": "IR-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.PO-02",
+   "controlId": "MA-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.PO-02",
+   "controlId": "MP-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.PO-02",
+   "controlId": "PE-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.PO-02",
+   "controlId": "PL-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.PO-02",
+   "controlId": "PM-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.PO-02",
+   "controlId": "PS-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.PO-02",
+   "controlId": "PT-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.PO-02",
+   "controlId": "RA-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.PO-02",
+   "controlId": "SA-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.PO-02",
+   "controlId": "SC-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.PO-02",
+   "controlId": "SI-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.PO-02",
+   "controlId": "SR-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.RM-01",
+   "controlId": "PM-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.RM-01",
+   "controlId": "RA-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.RM-01",
+   "controlId": "SR-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.RM-02",
+   "controlId": "PM-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.RM-03",
+   "controlId": "PM-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.RM-03",
+   "controlId": "PM-30",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.RM-03",
+   "controlId": "PM-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.RM-03",
+   "controlId": "RA-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.RM-03",
+   "controlId": "SR-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.RM-04",
+   "controlId": "PM-28",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.RM-04",
+   "controlId": "PM-30",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.RM-04",
+   "controlId": "PM-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.RM-04",
+   "controlId": "SR-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.RM-05",
+   "controlId": "PM-30",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.RM-05",
+   "controlId": "PM-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.RM-06",
+   "controlId": "PM-18",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.RM-06",
+   "controlId": "PM-28",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.RM-06",
+   "controlId": "PM-30",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.RM-06",
+   "controlId": "PM-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.RM-06",
+   "controlId": "RA-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.RM-07",
+   "controlId": "PM-18",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.RM-07",
+   "controlId": "PM-28",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.RM-07",
+   "controlId": "PM-30",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.RM-07",
+   "controlId": "PM-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.RM-07",
+   "controlId": "RA-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.RR-01",
+   "controlId": "PM-19",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.RR-01",
+   "controlId": "PM-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.RR-01",
+   "controlId": "PM-23",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.RR-01",
+   "controlId": "PM-24",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.RR-01",
+   "controlId": "PM-29",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.RR-02",
+   "controlId": "PM-13",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.RR-02",
+   "controlId": "PM-19",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.RR-02",
+   "controlId": "PM-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.RR-02",
+   "controlId": "PM-23",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.RR-02",
+   "controlId": "PM-24",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.RR-02",
+   "controlId": "PM-29",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.RR-03",
+   "controlId": "PM-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.RR-04",
+   "controlId": "PM-13",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.RR-04",
+   "controlId": "PS-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.RR-04",
+   "controlId": "PS-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.RR-04",
+   "controlId": "PS-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-01",
+   "controlId": "PM-30",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-01",
+   "controlId": "SR-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-01",
+   "controlId": "SR-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-02",
+   "controlId": "SR-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-02",
+   "controlId": "SR-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-02",
+   "controlId": "SR-5",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-03",
+   "controlId": "AC-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-03",
+   "controlId": "AT-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-03",
+   "controlId": "AU-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-03",
+   "controlId": "CA-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-03",
+   "controlId": "CM-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-03",
+   "controlId": "CP-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-03",
+   "controlId": "IA-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-03",
+   "controlId": "IR-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-03",
+   "controlId": "MA-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-03",
+   "controlId": "MP-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-03",
+   "controlId": "PE-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-03",
+   "controlId": "PL-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-03",
+   "controlId": "PM-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-03",
+   "controlId": "PM-18",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-03",
+   "controlId": "PM-30",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-03",
+   "controlId": "PM-31",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-03",
+   "controlId": "PM-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-03",
+   "controlId": "PS-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-03",
+   "controlId": "PT-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-03",
+   "controlId": "RA-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-03",
+   "controlId": "RA-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-03",
+   "controlId": "RA-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-03",
+   "controlId": "SA-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-03",
+   "controlId": "SC-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-03",
+   "controlId": "SI-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-03",
+   "controlId": "SR-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-03",
+   "controlId": "SR-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-03",
+   "controlId": "SR-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-04",
+   "controlId": "RA-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-04",
+   "controlId": "SA-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-04",
+   "controlId": "SR-6",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-05",
+   "controlId": "SA-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-05",
+   "controlId": "SA-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-05",
+   "controlId": "SR-10",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-05",
+   "controlId": "SR-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-05",
+   "controlId": "SR-5",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-05",
+   "controlId": "SR-6",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-06",
+   "controlId": "SA-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-06",
+   "controlId": "SA-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-06",
+   "controlId": "SR-5",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-06",
+   "controlId": "SR-6",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-07",
+   "controlId": "RA-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-07",
+   "controlId": "SA-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-07",
+   "controlId": "SA-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-07",
+   "controlId": "SR-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-07",
+   "controlId": "SR-6",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-08",
+   "controlId": "CP-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-08",
+   "controlId": "IR-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-08",
+   "controlId": "SA-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-08",
+   "controlId": "SA-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-08",
+   "controlId": "SR-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-08",
+   "controlId": "SR-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-08",
+   "controlId": "SR-8",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-09",
+   "controlId": "PM-19",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-09",
+   "controlId": "PM-28",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-09",
+   "controlId": "PM-30",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-09",
+   "controlId": "PM-31",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-09",
+   "controlId": "PM-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-09",
+   "controlId": "RA-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-09",
+   "controlId": "RA-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-09",
+   "controlId": "SA-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-09",
+   "controlId": "SA-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-09",
+   "controlId": "SR-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-09",
+   "controlId": "SR-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-09",
+   "controlId": "SR-5",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-09",
+   "controlId": "SR-6",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-10",
+   "controlId": "PM-31",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-10",
+   "controlId": "RA-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-10",
+   "controlId": "RA-5",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-10",
+   "controlId": "RA-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-10",
+   "controlId": "SA-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-10",
+   "controlId": "SA-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-10",
+   "controlId": "SR-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-10",
+   "controlId": "SR-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-10",
+   "controlId": "SR-5",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.SC-10",
+   "controlId": "SR-6",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.AM-01",
+   "controlId": "CM-8",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.AM-01",
+   "controlId": "PM-5",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.AM-02",
+   "controlId": "AC-20",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.AM-02",
+   "controlId": "CM-8",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.AM-02",
+   "controlId": "PM-5",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.AM-02",
+   "controlId": "SA-5",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.AM-02",
+   "controlId": "SA-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.AM-03",
+   "controlId": "AC-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.AM-03",
+   "controlId": "CA-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.AM-03",
+   "controlId": "CA-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.AM-03",
+   "controlId": "PL-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.AM-03",
+   "controlId": "PL-8",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.AM-03",
+   "controlId": "PM-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.AM-04",
+   "controlId": "AC-20",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.AM-04",
+   "controlId": "SA-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.AM-04",
+   "controlId": "SR-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.AM-05",
+   "controlId": "RA-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.AM-05",
+   "controlId": "RA-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.AM-05",
+   "controlId": "RA-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.AM-07",
+   "controlId": "CM-12",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.AM-07",
+   "controlId": "CM-13",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.AM-07",
+   "controlId": "SI-12",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.AM-08",
+   "controlId": "CM-13",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.AM-08",
+   "controlId": "CM-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.AM-08",
+   "controlId": "MA-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.AM-08",
+   "controlId": "MA-6",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.AM-08",
+   "controlId": "PL-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.AM-08",
+   "controlId": "PM-22",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.AM-08",
+   "controlId": "PM-23",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.AM-08",
+   "controlId": "SA-22",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.AM-08",
+   "controlId": "SA-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.AM-08",
+   "controlId": "SA-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.AM-08",
+   "controlId": "SA-8",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.AM-08",
+   "controlId": "SI-12",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.AM-08",
+   "controlId": "SI-18",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.AM-08",
+   "controlId": "SR-12",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.AM-08",
+   "controlId": "SR-5",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-01",
+   "controlId": "AC-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-01",
+   "controlId": "AT-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-01",
+   "controlId": "AU-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-01",
+   "controlId": "CA-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-01",
+   "controlId": "CA-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-01",
+   "controlId": "CA-5",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-01",
+   "controlId": "CA-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-01",
+   "controlId": "CA-8",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-01",
+   "controlId": "CM-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-01",
+   "controlId": "CP-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-01",
+   "controlId": "CP-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-01",
+   "controlId": "IA-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-01",
+   "controlId": "IR-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-01",
+   "controlId": "IR-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-01",
+   "controlId": "IR-8",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-01",
+   "controlId": "MA-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-01",
+   "controlId": "MP-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-01",
+   "controlId": "PE-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-01",
+   "controlId": "PL-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-01",
+   "controlId": "PL-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-01",
+   "controlId": "PM-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-01",
+   "controlId": "PS-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-01",
+   "controlId": "PT-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-01",
+   "controlId": "RA-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-01",
+   "controlId": "RA-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-01",
+   "controlId": "RA-5",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-01",
+   "controlId": "RA-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-01",
+   "controlId": "SA-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-01",
+   "controlId": "SA-11",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-01",
+   "controlId": "SA-17(06)",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-01",
+   "controlId": "SA-8",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-01",
+   "controlId": "SC-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-01",
+   "controlId": "SI-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-01",
+   "controlId": "SI-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-01",
+   "controlId": "SI-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-01",
+   "controlId": "SR-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-01",
+   "controlId": "SR-5",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "AC-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "AT-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "AU-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "CA-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "CA-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "CA-5",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "CA-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "CA-8",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "CM-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "CP-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "CP-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "CP-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "IA-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "IR-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "IR-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "IR-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "IR-8",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "MA-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "MP-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "PE-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "PL-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "PL-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "PM-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "PM-31",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "PM-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "PS-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "PT-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "RA-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "RA-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "RA-5",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "RA-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "SA-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "SA-11",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "SA-8",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "SC-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "SI-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "SI-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "SI-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "SR-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "SR-5",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-03",
+   "controlId": "AC-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-03",
+   "controlId": "AT-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-03",
+   "controlId": "AU-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-03",
+   "controlId": "CA-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-03",
+   "controlId": "CA-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-03",
+   "controlId": "CA-5",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-03",
+   "controlId": "CA-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-03",
+   "controlId": "CA-8",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-03",
+   "controlId": "CM-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-03",
+   "controlId": "CP-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-03",
+   "controlId": "CP-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-03",
+   "controlId": "IA-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-03",
+   "controlId": "IR-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-03",
+   "controlId": "IR-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-03",
+   "controlId": "IR-8",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-03",
+   "controlId": "MA-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-03",
+   "controlId": "MP-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-03",
+   "controlId": "PE-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-03",
+   "controlId": "PL-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-03",
+   "controlId": "PL-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-03",
+   "controlId": "PM-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-03",
+   "controlId": "PM-31",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-03",
+   "controlId": "PM-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-03",
+   "controlId": "PS-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-03",
+   "controlId": "PT-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-03",
+   "controlId": "RA-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-03",
+   "controlId": "RA-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-03",
+   "controlId": "RA-5",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-03",
+   "controlId": "RA-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-03",
+   "controlId": "SA-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-03",
+   "controlId": "SA-11",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-03",
+   "controlId": "SA-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-03",
+   "controlId": "SA-8",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-03",
+   "controlId": "SC-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-03",
+   "controlId": "SI-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-03",
+   "controlId": "SI-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-03",
+   "controlId": "SI-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-03",
+   "controlId": "SR-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-03",
+   "controlId": "SR-5",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-04",
+   "controlId": "CP-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-04",
+   "controlId": "IR-8",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-04",
+   "controlId": "PL-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.IM-04",
+   "controlId": "SR-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-01",
+   "controlId": "CA-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-01",
+   "controlId": "CA-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-01",
+   "controlId": "CA-8",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-01",
+   "controlId": "RA-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-01",
+   "controlId": "RA-5",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-01",
+   "controlId": "SA-11(02)",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-01",
+   "controlId": "SA-15(07)",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-01",
+   "controlId": "SA-15(08)",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-01",
+   "controlId": "SI-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-01",
+   "controlId": "SI-5",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-02",
+   "controlId": "PM-15",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-02",
+   "controlId": "PM-16",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-02",
+   "controlId": "SI-5",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-03",
+   "controlId": "PM-12",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-03",
+   "controlId": "PM-16",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-03",
+   "controlId": "RA-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-03",
+   "controlId": "SI-5",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-04",
+   "controlId": "PM-11",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-04",
+   "controlId": "PM-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-04",
+   "controlId": "RA-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-04",
+   "controlId": "RA-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-04",
+   "controlId": "RA-8",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-04",
+   "controlId": "RA-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-05",
+   "controlId": "PM-16",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-05",
+   "controlId": "RA-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-05",
+   "controlId": "RA-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-05",
+   "controlId": "RA-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-06",
+   "controlId": "PM-18",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-06",
+   "controlId": "PM-30",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-06",
+   "controlId": "PM-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-06",
+   "controlId": "RA-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-07",
+   "controlId": "CA-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-07",
+   "controlId": "CM-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-07",
+   "controlId": "CM-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-08",
+   "controlId": "RA-5",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-09",
+   "controlId": "SA-10",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-09",
+   "controlId": "SA-11",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-09",
+   "controlId": "SA-15",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-09",
+   "controlId": "SA-17",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-09",
+   "controlId": "SA-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-09",
+   "controlId": "SA-5",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-09",
+   "controlId": "SI-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-09",
+   "controlId": "SR-10",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-09",
+   "controlId": "SR-11",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-09",
+   "controlId": "SR-5",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-09",
+   "controlId": "SR-6",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "ID.RA-10",
+   "controlId": "SR-6",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-01",
+   "controlId": "AC-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-01",
+   "controlId": "AC-14",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-01",
+   "controlId": "AC-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-01",
+   "controlId": "IA-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-01",
+   "controlId": "IA-10",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-01",
+   "controlId": "IA-11",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-01",
+   "controlId": "IA-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-01",
+   "controlId": "IA-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-01",
+   "controlId": "IA-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-01",
+   "controlId": "IA-5",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-01",
+   "controlId": "IA-6",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-01",
+   "controlId": "IA-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-01",
+   "controlId": "IA-8",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-01",
+   "controlId": "IA-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-02",
+   "controlId": "IA-12",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-03",
+   "controlId": "AC-12",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-03",
+   "controlId": "AC-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-03",
+   "controlId": "IA-10",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-03",
+   "controlId": "IA-11",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-03",
+   "controlId": "IA-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-03",
+   "controlId": "IA-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-03",
+   "controlId": "IA-5",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-03",
+   "controlId": "IA-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-03",
+   "controlId": "IA-8",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-03",
+   "controlId": "IA-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-04",
+   "controlId": "IA-13",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-05",
+   "controlId": "AC-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-05",
+   "controlId": "AC-10",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-05",
+   "controlId": "AC-16",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-05",
+   "controlId": "AC-17",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-05",
+   "controlId": "AC-18",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-05",
+   "controlId": "AC-19",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-05",
+   "controlId": "AC-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-05",
+   "controlId": "AC-24",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-05",
+   "controlId": "AC-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-05",
+   "controlId": "AC-5",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-05",
+   "controlId": "AC-6",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-05",
+   "controlId": "IA-13",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-06",
+   "controlId": "PE-18",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-06",
+   "controlId": "PE-19",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-06",
+   "controlId": "PE-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-06",
+   "controlId": "PE-20",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-06",
+   "controlId": "PE-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-06",
+   "controlId": "PE-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-06",
+   "controlId": "PE-5",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-06",
+   "controlId": "PE-6",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AA-06",
+   "controlId": "PE-8",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AT-01",
+   "controlId": "AT-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AT-01",
+   "controlId": "AT-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.AT-02",
+   "controlId": "AT-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-01",
+   "controlId": "CA-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-01",
+   "controlId": "CP-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-01",
+   "controlId": "MP-8",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-01",
+   "controlId": "SC-12",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-01",
+   "controlId": "SC-13",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-01",
+   "controlId": "SC-28",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-01",
+   "controlId": "SC-32",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-01",
+   "controlId": "SC-39",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-01",
+   "controlId": "SC-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-01",
+   "controlId": "SC-43",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-01",
+   "controlId": "SC-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-01",
+   "controlId": "SI-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-01",
+   "controlId": "SI-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-01",
+   "controlId": "SI-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-02",
+   "controlId": "AU-16",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-02",
+   "controlId": "CA-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-02",
+   "controlId": "SC-11",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-02",
+   "controlId": "SC-12",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-02",
+   "controlId": "SC-13",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-02",
+   "controlId": "SC-16",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-02",
+   "controlId": "SC-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-02",
+   "controlId": "SC-40",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-02",
+   "controlId": "SC-43",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-02",
+   "controlId": "SC-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-02",
+   "controlId": "SC-8",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-02",
+   "controlId": "SI-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-02",
+   "controlId": "SI-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-02",
+   "controlId": "SI-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-10",
+   "controlId": "AC-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-10",
+   "controlId": "AC-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-10",
+   "controlId": "AC-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-10",
+   "controlId": "AU-13",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-10",
+   "controlId": "AU-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-10",
+   "controlId": "CA-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-10",
+   "controlId": "CP-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-10",
+   "controlId": "SA-8",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-10",
+   "controlId": "SC-11",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-10",
+   "controlId": "SC-13",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-10",
+   "controlId": "SC-24",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-10",
+   "controlId": "SC-32",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-10",
+   "controlId": "SC-39",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-10",
+   "controlId": "SC-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-10",
+   "controlId": "SC-40",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-10",
+   "controlId": "SC-43",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-10",
+   "controlId": "SC-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-10",
+   "controlId": "SI-10",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-10",
+   "controlId": "SI-16",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-10",
+   "controlId": "SI-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-10",
+   "controlId": "SI-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-10",
+   "controlId": "SI-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-11",
+   "controlId": "CP-6",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.DS-11",
+   "controlId": "CP-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.IR-01",
+   "controlId": "AC-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.IR-01",
+   "controlId": "AC-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.IR-01",
+   "controlId": "SC-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.IR-01",
+   "controlId": "SC-5",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.IR-01",
+   "controlId": "SC-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.IR-02",
+   "controlId": "CP-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.IR-02",
+   "controlId": "PE-10",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.IR-02",
+   "controlId": "PE-11",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.IR-02",
+   "controlId": "PE-12",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.IR-02",
+   "controlId": "PE-13",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.IR-02",
+   "controlId": "PE-14",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.IR-02",
+   "controlId": "PE-15",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.IR-02",
+   "controlId": "PE-18",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.IR-02",
+   "controlId": "PE-23",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.IR-02",
+   "controlId": "PE-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.IR-03",
+   "controlId": "SA-8",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.IR-03",
+   "controlId": "SC-24",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.IR-03",
+   "controlId": "SC-36",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.IR-03",
+   "controlId": "SC-39",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.IR-03",
+   "controlId": "SC-6",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.IR-03",
+   "controlId": "SI-13",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.IR-04",
+   "controlId": "CP-6",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.IR-04",
+   "controlId": "CP-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.IR-04",
+   "controlId": "CP-8",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.IR-04",
+   "controlId": "PM-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.IR-04",
+   "controlId": "PM-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.PS-01",
+   "controlId": "CM-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.PS-01",
+   "controlId": "CM-10",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.PS-01",
+   "controlId": "CM-11",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.PS-01",
+   "controlId": "CM-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.PS-01",
+   "controlId": "CM-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.PS-01",
+   "controlId": "CM-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.PS-01",
+   "controlId": "CM-5",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.PS-01",
+   "controlId": "CM-6",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.PS-01",
+   "controlId": "CM-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.PS-01",
+   "controlId": "CM-8",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.PS-01",
+   "controlId": "CM-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.PS-02",
+   "controlId": "CM-11",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.PS-02",
+   "controlId": "MA-3(06)",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.PS-02",
+   "controlId": "SA-10(01)",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.PS-02",
+   "controlId": "SI-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.PS-02",
+   "controlId": "SI-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.PS-03",
+   "controlId": "CM-7(09)",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.PS-03",
+   "controlId": "SA-10(03)",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.PS-03",
+   "controlId": "SC-3(01)",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.PS-03",
+   "controlId": "SC-39(01)",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.PS-03",
+   "controlId": "SC-49",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.PS-03",
+   "controlId": "SC-51",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.PS-04",
+   "controlId": "AU-11",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.PS-04",
+   "controlId": "AU-12",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.PS-04",
+   "controlId": "AU-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.PS-04",
+   "controlId": "AU-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.PS-04",
+   "controlId": "AU-6",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.PS-04",
+   "controlId": "AU-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.PS-05",
+   "controlId": "CM-7(02)",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.PS-05",
+   "controlId": "CM-7(04)",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.PS-05",
+   "controlId": "CM-7(05)",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.PS-05",
+   "controlId": "SC-34",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.PS-06",
+   "controlId": "SA-10",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.PS-06",
+   "controlId": "SA-11",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.PS-06",
+   "controlId": "SA-15",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.PS-06",
+   "controlId": "SA-17",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.PS-06",
+   "controlId": "SA-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.PS-06",
+   "controlId": "SA-8",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RC.CO-03",
+   "controlId": "IR-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RC.CO-03",
+   "controlId": "IR-6",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RC.CO-03",
+   "controlId": "SR-8",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RC.CO-04",
+   "controlId": "CP-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RC.CO-04",
+   "controlId": "IR-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RC.RP-01",
+   "controlId": "CP-10",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RC.RP-01",
+   "controlId": "IR-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RC.RP-01",
+   "controlId": "IR-8",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RC.RP-02",
+   "controlId": "CP-10",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RC.RP-02",
+   "controlId": "IR-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RC.RP-02",
+   "controlId": "IR-8",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RC.RP-03",
+   "controlId": "CP-2",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RC.RP-03",
+   "controlId": "CP-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RC.RP-03",
+   "controlId": "CP-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RC.RP-04",
+   "controlId": "IR-1",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RC.RP-04",
+   "controlId": "IR-8",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RC.RP-04",
+   "controlId": "PM-11",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RC.RP-04",
+   "controlId": "PM-8",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RC.RP-04",
+   "controlId": "PM-9",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RC.RP-05",
+   "controlId": "CP-10",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RC.RP-06",
+   "controlId": "IR-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RC.RP-06",
+   "controlId": "IR-8",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RS.AN-03",
+   "controlId": "AU-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RS.AN-03",
+   "controlId": "IR-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RS.AN-06",
+   "controlId": "AU-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RS.AN-06",
+   "controlId": "IR-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RS.AN-06",
+   "controlId": "IR-6",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RS.AN-07",
+   "controlId": "AU-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RS.AN-07",
+   "controlId": "IR-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RS.AN-07",
+   "controlId": "IR-6",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RS.AN-08",
+   "controlId": "IR-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RS.AN-08",
+   "controlId": "IR-8",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RS.AN-08",
+   "controlId": "RA-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RS.AN-08",
+   "controlId": "RA-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RS.CO-02",
+   "controlId": "IR-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RS.CO-02",
+   "controlId": "IR-6",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RS.CO-02",
+   "controlId": "IR-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RS.CO-02",
+   "controlId": "SR-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RS.CO-02",
+   "controlId": "SR-8",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RS.CO-03",
+   "controlId": "IR-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RS.CO-03",
+   "controlId": "IR-6",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RS.CO-03",
+   "controlId": "IR-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RS.CO-03",
+   "controlId": "SR-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RS.CO-03",
+   "controlId": "SR-8",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RS.MA-01",
+   "controlId": "IR-6",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RS.MA-01",
+   "controlId": "IR-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RS.MA-01",
+   "controlId": "IR-8",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RS.MA-01",
+   "controlId": "SR-3",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RS.MA-01",
+   "controlId": "SR-8",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RS.MA-02",
+   "controlId": "IR-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RS.MA-02",
+   "controlId": "IR-5",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RS.MA-02",
+   "controlId": "IR-6",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RS.MA-03",
+   "controlId": "IR-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RS.MA-03",
+   "controlId": "IR-5",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RS.MA-03",
+   "controlId": "IR-6",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RS.MA-04",
+   "controlId": "IR-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RS.MA-04",
+   "controlId": "IR-5",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RS.MA-04",
+   "controlId": "IR-6",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RS.MA-04",
+   "controlId": "IR-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RS.MA-05",
+   "controlId": "IR-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RS.MA-05",
+   "controlId": "IR-8",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RS.MI-01",
+   "controlId": "IR-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RS.MI-02",
+   "controlId": "IR-4",
+   "authority": "nist-developed"
+  }
+ ]
+}
