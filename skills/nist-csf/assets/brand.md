@@ -80,14 +80,17 @@ ALL CHECKS PASS — monotone lightness, adjacent ΔL ≥ 0.06, light end 2.09:1 
 (these deliverables are light-surface and print-first): `#3A4E59,#587783,#86A6B6,#BAD2DE`, ALL
 CHECKS PASS against `ink`.
 
-One state is **not** on this ramp:
+Two states are **not** on this ramp:
 
 | State | Treatment |
 |---|---|
 | **unknown** (no rated Subcategory behind the control) | `workbenchLine` fill, diagonal hatch, label "not yet rated" |
+| **insufficient** (too little of its basis rated to band) | `workbenchLine` fill, diagonal hatch, label "too little rated" |
 
 Same rule as *untargeted* above, for the same reason: *nothing rated* must never be confusable with
-*rated and weak*. `minimal` is a measurement; `unknown` is the absence of one.
+*rated and weak*. `minimal` is a measurement; the other two are the absence of one — and they are
+distinct from each other. "unknown" means nothing behind this control is rated; "insufficient" means
+something is, but too little of it to band honestly, so the figure is withheld.
 
 **The band word is on every cell and every row.** A crosswalk band is never encoded by colour alone
 — not for a greyscale print, not for a colour-vision-deficient reader, not in forced-colours mode.

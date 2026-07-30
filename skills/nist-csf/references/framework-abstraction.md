@@ -177,7 +177,9 @@ never rated, never stored in a `.csfp` or `.csfa`, never assessed directly. Cove
 control is *derived* from the CSF Subcategories mapped to it and carries the weakest-link rule
 (control = min of its mapped Subcategories; theme = mean of its member controls). That is a
 projection of an existing assessment, not an audit or a certification, and every rendered view says
-so.
+so. A band computed from too small a share of its basis is withheld rather than shown with a
+caveat, gated on `settings.reporting.scopeThresholdPct` — the weakest link over *rated*
+contributors is an upper bound, so a thinly-rated control can only overstate.
 
 Two consequences worth stating plainly. A crosswalk lens can only see what CSF maps — controls with
 no CSF mapping must be assessed directly against the standard, and assessed CSF outcomes that no

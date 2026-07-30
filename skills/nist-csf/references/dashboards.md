@@ -308,8 +308,19 @@ not the same list:
    appear even when empty, with the empty case explained — for a catalogue holding only the mapped
    subset, an empty "outside CSF" list means those controls are not catalogued, not that none exist.
 7. **Every contributor is accounted for.** The control table's caveats column names unrated,
-   not-applicable, and absent contributors. A control scored from one rated outcome out of fifteen
-   must not present the same as one scored from all fifteen.
+   not-applicable, and absent contributors — but not the unrated count on a row that has no score,
+   where the band already says "not yet rated" and repeating it is noise on every unrated row.
+   Not-applicable and absent are always named, because "not yet rated" and "deliberately scoped
+   out" are different facts.
+8. **A band drawn from too thin a basis is withheld, not caveated.** The weakest-link minimum is
+   taken over rated contributors only, so it is an *upper* bound: a control showing "moderate" off
+   1 of 15 mapped outcomes can only overstate posture. Below
+   `settings.reporting.scopeThresholdPct` of its in-scope basis, the band and the score are both
+   withheld and the row reads "too little rated" with the fraction. The same rule applies one level
+   up to themes — suppressing thin controls removes scores from the theme mean and the removed ones
+   are not randomly distributed, so without it the optimism just relocates from the row to the
+   cell. Where no theme in a lens is publishable, the heatmap is replaced by a stated reason
+   rather than a grid of hatching, which reads as a broken report.
 
 ### Sections, per lens
 

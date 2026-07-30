@@ -111,12 +111,16 @@ LOOKUP_JS = """
     }).join('');
     var head = '<div class="card"><strong>'+esc(q)+'</strong> '+esc(hit.label||'')+
       '<div class="muted" style="font-size:12.5px;margin-top:6px">'+
-      (hit.subs && hit.subs.length
-        ? 'Derived <strong>'+esc(hit.band)+'</strong>'+
+      (!(hit.subs && hit.subs.length)
+        ? 'No CSF Subcategory maps to this control &mdash; assess it directly against '+
+          'the standard.'
+        : hit.suppressed
+        ? 'Too little of this control&rsquo;s basis is rated to band it: only '+
+          esc(hit.rated)+' of '+esc(hit.basis)+' mapped CSF outcomes have a rating. '+
+          'The figure is withheld rather than shown with a caveat.'
+        : 'Derived <strong>'+esc(hit.band)+'</strong>'+
           (hit.score==null ? '' : ' (weakest link, '+esc(hit.score)+' of '+esc(d.scaleMax)+')')+
-          ' from the CSF outcomes below. Not an audit or certification.'
-        : 'No CSF Subcategory maps to this control &mdash; assess it directly against '+
-          'the standard.')+
+          ' from the CSF outcomes below. Not an audit or certification.')+
       '</div></div>';
     out.innerHTML = head + (rows
       ? '<div class="scroll"><table><thead><tr><th>CSF Subcategory</th><th>Rating</th>'+
@@ -146,7 +150,7 @@ def band_chip(band: str) -> str:
     """A band as a chip. The word is always present; colour is the second channel."""
     fill = c.crosswalk_fill(band)
     label = c.CROSSWALK_BAND_LABEL.get(band, band)
-    if band == "unknown":
+    if band in c.CROSSWALK_OFF_RAMP:
         return f'<span class="bandchip untargeted">{c.esc(label)}</span>'
     return (f'<span class="bandchip" style="background:{fill};color:{c.text_on(fill)}">'
             f'{c.esc(label)}</span>')
@@ -197,8 +201,9 @@ def heatmap(block: dict) -> str:
             continue
         band = g["band"]
         fill = c.crosswalk_fill(band)
-        klass = "cell unknown" if band == "unknown" else "cell"
-        style = "" if band == "unknown" else f'style="background:{fill};color:{c.text_on(fill)}"'
+        off = band in c.CROSSWALK_OFF_RAMP
+        klass = "cell unknown" if off else "cell"
+        style = "" if off else f'style="background:{fill};color:{c.text_on(fill)}"'
         n = g["controlsScored"]
         # Kept out of the f-string: a nested same-quote f-string only parses on
         # 3.12+, and this file has to compile on the declared 3.9 floor.
@@ -215,6 +220,24 @@ def heatmap(block: dict) -> str:
     if not out:
         return ('<div class="card muted">No theme in this lens has a rated control behind '
                 'it yet, so no theme coverage can be shown.</div>')
+    # A grid of nothing but hatching reads as a broken report rather than as an
+    # honest refusal, so when nothing is publishable the reason is stated instead.
+    publishable = [g for g in block["groupings"] if g.get("score") is not None]
+    if not publishable:
+        thin = [g for g in block["groupings"] if g.get("bandSuppressed")]
+        worst = max((g.get("basisPct") or 0) for g in thin) if thin else 0
+        return ('<div class="card"><p style="margin:0 0 8px"><strong>No theme in this lens '
+                'can be banded from this Profile yet.</strong> Every theme has too few '
+                'controls with a rated basis behind them &mdash; the best is '
+                f'{worst:.0f}% covered, under the '
+                f'{int((block.get("suppression") or {}).get("thresholdPct", 60))}% threshold '
+                'this Profile is set to.</p>'
+                '<p style="margin:0" class="muted">This is the same judgement that '
+                'withholds the headline CSF coverage figure on a sparsely-rated Profile: '
+                'the projection is not wrong, there is simply not enough assessed behind it '
+                'to characterise. Rate more Subcategories, or lower '
+                '<span class="mono">reporting.scopeThresholdPct</span> deliberately.</p>'
+                '</div>')
     return f'<div class="heat">{"".join(out)}</div>'
 
 
@@ -223,8 +246,17 @@ def control_table(block: dict) -> str:
     for x in block["controls"]:
         score = "&mdash;" if x["score"] is None else str(x["score"])
         notes = []
-        if x["unratedContributors"]:
-            notes.append(f'{x["unratedContributors"]} not yet rated')
+        # The unrated count qualifies a score; with no score the band already says
+        # "not yet rated" and repeating it is noise on every unrated row.
+        basis = x["ratedContributors"] + x["unratedContributors"]
+        if x.get("bandSuppressed"):
+            # The band is withheld, so the reason has to be legible here instead.
+            notes.append(f'only {x["ratedContributors"]} of {basis} rated')
+        elif x["unratedContributors"] and x["score"] is not None:
+            notes.append(f'{x["unratedContributors"]} of {basis} not yet rated')
+        # These two are never redundant: "not yet rated" and "deliberately scoped
+        # out" are different facts, and an absent Subcategory is a third thing again.
+        # Collapsing them into the band would hide a scope decision.
         if x["notApplicableContributors"]:
             notes.append(f'{x["notApplicableContributors"]} not applicable')
         if x["absentContributors"]:
@@ -317,6 +349,9 @@ def lookup_section(crosswalks: dict) -> str:
             "controls": {x["controlId"]: {"label": x.get("label"),
                                           "band": c.CROSSWALK_BAND_LABEL.get(x["band"], x["band"]),
                                           "score": x["score"],
+                                          "suppressed": bool(x.get("bandSuppressed")),
+                                          "rated": x["ratedContributors"],
+                                          "basis": x["ratedContributors"] + x["unratedContributors"],
                                           "subs": x["mappedSubcategories"]}
                          for x in block["controls"]},
         }

@@ -1082,6 +1082,21 @@ def load_elicitation(path: str | None = None) -> dict:
 # rather than leaving the reader to assume.
 CROSSWALK_BANDS = (("strong", 0.85), ("moderate", 0.60), ("weak", 0.30), ("minimal", 0.0))
 CROSSWALK_BAND_UNKNOWN = "unknown"
+# Distinct from "unknown": something IS rated here, but too little of the control's
+# basis to band it honestly.
+#
+# The weakest-link minimum is taken over the RATED contributors only, so it is an
+# upper bound on the true weakest link — every unrated outcome could be lower. A
+# control showing "moderate" off 1 of 15 mapped Subcategories can therefore only
+# overstate posture, never understate it, and that is the direction that gets a
+# programme into trouble in front of a board.
+#
+# Suppressed rather than caveated, and gated on the Profile's existing
+# reporting.scopeThresholdPct rather than a new knob, because this is the same
+# judgement that setting already encodes for the headline coverage figure: below
+# this share assessed, do not present a number. See references/dashboards.md —
+# "a number with a warning beside it is still a number, and people read the number."
+CROSSWALK_BAND_INSUFFICIENT = "insufficient"
 CROSSWALK_AGGS = ("min", "mean")
 CROSSWALK_DISCLAIMER = "Derived from your NIST CSF assessment — not an audit or certification."
 
@@ -1165,11 +1180,19 @@ def derive_crosswalk_coverage(assessments: list[dict], crosswalk: dict,
     Subcategories are excluded from the score rather than dragging it down, and
     unrated ones leave the control unknown rather than defaulting to zero. A
     control with nothing rated behind it scores None and bands "unknown".
+
+    A band drawn from too small a share of its basis is **suppressed** rather than
+    caveated, and the score is withheld with it — see CROSSWALK_BAND_INSUFFICIENT.
+    The share is measured against in-scope contributors and gated on
+    `settings.reporting.scopeThresholdPct`, the same setting that suppresses the
+    headline coverage figure. Suppressed controls are excluded from their theme.
     """
     if agg not in CROSSWALK_AGGS:
         raise ValueError(f"agg must be one of {CROSSWALK_AGGS}, got {agg!r}")
     by_id = {a["subcategoryId"]: a for a in assessments}
     scoped = {a["subcategoryId"] for a in in_scope(assessments)}
+    threshold_pct = ((settings or {}).get("reporting") or {}).get(
+        "scopeThresholdPct", DEFAULT_SETTINGS["reporting"]["scopeThresholdPct"])
 
     controls = []
     for cid in sorted(crosswalk["fwd"], key=_crosswalk_sort_key):
@@ -1187,34 +1210,75 @@ def derive_crosswalk_coverage(assessments: list[dict], crosswalk: dict,
                 vals.append(a["current"])
         score = _crosswalk_agg(vals, agg)
         ctl = crosswalk["controls"].get(cid, {})
+        # The basis is the in-scope contributors: not-applicable ones are excluded
+        # from the denominator as well as the score, the same way _coverage_of()
+        # measures against in-scope rows rather than every row.
+        in_scope_contributors = len(vals) + unrated
+        basis_pct = (100.0 * len(vals) / in_scope_contributors) if in_scope_contributors else None
+        suppressed = (score is not None and basis_pct is not None
+                      and basis_pct < threshold_pct)
         controls.append({
             "controlId": cid,
             "label": ctl.get("label"),
             "labelSource": ctl.get("labelSource"),
             "groupingId": ctl.get("groupingId"),
             "mappedSubcategories": subs,
-            "score": score,
-            "band": crosswalk_band(score, settings),
+            # The withheld score is NOT carried alongside the suppression flag. The
+            # scope guard on the headline figure does not carry its withheld number
+            # either, and for the same reason: anything present in the data gets
+            # rendered by someone eventually.
+            "score": None if suppressed else score,
+            "band": CROSSWALK_BAND_INSUFFICIENT if suppressed
+                    else crosswalk_band(score, settings),
+            "bandSuppressed": suppressed,
+            "basisPct": None if basis_pct is None else round(basis_pct, 1),
             "ratedContributors": len(vals),
             "unratedContributors": unrated,
             "notApplicableContributors": not_applicable,
             "absentContributors": absent,
         })
 
+    # A suppressed control is excluded from its theme, not folded in at its withheld
+    # value. Averaging in a figure we just declined to show would smuggle it back
+    # into the report one level up.
     scored_by_group: dict[str, list] = {}
+    members_by_group: dict[str, int] = {}
+    withheld_by_group: dict[str, int] = {}
     for c in controls:
+        members_by_group[c["groupingId"]] = members_by_group.get(c["groupingId"], 0) + 1
+        if c["bandSuppressed"]:
+            withheld_by_group[c["groupingId"]] = withheld_by_group.get(c["groupingId"], 0) + 1
         if c["score"] is not None:
             scored_by_group.setdefault(c["groupingId"], []).append(c["score"])
     groupings = []
     for g in crosswalk["catalog"].get("groupings", []):
         member_scores = scored_by_group.get(g["id"], [])
+        members = members_by_group.get(g["id"], 0)
         gs = _crosswalk_agg(member_scores, "mean")
+        # The same rule one level up, and for the same reason. Suppressing thin
+        # controls removes scores from this mean, and the ones removed are not
+        # randomly distributed: on the golden fixture it moved theme A.8 from
+        # moderate 3.2 to strong 3.5, because the low figures were the ones with
+        # the weakest basis. Without this the optimism simply relocates from the
+        # control row to the theme cell.
+        g_basis = (100.0 * len(member_scores) / members) if members else None
+        # Two ways a theme is withheld rather than unknown. It has a mean but too
+        # few members behind it; or every member that had anything behind it was
+        # itself withheld, which is not the same as nothing being rated at all —
+        # calling that "not yet rated" would understate what is actually known.
+        g_suppressed = (
+            (gs is not None and g_basis is not None and g_basis < threshold_pct)
+            or (gs is None and withheld_by_group.get(g["id"], 0) > 0))
         groupings.append({
             "groupingId": g["id"],
             "label": g.get("label"),
-            "score": gs,
-            "band": crosswalk_band(gs, settings),
+            "score": None if g_suppressed else gs,
+            "band": CROSSWALK_BAND_INSUFFICIENT if g_suppressed
+                    else crosswalk_band(gs, settings),
+            "bandSuppressed": g_suppressed,
+            "basisPct": None if g_basis is None else round(g_basis, 1),
             "controlsScored": len(member_scores),
+            "controlsMapped": members,
         })
 
     # Optional: enough detail about every Subcategory this lens references for a
@@ -1248,6 +1312,15 @@ def derive_crosswalk_coverage(assessments: list[dict], crosswalk: dict,
         "scale": {"min": scale.get("min"), "max": scale.get("max"),
                   "labels": scale.get("labels")},
         "aggregation": {"control": agg, "grouping": "mean"},
+        # Stated rather than left implicit, so a renderer can explain a withheld
+        # band instead of hardcoding the threshold it was withheld against.
+        "suppression": {
+            "thresholdPct": threshold_pct,
+            "setting": "reporting.scopeThresholdPct",
+            "controlsSuppressed": sum(1 for c in controls if c["bandSuppressed"]),
+            "groupingsSuppressed": sum(1 for g in groupings if g["bandSuppressed"]),
+            "basis": "in-scope contributors per control; bandable controls per theme",
+        },
         "disclaimer": CROSSWALK_DISCLAIMER,
         **({"subcategories": sub_detail} if sub_detail is not None else {}),
     }
@@ -1278,16 +1351,24 @@ def crosswalk_reverse_lookup(crosswalk: dict, control_id: str,
         note = "No CSF Subcategory maps here — assess this control directly against the standard."
     else:
         note = ""
-    scores = [b["current"] for b in behind
-              if b["current"] is not None and b["applicability"] == "in-scope"]
+    in_scope_behind = [b for b in behind if b["applicability"] == "in-scope"]
+    scores = [b["current"] for b in in_scope_behind if b["current"] is not None]
     score = _crosswalk_agg(scores, "min")
+    # Same suppression as the forward view. If these two disagreed, a reader could
+    # look up a control the table declined to band and be handed the band anyway.
+    threshold_pct = ((settings or {}).get("reporting") or {}).get(
+        "scopeThresholdPct", DEFAULT_SETTINGS["reporting"]["scopeThresholdPct"])
+    basis_pct = (100.0 * len(scores) / len(in_scope_behind)) if in_scope_behind else None
+    suppressed = (score is not None and basis_pct is not None and basis_pct < threshold_pct)
     return {
         "controlId": control_id,
         "known": known,
         "label": ctl.get("label"),
         "groupingId": ctl.get("groupingId"),
-        "score": score,
-        "band": crosswalk_band(score, settings),
+        "score": None if suppressed else score,
+        "band": CROSSWALK_BAND_INSUFFICIENT if suppressed else crosswalk_band(score, settings),
+        "bandSuppressed": suppressed,
+        "basisPct": None if basis_pct is None else round(basis_pct, 1),
         "behind": behind,
         "note": note,
         "disclaimer": CROSSWALK_DISCLAIMER,
@@ -2319,14 +2400,21 @@ def _cmd_crosswalk(args):
         print(f"  bands are a share of this Profile's 0-{scale_max} scale · "
               f"control = {agg} of mapped Subcategories · theme = mean of member controls")
         print(f"  mapping authority: {cov['mappingAuthority']}\n")
+        sup = cov["suppression"]
         for g in cov["groupings"]:
-            if not g["controlsScored"]:
+            if not (g["controlsScored"] or g["bandSuppressed"]):
                 continue
-            n = g["controlsScored"]
-            print(f"  {g['groupingId']:8} {g['band']:9} {g['score']:<5} "
-                  f"({n} control{'' if n == 1 else 's'})  {g['label']}")
+            score = "  —  " if g["score"] is None else f"{g['score']:<5}"
+            print(f"  {g['groupingId']:8} {g['band']:13} {score} "
+                  f"({g['controlsScored']} of {g['controlsMapped']} controls)  {g['label']}")
         rated = [c for c in cov["controls"] if c["score"] is not None]
-        print(f"\n  {len(rated)} of {len(cov['controls'])} mapped controls have a rating behind them")
+        print(f"\n  {len(rated)} of {len(cov['controls'])} mapped controls carry a published band")
+        if sup["controlsSuppressed"] or sup["groupingsSuppressed"]:
+            print(f"  withheld as too thinly rated to band: "
+                  f"{sup['controlsSuppressed']} control(s), "
+                  f"{sup['groupingsSuppressed']} theme(s) — under "
+                  f"{sup['thresholdPct']}% of their basis rated "
+                  f"({sup['setting']})")
         outside = len(comp["controlsOutsideCSF"])
         if outside:
             print(f"  {outside} control{'' if outside == 1 else 's'} no CSF Subcategory reaches — "
@@ -2347,9 +2435,19 @@ def _cmd_crosswalk(args):
         if rl["note"]:
             print(f"  {rl['note']}")
         if rl["behind"]:
-            print(f"  derived {rl['band']}"
-                  + (f" (score {rl['score']} of {scale_max})" if rl["score"] is not None else "")
-                  + " — weakest link of:")
+            rated = sum(1 for b in rl["behind"]
+                        if b["current"] is not None and b["applicability"] == "in-scope")
+            basis = sum(1 for b in rl["behind"] if b["applicability"] == "in-scope")
+            if rl["bandSuppressed"]:
+                thr = ((settings or {}).get("reporting") or {}).get(
+                    "scopeThresholdPct", DEFAULT_SETTINGS["reporting"]["scopeThresholdPct"])
+                print(f"  band withheld — only {rated} of {basis} mapped outcomes are rated, "
+                      f"under the {thr}% this Profile requires. What sits behind it:")
+            elif rl["score"] is None:
+                print("  not yet rated — nothing mapped here carries a rating. Behind it:")
+            else:
+                print(f"  derived {rl['band']} (score {rl['score']} of {scale_max}) "
+                      f"— weakest link of:")
             for b in rl["behind"]:
                 cur = "unrated" if b["current"] is None else f"{b['current']}/{scale_max}"
                 na = "  [not applicable]" if b["applicability"] != "in-scope" else ""
@@ -4840,16 +4938,61 @@ def _cmd_self_test(_args):
     # Natural sort: X-10 comes after X-2, not between X-1 and X-2.
     eq([c["controlId"] for c in cov["controls"]], ["X-1", "X-2", "X-10"],
        "crosswalk controls sort naturally")
-    # Theme is the mean of member control scores, not min-of-min.
+    # Theme is the mean of member control scores, not min-of-min — asserted with
+    # suppression disabled, since G1 has only 1 of its 2 controls scored (50%) and
+    # is withheld at the default threshold.
     bygrp = {g["groupingId"]: g for g in cov["groupings"]}
-    eq(bygrp["G1"]["score"], 1.0, "crosswalk theme G1 = mean([1])")
-    eq(bygrp["G2"]["score"], 2.0, "crosswalk theme G2 = mean([2])")
+    eq(bygrp["G1"]["band"], "insufficient", "a theme with a thin basis is suppressed too")
+    eq(bygrp["G1"]["score"], None, "a suppressed theme withholds its score")
     eq(bygrp["G1"]["controlsScored"], 1, "crosswalk theme G1 counts scored controls only")
+    eq(bygrp["G1"]["controlsMapped"], 2, "crosswalk theme G1 reports its full membership")
+    eq(bygrp["G2"]["score"], 2.0, "crosswalk theme G2 = mean([2])")
+    _open = derive_crosswalk_coverage(
+        cw_asmts, synth, {"scale": s3["scale"], "reporting": {"scopeThresholdPct": 0}})
+    eq({g["groupingId"]: g["score"] for g in _open["groupings"]}["G1"], 1.0,
+       "crosswalk theme G1 = mean([1]) once suppression is off")
     # mean aggregation is available and differs from min on X-1.
     cov_mean = derive_crosswalk_coverage(cw_asmts, synth, s3, agg="mean")
     eq({c["controlId"]: c["score"] for c in cov_mean["controls"]}["X-1"], 2.0,
        "crosswalk mean agg averages contributors")
     ok(_crosswalk_agg([], "min") is None, "crosswalk agg of nothing is None")
+
+    # A band drawn from too little of its basis is suppressed, not caveated, and
+    # the score goes with it. X-thin has one rated contributor of three in scope
+    # (33%, under the 60% default), so the weakest-link minimum it would report is
+    # an upper bound the report declines to publish.
+    synth_thin = json.loads(json.dumps(synth))
+    synth_thin["controls"]["X-thin"] = {"id": "X-thin", "label": "one of three rated",
+                                        "groupingId": "G2", "labelSource": "cac-generated"}
+    synth_thin["fwd"]["X-thin"] = ["S.A", "S.C", "S.F"]
+    thin_asmts = cw_asmts + [
+        {"subcategoryId": "S.F", "current": None, "target": 3, "applicability": "in-scope"}]
+    cov_thin = derive_crosswalk_coverage(thin_asmts, synth_thin, s3)
+    bythin = {c["controlId"]: c for c in cov_thin["controls"]}
+    eq(bythin["X-thin"]["band"], "insufficient", "a thin basis suppresses the band")
+    eq(bythin["X-thin"]["score"], None, "a suppressed band withholds its score too")
+    ok(bythin["X-thin"]["bandSuppressed"], "a suppressed band says so")
+    eq(bythin["X-thin"]["basisPct"], 33.3, "a suppressed band reports its basis share")
+    # X-1 is fully rated, so it is unaffected — suppression must not be indiscriminate.
+    eq(bythin["X-1"]["band"], "weak", "a fully-rated control is not suppressed")
+    # And the withheld control must not reach its theme at its withheld value.
+    thin_g2 = next(g for g in cov_thin["groupings"] if g["groupingId"] == "G2")
+    eq(thin_g2["controlsScored"], 1, "a suppressed control is excluded from its theme")
+    # Raising the threshold to 100 suppresses anything less than fully rated;
+    # dropping it to 0 restores every band. One knob, both directions.
+    s3_strict = {"scale": s3["scale"], "reporting": {"scopeThresholdPct": 100}}
+    strict = {c["controlId"]: c for c in
+              derive_crosswalk_coverage(thin_asmts, synth_thin, s3_strict)["controls"]}
+    eq(strict["X-1"]["band"], "weak", "a fully-rated control survives a 100% threshold")
+    s3_off = {"scale": s3["scale"], "reporting": {"scopeThresholdPct": 0}}
+    lax = {c["controlId"]: c for c in
+           derive_crosswalk_coverage(thin_asmts, synth_thin, s3_off)["controls"]}
+    eq(lax["X-thin"]["band"], "weak", "a zero threshold suppresses nothing")
+    # The reverse view must agree with the forward one, or a reader could look up
+    # a control the table declined to band and be handed the band anyway.
+    rl_thin = crosswalk_reverse_lookup(synth_thin, "X-thin", thin_asmts, s3)
+    eq(rl_thin["band"], "insufficient", "reverse lookup suppresses the same band")
+    eq(rl_thin["score"], None, "reverse lookup withholds the same score")
 
     # Bands are a share of the declared scale, so the same rating bands
     # differently on the two scales the skill supports. This is the whole reason
@@ -4942,9 +5085,11 @@ def _cmd_self_test(_args):
         _asmts = _store["assessments"]
         _settings = _store["profile"]["settings"]
         eq(_settings["scale"]["max"], _exp["scaleMax"], "golden fixture converts to the expected scale")
+        eq(_settings["reporting"]["scopeThresholdPct"], _exp["thresholdPct"],
+           "golden fixture asserts against the expected suppression threshold")
         for _fid, _want_lens in sorted(_exp["lenses"].items()):
             _cw = load_crosswalk(_fid)
-            _cov = derive_crosswalk_coverage(_asmts, _cw, _settings, agg="min")
+            _cov = derive_crosswalk_coverage(_asmts, _cw, _settings, agg="min", index=index)
             _comp = crosswalk_completeness(_cw, _asmts)
             _byc = {c["controlId"]: c for c in _cov["controls"]}
             eq(_cov["mappingAuthority"], _want_lens["mappingAuthority"],
@@ -4956,11 +5101,11 @@ def _cmd_self_test(_args):
                 _hist[c["band"]] = _hist.get(c["band"], 0) + 1
             eq(dict(sorted(_hist.items())), _want_lens["bandHistogram"],
                f"golden {_fid} band histogram")
+            eq({k: v for k, v in _cov["suppression"].items() if k != "basis"},
+               _want_lens["suppression"], f"golden {_fid} suppression summary")
             for _gid, _wg in sorted(_want_lens["groupings"].items()):
                 _got = next((g for g in _cov["groupings"] if g["groupingId"] == _gid), None)
-                eq({"score": _got and _got["score"], "band": _got and _got["band"],
-                    "controlsScored": _got and _got["controlsScored"]}, _wg,
-                   f"golden {_fid} theme {_gid}")
+                eq({k: (_got or {}).get(k) for k in _wg}, _wg, f"golden {_fid} theme {_gid}")
             for _cid, _wc in sorted(_want_lens["handVerifiedControls"].items()):
                 _gc = _byc.get(_cid)
                 eq({k: (_gc or {}).get(k) for k in _wc}, _wc,

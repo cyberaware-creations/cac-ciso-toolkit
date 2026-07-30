@@ -277,6 +277,13 @@ member controls. Bands are a share of *this Profile's* scale, so quote the scale
 "moderate on a 0–4 scale" says something, "moderate" alone does not, and scores from a 0–3 and a
 0–4 Profile are not comparable (`references/scale-and-scoring.md`).
 
+**A thin basis withholds the figure.** A control's score is the weakest of its *rated* mapped
+outcomes, which is an upper bound — the unrated ones could be lower. Below
+`settings.reporting.scopeThresholdPct` of its basis rated, the band and score are withheld and the
+row reads "too little rated" with the fraction, rather than showing an optimistic figure with a
+caveat beside it. Themes follow the same rule. This is the same judgement that suppresses the
+headline CSF coverage figure, and it uses the same setting.
+
 **Two things a lens cannot see, and both get reported.** Controls no CSF Subcategory maps to must
 be assessed directly against the standard — CSF says nothing about them. Rated CSF outcomes no
 control in the lens references drop out of that view, so work already done earns no credit there.

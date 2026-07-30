@@ -19,7 +19,7 @@ repo="$(cd "$skill/../.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=26
+EXPECTED_CHECKS=32
 checks=0
 fails=0
 
@@ -113,6 +113,20 @@ is "every lens states the scale it banded against" \
 is "every lens states its aggregation" \
    "$(read_num "len({k for k,v in d.items() if v['aggregation']=={'control':'min','grouping':'mean'}})")" "3"
 
+# Suppression: a band drawn from too thin a basis is withheld, not caveated. CIS 14.1
+# has 1 of 2 in-scope contributors rated (50%), under the 60% this Profile requires.
+is "CIS 14.1 band is withheld as too thinly rated" \
+   "$(read_num "[c['band'] for c in d['cis-8.1']['controls'] if c['controlId']=='CIS 14.1'][0]")" "insufficient"
+is "a withheld band carries no score" \
+   "$(read_num "[str(c['score']) for c in d['cis-8.1']['controls'] if c['controlId']=='CIS 14.1'][0]")" "None"
+is "a fully-rated control is not withheld" \
+   "$(read_num "[c['band'] for c in d['cis-8.1']['controls'] if c['controlId']=='CIS 5.1'][0]")" "moderate"
+is "every lens states the threshold it withheld against" \
+   "$(read_num "len({k for k,v in d.items() if v['suppression']['thresholdPct']==60})")" "3"
+# A withheld control must not reach its theme at its withheld value.
+is "CIS-14 theme is withheld once its only control is" \
+   "$(read_num "[g['band'] for g in d['cis-8.1']['groupings'] if g['groupingId']=='CIS-14'][0]")" "insufficient"
+
 # --- 5. render ---------------------------------------------------------------------
 if (cd "$skill/renderers" && $PY render_crosswalk.py --in "$analysis" --out "$report" --offline) \
      >"$work/render.txt" 2>&1; then
@@ -126,6 +140,7 @@ has "report states it is not an audit"                  "$report" "not an audit 
 has "report names the rating scale"                     "$report" "rating scale"
 has "800-53 titles are verbatim"                        "$report" "Audit Record Review, Analysis, and Reporting"
 has "ISO labels are ours"                               "$report" "our own paraphrases"
+has "report names the withheld state"                   "$report" "too little rated"
 # --offline must make the file self-contained: no outbound request when it is opened.
 hasnt "offline report makes no font request"            "$report" "fonts.googleapis.com"
 

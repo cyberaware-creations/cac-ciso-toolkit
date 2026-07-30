@@ -66,11 +66,18 @@ CROSSWALK_BAND_FILL = {
 # off the ramp entirely and is hatched in CSS. Same discipline as UNTARGETED_FILL:
 # nothing rated must never be confusable with rated-and-weak.
 CROSSWALK_UNKNOWN_FILL = WB_LINE
-CROSSWALK_BAND_ORDER = ["strong", "moderate", "weak", "minimal", "unknown"]
+# "insufficient" is off the ramp for the same reason as "unknown", and is a
+# separate state from it: unknown means nothing behind this control is rated,
+# insufficient means too little of it is to band honestly. Both are hatched, and
+# neither may look like a low measurement.
+CROSSWALK_BAND_ORDER = ["strong", "moderate", "weak", "minimal",
+                        "insufficient", "unknown"]
 CROSSWALK_BAND_LABEL = {
     "strong": "strong", "moderate": "moderate", "weak": "weak",
-    "minimal": "minimal", "unknown": "not yet rated",
+    "minimal": "minimal", "insufficient": "too little rated",
+    "unknown": "not yet rated",
 }
+CROSSWALK_OFF_RAMP = ("unknown", "insufficient")
 
 
 def crosswalk_fill(band: str) -> str:
