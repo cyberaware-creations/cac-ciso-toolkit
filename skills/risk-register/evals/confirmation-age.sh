@@ -45,8 +45,8 @@ mkdir -p "$work"
 # four derived fields and the rollup through the Context, and the rendered-HTML block
 # asserts what the operational panel and the attention cards actually say. A check added
 # to one does not change the other, and neither number is the total.
-EXPECTED_CHECKS=48
-EXPECTED_RENDER_CHECKS=15
+EXPECTED_CHECKS=51
+EXPECTED_RENDER_CHECKS=21
 
 fails=0
 chk() {
@@ -118,6 +118,38 @@ rm -f "$work"/*.rr
 "$PY" "$SR" set-status "$work/a.rr" R-003 closed \
   --why "decommissioned and verified" >/dev/null || die "set-status R-003 closed"
 "$PY" "$SR" snapshot "$work/a.rr" --label "Baseline" >/dev/null || die "snapshot"
+
+# ---- m.rr: one register that reaches EVERY confirmation state at once -------------
+# The board sentence's whole claim is that its numbers add up, and that claim cannot fail
+# on a fixture where one clause carries the entire live population: every other clause is
+# dropped at zero, and the sum is then "8 == 8" over a single number. Trap A in this file's
+# header, and the one Task 5 repeated on a fresh fixture — three of its six panel rows had
+# no failing check because every rendered fixture had a nonzero count only in `within`.
+#
+# So this register is built with nine risks by the real CLI and then re-dated in the
+# derivation block below, one risk per state: within, approaching, beyond, wellBeyond ×2,
+# future-dated, unreadable ts, no affirming event at all, and one closed risk that must not
+# appear in any of them. Titles are deliberately long, because a check that no title
+# fragment reaches a board sentence proves nothing over titles too short to notice.
+"$PY" "$SR" init "$work/m.rr" --client "Mixed Co" --assessor "D. Alleyne" >/dev/null \
+  || die "init m.rr"
+while IFS= read -r t; do
+  [ -n "$t" ] || continue
+  "$PY" "$SR" add "$work/m.rr" --title "$t" --il 4 --ii 4 --rl 3 --ri 3 \
+    --why "fixture" >/dev/null || die "add to m.rr: $t"
+done <<'TITLES'
+Supplier concentration in a single payment processor
+Legacy VPN appliance past vendor support
+Privileged access reviews not evidenced quarterly
+Backup restoration never tested end to end
+Third-party data processor onboarded without an assessment
+Detection coverage absent across the finance estate
+Incident response plan not exercised since 2024
+Unpatched internet-facing file transfer service
+Retired file share still reachable from the corporate LAN
+TITLES
+"$PY" "$SR" set-status "$work/m.rr" R-009 closed \
+  --why "decommissioned and verified" >/dev/null || die "set-status R-009 closed"
 
 set +e
 "$PY" - "$work" "$RR" <<'PY' > "$work/out.txt" 2> "$work/err.txt"
@@ -513,6 +545,86 @@ add("no age field is persisted to the register",
                                     "confirmationBand", "lastConfirmedBy",
                                     "reviewOverdueDays")))
 
+# ================= age_bounds restates age_band's boundaries =====================
+# renderers/_common.age_bounds() is the one place the t // 2 arithmetic lives now that a
+# second consumer in this skill wants it (render_dashboard's own comment asks for exactly
+# this move). It restates sr.age_band()'s boundaries, and two statements of one rule that
+# nothing compares will drift — so every edge is walked against the engine, at three
+# cadences including one absurdly small. The literal for T=180 is the independent
+# statement rule 3 requires: checked against age_band() alone, a mutant that broke both
+# consistently would still agree with itself.
+# id_list is the one route by which a count on a board page names the risks behind it, and
+# the cap is the part no fixture below reaches: the mixed register has two wellBeyond risks
+# and five would be needed. Asserted directly rather than left uncovered, escaping included —
+# an id is register data and reaches HTML unquoted otherwise.
+add("id_list caps, says how many it withheld, and escapes",
+    C.id_list([{"id": "R-%03d" % i} for i in range(1, 9)], cap=5)
+    == "R-001, R-002, R-003, R-004, R-005 +3 more"
+    and C.id_list([{"id": "R-001"}], cap=5) == "R-001"
+    and C.id_list([{"id": "R-1 & 2"}]) == "R-1 &amp; 2"
+    and C.id_list([]) == "")
+
+add("age_bounds restates age_band's boundaries exactly",
+    all(sr.age_band(lo, t) == b
+        and (hi is None or (sr.age_band(hi, t) == b and sr.age_band(hi + 1, t) != b))
+        for t in (7, 180, 365)
+        for b, (lo, hi) in C.age_bounds(t).items())
+    and [C.age_bounds(180)[b] for b in sr.AGE_BANDS]
+    == [(0, 90), (91, 180), (181, 360), (361, None)])
+
+# =========== the mixed fixture: every state at once, for the board sentence ==========
+# Re-dated here rather than in the shell because `base` and `today` above are the same
+# reference date the renders are given, so a run that straddles UTC midnight cannot leave
+# the fixture and the render a day apart. Ages are set through AFFIRMING_LITERAL, not
+# through sr.AGE_AFFIRMING: rule 3 again.
+#
+#   R-001    age 0        within
+#   R-002    age 120      approaching   (T=180: 91–180)
+#   R-003    age 200      beyond        (T=180: 181–360)
+#   R-004    age 400      wellBeyond    named second — 400 days
+#   R-005    age 500      wellBeyond    named first  — oldest
+#   R-006    ts unreadable              confirmed, distance unknown
+#   R-007    no affirming event         never confirmed
+#   R-008    age -3       future-dated  lands in `within` per age_band, and must not be
+#                                       reported there
+#   R-009    closed                     in none of the above
+MIXED_AGES = {"R-001": 0, "R-002": 120, "R-003": 200, "R-004": 400, "R-005": 500,
+              "R-008": -3}
+rawm = json.loads((work / "m.rr").read_text())
+keep = []
+for e in rawm["history"]:
+    rid = e.get("riskId")
+    if e["type"] in AFFIRMING_LITERAL and rid in MIXED_AGES:
+        e["ts"] = (base - timedelta(days=MIXED_AGES[rid])).isoformat() + "T09:00:00Z"
+    elif e["type"] in AFFIRMING_LITERAL and rid == "R-006":
+        e["ts"] = "2026-02-30T09:00:00Z"          # lexically fine, arithmetically not
+    elif e["type"] in AFFIRMING_LITERAL and rid == "R-007":
+        continue                                   # never affirmed at all
+    keep.append(e)
+rawm["history"] = keep
+(work / "m.rr").write_text(json.dumps(rawm))
+# A sidecar so the board can be rendered down BOTH summary_block branches. Without it only
+# the placeholder branch is ever exercised, and deleting the freshness call from the
+# narrative branch would ship silently.
+(work / "tr.json").write_text(json.dumps({
+    "executiveSummary": "Exposure is concentrated in supplier and remote-access risk; "
+                        "two of the four themes moved the wrong way this quarter."}))
+
+# Pinned HERE, not implied by the render checks that depend on it. Every board-sentence
+# check below is only as strong as this fixture: if the mixed register collapsed back into
+# "everything is `within`", the sum would be 8 == 8 over one clause and six checks would
+# pass over nothing.
+cm = ctx("m.rr")
+add("the mixed fixture reaches every confirmation state at once",
+    cm.confirmation["bands"] == {"within": 2, "approaching": 1,
+                                 "beyond": 1, "wellBeyond": 2}
+    and cm.confirmation["undated"] == 1 and cm.confirmation["unreadableDate"] == 1
+    and cm.confirmation["futureDated"] == 1
+    and [r["id"] for r in cm.confirmation["futureDatedRisks"]] == ["R-008"]
+    and [r["id"] for r in cm.confirmation["wellBeyond"]] == ["R-005", "R-004"]
+    and cm.confirmation["live"] == 8 and len(cm.risks) == 9
+    and cm.by_id["R-009"]["status"] == "closed")
+
 # The completion sentinel, reached only if nothing above raised. Without it, a block
 # dying halfway reports every check it managed to reach as a pass and the suite exits 0.
 print("#DONE\t%d" % emitted[0], flush=True)
@@ -592,9 +704,33 @@ done
   --offline --today "$t400" --age-threshold 365 >/dev/null \
   || die "render_dashboard errored at --age-threshold 365"
 
+# THREE board renders of the mixed register. Operational views get the distribution; the
+# board gets one sentence, so the sentence is asserted on rendered prose — the defect this
+# guards against lives in the wording, and a check against ctx.confirmation would pass over
+# a sentence that says the opposite of it.
+#
+#   board_m180   T=180, no sidecar   the placeholder branch of summary_block
+#   board_mtr    T=180, --translations  the narrative branch — same sentence, other branch
+#   board_m365   T=365, no sidecar   identical data, another cadence, therefore other ranges
+#
+# The third is not padding. Read at T=180 alone, "within the last 90 days" cannot tell a
+# boundary derived from t from a hardcoded 90, because 180 is also the argparse default —
+# the mutant that survived a whole earlier suite. The second exists because summary_block
+# has two branches and the sentence has to be on both: without it, deleting the call from
+# the narrative branch ships, and a board pack rendered WITH board language is the one that
+# reaches a board.
+"$PY" "$RR/renderers/render_board.py" "$work/m.rr" "$work/board_m180.html" \
+  --offline --today "$today" >/dev/null || die "render_board errored on m.rr"
+"$PY" "$RR/renderers/render_board.py" "$work/m.rr" "$work/board_mtr.html" \
+  --offline --today "$today" --translations "$work/tr.json" >/dev/null \
+  || die "render_board errored on m.rr with --translations"
+"$PY" "$RR/renderers/render_board.py" "$work/m.rr" "$work/board_m365.html" \
+  --offline --today "$today" --age-threshold 365 >/dev/null \
+  || die "render_board errored on m.rr at --age-threshold 365"
+
 set +e
 "$PY" - "$work" "$RR" "$today" <<'PY' > "$work/render_out.txt" 2> "$work/render_err.txt"
-import argparse, pathlib, re, sys
+import argparse, json, pathlib, re, sys
 work, rr, today = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2]), sys.argv[3]
 sys.path.insert(0, str(rr / "renderers"))
 sys.path.insert(0, str(rr / "scripts"))
@@ -604,6 +740,8 @@ import score_register as sr
 
 HTML = {k: (work / ("dash_%s.html" % k)).read_text()
         for k in ("a", "u", "b", "fut", "appr", "beyond", "far", "t365")}
+BOARD = {k: (work / ("board_%s.html" % k)).read_text()
+         for k in ("m180", "mtr", "m365")}
 
 emitted = [0]
 
@@ -784,6 +922,128 @@ add("the panel is its own section, not one of the attention lists",
     "Confirmation age" not in rd.attention_lists(cx())
     and "<h2>How old these determinations are</h2>" in HTML["a"]
     and "<h2>Needs attention</h2>" in HTML["a"])
+
+# ======================= what the BOARD sentence actually says ======================
+# Operational views get the distribution; board views get one sentence. Everything below is
+# asserted on rendered prose rather than on ctx.confirmation, because every defect it guards
+# against is a defect of the WORDING: a clause that reports a cumulative range over an
+# exclusive count, a remainder left silent so the numbers do not add up, an unreadable date
+# captioned as an absent confirmation, a title where an ID belongs. The rollup can be
+# perfectly correct while the sentence over it is false and flattering, and that combination
+# has shipped on this renderer before.
+FRESH = re.compile(r'<div class="note freshness">(.*?)</div>', re.S)
+
+
+def sentence(key):
+    """The freshness sentence as plain text, or None if the page has none."""
+    m = FRESH.search(BOARD[key])
+    return re.sub(r"<[^>]+>", "", m.group(1)).strip() if m else None
+
+
+s180, str_, s365 = sentence("m180"), sentence("mtr"), sentence("m365")
+# Every check below leads with this rather than substring-testing a None and taking the
+# whole block down with a TypeError. A missing sentence must report as the failure it is —
+# "cites IDs, never titles" and "is never captioned as absent" would BOTH be vacuously true
+# of a sentence that does not exist, so the guard is `is not None`, never `or ""`.
+rendered = s180 is not None and str_ is not None and s365 is not None
+
+# Both branches of summary_block. The narrative branch is the one a real board pack takes,
+# and the two must carry the SAME sentence — a freshness line that differs by whether board
+# language was supplied is two sentences to keep in step forever.
+add("the freshness sentence renders on both summary_block branches",
+    s180 is not None and str_ is not None and s180 == str_
+    and BOARD["m180"].count('class="note freshness"') == 1
+    and BOARD["mtr"].count('class="note freshness"') == 1
+    # ...and the two pages really are the two different branches, or this compares one
+    # rendering with a copy of itself and cannot fail.
+    and "Executive narrative from the ciso-board-translation skill" in BOARD["mtr"]
+    and C.PLACEHOLDER in BOARD["m180"])
+
+
+def sum_problem(s):
+    """"" if the clause counts sum to the sentence's own denominator, else why not.
+
+    The leading integer of each semicolon-separated clause, against the "Of N live risks"
+    the sentence opens with. Digits inside day ranges and inside parenthesised risk IDs are
+    not clause leads and are not counted.
+    """
+    if s is None:
+        return "no freshness sentence rendered at all"
+    m = re.match(r"Of (\d+) live risks?: (.*?)\. Age is reported so the board", s, re.S)
+    if not m:
+        return "sentence is not in the expected shape: %.90s" % s
+    total = int(m.group(1))
+    parts = [c.strip() for c in m.group(2).split(";")]
+    counts = [int(re.match(r"(\d+)", p).group(1)) for p in parts if re.match(r"(\d+)", p)]
+    if len(counts) != len(parts):
+        return "a clause does not begin with a count: %r" % (parts,)
+    if sum(counts) != total:
+        return "clauses sum to %d, sentence says %d live risks" % (sum(counts), total)
+    return ""
+
+
+# The clause counts are pinned as well as summed. A sum alone cannot fail on a register
+# where one clause carries everybody: seven clauses at T=180 and six at T=365 (wellBeyond
+# empties at the wider cadence) is what makes the sum a real constraint. 8 is an independent
+# literal — m.rr holds nine risks and closes one — so a denominator computed AS the sum of
+# the clauses, which would make this check tautological, fails here.
+add("the freshness clauses sum to the sentence's own denominator, at two cadences",
+    rendered and sum_problem(s180) == "" and sum_problem(s365) == ""
+    and s180.startswith("Of 8 live risks: ")
+    and len(s180.split(";")) == 7 and len(s365.split(";")) == 6)
+
+# IDs only, never titles. An imported gap carries raw CSF framework wording until somebody
+# rewords it; that wording has reached a board page by three separate routes already, and
+# this sentence must not be a fourth. Non-vacuous by construction: every title in m.rr is
+# long enough that a fragment of it would be unmistakable.
+mreg = json.loads((work / "m.rr").read_text())
+mtitles = [r["title"] for r in mreg["risks"]]
+add("the freshness sentence cites IDs and never titles",
+    rendered and len([t for t in mtitles if len(t) > 25]) == 9
+    and not any(t[:25] in s180 for t in mtitles)
+    and not any(t[:25] in s365 for t in mtitles)
+    # ...and it does name the risks it counts, or "contains no title" is also true of a
+    # sentence that names nothing at all.
+    and "(R-005, R-004)" in s180 and "(R-008)" in s180)
+
+# The three non-band states, kept apart in the prose. `unreadableDate` means a confirmation
+# and a confirmer ARE on record and only the distance is unknown; captioning it as an absent
+# confirmation is the one thing that state exists to prevent.
+add("an unreadable confirmation date is never captioned as an absent one",
+    rendered and "1 confirmed on a date the register cannot read" in s180
+    and "1 carrying no confirmation record" in s180
+    and s180.count("carrying no confirmation record") == 1
+    and "never confirmed" not in s180)
+
+# Exclusive, and derived from the cadence rather than from the argparse default. The
+# ranges are independent literals here, not recomputed from t: a range built from the same
+# expression as the sentence's cannot disagree with it. CUMULATIVE is the shape of the
+# defect that shipped on this very renderer — "within 360 days" captioning the count of
+# determinations PAST the chosen cadence.
+R180 = ["1 confirmed within the last 90 days", "between 91 and 180 days ago",
+        "between 181 and 360 days ago", "not confirmed in over 360 days"]
+R365 = ["2 confirmed within the last 182 days", "between 183 and 365 days ago",
+        "between 366 and 730 days ago"]
+CUM = ["between 0 and 180 days", "between 0 and 360 days", "within the last 180 days",
+       "within the last 360 days", "in over 180 days"]
+add("the sentence's ranges are exclusive and rescale with the cadence",
+    rendered and all(x in s180 for x in R180) and all(x in s365 for x in R365)
+    and not any(x in s180 or x in s365 for x in CUM)
+    and R365[0] not in s180 and R180[0] not in s365
+    # wellBeyond empties at T=365, and a zero clause is dropped rather than printed as 0.
+    and "not confirmed in over" not in s365)
+
+# A future-dated confirmation has a negative age, and age_band() reports that as `within` on
+# purpose. So the rollup's `within` count is 2 while the sentence's freshest clause says 1:
+# the defect is subtracted out and named rather than absorbed into the best news on the
+# page. Both halves are the check — the rollup number and the prose number must DIFFER here,
+# which is what makes it impossible to satisfy by reporting the band count verbatim.
+add("a future-dated confirmation is named, not absorbed into the freshest clause",
+    rendered and "1 carrying a confirmation date in the future (R-008)" in s180
+    and "a record defect rather than a recent review" in s180
+    and "1 confirmed within the last 90 days" in s180
+    and cx("m.rr").confirmation["bands"]["within"] == 2
+    and cx("m.rr").confirmation["futureDated"] == 1)
 
 print("#DONE\t%d" % emitted[0], flush=True)
 PY

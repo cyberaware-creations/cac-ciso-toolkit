@@ -80,6 +80,50 @@ DISCLAIMER = "A Cyber Aware Creation · Not affiliated with NIST"
 # Matches nist-csf's ageThresholdDays.
 DEFAULT_AGE_THRESHOLD = 180
 
+
+def age_bounds(threshold_days: int) -> dict:
+    """The four confirmation-age bands as inclusive day boundaries, derived from T.
+
+    `{band: (low, high)}`, with `high is None` for the open-ended top band. Boundaries
+    only — no wording. The two views that print them are in different sentence shapes
+    ("0–90d" on a counted row; "within the last 90 days" in a board sentence) and must not
+    converge on one string, but they must not each re-derive `t // 2` either: that formula
+    is currently written out character for character in four places, and render_dashboard's
+    own comment asks the second consumer in this skill to move the arithmetic here. This is
+    that move, arithmetic only.
+
+    EXCLUSIVE ranges, mirroring sr.age_band(): each band is inclusive of its upper bound
+    and `within` runs to T // 2. Cumulative ranges over mutually-exclusive counts are both
+    false and flattering — "within 360 days" once captioned the count of determinations
+    PAST the chosen cadence, on the board renderer.
+
+    Agreement with sr.age_band() at every boundary is asserted in evals/confirmation-age.sh
+    rather than assumed; this function restates that function's boundaries, and two
+    statements of one rule that nothing compares will drift.
+    """
+    half = threshold_days // 2
+    return {"within": (0, half), "approaching": (half + 1, threshold_days),
+            "beyond": (threshold_days + 1, threshold_days * 2),
+            "wellBeyond": (threshold_days * 2 + 1, None)}
+
+
+def id_list(risks: list, cap: int = 6) -> str:
+    """`R-001, R-002, R-004 +2 more` — IDs only, capped, escaped.
+
+    IDs and never titles, on every surface. An imported CSF gap carries raw framework
+    wording as its title until somebody rewords it, and that wording has already reached a
+    board page by three separate routes — the third being the change log, which the title
+    guard's own docstring had not anticipated. A list of names beside a count would be a
+    fourth. risk_title() exists for the places a title is genuinely wanted and can carry a
+    placeholder; a count's supporting list is not one of them and has nowhere to put one.
+
+    The cap keeps a row or clause that points into the register from becoming a second copy
+    of it.
+    """
+    shown = ", ".join(esc(r["id"]) for r in risks[:cap])
+    return shown + (f" +{len(risks) - cap} more" if len(risks) > cap else "")
+
+
 UNCLASSIFIED = "Unclassified"
 VELOCITY_MARK = {"improving": "▼", "worsening": "▲", "steady": "→", "new": "＋"}
 # These are arrows drawn *as text* on the light workbench, so they take the text
