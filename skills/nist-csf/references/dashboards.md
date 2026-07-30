@@ -1,13 +1,14 @@
 # Dashboards — content specification
 
-Two audiences, two artifacts, one data source. Both are rendered from the `analyze` JSON and
-**nothing is computed in a renderer**. If a number a dashboard needs is not in `analyze`, add it to
-`analyze` (T10), not to the renderer — otherwise two views of the same Profile can disagree.
+Two standing audiences, plus a third artifact for reading the same Profile through another
+framework's controls. All three render from the `analyze` JSON and **nothing is computed in a
+renderer**. If a number a dashboard needs is not in `analyze`, add it to `analyze`, not to the
+renderer — otherwise two views of the same Profile can disagree.
 
-Both outputs are single self-contained HTML files: inline CSS and JS, no external assets beyond a
+Every output is a single self-contained HTML file: inline CSS and JS, no external assets beyond a
 Google Fonts link with a system fallback. That link is one outbound request when the file is opened
 — pass `--offline` to drop it and render on the system font stack instead, for anything going to a
-client or an air-gapped machine. Both carry the footer from `assets/brand.md`.
+client or an air-gapped machine. All three carry a footer from `assets/brand.md`.
 
 ---
 
@@ -271,3 +272,78 @@ board.
 
 ### Footer
 Brand footer, framework citation, and the build stamp.
+
+---
+
+## Crosswalk report (ISO / CIS / 800-53 lenses)
+
+A third artifact, `renderers/render_crosswalk.py`, rendered from the same `analyze` JSON — but only
+when that JSON was generated with `--crosswalk <id>`. Crosswalks are a **report-time** choice, so a
+report is never produced from a Profile that did not ask for one, and the renderer refuses an
+analysis JSON with no `crosswalks` block rather than emitting an empty shell.
+
+One tab per lens, plus one cross-lens lookup. Tabs are CSS-only (checked radios), so the report
+needs no scripting to be complete; `@media print` reveals every panel and page-breaks between them.
+
+### Rules that bind this report
+
+Numbered separately from the two above because these are the ways a *crosswalk* misleads, which is
+not the same list:
+
+1. **It is derived, never an audit.** Every panel states that it is projected from a CSF assessment
+   and is not an audit or certification. The intro states it again in full: not evidence of
+   conformance, not a gap assessment against the other standard.
+2. **Never a band word without its scale.** Every panel names the Profile's scale and states that
+   scores from differently-scaled Profiles are not comparable. "moderate" is unreadable alone —
+   `references/scale-and-scoring.md` is explicit that the 0–3 and 0–4 scales have no honest mapping,
+   so a band that does not name its scale is a claim the reader cannot check.
+3. **Never colour alone.** The band word is text on every heatmap cell and every table row. A
+   crosswalk band must survive greyscale printing, colour-vision deficiency, and forced colours.
+4. **`unknown` is off the ramp.** A control with nothing rated behind it is hatched and labelled
+   "not yet rated" — never the lowest ramp step. Nothing-rated must not read as rated-and-weak.
+5. **No ISO or CIS control text, ever.** Identifiers plus our own labels only; the lens states its
+   label source, and 800-53 is marked verbatim because it is a US Government work. This is a
+   licensing boundary, not a style choice, and `check_crosswalks` enforces it.
+6. **Both honesty lists always render.** Controls outside CSF and rated outcomes outside the lens
+   appear even when empty, with the empty case explained — for a catalogue holding only the mapped
+   subset, an empty "outside CSF" list means those controls are not catalogued, not that none exist.
+7. **Every contributor is accounted for.** The control table's caveats column names unrated,
+   not-applicable, and absent contributors — but not the unrated count on a row that has no score,
+   where the band already says "not yet rated" and repeating it is noise on every unrated row.
+   Not-applicable and absent are always named, because "not yet rated" and "deliberately scoped
+   out" are different facts.
+8. **A band drawn from too thin a basis is withheld, not caveated.** The weakest-link minimum is
+   taken over rated contributors only, so it is an *upper* bound: a control showing "moderate" off
+   1 of 15 mapped outcomes can only overstate posture. Below
+   `settings.reporting.scopeThresholdPct` of its in-scope basis, the band and the score are both
+   withheld and the row reads "too little rated" with the fraction. The same rule applies one level
+   up to themes — suppressing thin controls removes scores from the theme mean and the removed ones
+   are not randomly distributed, so without it the optimism just relocates from the row to the
+   cell. Where no theme in a lens is publishable, the heatmap is replaced by a stated reason
+   rather than a grid of hatching, which reads as a broken report.
+
+### Sections, per lens
+
+| Section | Contents |
+|---|---|
+| Lens meta | Framework name and version, mapping authority, label source, licence |
+| Scale statement | The scale bands were computed against, the control rule, the theme rule |
+| Stat tiles | Rated-of-mapped controls, controls in framework, outside-CSF count, not-in-lens count |
+| Theme coverage | Heatmap over groupings — mean of member controls, band word on every cell |
+| Controls | Natural-sorted table: id, label, band, score, contributing CSF outcomes, caveats |
+| What this lens cannot tell you | Both honesty lists, with the empty cases explained |
+
+### The reverse lookup
+
+The auditor's direction, and the only scripted element. Given a control identifier it names the CSF
+Subcategories behind it with their ratings, or says plainly that nothing maps there and the control
+must be assessed directly. Unmapped controls are **in** the lookup deliberately — "nothing maps
+here" is the answer an auditor needs, and omitting them would look like a missing record. The
+framework selector follows the visible tab, so a reader on the 800-53 panel is not told that AU-6
+is not an ISO control.
+
+### Footer
+
+`DISCLAIMER_CROSSWALK` — *"A Cyber Aware Creation · Not affiliated with NIST, ISO, or CIS"*. Selected
+by `Context.footer()` from whether a `crosswalks` block is present, not passed in by the renderer, so
+a report naming ISO or CIS controls cannot ship the NIST-only wording by omission.

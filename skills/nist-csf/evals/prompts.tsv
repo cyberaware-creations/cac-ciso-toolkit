@@ -18,3 +18,8 @@ A2	risk-register	Turn our gap assessment into risks.
 A3	nist-csf	How mature is our security programme?
 A4	nist-csf|risk-register|ciso-board-translation	What should I show the board about our security posture?
 A5	nist-csf	Are we compliant with NIST?
+C1	nist-csf	How do we look against ISO 27001?
+C2	nist-csf	Which CSF outcomes sit behind ISO A.8.9?
+C3	nist-csf	Show our posture as CIS Controls safeguards.
+C4	nist-csf	Can you map our assessment onto 800-53 control families?
+C5	nist-csf	Our auditor wants to know which CSF evidences A.5.24.

@@ -37,6 +37,21 @@ jobs:
           python3 skills/nist-csf/scripts/profile_analysis.py self-test
           python3 skills/nist-csf/scripts/csfa_compat.py self-test
 
+      # The licensing gate on the bundled crosswalk data: ISO and CIS ship IDs
+      # plus our own labels, never the official titles or normative text. The
+      # `validate` step above enforces the same invariant from inside the shipped
+      # skill; this is the build-time checker that owns the rule, and it also
+      # covers the build tooling that never ships.
+      - name: Crosswalk data carries no ISO/CIS verbatim text
+        run: python3 tools/crosswalks/validate_crosswalks.py
+
+      # Golden .csfa -> convert -> analyze -> render, on the floor. Covers the
+      # licensing gate on the shipped data, the opt-in rule, the hand-verified
+      # headline numbers, and the report's own disclaimers. Refuses to report
+      # success over a partial run — see its EXPECTED_CHECKS guard.
+      - name: Crosswalk end-to-end, on the floor
+        run: PY="$(command -v python3)" ./skills/nist-csf/evals/crosswalk-e2e.sh
+
       - name: Board-safety suite, on the floor
         run: PY="$(command -v python3)" ./skills/risk-register/evals/board-safety.sh
 

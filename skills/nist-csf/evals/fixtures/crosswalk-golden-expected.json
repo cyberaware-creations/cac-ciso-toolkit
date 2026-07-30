@@ -1,0 +1,388 @@
+{
+  "_note": "Expected crosswalk output for crosswalk-golden.csfa. Hand-verified before being frozen; see the crosswalk block in profile_analysis.py self-test. The .csfa converts to a 0-4 scale, so bands are shares of 4. This Profile rates 9 of 105 in-scope Subcategories, which is deliberately below reporting.scopeThresholdPct: most bands are therefore suppressed, and that is the assertion \u2014 a thin basis must withhold a figure rather than caveat it.",
+  "lenses": {
+    "800-53-r5": {
+      "bandHistogram": {
+        "insufficient": 35,
+        "minimal": 7,
+        "moderate": 11,
+        "unknown": 153
+      },
+      "completeness": {
+        "catalogueScope": "referenced-subset",
+        "controlsCategoryOnly": 0,
+        "controlsMapped": 206,
+        "controlsOutsideCSF": 0,
+        "controlsTotal": 206,
+        "csfNotInLens": []
+      },
+      "controlsScored": 206,
+      "groupings": {
+        "AC": {
+          "band": "insufficient",
+          "bandSuppressed": true,
+          "controlsMapped": 17,
+          "controlsScored": 9,
+          "score": null
+        },
+        "CM": {
+          "band": "insufficient",
+          "bandSuppressed": true,
+          "controlsMapped": 17,
+          "controlsScored": 0,
+          "score": null
+        },
+        "CP": {
+          "band": "insufficient",
+          "bandSuppressed": true,
+          "controlsMapped": 9,
+          "controlsScored": 0,
+          "score": null
+        },
+        "IA": {
+          "band": "insufficient",
+          "bandSuppressed": true,
+          "controlsMapped": 13,
+          "controlsScored": 2,
+          "score": null
+        },
+        "MA": {
+          "band": "insufficient",
+          "bandSuppressed": true,
+          "controlsMapped": 4,
+          "controlsScored": 2,
+          "score": null
+        },
+        "PL": {
+          "band": "insufficient",
+          "bandSuppressed": true,
+          "controlsMapped": 3,
+          "controlsScored": 0,
+          "score": null
+        },
+        "PM": {
+          "band": "insufficient",
+          "bandSuppressed": true,
+          "controlsMapped": 24,
+          "controlsScored": 2,
+          "score": null
+        },
+        "RA": {
+          "band": "insufficient",
+          "bandSuppressed": true,
+          "controlsMapped": 8,
+          "controlsScored": 0,
+          "score": null
+        },
+        "SA": {
+          "band": "insufficient",
+          "bandSuppressed": true,
+          "controlsMapped": 17,
+          "controlsScored": 1,
+          "score": null
+        },
+        "SI": {
+          "band": "insufficient",
+          "bandSuppressed": true,
+          "controlsMapped": 11,
+          "controlsScored": 1,
+          "score": null
+        },
+        "SR": {
+          "band": "insufficient",
+          "bandSuppressed": true,
+          "controlsMapped": 9,
+          "controlsScored": 1,
+          "score": null
+        }
+      },
+      "handVerifiedControls": {
+        "AC-1": {
+          "band": "insufficient",
+          "bandSuppressed": true,
+          "basisPct": 20.0,
+          "mappedSubcategories": [
+            "GV.OC-03",
+            "GV.OV-01",
+            "GV.PO-01",
+            "GV.PO-02",
+            "GV.SC-03",
+            "ID.IM-01",
+            "ID.IM-02",
+            "ID.IM-03",
+            "PR.AA-01",
+            "PR.AA-05"
+          ],
+          "notApplicableContributors": 0,
+          "ratedContributors": 2,
+          "score": null,
+          "unratedContributors": 8
+        },
+        "AU-6": {
+          "band": "unknown",
+          "bandSuppressed": false,
+          "basisPct": 0.0,
+          "mappedSubcategories": [
+            "DE.AE-02",
+            "DE.AE-03",
+            "PR.PS-04"
+          ],
+          "notApplicableContributors": 0,
+          "ratedContributors": 0,
+          "score": null,
+          "unratedContributors": 3
+        }
+      },
+      "mappingAuthority": "nist-developed",
+      "suppression": {
+        "controlsSuppressed": 35,
+        "groupingsSuppressed": 11,
+        "setting": "reporting.scopeThresholdPct",
+        "thresholdPct": 60
+      }
+    },
+    "cis-8.1": {
+      "bandHistogram": {
+        "insufficient": 1,
+        "minimal": 2,
+        "moderate": 5,
+        "strong": 3,
+        "unknown": 36,
+        "weak": 2
+      },
+      "completeness": {
+        "catalogueScope": "referenced-subset",
+        "controlsCategoryOnly": 0,
+        "controlsMapped": 49,
+        "controlsOutsideCSF": 0,
+        "controlsTotal": 49,
+        "csfNotInLens": [
+          "GV.OC-01"
+        ]
+      },
+      "controlsScored": 49,
+      "groupings": {
+        "CIS-1": {
+          "band": "insufficient",
+          "bandSuppressed": true,
+          "controlsMapped": 2,
+          "controlsScored": 1,
+          "score": null
+        },
+        "CIS-11": {
+          "band": "strong",
+          "bandSuppressed": false,
+          "controlsMapped": 3,
+          "controlsScored": 3,
+          "score": 4.0
+        },
+        "CIS-14": {
+          "band": "insufficient",
+          "bandSuppressed": true,
+          "controlsMapped": 2,
+          "controlsScored": 0,
+          "score": null
+        },
+        "CIS-15": {
+          "band": "insufficient",
+          "bandSuppressed": true,
+          "controlsMapped": 7,
+          "controlsScored": 2,
+          "score": null
+        },
+        "CIS-3": {
+          "band": "insufficient",
+          "bandSuppressed": true,
+          "controlsMapped": 8,
+          "controlsScored": 2,
+          "score": null
+        },
+        "CIS-5": {
+          "band": "moderate",
+          "bandSuppressed": false,
+          "controlsMapped": 2,
+          "controlsScored": 2,
+          "score": 3.0
+        },
+        "CIS-6": {
+          "band": "insufficient",
+          "bandSuppressed": true,
+          "controlsMapped": 4,
+          "controlsScored": 2,
+          "score": null
+        }
+      },
+      "handVerifiedControls": {
+        "CIS 1.1": {
+          "band": "minimal",
+          "bandSuppressed": false,
+          "basisPct": 100.0,
+          "mappedSubcategories": [
+            "ID.AM-01",
+            "ID.AM-08"
+          ],
+          "notApplicableContributors": 0,
+          "ratedContributors": 2,
+          "score": 1,
+          "unratedContributors": 0
+        },
+        "CIS 11.5": {
+          "band": "strong",
+          "bandSuppressed": false,
+          "basisPct": 100.0,
+          "mappedSubcategories": [
+            "PR.DS-11",
+            "RC.RP-03"
+          ],
+          "notApplicableContributors": 0,
+          "ratedContributors": 2,
+          "score": 4,
+          "unratedContributors": 0
+        },
+        "CIS 14.1": {
+          "band": "insufficient",
+          "bandSuppressed": true,
+          "basisPct": 50.0,
+          "mappedSubcategories": [
+            "GV.RR-01",
+            "PR.AT-01"
+          ],
+          "notApplicableContributors": 0,
+          "ratedContributors": 1,
+          "score": null,
+          "unratedContributors": 1
+        },
+        "CIS 15.1": {
+          "band": "weak",
+          "bandSuppressed": false,
+          "basisPct": 100.0,
+          "mappedSubcategories": [
+            "GV.SC-04",
+            "ID.AM-04"
+          ],
+          "notApplicableContributors": 1,
+          "ratedContributors": 1,
+          "score": 2,
+          "unratedContributors": 0
+        },
+        "CIS 5.1": {
+          "band": "moderate",
+          "bandSuppressed": false,
+          "basisPct": 100.0,
+          "mappedSubcategories": [
+            "PR.AA-01",
+            "PR.AA-05"
+          ],
+          "notApplicableContributors": 0,
+          "ratedContributors": 2,
+          "score": 3,
+          "unratedContributors": 0
+        }
+      },
+      "mappingAuthority": "cis-authored",
+      "suppression": {
+        "controlsSuppressed": 1,
+        "groupingsSuppressed": 5,
+        "setting": "reporting.scopeThresholdPct",
+        "thresholdPct": 60
+      }
+    },
+    "iso-27001-2022": {
+      "bandHistogram": {
+        "insufficient": 25,
+        "minimal": 3,
+        "moderate": 2,
+        "strong": 1,
+        "unknown": 57
+      },
+      "completeness": {
+        "catalogueScope": "full",
+        "controlsCategoryOnly": 3,
+        "controlsMapped": 88,
+        "controlsOutsideCSF": 28,
+        "controlsTotal": 119,
+        "csfNotInLens": []
+      },
+      "controlsScored": 88,
+      "groupings": {
+        "A.5": {
+          "band": "insufficient",
+          "bandSuppressed": true,
+          "controlsMapped": 27,
+          "controlsScored": 2,
+          "score": null
+        },
+        "A.7": {
+          "band": "insufficient",
+          "bandSuppressed": true,
+          "controlsMapped": 10,
+          "controlsScored": 2,
+          "score": null
+        },
+        "A.8": {
+          "band": "insufficient",
+          "bandSuppressed": true,
+          "controlsMapped": 22,
+          "controlsScored": 2,
+          "score": null
+        },
+        "CL": {
+          "band": "insufficient",
+          "bandSuppressed": true,
+          "controlsMapped": 21,
+          "controlsScored": 0,
+          "score": null
+        }
+      },
+      "handVerifiedControls": {
+        "A.5.1": {
+          "band": "insufficient",
+          "bandSuppressed": true,
+          "basisPct": 6.7,
+          "mappedSubcategories": [
+            "GV.OV-01",
+            "GV.OV-02",
+            "GV.OV-03",
+            "GV.PO-01",
+            "GV.PO-02",
+            "GV.RM-01",
+            "GV.RM-02",
+            "GV.RM-03",
+            "GV.RM-04",
+            "GV.RM-05",
+            "GV.RM-06",
+            "GV.SC-01",
+            "GV.SC-03",
+            "PR.AA-05",
+            "PR.DS-01"
+          ],
+          "notApplicableContributors": 0,
+          "ratedContributors": 1,
+          "score": null,
+          "unratedContributors": 14
+        },
+        "A.8.9": {
+          "band": "unknown",
+          "bandSuppressed": false,
+          "basisPct": 0.0,
+          "mappedSubcategories": [
+            "PR.PS-01"
+          ],
+          "notApplicableContributors": 0,
+          "ratedContributors": 0,
+          "score": null,
+          "unratedContributors": 1
+        }
+      },
+      "mappingAuthority": "mixed-third-party",
+      "suppression": {
+        "controlsSuppressed": 25,
+        "groupingsSuppressed": 4,
+        "setting": "reporting.scopeThresholdPct",
+        "thresholdPct": 60
+      }
+    }
+  },
+  "scaleMax": 4,
+  "thresholdPct": 60
+}
