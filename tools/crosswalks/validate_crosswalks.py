@@ -17,8 +17,12 @@ import json, sys, glob, os
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _BUNDLED = os.path.join(_HERE, "..", "..", "skills", "nist-csf", "references", "crosswalks")
 DATA = sys.argv[1] if len(sys.argv) > 1 else _BUNDLED
+# "pending-verbatim-title" was allowed while the 800-53 titles were being
+# ingested. All 206 now carry verbatim titles, so the placeholder is dead slack
+# that would let an unlabelled control ship; dropped so this rule matches
+# CROSSWALK_EXPECTED in profile_analysis.py exactly.
 LABEL_RULE = {
-    "800-53-r5": {"verbatim-public-domain", "pending-verbatim-title"},
+    "800-53-r5": {"verbatim-public-domain"},
     "iso-27001-2022": {"cac-generated"},
     "cis-8.1": {"cac-generated"},
 }

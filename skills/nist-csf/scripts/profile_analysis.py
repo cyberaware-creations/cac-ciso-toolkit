@@ -118,12 +118,29 @@ CORE_EXPECTED = {
     "perFunction": {"GV": 31, "ID": 21, "PR": 22, "DE": 11, "RS": 13, "RC": 8},
 }
 
+# Integrity invariants for the bundled crosswalk data, same discipline as
+# CORE_EXPECTED above. `labelSource` is the load-bearing one: it is the licensing
+# contract, not a cosmetic tag. ISO and CIS ship IDs plus our own paraphrases and
+# never the official control titles or normative text; 800-53 is a US Government
+# work and ships verbatim. A refresh of the NIST reference export is expected to
+# move these counts — that is the point. The rebuild diffs against them, so a
+# changed catalog is a deliberate review step rather than silent drift.
+CROSSWALK_EXPECTED = {
+    "800-53-r5":      {"edges": 731, "controls": 206, "groupings": 20,
+                       "labelSource": "verbatim-public-domain", "verbatimAllowed": True},
+    "iso-27001-2022": {"edges": 329, "controls": 119, "groupings": 5,
+                       "labelSource": "cac-generated", "verbatimAllowed": False},
+    "cis-8.1":        {"edges": 62,  "controls": 49,  "groupings": 16,
+                       "labelSource": "cac-generated", "verbatimAllowed": False},
+}
+
 _SKILL_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_CORE = os.path.join(_SKILL_ROOT, "references", "nist-csf-2.0-core.json")
 DEFAULT_GUIDANCE = os.path.join(_SKILL_ROOT, "references", "guidance.json")
 DEFAULT_COLD_START_RANK = os.path.join(_SKILL_ROOT, "references", "cold-start-rank.json")
 DEFAULT_ELICITATION = os.path.join(_SKILL_ROOT, "references", "elicitation.json")
 DEFAULT_CYBER_AI = os.path.join(_SKILL_ROOT, "references", "cyber-ai-profile.json")
+DEFAULT_CROSSWALK_DIR = os.path.join(_SKILL_ROOT, "references", "crosswalks")
 FIXTURE = os.path.join(_SKILL_ROOT, "examples", "example-profile.csfp")
 
 
@@ -230,6 +247,98 @@ def check_core(core: dict) -> list[str]:
         problems.append("Tier characterizations are missing")
     elif len(tiers["levels"]) != 4:
         problems.append(f"expected 4 Tiers, found {len(tiers['levels'])}")
+
+    return problems
+
+
+def check_crosswalks(index: dict, path: str | None = None) -> list[str]:
+    """Integrity + licensing check on the bundled crosswalk data.
+
+    Returns a list of problems; empty means clean. Deliberately overlaps the
+    build-time checker in tools/crosswalks/validate_crosswalks.py, because that
+    one does not ship: a user who only has the skill still needs the licensing
+    invariant enforced. Two checks it makes that the build-time one structurally
+    cannot, having no Core to compare against:
+
+      - every edge's csfSubId resolves to a real CSF Subcategory, so a typo or a
+        stale Subcategory id cannot silently drop a control's coverage to
+        "unknown" while every count still looks right;
+      - the pinned CROSSWALK_EXPECTED counts.
+
+    `index` is index_subcategories(core) output.
+    """
+    problems: list[str] = []
+    base = path or DEFAULT_CROSSWALK_DIR
+    if not os.path.isdir(base):
+        return [f"crosswalk data directory is missing: {base}"]
+
+    for fid, want in sorted(CROSSWALK_EXPECTED.items()):
+        cat_path = os.path.join(base, f"{fid}.catalog.json")
+        map_path = os.path.join(base, f"csf-2.0__{fid}.map.json")
+        for p in (cat_path, map_path):
+            if not os.path.isfile(p):
+                problems.append(f"[{fid}] missing {os.path.basename(p)}")
+        if problems and any(fid in p for p in problems):
+            continue
+        try:
+            with open(cat_path, encoding="utf-8") as f:
+                cat = json.load(f)
+            with open(map_path, encoding="utf-8") as f:
+                mp = json.load(f)
+        except (OSError, ValueError) as exc:
+            problems.append(f"[{fid}] unreadable crosswalk data: {exc}")
+            continue
+
+        controls = cat.get("controls", [])
+        groupings = cat.get("groupings", [])
+        edges = mp.get("edges", [])
+        if len(controls) != want["controls"]:
+            problems.append(f"[{fid}] expected {want['controls']} controls, found {len(controls)}")
+        if len(groupings) != want["groupings"]:
+            problems.append(f"[{fid}] expected {want['groupings']} groupings, found {len(groupings)}")
+        if len(edges) != want["edges"]:
+            problems.append(f"[{fid}] expected {want['edges']} edges, found {len(edges)}")
+
+        for field in ("frameworkId", "name", "version", "license", "provenance", "sourceExport"):
+            if not cat.get(field):
+                problems.append(f"[{fid}] catalog is missing provenance field {field!r}")
+        if cat.get("frameworkId") != fid:
+            problems.append(f"[{fid}] catalog frameworkId is {cat.get('frameworkId')!r}")
+
+        declared = {g.get("id") for g in groupings}
+        seen: set[str] = set()
+        for ctl in controls:
+            cid = ctl.get("id")
+            if not cid:
+                problems.append(f"[{fid}] a control has no id")
+                continue
+            if cid in seen:
+                problems.append(f"[{fid}] duplicate control id {cid}")
+            seen.add(cid)
+            if not (ctl.get("label") or "").strip():
+                problems.append(f"[{fid}] {cid} has an empty label")
+            if ctl.get("labelSource") != want["labelSource"]:
+                problems.append(f"[{fid}] {cid} labelSource is {ctl.get('labelSource')!r}, "
+                                f"must be {want['labelSource']!r}")
+            # The licensing line. ISO and CIS text is copyrighted; shipping it
+            # would be redistribution, so its absence is enforced, not trusted.
+            if not want["verbatimAllowed"] and ctl.get("text") not in (None, ""):
+                problems.append(f"[{fid}] {cid} carries normative text, which is "
+                                f"forbidden for this framework")
+            if ctl.get("groupingId") and ctl["groupingId"] not in declared:
+                problems.append(f"[{fid}] {cid} groupingId {ctl['groupingId']!r} is not declared")
+
+        if not mp.get("mappingAuthority"):
+            problems.append(f"[{fid}] map is missing mappingAuthority")
+        for e in edges:
+            sub, ctl_id = e.get("csfSubId"), e.get("controlId")
+            if ctl_id not in seen:
+                problems.append(f"[{fid}] edge {sub}->{ctl_id} does not resolve to a catalog control")
+            if sub not in index:
+                problems.append(f"[{fid}] edge {sub}->{ctl_id} cites {sub!r}, "
+                                f"which is not a CSF Subcategory")
+            if not e.get("authority"):
+                problems.append(f"[{fid}] edge {sub}->{ctl_id} has no authority tag")
 
     return problems
 
@@ -1416,6 +1525,16 @@ def _cmd_validate(args):
     print(f"  Examples       {sum(len(s.get('examples', [])) for s in subs)}")
     print(f"  Tiers          {len(core['tiers']['levels'])} × "
           f"{len(core['tiers']['dimensions'])} dimensions (verbatim, {core['tiers']['source']['publication']})")
+
+    cw_problems = check_crosswalks(index_subcategories(core))
+    if cw_problems:
+        print("\nCrosswalk integrity check FAILED:", file=sys.stderr)
+        for p in cw_problems:
+            print(f"  - {p}", file=sys.stderr)
+        return 1
+    print("  Crosswalks     " + "; ".join(
+        f"{fid} {w['edges']}e/{w['controls']}c ({w['labelSource']})"
+        for fid, w in sorted(CROSSWALK_EXPECTED.items())))
     return 0
 
 
