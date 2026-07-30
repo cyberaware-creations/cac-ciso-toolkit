@@ -206,13 +206,10 @@ PY
 # and a pattern that only knew the plural would report the sentence missing from a
 # perfectly good single-risk page. Verified against both renderings, not assumed.
 #
-# The executive dashboard is required to carry it, because that is where it ships. The
-# printable report is asserted only IF it carries one — freshness_line() lives in
-# _common.py, so the report may grow one at any time, and this suite's own header records
-# what happens when a board guard is written for one renderer and not the other. Asserting
-# the report unconditionally would fail today for a reason this check is not about;
-# asserting it when present means the second page is covered the day it appears, without
-# anybody remembering to come back here.
+# BOTH board-facing renderers are required to carry it. freshness_line() lives in
+# _common.py and both call it, which is the arrangement this suite's own header argues for:
+# a board guard written for one renderer and not the other is how the printable report kept
+# exposing raw framework wording for a full release.
 chk 8 "board freshness line present and counts live risks" "$("$PY" - "$work" <<'PY'
 import json, pathlib, re, sys
 work = pathlib.Path(sys.argv[1])
@@ -234,8 +231,14 @@ for name in ("render_board", "render_report"):          # board-facing only
         problems.append(f"{name}: not rendered — check read nothing")
         continue
     found[name] = re.findall(r"Of (\d+) live risks?:", path.read_text())
-if "render_board" in found and not found["render_board"]:
-    problems.append("freshness line absent from the executive dashboard")
+# BOTH board-facing renderers are required to carry it. This arm used to be conditional on
+# render_report — "assert it only if present, so the second page is covered the day it
+# appears" — which sounded prudent and was a hole: deleting the sentence from the report
+# entirely left this suite all-pass. A guard that cannot see a deletion is not guarding.
+# The report now ships one (render_report.exec_summary), so the requirement is stated.
+for _name in ("render_board", "render_report"):
+    if _name in found and not found[_name]:
+        problems.append(f"freshness line absent from {_name}")
 for name, hits in found.items():
     if len(hits) > 1:
         problems.append(f"{name}: freshness line rendered {len(hits)} times; it is one caveat")

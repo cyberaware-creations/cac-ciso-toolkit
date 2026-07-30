@@ -155,11 +155,11 @@ def summary_block(ctx: C.Context) -> str:
     # exactly the page most likely to be read off the numbers alone.
     #
     # It lives in _common.py rather than here because render_report.py::exec_summary() has
-    # this identical two-branch shape and still has no freshness line. That renderer is the
-    # printable board report — the artifact most likely to be handed round a table on paper,
-    # and the one board-safety.sh's own header records as having kept exposing raw framework
-    # wording for a full release after the executive dashboard was fixed. One sentence in
-    # one place, so wiring the second consumer is a one-line change rather than a copy.
+    # this identical two-branch shape and now calls it too. That renderer is the printable
+    # board report — the artifact most likely to be handed round a table on paper, and the
+    # one board-safety.sh's own header records as having kept exposing raw framework wording
+    # for a full release after the executive dashboard was fixed. Two board-facing surfaces,
+    # one sentence, one place: a reworded caveat cannot land on one page and not the other.
     if ctx.tr.executive_summary:
         return (f'<p class="lead">{C.esc(ctx.tr.executive_summary)}</p>'
                 f'<div class="note">Executive narrative from the ciso-board-translation skill.</div>'
