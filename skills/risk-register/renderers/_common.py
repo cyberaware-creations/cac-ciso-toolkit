@@ -73,6 +73,13 @@ def fonts(offline: bool = False) -> str:
 
 DISCLAIMER = "A Cyber Aware Creation · Not affiliated with NIST"
 
+# Confirmation-age band width T, in days. One definition, one place. The twin
+# (nist-csf's attention_lists) makes the equivalent parameter REQUIRED with no default
+# precisely so the engine cannot hold the threshold in two spots and drift; the same
+# reasoning applies here, so this constant is argparse's default and nothing else's.
+# Matches nist-csf's ageThresholdDays.
+DEFAULT_AGE_THRESHOLD = 180
+
 UNCLASSIFIED = "Unclassified"
 VELOCITY_MARK = {"improving": "▼", "worsening": "▲", "steady": "→", "new": "＋"}
 # These are arrows drawn *as text* on the light workbench, so they take the text
@@ -186,18 +193,31 @@ def parse_args(argv: list[str], description: str, default_out: str) -> argparse.
     p.add_argument("--offline", action="store_true",
                    help="omit the Google Fonts links so the file makes no external request; "
                         "falls back to the system font stack")
-    p.add_argument("--age-threshold", type=int, default=180, metavar="DAYS",
+    # DEFAULT_AGE_THRESHOLD is the *only* place this number lives. Context deliberately
+    # has no fallback of its own — see Context.__init__.
+    #
+    # DEFERRED, decided rather than missed: T is per-invocation, so `render_dashboard
+    # --age-threshold 180` and `render_board --age-threshold 90` over one register can
+    # tell two freshness stories with no mechanism forcing them to agree. The design spec
+    # defers `settings.reporting.ageThresholdDays` — a register-level T all three
+    # renderers would read — and this comment is here so the next person knows the gap
+    # was accepted for now rather than overlooked.
+    p.add_argument("--age-threshold", type=int, default=DEFAULT_AGE_THRESHOLD, metavar="DAYS",
                    help="confirmation-age band width T: within <= T/2, approaching <= T, "
                         "beyond <= 2T, wellBeyond over 2T. Reporting only — no threshold "
                         "here expires, suppresses or rescores anything "
-                        "(default: 180, matching nist-csf's ageThresholdDays)")
+                        f"(default: {DEFAULT_AGE_THRESHOLD}, matching nist-csf's "
+                        f"ageThresholdDays)")
     args = p.parse_args(argv)
     try:
         date.fromisoformat(args.today)
     except ValueError:
         p.error(f"--today {args.today!r} is not a YYYY-MM-DD date")
-    # A zero or negative T collapses every band into wellBeyond, which reports as
-    # "everything is ancient" rather than as the misconfiguration it is.
+    # T <= 0 makes the bands meaningless rather than merely harsh: at T=0 every boundary
+    # collapses onto `days <= 0`, so a determination made today reads `within` and one made
+    # yesterday reads `wellBeyond`. A negative T inverts them outright. Neither is a strict
+    # cadence, it is a misconfiguration, and it should say so here rather than print a
+    # distribution somebody would act on.
     if args.age_threshold <= 0:
         p.error(f"--age-threshold must be a positive number of days "
                 f"(got {args.age_threshold})")
@@ -283,6 +303,20 @@ def _days_since(value: str | None, today: str) -> int | None:
         return None
 
 
+def live_risks(risks: list) -> list:
+    """The risks a board is being asked about: everything not closed.
+
+    One definition, called from every place that needs it. It was written out inline in
+    live_summary(), _attention(), top_risks() and then again in the confirmation rollup —
+    four verbatim copies of one rule, which is the same shape as the four hand-copied
+    contrast judgements this module's own text_on() note describes.
+
+    Named live_risks rather than live because Context.live is already a summary dict, and
+    two different things called `live` one scope apart is a trap.
+    """
+    return [r for r in risks if r.get("status") != "closed"]
+
+
 def live_summary(risks: list, size: int, appetite: str) -> dict:
     """`summarize()` over the risks a board is actually being asked about.
 
@@ -302,10 +336,10 @@ def live_summary(risks: list, size: int, appetite: str) -> dict:
     sides of the "of". `registerTotal` and `closed` keep the whole-register view for the
     one line that reports register size.
     """
-    live = [r for r in risks if r.get("status") != "closed"]
-    out = sr.summarize(live, size, appetite)
+    open_risks = live_risks(risks)
+    out = sr.summarize(open_risks, size, appetite)
     out["registerTotal"] = len(risks)
-    out["closed"] = len(risks) - len(live)
+    out["closed"] = len(risks) - len(open_risks)
     return out
 
 
@@ -333,8 +367,15 @@ class Context:
         self.offline = bool(getattr(args, "offline", False))
         self.today = args.today
         # Band width for confirmation age. Reporting furniture only: nothing in this
-        # skill expires, suppresses or rescores on age. See references/dashboards.md.
-        self.age_threshold = int(getattr(args, "age_threshold", 180) or 180)
+        # skill expires, suppresses or rescores on age; the boundaries themselves are
+        # defined and asserted in scripts/score_register.py::age_band.
+        #
+        # REQUIRED, with no fallback, following nist-csf's attention_lists(): a default
+        # here would be a second place this module holds the threshold, and `or 180`
+        # would silently rewrite the age_threshold=0 that parse_args refuses a few lines
+        # above into 180 for any caller building the Namespace by hand. A caller that
+        # forgets it gets an immediate AttributeError instead of a quiet wrong answer.
+        self.age_threshold = int(args.age_threshold)
         self.register_path = args.register
         self.out_path = args.out
         self.reg = sr.load_register(args.register)
@@ -400,20 +441,40 @@ class Context:
         resets makes a "stalest" list worthless — the same rule nist-csf states in
         references/schema.md.
 
-        A risk with no affirming event — a v1 register, a fresh import-gaps — yields
-        None rather than a guess, and is counted in its own undated bucket.
+        THREE outcomes, deliberately distinguishable by the caller, because conflating
+        any two of them makes a renderer assert something false:
 
-        Ties on `ts` are reachable: `_now()` has second resolution and one `set-score`
-        writes two `score-changed` events. History is append-only, so the later-appended
-        of two events sharing a timestamp is the later assertion, and the index tiebreak
-        below picks it. `max()` alone would have kept the earlier one.
+        1. No affirming event at all — a v1 register, a fresh import-gaps. All four
+           fields are None. `lastConfirmedAt is None` is the test for this, and the
+           rollup counts it as `undated`. Never inferred, never backfilled.
+        2. An affirming event whose `ts` cannot be read as a date. `lastConfirmedAt` and
+           `lastConfirmedBy` are populated — the confirmation and the confirmer are on
+           record and it would be a lie to report otherwise — but the age and the band
+           are None because no distance can be computed. The rollup counts this
+           separately as `unreadableDate`. Folding it into `undated` would let a panel
+           captioned "never confirmed" name a risk that has a confirmation and a named
+           confirmer, which is the one thing that bucket's own docstring forbids.
+        3. A readable date: all four fields populated.
+
+        Ties on `ts` resolve to the later-appended event, since history is append-only.
+        This is defensive robustness for a hand-edited or future multi-actor history, not
+        a live defect being fixed: `_append_event` takes `actor` from
+        `reg["meta"]["assessor"]`, nothing mutates that after `init`, and one `set-score`
+        writes both of its `score-changed` events in the same second — so today every
+        tied pair shares an actor and a date, and the four fields above come out
+        identical whichever member wins. Cheap to be right in advance.
+
+        `ts` is coerced with str() before comparison. A register whose history mixes a
+        numeric `ts` with a string one would otherwise raise TypeError out of the sort
+        and take the whole render down — the exact class of failure _days_since() exists
+        to prevent, one line away from it. Both consumers below already coerce.
         """
         affirming = [e for e in hist
                      if e.get("type") in sr.AGE_AFFIRMING and e.get("ts")]
         if not affirming:
             return {"lastConfirmedAt": None, "lastConfirmedBy": None,
                     "confirmationAgeDays": None, "confirmationBand": None}
-        last = max(enumerate(affirming), key=lambda t: (t[1]["ts"], t[0]))[1]
+        last = max(enumerate(affirming), key=lambda t: (str(t[1]["ts"]), t[0]))[1]
         days = _days_since(last["ts"], self.today)
         return {
             "lastConfirmedAt": str(last["ts"])[:10],
@@ -428,6 +489,10 @@ class Context:
         acc = r.get("acceptance") or None
         hist = self._history_for(r["id"])
         prior = self._prior.get(r["id"])
+        # Computed once. Re-typing this expression for the day count made two copies of
+        # one rule that have to agree forever, which is what text_on() exists to stop.
+        review_overdue = (r.get("status") != "closed"
+                          and _overdue(r.get("reviewDate"), self.today))
         if prior is None:
             velocity = "new" if self.baseline else "steady"
             delta = None
@@ -443,15 +508,12 @@ class Context:
             "delta": delta,
             "velocity": velocity,
             "reviewDate": r.get("reviewDate") or "",
-            "reviewOverdue": (r.get("status") != "closed"
-                              and _overdue(r.get("reviewDate"), self.today)),
+            "reviewOverdue": review_overdue,
             # A reviewDate is a deadline a human committed to, so passing it is a fact,
             # not decay — the flag stays boolean. The day count exists only so renderers
             # can rank by how badly it slipped, without changing the semantics.
             "reviewOverdueDays": (_days_since(r.get("reviewDate"), self.today)
-                                  if (r.get("status") != "closed"
-                                      and _overdue(r.get("reviewDate"), self.today))
-                                  else None),
+                                  if review_overdue else None),
             "unowned": not (r.get("owner") or "").strip(),
             "acceptance": acc,
             "acceptanceDue": bool(acc) and _overdue(acc.get("revalidationDate"), self.today),
@@ -479,19 +541,39 @@ class Context:
                        "current": True})
         return series
 
-    # Event types whose rationale can explain a change-log entry. `risk-confirmed` is
-    # deliberately absent: it asserts that nothing changed, so letting it supply the "why"
-    # for a score move renders "residual Low → Critical — 'reviewed at the forum;
-    # unchanged'" on a board page. Its rationale is not worthless — it is the audit trail
-    # for the confirmation itself, and the confirmation-age panel is where it belongs.
-    # `snapshot-created` is absent because it carries no riskId to key on.
-    #
-    # Asserted a subset of sr.KNOWN_EVENT_TYPES in confirmation-age.sh, against the
-    # taxonomy score_register partitions rather than against a second copy of this list,
-    # so a typo'd name here fails the suite instead of silently never matching.
+    # Event types whose rationale may caption a change-log entry on a board page.
     CHANGE_EXPLAINING = frozenset({
         "risk-added", "risk-updated", "score-changed", "status-changed", "theme-changed",
-        "risk-accepted", "acceptance-revalidated", "response-changed", "import-merged",
+        "risk-accepted", "acceptance-revalidated", "response-changed",
+        # Documented in references/schema.md but not emitted yet. Classified now so they
+        # behave correctly when they arrive, on the same grounds score_register classifies
+        # acceptance-revalidated before anything writes it. Each names a material change
+        # to one risk, so each explains one.
+        "risk-closed", "risk-reopened", "risk-deleted",
+    })
+
+    # The other half of the partition. Spelled out rather than left as "everything not
+    # listed above", for the reason score_register.py's KNOWN_EVENT_TYPES note gives at
+    # length: a subset assertion alone forces a new type to be *registered* and nothing
+    # more, leaving it change-explaining or not by omission — and omission is precisely
+    # the default the mechanism exists to prevent. Requiring the union to equal
+    # sr.KNOWN_EVENT_TYPES makes registration insufficient: a new type has to land on one
+    # side, and choosing a side is the decision. That check is in confirmation-age.sh,
+    # against score_register's taxonomy rather than a second copy of this list, so a
+    # typo'd name here fails the suite instead of silently never matching.
+    NOT_CHANGE_EXPLAINING = frozenset({
+        # It asserts that nothing changed, so letting it supply the "why" for a score
+        # move rendered "residual Low → Critical — 'reviewed at the forum; unchanged'" on
+        # a board page. Its rationale is not worthless — it is the audit trail for the
+        # confirmation itself, and the confirmation-age view is where it belongs.
+        "risk-confirmed",
+        # These three carry no riskId, so `_rationales_since_baseline` cannot key on them
+        # and including them would be inert. `import-merged` was listed as explaining for
+        # exactly one commit, contradicting the note beside it that gave this same reason
+        # for excluding snapshot-created.
+        "snapshot-created", "register-created", "import-merged",
+        # Register-wide, not about any one risk.
+        "settings-changed",
     })
 
     def _rationales_since_baseline(self) -> dict[str, str]:
@@ -584,8 +666,8 @@ class Context:
             r["acceptanceDue"] or r["acceptanceExpired"] or r["acceptanceIncomplete"])
 
     def _attention(self) -> dict:
-        live = [r for r in self.risks if r.get("status") != "closed"]
-        over = [r for r in live if r["overAppetite"]]
+        open_risks = live_risks(self.risks)
+        over = [r for r in open_risks if r["overAppetite"]]
         return {
             "overAppetite": over,
             # Split so the board is asked about what it has not yet decided, and merely
@@ -598,7 +680,7 @@ class Context:
             "acceptanceDue": [r for r in self.risks if r["acceptanceDue"]],
             "acceptanceExpired": [r for r in self.risks if r["acceptanceExpired"]],
             "acceptanceIncomplete": [r for r in self.risks if r["acceptanceIncomplete"]],
-            "unowned": [r for r in live if r["unowned"]],
+            "unowned": [r for r in open_risks if r["unowned"]],
             "outOfRange": [r for r in self.risks if r.get("outOfRange")],
         }
 
@@ -690,27 +772,42 @@ class Context:
         real claim — so excluding closed risks here is the corollary obligation, not an
         optimisation.
 
-        `undated` is not a band. It is the absence of a date rather than a distance from
-        one, and folding it into `within` would report a guess as a measurement while
-        folding it into `wellBeyond` would invent an age nobody recorded.
+        Neither `undated` nor `unreadableDate` is a band. A band is a distance from a
+        cadence; these two are the absence of a distance, for two different reasons, and
+        all three counts are kept apart:
+
+          undated         no affirming event exists. "Nobody has ever re-affirmed this."
+          unreadableDate  an affirming event exists and names a confirmer, but its ts
+                          cannot be read as a date. "Confirmed, but the record is broken."
+
+        Folding either into `within` would report a guess as a measurement; folding either
+        into `wellBeyond` would invent an age nobody recorded; and folding the two into
+        each other would let a panel captioned "never confirmed" name a risk with a
+        confirmation and a named confirmer on record. See _confirmation() for the three
+        states this reads.
+
+        bands + undated + unreadableDate == live, exactly, and that is asserted.
         """
-        live = [r for r in self.risks if r.get("status") != "closed"]
+        open_risks = live_risks(self.risks)
         bands = {b: 0 for b in sr.AGE_BANDS}
         undated = 0
-        for r in live:
-            band = r["confirmationBand"]
-            if band is None:
+        unreadable = 0
+        for r in open_risks:
+            if r["confirmationBand"] is not None:
+                bands[r["confirmationBand"]] += 1
+            elif r["lastConfirmedAt"] is None:
                 undated += 1
             else:
-                bands[band] += 1
+                unreadable += 1
         return {
             "bands": bands,
             "undated": undated,
-            "live": len(live),
+            "unreadableDate": unreadable,
+            "live": len(open_risks),
             "thresholdDays": self.age_threshold,
             # Oldest first, so a renderer can name the worst few without re-sorting.
             "wellBeyond": sorted(
-                (r for r in live if r["confirmationBand"] == "wellBeyond"),
+                (r for r in open_risks if r["confirmationBand"] == "wellBeyond"),
                 key=lambda r: -(r["confirmationAgeDays"] or 0)),
         }
 
@@ -721,8 +818,7 @@ class Context:
         live_summary(): a risk the board watched get treated out does not belong in
         'what these mean for the business', least of all flagged over appetite on the
         same page whose change log reports it closed."""
-        live = [r for r in self.risks if r.get("status") != "closed"]
-        return sorted(live, key=lambda r: -r["residualExposure"])[:n]
+        return sorted(live_risks(self.risks), key=lambda r: -r["residualExposure"])[:n]
 
     def heat_counts(self, view: str = "residual") -> tuple[list[list[int]], int]:
         """Counts per (impact, likelihood) cell. Risks flagged outOfRange are skipped
