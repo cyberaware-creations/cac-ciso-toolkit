@@ -1,0 +1,322 @@
+{
+ "csfFrameworkId": "csf-2.0",
+ "overlayFrameworkId": "cis-8.1",
+ "direction": "bidirectional",
+ "mappingAuthority": "cis-authored",
+ "sourceExport": {
+  "tool": "NIST CSF 2.0 Reference Export (xlsx)",
+  "retrievedAt": "2026-07-29"
+ },
+ "edges": [
+  {
+   "csfSubId": "DE.AE-02",
+   "controlId": "CIS 8.11",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "DE.CM-01",
+   "controlId": "CIS 13.1",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "DE.CM-03",
+   "controlId": "CIS 10.7",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "DE.CM-06",
+   "controlId": "CIS 15.2",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "DE.CM-06",
+   "controlId": "CIS 15.6",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "DE.CM-09",
+   "controlId": "CIS 10.1",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "GV.RR-01",
+   "controlId": "CIS 14.1",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "GV.RR-02",
+   "controlId": "CIS 14.9",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "GV.RR-04",
+   "controlId": "CIS 6.1",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "GV.RR-04",
+   "controlId": "CIS 6.2",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "GV.SC-01",
+   "controlId": "CIS 15.2",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "GV.SC-02",
+   "controlId": "CIS 15.4",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "GV.SC-04",
+   "controlId": "CIS 15.1",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "GV.SC-04",
+   "controlId": "CIS 15.3",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "GV.SC-05",
+   "controlId": "CIS 15.4",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "GV.SC-06",
+   "controlId": "CIS 15.5",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "GV.SC-07",
+   "controlId": "CIS 15.6",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "GV.SC-08",
+   "controlId": "CIS 15.4",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "GV.SC-09",
+   "controlId": "CIS 15.6",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "GV.SC-10",
+   "controlId": "CIS 15.7",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "ID.AM-01",
+   "controlId": "CIS 1.1",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "ID.AM-02",
+   "controlId": "CIS 2.1",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "ID.AM-03",
+   "controlId": "CIS 3.8",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "ID.AM-04",
+   "controlId": "CIS 15.1",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "ID.AM-05",
+   "controlId": "CIS 3.7",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "ID.AM-07",
+   "controlId": "CIS 3.2",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "ID.AM-08",
+   "controlId": "CIS 1.1",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "ID.AM-08",
+   "controlId": "CIS 3.5",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "ID.IM-02",
+   "controlId": "CIS 17.7",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "ID.RA-01",
+   "controlId": "CIS 7.1",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "ID.RA-08",
+   "controlId": "CIS 7.2",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "PR.AA-01",
+   "controlId": "CIS 5.1",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "PR.AA-01",
+   "controlId": "CIS 5.6",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "PR.AA-01",
+   "controlId": "CIS 6.7",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "PR.AA-05",
+   "controlId": "CIS 3.3",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "PR.AA-05",
+   "controlId": "CIS 5.1",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "PR.AA-05",
+   "controlId": "CIS 6.8",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "PR.AT-01",
+   "controlId": "CIS 14.1",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "PR.AT-02",
+   "controlId": "CIS 14.9",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "PR.DS-01",
+   "controlId": "CIS 3.11",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "PR.DS-02",
+   "controlId": "CIS 3.10",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "PR.DS-11",
+   "controlId": "CIS 11.2",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "PR.DS-11",
+   "controlId": "CIS 11.3",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "PR.DS-11",
+   "controlId": "CIS 11.5",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "PR.IR-01",
+   "controlId": "CIS 12.2",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "PR.IR-01",
+   "controlId": "CIS 3.12",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "PR.PS-01",
+   "controlId": "CIS 4.1",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "PR.PS-01",
+   "controlId": "CIS 4.2",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "PR.PS-02",
+   "controlId": "CIS 2.2",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "PR.PS-02",
+   "controlId": "CIS 2.3",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "PR.PS-03",
+   "controlId": "CIS 1.2",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "PR.PS-04",
+   "controlId": "CIS 8.2",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "PR.PS-05",
+   "controlId": "CIS 2.5",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "PR.PS-06",
+   "controlId": "CIS 16.1",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "RC.CO-04",
+   "controlId": "CIS 17.2",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "RC.CO-04",
+   "controlId": "CIS 17.6",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "RC.RP-03",
+   "controlId": "CIS 11.5",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "RS.AN-03",
+   "controlId": "CIS 17.8",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "RS.CO-02",
+   "controlId": "CIS 17.2",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "RS.CO-03",
+   "controlId": "CIS 17.2",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "RS.MA-01",
+   "controlId": "CIS 17.4",
+   "authority": "cis-authored"
+  },
+  {
+   "csfSubId": "RS.MA-05",
+   "controlId": "CIS 17.9",
+   "authority": "cis-authored"
+  }
+ ]
+}

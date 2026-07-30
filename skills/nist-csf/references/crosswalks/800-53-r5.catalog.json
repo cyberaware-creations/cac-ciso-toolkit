@@ -1,0 +1,1542 @@
+{
+ "frameworkId": "800-53-r5",
+ "name": "NIST SP 800-53 Rev 5",
+ "version": "Rev 5",
+ "license": "public-domain",
+ "provenance": "NIST-developed CSF\u2192800-53 mapping (public domain). Family names verbatim; per-control titles pending a titles ingest.",
+ "sourceExport": {
+  "tool": "NIST CSF 2.0 Reference Export (xlsx)",
+  "retrievedAt": "2026-07-29"
+ },
+ "catalogueScope": {
+  "coverage": "referenced-subset",
+  "note": "Holds the controls the NIST CSF export references, not all of SP 800-53 Rev 5. An empty outside-CSF list therefore means nothing further is catalogued here, not that CSF reaches every 800-53 control.",
+  "completable": true
+ },
+ "groupings": [
+  {
+   "id": "AC",
+   "label": "Access Control"
+  },
+  {
+   "id": "AT",
+   "label": "Awareness and Training"
+  },
+  {
+   "id": "AU",
+   "label": "Audit and Accountability"
+  },
+  {
+   "id": "CA",
+   "label": "Assessment, Authorization, and Monitoring"
+  },
+  {
+   "id": "CM",
+   "label": "Configuration Management"
+  },
+  {
+   "id": "CP",
+   "label": "Contingency Planning"
+  },
+  {
+   "id": "IA",
+   "label": "Identification and Authentication"
+  },
+  {
+   "id": "IR",
+   "label": "Incident Response"
+  },
+  {
+   "id": "MA",
+   "label": "Maintenance"
+  },
+  {
+   "id": "MP",
+   "label": "Media Protection"
+  },
+  {
+   "id": "PE",
+   "label": "Physical and Environmental Protection"
+  },
+  {
+   "id": "PL",
+   "label": "Planning"
+  },
+  {
+   "id": "PM",
+   "label": "Program Management"
+  },
+  {
+   "id": "PS",
+   "label": "Personnel Security"
+  },
+  {
+   "id": "PT",
+   "label": "PII Processing and Transparency"
+  },
+  {
+   "id": "RA",
+   "label": "Risk Assessment"
+  },
+  {
+   "id": "SA",
+   "label": "System and Services Acquisition"
+  },
+  {
+   "id": "SC",
+   "label": "System and Communications Protection"
+  },
+  {
+   "id": "SI",
+   "label": "System and Information Integrity"
+  },
+  {
+   "id": "SR",
+   "label": "Supply Chain Risk Management"
+  }
+ ],
+ "controls": [
+  {
+   "id": "AC-1",
+   "label": "Policy and Procedures",
+   "groupingId": "AC",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "AC-2",
+   "label": "Account Management",
+   "groupingId": "AC",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "AC-3",
+   "label": "Access Enforcement",
+   "groupingId": "AC",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "AC-4",
+   "label": "Information Flow Enforcement",
+   "groupingId": "AC",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "AC-5",
+   "label": "Separation of Duties",
+   "groupingId": "AC",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "AC-6",
+   "label": "Least Privilege",
+   "groupingId": "AC",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "AC-7",
+   "label": "Unsuccessful Logon Attempts",
+   "groupingId": "AC",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "AC-9",
+   "label": "Previous Logon Notification",
+   "groupingId": "AC",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "AC-10",
+   "label": "Concurrent Session Control",
+   "groupingId": "AC",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "AC-12",
+   "label": "Session Termination",
+   "groupingId": "AC",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "AC-14",
+   "label": "Permitted Actions Without Identification or Authentication",
+   "groupingId": "AC",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "AC-16",
+   "label": "Security and Privacy Attributes",
+   "groupingId": "AC",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "AC-17",
+   "label": "Remote Access",
+   "groupingId": "AC",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "AC-18",
+   "label": "Wireless Access",
+   "groupingId": "AC",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "AC-19",
+   "label": "Access Control for Mobile Devices",
+   "groupingId": "AC",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "AC-20",
+   "label": "Use of External Systems",
+   "groupingId": "AC",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "AC-24",
+   "label": "Access Control Decisions",
+   "groupingId": "AC",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "AT-1",
+   "label": "Policy and Procedures",
+   "groupingId": "AT",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "AT-2",
+   "label": "Literacy Training and Awareness",
+   "groupingId": "AT",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "AT-3",
+   "label": "Role-based Training",
+   "groupingId": "AT",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "AU-1",
+   "label": "Policy and Procedures",
+   "groupingId": "AU",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "AU-2",
+   "label": "Event Logging",
+   "groupingId": "AU",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "AU-3",
+   "label": "Content of Audit Records",
+   "groupingId": "AU",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "AU-6",
+   "label": "Audit Record Review, Analysis, and Reporting",
+   "groupingId": "AU",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "AU-7",
+   "label": "Audit Record Reduction and Report Generation",
+   "groupingId": "AU",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "AU-9",
+   "label": "Protection of Audit Information",
+   "groupingId": "AU",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "AU-11",
+   "label": "Audit Record Retention",
+   "groupingId": "AU",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "AU-12",
+   "label": "Audit Record Generation",
+   "groupingId": "AU",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "AU-13",
+   "label": "Monitoring for Information Disclosure",
+   "groupingId": "AU",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "AU-16",
+   "label": "Cross-organizational Audit Logging",
+   "groupingId": "AU",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "CA-1",
+   "label": "Policy and Procedures",
+   "groupingId": "CA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "CA-2",
+   "label": "Control Assessments",
+   "groupingId": "CA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "CA-3",
+   "label": "Information Exchange",
+   "groupingId": "CA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "CA-5",
+   "label": "Plan of Action and Milestones",
+   "groupingId": "CA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "CA-7",
+   "label": "Continuous Monitoring",
+   "groupingId": "CA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "CA-8",
+   "label": "Penetration Testing",
+   "groupingId": "CA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "CA-9",
+   "label": "Internal System Connections",
+   "groupingId": "CA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "CM-1",
+   "label": "Policy and Procedures",
+   "groupingId": "CM",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "CM-2",
+   "label": "Baseline Configuration",
+   "groupingId": "CM",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "CM-3",
+   "label": "Configuration Change Control",
+   "groupingId": "CM",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "CM-4",
+   "label": "Impact Analyses",
+   "groupingId": "CM",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "CM-5",
+   "label": "Access Restrictions for Change",
+   "groupingId": "CM",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "CM-6",
+   "label": "Configuration Settings",
+   "groupingId": "CM",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "CM-7",
+   "label": "Least Functionality",
+   "groupingId": "CM",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "CM-7(02)",
+   "label": "Least Functionality | Prevent Program Execution",
+   "groupingId": "CM",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "CM-7(04)",
+   "label": "Least Functionality | Unauthorized Software - Deny-by-exception",
+   "groupingId": "CM",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "CM-7(05)",
+   "label": "Least Functionality | Authorized Software - Allow-by-exception",
+   "groupingId": "CM",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "CM-7(09)",
+   "label": "Least Functionality | Prohibiting the Use of Unauthorized Hardware",
+   "groupingId": "CM",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "CM-8",
+   "label": "System Component Inventory",
+   "groupingId": "CM",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "CM-9",
+   "label": "Configuration Management Plan",
+   "groupingId": "CM",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "CM-10",
+   "label": "Software Usage Restrictions",
+   "groupingId": "CM",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "CM-11",
+   "label": "User-installed Software",
+   "groupingId": "CM",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "CM-12",
+   "label": "Information Location",
+   "groupingId": "CM",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "CM-13",
+   "label": "Data Action Mapping",
+   "groupingId": "CM",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "CP-1",
+   "label": "Policy and Procedures",
+   "groupingId": "CP",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "CP-2",
+   "label": "Contingency Plan",
+   "groupingId": "CP",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "CP-2(08)",
+   "label": "Contingency Plan | Identify Critical Assets",
+   "groupingId": "CP",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "CP-4",
+   "label": "Contingency Plan Testing",
+   "groupingId": "CP",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "CP-6",
+   "label": "Alternate Storage Site",
+   "groupingId": "CP",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "CP-7",
+   "label": "Alternate Processing Site",
+   "groupingId": "CP",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "CP-8",
+   "label": "Telecommunications Services",
+   "groupingId": "CP",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "CP-9",
+   "label": "System Backup",
+   "groupingId": "CP",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "CP-10",
+   "label": "System Recovery and Reconstitution",
+   "groupingId": "CP",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "IA-1",
+   "label": "Policy and Procedures",
+   "groupingId": "IA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "IA-2",
+   "label": "Identification and Authentication (Organizational Users)",
+   "groupingId": "IA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "IA-3",
+   "label": "Device Identification and Authentication",
+   "groupingId": "IA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "IA-4",
+   "label": "Identifier Management",
+   "groupingId": "IA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "IA-5",
+   "label": "Authenticator Management",
+   "groupingId": "IA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "IA-6",
+   "label": "Authentication Feedback",
+   "groupingId": "IA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "IA-7",
+   "label": "Cryptographic Module Authentication",
+   "groupingId": "IA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "IA-8",
+   "label": "Identification and Authentication (Non-organizational Users)",
+   "groupingId": "IA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "IA-9",
+   "label": "Service Identification and Authentication",
+   "groupingId": "IA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "IA-10",
+   "label": "Adaptive Authentication",
+   "groupingId": "IA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "IA-11",
+   "label": "Re-authentication",
+   "groupingId": "IA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "IA-12",
+   "label": "Identity Proofing",
+   "groupingId": "IA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "IA-13",
+   "label": "Identity Providers and Authorization Servers",
+   "groupingId": "IA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "IR-1",
+   "label": "Policy and Procedures",
+   "groupingId": "IR",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "IR-3",
+   "label": "Incident Response Testing",
+   "groupingId": "IR",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "IR-4",
+   "label": "Incident Handling",
+   "groupingId": "IR",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "IR-5",
+   "label": "Incident Monitoring",
+   "groupingId": "IR",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "IR-6",
+   "label": "Incident Reporting",
+   "groupingId": "IR",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "IR-7",
+   "label": "Incident Response Assistance",
+   "groupingId": "IR",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "IR-8",
+   "label": "Incident Response Plan",
+   "groupingId": "IR",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "MA-1",
+   "label": "Policy and Procedures",
+   "groupingId": "MA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "MA-2",
+   "label": "Controlled Maintenance",
+   "groupingId": "MA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "MA-3(06)",
+   "label": "Maintenance Tools | Software Updates and Patches",
+   "groupingId": "MA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "MA-6",
+   "label": "Timely Maintenance",
+   "groupingId": "MA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "MP-1",
+   "label": "Policy and Procedures",
+   "groupingId": "MP",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "MP-8",
+   "label": "Media Downgrading",
+   "groupingId": "MP",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PE-1",
+   "label": "Policy and Procedures",
+   "groupingId": "PE",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PE-2",
+   "label": "Physical Access Authorizations",
+   "groupingId": "PE",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PE-3",
+   "label": "Physical Access Control",
+   "groupingId": "PE",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PE-4",
+   "label": "Access Control for Transmission",
+   "groupingId": "PE",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PE-5",
+   "label": "Access Control for Output Devices",
+   "groupingId": "PE",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PE-6",
+   "label": "Monitoring Physical Access",
+   "groupingId": "PE",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PE-8",
+   "label": "Visitor Access Records",
+   "groupingId": "PE",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PE-9",
+   "label": "Power Equipment and Cabling",
+   "groupingId": "PE",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PE-10",
+   "label": "Emergency Shutoff",
+   "groupingId": "PE",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PE-11",
+   "label": "Emergency Power",
+   "groupingId": "PE",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PE-12",
+   "label": "Emergency Lighting",
+   "groupingId": "PE",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PE-13",
+   "label": "Fire Protection",
+   "groupingId": "PE",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PE-14",
+   "label": "Environmental Controls",
+   "groupingId": "PE",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PE-15",
+   "label": "Water Damage Protection",
+   "groupingId": "PE",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PE-18",
+   "label": "Location of System Components",
+   "groupingId": "PE",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PE-19",
+   "label": "Information Leakage",
+   "groupingId": "PE",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PE-20",
+   "label": "Asset Monitoring and Tracking",
+   "groupingId": "PE",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PE-23",
+   "label": "Facility Location",
+   "groupingId": "PE",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PL-1",
+   "label": "Policy and Procedures",
+   "groupingId": "PL",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PL-2",
+   "label": "System Security and Privacy Plans",
+   "groupingId": "PL",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PL-8",
+   "label": "Security and Privacy Architectures",
+   "groupingId": "PL",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PM-1",
+   "label": "Information Security Program Plan",
+   "groupingId": "PM",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PM-2",
+   "label": "Information Security Program Leadership Role",
+   "groupingId": "PM",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PM-3",
+   "label": "Information Security and Privacy Resources",
+   "groupingId": "PM",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PM-4",
+   "label": "Plan of Action and Milestones Process",
+   "groupingId": "PM",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PM-5",
+   "label": "System Inventory",
+   "groupingId": "PM",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PM-6",
+   "label": "Measures of Performance",
+   "groupingId": "PM",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PM-7",
+   "label": "Enterprise Architecture",
+   "groupingId": "PM",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PM-8",
+   "label": "Critical Infrastructure Plan",
+   "groupingId": "PM",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PM-9",
+   "label": "Risk Management Strategy",
+   "groupingId": "PM",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PM-11",
+   "label": "Mission and Business Process Definition",
+   "groupingId": "PM",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PM-12",
+   "label": "Insider Threat Program",
+   "groupingId": "PM",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PM-13",
+   "label": "Security and Privacy Workforce",
+   "groupingId": "PM",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PM-15",
+   "label": "Security and Privacy Groups and Associations",
+   "groupingId": "PM",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PM-16",
+   "label": "Threat Awareness Program",
+   "groupingId": "PM",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PM-18",
+   "label": "Privacy Program Plan",
+   "groupingId": "PM",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PM-19",
+   "label": "Privacy Program Leadership Role",
+   "groupingId": "PM",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PM-22",
+   "label": "Personally Identifiable Information Quality Management",
+   "groupingId": "PM",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PM-23",
+   "label": "Data Governance Body",
+   "groupingId": "PM",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PM-24",
+   "label": "Data Integrity Board",
+   "groupingId": "PM",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PM-28",
+   "label": "Risk Framing",
+   "groupingId": "PM",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PM-29",
+   "label": "Risk Management Program Leadership Roles",
+   "groupingId": "PM",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PM-30",
+   "label": "Supply Chain Risk Management Strategy",
+   "groupingId": "PM",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PM-30(01)",
+   "label": "Supply Chain Risk Management Strategy | Suppliers of Critical or Mission-essential Items",
+   "groupingId": "PM",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PM-31",
+   "label": "Continuous Monitoring Strategy",
+   "groupingId": "PM",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PS-1",
+   "label": "Policy and Procedures",
+   "groupingId": "PS",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PS-7",
+   "label": "External Personnel Security",
+   "groupingId": "PS",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PS-9",
+   "label": "Position Descriptions",
+   "groupingId": "PS",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "PT-1",
+   "label": "Policy and Procedures",
+   "groupingId": "PT",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "RA-1",
+   "label": "Policy and Procedures",
+   "groupingId": "RA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "RA-2",
+   "label": "Security Categorization",
+   "groupingId": "RA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "RA-3",
+   "label": "Risk Assessment",
+   "groupingId": "RA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "RA-5",
+   "label": "Vulnerability Monitoring and Scanning",
+   "groupingId": "RA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "RA-7",
+   "label": "Risk Response",
+   "groupingId": "RA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "RA-8",
+   "label": "Privacy Impact Assessments",
+   "groupingId": "RA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "RA-9",
+   "label": "Criticality Analysis",
+   "groupingId": "RA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "RA-10",
+   "label": "Threat Hunting",
+   "groupingId": "RA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SA-1",
+   "label": "Policy and Procedures",
+   "groupingId": "SA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SA-3",
+   "label": "System Development Life Cycle",
+   "groupingId": "SA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SA-4",
+   "label": "Acquisition Process",
+   "groupingId": "SA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SA-5",
+   "label": "System Documentation",
+   "groupingId": "SA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SA-8",
+   "label": "Security and Privacy Engineering Principles",
+   "groupingId": "SA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SA-9",
+   "label": "External System Services",
+   "groupingId": "SA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SA-10",
+   "label": "Developer Configuration Management",
+   "groupingId": "SA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SA-10(01)",
+   "label": "Developer Configuration Management | Software and Firmware Integrity Verification",
+   "groupingId": "SA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SA-10(03)",
+   "label": "Developer Configuration Management | Hardware Integrity Verification",
+   "groupingId": "SA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SA-11",
+   "label": "Developer Testing and Evaluation",
+   "groupingId": "SA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SA-11(02)",
+   "label": "Developer Testing and Evaluation | Threat Modeling and Vulnerability Analyses",
+   "groupingId": "SA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SA-15",
+   "label": "Development Process, Standards, and Tools",
+   "groupingId": "SA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SA-15(07)",
+   "label": "Development Process, Standards, and Tools | Automated Vulnerability Analysis",
+   "groupingId": "SA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SA-15(08)",
+   "label": "Development Process, Standards, and Tools | Reuse of Threat and Vulnerability Information",
+   "groupingId": "SA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SA-17",
+   "label": "Developer Security and Privacy Architecture and Design",
+   "groupingId": "SA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SA-17(06)",
+   "label": "Developer Security and Privacy Architecture and Design | Structure for Testing",
+   "groupingId": "SA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SA-22",
+   "label": "Unsupported System Components",
+   "groupingId": "SA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SC-1",
+   "label": "Policy and Procedures",
+   "groupingId": "SC",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SC-3(01)",
+   "label": "Security Function Isolation | Hardware Separation",
+   "groupingId": "SC",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SC-4",
+   "label": "Information in Shared System Resources",
+   "groupingId": "SC",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SC-5",
+   "label": "Denial-of-service Protection",
+   "groupingId": "SC",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SC-6",
+   "label": "Resource Availability",
+   "groupingId": "SC",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SC-7",
+   "label": "Boundary Protection",
+   "groupingId": "SC",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SC-8",
+   "label": "Transmission Confidentiality and Integrity",
+   "groupingId": "SC",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SC-11",
+   "label": "Trusted Path",
+   "groupingId": "SC",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SC-12",
+   "label": "Cryptographic Key Establishment and Management",
+   "groupingId": "SC",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SC-13",
+   "label": "Cryptographic Protection",
+   "groupingId": "SC",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SC-16",
+   "label": "Transmission of Security and Privacy Attributes",
+   "groupingId": "SC",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SC-24",
+   "label": "Fail in Known State",
+   "groupingId": "SC",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SC-28",
+   "label": "Protection of Information at Rest",
+   "groupingId": "SC",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SC-32",
+   "label": "System Partitioning",
+   "groupingId": "SC",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SC-34",
+   "label": "Non-modifiable Executable Programs",
+   "groupingId": "SC",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SC-35",
+   "label": "External Malicious Code Identification",
+   "groupingId": "SC",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SC-36",
+   "label": "Distributed Processing and Storage",
+   "groupingId": "SC",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SC-39",
+   "label": "Process Isolation",
+   "groupingId": "SC",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SC-39(01)",
+   "label": "Process Isolation | Hardware Separation",
+   "groupingId": "SC",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SC-40",
+   "label": "Wireless Link Protection",
+   "groupingId": "SC",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SC-43",
+   "label": "Usage Restrictions",
+   "groupingId": "SC",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SC-49",
+   "label": "Hardware-enforced Separation and Policy Enforcement",
+   "groupingId": "SC",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SC-51",
+   "label": "Hardware-based Protection",
+   "groupingId": "SC",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SI-1",
+   "label": "Policy and Procedures",
+   "groupingId": "SI",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SI-2",
+   "label": "Flaw Remediation",
+   "groupingId": "SI",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SI-3",
+   "label": "Malicious Code Protection",
+   "groupingId": "SI",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SI-4",
+   "label": "System Monitoring",
+   "groupingId": "SI",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SI-5",
+   "label": "Security Alerts, Advisories, and Directives",
+   "groupingId": "SI",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SI-7",
+   "label": "Software, Firmware, and Information Integrity",
+   "groupingId": "SI",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SI-10",
+   "label": "Information Input Validation",
+   "groupingId": "SI",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SI-12",
+   "label": "Information Management and Retention",
+   "groupingId": "SI",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SI-13",
+   "label": "Predictable Failure Prevention",
+   "groupingId": "SI",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SI-16",
+   "label": "Memory Protection",
+   "groupingId": "SI",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SI-18",
+   "label": "Personally Identifiable Information Quality Operations",
+   "groupingId": "SI",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SR-1",
+   "label": "Policy and Procedures",
+   "groupingId": "SR",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SR-2",
+   "label": "Supply Chain Risk Management Plan",
+   "groupingId": "SR",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SR-3",
+   "label": "Supply Chain Controls and Processes",
+   "groupingId": "SR",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SR-5",
+   "label": "Acquisition Strategies, Tools, and Methods",
+   "groupingId": "SR",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SR-6",
+   "label": "Supplier Assessments and Reviews",
+   "groupingId": "SR",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SR-8",
+   "label": "Notification Agreements",
+   "groupingId": "SR",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SR-10",
+   "label": "Inspection of Systems or Components",
+   "groupingId": "SR",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SR-11",
+   "label": "Component Authenticity",
+   "groupingId": "SR",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SR-12",
+   "label": "Component Disposal",
+   "groupingId": "SR",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  }
+ ]
+}

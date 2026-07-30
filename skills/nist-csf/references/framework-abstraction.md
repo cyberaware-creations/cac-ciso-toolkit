@@ -102,16 +102,92 @@ v1 **ingests all of them** into `informativeReferences` on every Subcategory, Ca
 — 106 of 106 Subcategories carry them. They travel through `analyze` on every gap row. v1 renders
 none of it.
 
-That is deliberate. It costs nothing at ingest time and it means the crosswalk views planned for v2
-need no re-ingest, no second data pull, and no schema migration — only rendering. Because CSF is the
-hub, a single assessment can then be reported through an ISO or CIS lens without re-assessing
-anything.
+That is deliberate. It costs nothing at ingest time and it means the crosswalk views need no
+re-ingest, no second data pull, and no schema migration — only rendering. Because CSF is the hub, a
+single assessment can then be reported through an ISO or CIS lens without re-assessing anything.
 
-**Stored as raw catalog lines**, exactly as published. Splitting them into `{source, reference}` is
+**Stored as raw catalog lines**, exactly as published. Splitting them into `{source, reference}` was
 deferred with intent: source names like `ISO/IEC 27001:2022` contain colons, so any split rule is
 guesswork against an open-ended set of catalogs. A wrong parse baked into v1 data would be harder to
-correct later than no parse at all. The v2 crosswalk work owns that decision, with the raw strings
-still available to it.
+correct later than no parse at all.
+
+That parse now exists, and it lives in build tooling rather than in shipped data: the raw strings
+stay as published on every Subcategory, and `tools/crosswalks/author_catalogs.py` derives typed
+edges from them into `references/crosswalks/`. Correcting the parse re-runs the builder; it never
+touches user data or the Core.
+
+## The crosswalk contract
+
+This is enforced, not aspirational. `check_crosswalks()` in `scripts/profile_analysis.py` asserts it
+from inside the shipped skill, and `tools/crosswalks/validate_crosswalks.py` owns the same rules at
+build time. Both run in CI.
+
+A **crosswalk** is two files per framework, in `references/crosswalks/`:
+
+```jsonc
+// <frameworkId>.catalog.json — what the other framework contains
+{
+  "frameworkId": "iso-27001-2022",   // must equal the filename stem
+  "name": "ISO/IEC 27001:2022",
+  "version": "2022",
+  "license": "iso-copyright",        // provenance, all four required
+  "provenance": { /* ... */ },
+  "sourceExport": { /* which export, retrieved when */ },
+  "groupings": [ {"id": "A.5", "label": "Organizational controls"} ],
+  "controls": [
+    {
+      "id": "A.5.1",
+      "label": "Approved security policy set, communicated",  // ours, not ISO's
+      "groupingId": "A.5",                                    // must be declared above
+      "labelSource": "cac-generated",
+      "text": null                                            // see the licensing line
+    }
+  ]
+}
+
+// csf-2.0__<frameworkId>.map.json — how CSF reaches it
+{
+  "csfFrameworkId": "nist-csf-2.0",
+  "overlayFrameworkId": "iso-27001-2022",
+  "direction": "bidirectional",
+  "mappingAuthority": "mixed-third-party",   // required
+  "edges": [
+    {"csfSubId": "DE.AE-02", "controlId": "A.5.24", "authority": "mixed-third-party"}
+  ]
+}
+```
+
+### Invariants
+
+| Invariant | Why |
+|---|---|
+| `labelSource` is `cac-generated` for ISO and CIS, `verbatim-public-domain` for 800-53 | The licensing contract. ISO and CIS control titles are copyrighted; NIST publications are US Government works. |
+| ISO and CIS controls carry **no** `text` | Shipping normative text would be redistribution. Enforced rather than trusted. |
+| Every `label` is non-empty, every control `id` unique | A blank label renders as a bare ID no reader can act on. |
+| Every `groupingId` resolves to a declared grouping | Otherwise a control silently vanishes from the theme rollup. |
+| Every edge's `controlId` resolves to a catalog control | An unresolved edge is a coverage claim about nothing. |
+| Every edge's `csfSubId` is a real CSF Subcategory | A stale id would drop that control's coverage to "unknown" while every count still looked correct. Needs the Core, so only the shipped check can make it. |
+| Every edge carries an `authority` tag | Readers are entitled to know who asserted the mapping. |
+| Counts match `CROSSWALK_EXPECTED` | A refresh of the NIST export is expected to move them; pinning makes that a deliberate review step instead of silent drift. |
+
+### What a crosswalk is not
+
+**The assessed framework is the only rated thing.** Crosswalks are read-only projection targets:
+never rated, never stored in a `.csfp` or `.csfa`, never assessed directly. Coverage for an ISO
+control is *derived* from the CSF Subcategories mapped to it and carries the weakest-link rule
+(control = min of its mapped Subcategories; theme = mean of its member controls). That is a
+projection of an existing assessment, not an audit or a certification, and every rendered view says
+so. A band computed from too small a share of its basis is withheld rather than shown with a
+caveat, gated on `settings.reporting.scopeThresholdPct` — the weakest link over *rated*
+contributors is an upper bound, so a thinly-rated control can only overstate.
+
+Two consequences worth stating plainly. A crosswalk lens can only see what CSF maps — controls with
+no CSF mapping must be assessed directly against the standard, and assessed CSF outcomes that no
+control in the lens references drop out of that view. Both lists are reported rather than hidden.
+
+**"Crosswalk" is not the Cyber AI Profile overlay.** That mechanism (`overlay enable`, IR 8596)
+reweights the same Subcategories for AI relevance and *does* write to the store. Crosswalks project
+outward to another framework and write nothing. Different verbs, different data, no shared state.
 
 ## What this seam is not
 
