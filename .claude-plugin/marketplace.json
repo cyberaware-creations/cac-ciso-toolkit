@@ -5,13 +5,13 @@
     "url": "https://cyberawarecreations.com"
   },
   "description": "Marketplace for the Cyber Aware Creations CISO Toolkit — NIST-aligned security leadership skills that run locally against your own files.",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "plugins": [
     {
       "name": "cyber-aware-creations",
       "source": "./",
       "description": "NIST-aligned cybersecurity skills for security leaders: a scored risk register with change history and board dashboards, a NIST CSF 2.0 Organizational Profile with gap analysis and coverage reporting, and board-ready translation with sourced regulatory receipts.",
-      "version": "0.5.0",
+      "version": "0.5.1",
       "author": {
         "name": "Cyber Aware Creations, LLC.",
         "url": "https://cyberawarecreations.com"

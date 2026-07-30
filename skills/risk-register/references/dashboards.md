@@ -187,8 +187,18 @@ so leaving the sentence off either branch fails a check.
   whole document, not an ask. The missed-review line under decisions is the right home for "somebody
   missed a commitment" and is unchanged.
 
-`evals/board-safety.sh` check 9 fails if confidence vocabulary ever reaches a board-facing view. The
-bands say how old a determination is; they never say how sure anyone should be that it is still true.
+`evals/board-safety.sh` checks 9 and 10 fail if confidence vocabulary ever reaches a board-facing
+view. The bands say how old a determination is; they never say how sure anyone should be that it is
+still true.
+
+The two checks split the job because a rendered page mixes our prose with your register content.
+Check 9 scans the finished HTML against a **narrow** word list — narrow because "backups are
+unreliable" is an honest risk statement and a substring scan cannot tell it from a claim about a
+rating. Check 10 scans the **source** of the board-facing renderers by word stem, where no such
+ambiguity exists: none of that vocabulary has a legitimate use in a string this toolkit emits, so
+`reliab` catches `reliable` / `reliability` / `unreliable` alike. Docstrings are exempt, deliberately
+— the refusal has to be explainable, so every file involved carries a paragraph naming the claim it
+declines to make.
 
 ## Rendering notes
 
