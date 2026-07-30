@@ -2320,31 +2320,42 @@ nist-csf side, which is exactly why the two skills read as disagreeing."
 Current version is `0.4.2`. This adds a subcommand and new derived output, so the target is
 `0.5.0`.
 
+> **Do not round-trip these files through `json.dumps`.** An earlier version of this step did,
+> and it corrupts them: without `ensure_ascii=False` every em dash and `×` is rewritten as
+> `—` / `×`, and `indent=2` reflows all three `keywords` arrays. A four-line version
+> bump became a 55-line diff across shipped files. Substitute the text instead, and verify the
+> result through the guard's own keypaths rather than by eye.
+
 ```bash
 cd /Users/darren/Documents/GitHub/cac-ciso-toolkit
 python3 - <<'PY'
 import json, pathlib
-targets = [(".claude-plugin/plugin.json", ("version",)),
-           (".claude-plugin/marketplace.json", ("version",)),
-           (".claude-plugin/marketplace.json", ("plugins", 0, "version")),
-           (".codex-plugin/plugin.json", ("version",))]
-for path, keypath in targets:
+OLD, NEW = "0.4.2", "0.5.0"
+# (path, how many occurrences of "version": OLD that file must contain)
+FILES = [(".claude-plugin/plugin.json", 1),
+         (".claude-plugin/marketplace.json", 2),   # top level + plugins[0]
+         (".codex-plugin/plugin.json", 1)]
+for path, want in FILES:
     p = pathlib.Path(path)
-    doc = json.loads(p.read_text())
-    node = doc
-    for k in keypath[:-1]:
-        node = node[k]
-    node[keypath[-1]] = "0.5.0"
-    p.write_text(json.dumps(doc, indent=2) + "\n")
-    print("set", path, ".".join(str(k) for k in keypath), "-> 0.5.0")
+    text = p.read_text(encoding="utf-8")
+    needle = '"version": "{}"'.format(OLD)
+    got = text.count(needle)
+    assert got == want, "{}: expected {} occurrence(s) of {}, found {}".format(
+        path, want, needle, got)
+    p.write_text(text.replace(needle, '"version": "{}"'.format(NEW)), encoding="utf-8")
+    print("bumped", path, "({} string(s))".format(want))
 PY
+git diff --stat .claude-plugin .codex-plugin
 ./tools/check-versions.py
 ```
 
-Expected: `consistency: all 4 version strings agree (0.5.0).`
+Expected: the diff touches **exactly four lines** across three files, and
+`consistency: all 4 version strings agree (0.5.0).`
 
-Do not hand-edit these files one at a time. The guard exists because four strings drifted
-apart once already, and the whole point is that they move together.
+The occurrence counts are asserted rather than assumed, so a manifest that gains or loses a
+`version` key fails loudly instead of being half-bumped. Do not hand-edit these files one at a
+time: the guard exists because four strings drifted apart once already, and the whole point is
+that they move together.
 
 - [ ] **Step 2: Run every suite in the repo**
 
