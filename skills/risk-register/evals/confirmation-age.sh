@@ -45,7 +45,7 @@ mkdir -p "$work"
 # four derived fields and the rollup through the Context, and the rendered-HTML block
 # asserts what the operational panel and the attention cards actually say. A check added
 # to one does not change the other, and neither number is the total.
-EXPECTED_CHECKS=46
+EXPECTED_CHECKS=48
 EXPECTED_RENDER_CHECKS=15
 
 fails=0
@@ -121,8 +121,8 @@ rm -f "$work"/*.rr
 
 set +e
 "$PY" - "$work" "$RR" <<'PY' > "$work/out.txt" 2> "$work/err.txt"
-import json, sys, pathlib, argparse, subprocess
-from datetime import date, timedelta
+import json, os, sys, pathlib, argparse, subprocess, time
+from datetime import date, datetime, timedelta, timezone
 work, rr = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
 sys.path.insert(0, str(rr / "renderers"))
 sys.path.insert(0, str(rr / "scripts"))
@@ -274,6 +274,23 @@ add("rollup excludes the closed risk",
 add("bands, undated and unreadableDate partition the live population",
     sum(c.confirmation["bands"].values()) + c.confirmation["undated"]
     + c.confirmation["unreadableDate"] == c.confirmation["live"] == 3)
+# futureDated is a NAMED SUBSET of `within`, not a fifth band and not a summand. The same
+# register read one day earlier gives every live risk an age of -1, which age_band()
+# reports as `within` on purpose — so the rollup has to be able to say "these three fresh
+# ones are a broken record" without the partition reading 6. Both halves matter: the count
+# has to appear when there are future dates, and stay 0 when there are none, or a renderer
+# reading it prints a defect disclosure on every clean register.
+cfu = ctx(today=(base - timedelta(days=1)).isoformat())
+add("futureDated is a named subset of within, not a fifth band",
+    cfu.confirmation["futureDated"] == 3
+    and [r["id"] for r in cfu.confirmation["futureDatedRisks"]]
+    == ["R-001", "R-002", "R-004"]
+    and cfu.confirmation["bands"] == {"within": 3, "approaching": 0,
+                                      "beyond": 0, "wellBeyond": 0}
+    and sum(cfu.confirmation["bands"].values()) + cfu.confirmation["undated"]
+    + cfu.confirmation["unreadableDate"] == cfu.confirmation["live"] == 3
+    and c.confirmation["futureDated"] == 0
+    and c.confirmation["futureDatedRisks"] == [])
 
 # ============================ honest absence, state 1 ============================
 # A register with a v1-style history — no affirming event at all — must yield None, not
@@ -359,6 +376,42 @@ add("an explicit 0 is not silently rewritten to 180",
 add("DEFAULT_AGE_THRESHOLD is the only default, and argparse uses it",
     C.parse_args([str(work / "a.rr")], "d", "o.html").age_threshold
     == C.DEFAULT_AGE_THRESHOLD == 180)
+
+
+# ==================== --today is UTC, not the local date =========================
+# A live defect, not a style question: score_register writes every ts in UTC and --today
+# defaulted to date.today(), the LOCAL date. West of Greenwich an event written this
+# evening is dated tomorrow, the age comes back negative, and age_band() reports a
+# negative age as `within` — so a register skewed a day forward reads as FRESHER than it
+# is, on the board page.
+#
+# Asserted by forcing two zones 26 hours apart rather than by comparing against the UTC
+# date once. `date.today() == utcnow().date()` is true for most of the day on most
+# machines, so a single comparison lets the local-date mutant survive by wall clock — the
+# assertion would only bind in the evening, in California. Two offsets 26h apart can never
+# share a local date, so `east == west` fails for date.today() at every instant, and
+# membership in the UTC date sampled either side pins WHICH date it is without a
+# midnight-rollover flake.
+def _default_today(tz):
+    old = os.environ.get("TZ")
+    os.environ["TZ"] = tz
+    time.tzset()
+    try:
+        return C.parse_args([str(work / "a.rr")], "d", "o.html").today
+    finally:
+        if old is None:
+            os.environ.pop("TZ", None)
+        else:
+            os.environ["TZ"] = old
+        time.tzset()
+
+
+_u1 = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+_east = _default_today("Pacific/Kiritimati")        # UTC+14
+_west = _default_today("Etc/GMT+12")                # UTC-12
+_u2 = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+add("--today defaults to the UTC date and does not move with the local zone",
+    _east == _west and _east in (_u1, _u2))
 
 # ============================== reviewOverdueDays ================================
 # A missed deadline is a fact with a magnitude, still boolean-gated. Both halves are

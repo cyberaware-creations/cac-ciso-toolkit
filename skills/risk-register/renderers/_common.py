@@ -19,7 +19,7 @@ import argparse
 import html
 import json
 import sys
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
@@ -179,14 +179,46 @@ def provisional_note(summary: dict) -> str:
 # --- CLI ---------------------------------------------------------------------
 
 
+def _today_utc() -> str:
+    """Today's date in UTC — the reference date every derived age is measured against.
+
+    This was `date.today()`, the LOCAL date, and that was a live defect rather than a
+    style question. `score_register._now()` writes every history `ts` in UTC, so west of
+    Greenwich an event written this evening is dated tomorrow: reproduced at 17:57 PDT
+    with the engine writing 2026-07-30 against a default --today of 2026-07-29, and four
+    operational cards reading "confirmed 2026-07-30, dated in the future".
+
+    Not merely cosmetic. `age_band(-1, T)` returns `within` by documented design — it is a
+    pure distance and an `impossible` band would smuggle a validation verdict into the
+    distribution — so a future-dated confirmation is counted INSIDE the cadence. A
+    register skewed one day forward therefore reports as fresher than it is, on the board
+    page as well as the working one.
+
+    The tension, recorded rather than glossed: `reviewDate` is a human calendar commitment
+    and reads local-ish, while `ts` is a machine timestamp and is UTC. One reference date
+    cannot be locally correct for both. UTC wins because the two errors are not the same
+    size — a ≤1-day boundary difference on a review deadline is immaterial and self-
+    corrects tomorrow, whereas an age that goes negative and reads as "fresh" is a wrong
+    answer in the flattering direction on the artifact a board reads. Pass --today
+    explicitly for any date that must be evaluated in a particular local zone.
+
+    nist-csf's profile_analysis._today() is the same helper, written the same way; the two
+    skills compare UTC timestamps against a UTC reference or the comparison is incoherent
+    by construction. Keep them in step.
+    """
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+
 def parse_args(argv: list[str], description: str, default_out: str) -> argparse.Namespace:
     p = argparse.ArgumentParser(description=description)
     p.add_argument("register", help="path to the .rr register (schema v2)")
     p.add_argument("out", nargs="?", default=default_out,
                    help=f"output HTML path (default: ./{default_out})")
-    p.add_argument("--today", default=date.today().isoformat(), metavar="YYYY-MM-DD",
-                   help="date to evaluate review/re-validation staleness against "
-                        "(default: the system date)")
+    # UTC, not the local date — see _today_utc(). The register's timestamps are UTC.
+    p.add_argument("--today", default=_today_utc(), metavar="YYYY-MM-DD",
+                   help="date to evaluate review/re-validation staleness and confirmation "
+                        "age against (default: today's date in UTC, matching the timezone "
+                        "the register's own history timestamps are written in)")
     p.add_argument("--translations", metavar="FILE",
                    help="board-language sidecar from the ciso-board-translation skill; "
                         "omitted means board narrative is shown as a labelled placeholder")
@@ -787,6 +819,19 @@ class Context:
         states this reads.
 
         bands + undated + unreadableDate == live, exactly, and that is asserted.
+
+        `futureDated` is the one count here that is NOT part of that partition, and it says
+        so in its own name rather than by omission. A confirmation dated after `today` has
+        a negative age, and `age_band()` reports a negative age as `within` on purpose — so
+        those risks are already counted inside `bands`, and adding them again would make
+        the partition read one too many. They are surfaced as a subset so a renderer can
+        say "this many of the fresh ones are a broken record, not a recent review" instead
+        of quietly presenting a file defect as the best band on the page.
+
+        Reachable only from a hand-edited or imported register now that --today is UTC (see
+        _today_utc(), which fixed the CLI route into this state), which puts it in exactly
+        the population `unreadableDate` already serves: a record that is wrong rather than
+        missing. That is the precedent for giving it a name of its own.
         """
         open_risks = live_risks(self.risks)
         bands = {b: 0 for b in sr.AGE_BANDS}
@@ -799,10 +844,18 @@ class Context:
                 undated += 1
             else:
                 unreadable += 1
+        # Most-impossible first, so a renderer naming a few names the worst few. Same
+        # ordering contract as `wellBeyond` below.
+        future = sorted((r for r in open_risks
+                         if (r["confirmationAgeDays"] or 0) < 0),
+                        key=lambda r: r["confirmationAgeDays"])
         return {
             "bands": bands,
             "undated": undated,
             "unreadableDate": unreadable,
+            # A subset of `bands`, never a summand of it — see the docstring.
+            "futureDated": len(future),
+            "futureDatedRisks": future,
             "live": len(open_risks),
             "thresholdDays": self.age_threshold,
             # Oldest first, so a renderer can name the worst few without re-sorting.
