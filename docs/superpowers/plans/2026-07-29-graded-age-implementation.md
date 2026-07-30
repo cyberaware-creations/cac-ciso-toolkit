@@ -1748,6 +1748,45 @@ Run: `./skills/risk-register/evals/confirmation-age.sh 2>&1 | tail -6`
 
 Expected: `board renders one freshness sentence` reports `FAIL`.
 
+- [ ] **Step 0: Fix the UTC/local skew that makes a stale register look fresh**
+
+**Commit this separately, before the sentence.** It is a live defect in shipped code, not a
+test problem, and the board sentence is the second place it surfaces.
+
+`score_register._now()` writes every history `ts` in **UTC**. `_common.parse_args` defaults
+`--today` to `date.today().isoformat()` — the **local** date. So for any user west of UTC,
+every event written after local-evening renders with a *negative* age. Reproduced live on the
+author's machine at 17:33 PDT: the engine wrote `2026-07-30`, `--today` defaulted to
+`2026-07-29`, and the operational panel showed `· confirmed 2026-07-30, dated in the future`
+on four cards.
+
+Worse than cosmetic: `age_band(-1, T)` returns `within` by documented design, so the rollup
+counts a future-dated confirmation as **inside the cadence**. A register whose timestamps skew
+one day forward reports as fresher than it is, on the board page.
+
+**`nist-csf` already solved this.** Its helper is
+
+```python
+def _today() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+```
+
+Bring risk-register into line — the register's timestamps are UTC, so the reference date it is
+compared against must be too, or the comparison is incoherent by construction. This is the
+same divergence as `_iso_date`: one skill got it right, the other did not, and neither pointed
+at the other.
+
+Note the tension worth recording in a comment: `reviewDate` is a human calendar commitment and
+`ts` is a machine timestamp, so a single reference date cannot be locally correct for both. A
+≤1-day boundary difference on a review deadline is immaterial; an age that goes negative and
+reads as "fresh" is not. Choose UTC and say why.
+
+Add an assertion pinning the default to the UTC date, and a mutant reverting it to
+`date.today()` to prove the assertion binds. Consider whether the rollup should carry a
+`futureDated` count so a negative age is reported as a broken record rather than absorbed into
+`within` — after this fix it is unreachable via the CLI, so it becomes a hand-edited/imported
+register concern, the same population `unreadableDate` serves.
+
 - [ ] **Step 3: Add the sentence**
 
 In `skills/risk-register/renderers/render_board.py`, replace `summary_block` (line 152):
