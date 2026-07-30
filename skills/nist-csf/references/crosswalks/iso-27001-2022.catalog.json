@@ -8,6 +8,11 @@
   "tool": "NIST CSF 2.0 Reference Export (xlsx)",
   "retrievedAt": "2026-07-29"
  },
+ "catalogueScope": {
+  "coverage": "full",
+  "note": "Holds the full Annex A control set plus the ISMS clauses, so the outside-CSF list is real.",
+  "completable": true
+ },
  "groupings": [
   {
    "id": "A.5",

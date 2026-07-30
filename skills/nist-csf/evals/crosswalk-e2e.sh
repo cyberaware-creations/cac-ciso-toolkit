@@ -19,7 +19,7 @@ repo="$(cd "$skill/../.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=35
+EXPECTED_CHECKS=36
 checks=0
 fails=0
 
@@ -101,14 +101,13 @@ print($1)" "$analysis" 2>/dev/null
 }
 is "ISO scores 88 mapped controls"        "$(read_num "len(d['iso-27001-2022']['controls'])")" "88"
 is "ISO reports 31 controls outside CSF"  "$(read_num "len(d['iso-27001-2022']['completeness']['controlsOutsideCSF'])")" "31"
-is "CIS reports 104 controls outside CSF" \
-   "$(read_num "len(d['cis-8.1']['completeness']['controlsOutsideCSF'])")" "104"
+# Every catalogue declares whether it holds its framework's full control set. Without
+# it an empty outside-CSF list is ambiguous between "CSF reaches everything" and
+# "nothing else is catalogued" — opposite claims, and two of these three are the second.
+is "ISO declares a full catalogue"        "$(read_num "d['iso-27001-2022']['completeness']['catalogueScope']")" "full"
+is "CIS declares a referenced subset"     "$(read_num "d['cis-8.1']['completeness']['catalogueScope']")" "referenced-subset"
+is "800-53 declares a referenced subset"  "$(read_num "d['800-53-r5']['completeness']['catalogueScope']")" "referenced-subset"
 is "CIS scores 49 mapped controls"        "$(read_num "len(d['cis-8.1']['controls'])")" "49"
-is "CIS catalogues all 153 safeguards"    "$(read_num "d['cis-8.1']['completeness']['controlsTotal']")" "153"
-# ND licensing: the 104 unmapped safeguards are identifiers only, so every control
-# that actually appears in the coverage table must still carry a label.
-is "every scored CIS control carries a label" \
-   "$(read_num "sum(1 for c in d['cis-8.1']['controls'] if not (c['label'] or '').strip())")" "0"
 is "800-53 scores 206 mapped controls"    "$(read_num "len(d['800-53-r5']['controls'])")" "206"
 is "CIS 1.1 is the weakest link, 1"       "$(read_num "[c['score'] for c in d['cis-8.1']['controls'] if c['controlId']=='CIS 1.1'][0]")" "1"
 # 3 of 4 is 0.75, which is short of the 0.85 strong floor. This is the assertion that
@@ -148,6 +147,7 @@ has "report names the rating scale"                     "$report" "rating scale"
 has "800-53 titles are verbatim"                        "$report" "Audit Record Review, Analysis, and Reporting"
 has "ISO labels are ours"                               "$report" "our own paraphrases"
 has "report names the withheld state"                   "$report" "too little rated"
+has "an un-enumerable list says so, not blank"          "$report" "This list cannot be produced"
 # --offline must make the file self-contained: no outbound request when it is opened.
 hasnt "offline report makes no font request"            "$report" "fonts.googleapis.com"
 

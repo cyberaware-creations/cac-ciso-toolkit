@@ -130,12 +130,8 @@ CROSSWALK_EXPECTED = {
                        "labelSource": "verbatim-public-domain", "verbatimAllowed": True},
     "iso-27001-2022": {"edges": 329, "controls": 119, "groupings": 5,
                        "labelSource": "cac-generated", "verbatimAllowed": False},
-    # 153: the full Safeguard set, so the "no CSF maps here" list can exist for CIS
-    # as it does for ISO. Only the 49 the NIST export references carry a label; the
-    # rest are identifiers alone. See the id-only note in check_crosswalks().
-    "cis-8.1":        {"edges": 62,  "controls": 153, "groupings": 18,
-                       "labelSource": "cac-generated", "verbatimAllowed": False,
-                       "idOnlyAllowed": True, "labelled": 49},
+    "cis-8.1":        {"edges": 62,  "controls": 49,  "groupings": 16,
+                       "labelSource": "cac-generated", "verbatimAllowed": False},
 }
 
 _SKILL_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -302,21 +298,21 @@ def check_crosswalks(index: dict, path: str | None = None) -> list[str]:
             problems.append(f"[{fid}] expected {want['groupings']} groupings, found {len(groupings)}")
         if len(edges) != want["edges"]:
             problems.append(f"[{fid}] expected {want['edges']} edges, found {len(edges)}")
-        if want.get("labelled") is not None:
-            n_lab = sum(1 for c in controls if (c.get("label") or "").strip())
-            if n_lab != want["labelled"]:
-                problems.append(f"[{fid}] expected {want['labelled']} labelled controls, "
-                                f"found {n_lab}")
 
-        for field in ("frameworkId", "name", "version", "license", "provenance", "sourceExport"):
+        for field in ("frameworkId", "name", "version", "license", "provenance",
+                      "sourceExport", "catalogueScope"):
             if not cat.get(field):
                 problems.append(f"[{fid}] catalog is missing provenance field {field!r}")
+        cov = (cat.get("catalogueScope") or {}).get("coverage")
+        if cov not in ("full", "referenced-subset"):
+            problems.append(f"[{fid}] catalogueScope.coverage is {cov!r}; must be "
+                            f"'full' or 'referenced-subset' so an empty outside-CSF "
+                            f"list can be read correctly")
         if cat.get("frameworkId") != fid:
             problems.append(f"[{fid}] catalog frameworkId is {cat.get('frameworkId')!r}")
 
         declared = {g.get("id") for g in groupings}
         seen: set[str] = set()
-        id_only: set[str] = set()
         for ctl in controls:
             cid = ctl.get("id")
             if not cid:
@@ -325,21 +321,9 @@ def check_crosswalks(index: dict, path: str | None = None) -> list[str]:
             if cid in seen:
                 problems.append(f"[{fid}] duplicate control id {cid}")
             seen.add(cid)
-            # id-only: an identifier with no label, legal only where no CSF
-            # Subcategory maps to the control. The CIS Controls are CC BY-NC-ND and
-            # ND forbids distributing transformed material, so a paraphrase of an
-            # unmapped safeguard is a risk taken for no benefit — the honesty list
-            # renders ids. A MAPPED control still needs a label, because it appears
-            # in the coverage table; that is asserted after the edges are read.
-            is_id_only = (ctl.get("labelSource") == "id-only"
-                          and want.get("idOnlyAllowed"))
-            if is_id_only:
-                id_only.add(cid)
-                if (ctl.get("label") or "").strip():
-                    problems.append(f"[{fid}] {cid} is id-only but carries a label")
-            elif not (ctl.get("label") or "").strip():
+            if not (ctl.get("label") or "").strip():
                 problems.append(f"[{fid}] {cid} has an empty label")
-            if not is_id_only and ctl.get("labelSource") != want["labelSource"]:
+            if ctl.get("labelSource") != want["labelSource"]:
                 problems.append(f"[{fid}] {cid} labelSource is {ctl.get('labelSource')!r}, "
                                 f"must be {want['labelSource']!r}")
             # The licensing line. ISO and CIS text is copyrighted; shipping it
@@ -361,10 +345,6 @@ def check_crosswalks(index: dict, path: str | None = None) -> list[str]:
                                 f"which is not a CSF Subcategory")
             if not e.get("authority"):
                 problems.append(f"[{fid}] edge {sub}->{ctl_id} has no authority tag")
-            if ctl_id in id_only:
-                problems.append(f"[{fid}] {ctl_id} is id-only but CSF maps to it via "
-                                f"{sub}; a control that appears in the coverage table "
-                                f"needs a label")
 
     return problems
 
@@ -1414,11 +1394,18 @@ def crosswalk_completeness(crosswalk: dict, assessments: list[dict]) -> dict:
     mapped = set(crosswalk["fwd"])
     rated = {a["subcategoryId"] for a in in_scope(assessments)
              if a.get("current") is not None}
+    # The scope the catalogue declares about itself. Without it an empty
+    # controlsOutsideCSF is ambiguous between "CSF reaches everything in this
+    # framework" and "nothing else is catalogued here", and those are opposite
+    # claims. Two of the three bundled catalogues are the second case.
+    scope = (crosswalk["catalog"].get("catalogueScope") or {})
     return {
         "controlsTotal": len(all_controls),
         "controlsMapped": len(mapped & all_controls),
         "controlsOutsideCSF": sorted(all_controls - mapped, key=_crosswalk_sort_key),
         "csfNotInLens": sorted(rated - set(crosswalk["rev"])),
+        "catalogueScope": scope.get("coverage"),
+        "catalogueScopeNote": scope.get("note"),
     }
 
 
@@ -5136,10 +5123,8 @@ def _cmd_self_test(_args):
                 _gc = _byc.get(_cid)
                 eq({k: (_gc or {}).get(k) for k in _wc}, _wc,
                    f"golden {_fid} control {_cid}")
-            eq({"controlsTotal": _comp["controlsTotal"],
-                "controlsMapped": _comp["controlsMapped"],
-                "controlsOutsideCSF": len(_comp["controlsOutsideCSF"]),
-                "csfNotInLens": _comp["csfNotInLens"]},
+            _got_comp = dict(_comp, controlsOutsideCSF=len(_comp["controlsOutsideCSF"]))
+            eq({k: _got_comp.get(k) for k in _want_lens["completeness"]},
                _want_lens["completeness"], f"golden {_fid} completeness")
     else:
         failures.append("golden crosswalk fixture is missing")

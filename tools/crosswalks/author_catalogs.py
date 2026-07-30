@@ -50,20 +50,6 @@ ISO_CL={
 ISO_CLAUSE_WHITELIST=set(ISO_CL)
 
 # ---- CAC-authored CIS v8.1 safeguard labels (referenced set) + control group labels ----
-# How many Safeguards each CIS Control contains. Structural counts only — no CIS
-# wording is reproduced here, and the workbook itself is deliberately NOT vendored
-# because it carries the official titles and descriptions.
-#
-# Read from the CIS Controls v8.0 workbook (CC BY-NC-ND). Its Safeguard column
-# stores ids as floats, so 3.10 arrives as 3.1 and collides with the real 3.1 —
-# 1.10, 4.10, 8.10, 13.10 and 16.10 are all corrupted the same way. Recovered by
-# position instead: the Nth Safeguard row under Control C is C.N, which is
-# self-checking against every uncorrupted cell and reproduces 153 across 18
-# Controls. Cross-validated independently: all 49 ids the NIST OLIR export
-# references appear in the reconstructed set.
-CIS_SAFEGUARD_COUNTS={1:5, 2:7, 3:14, 4:12, 5:6, 6:8, 7:7, 8:12, 9:7,
-                      10:7, 11:5, 12:8, 13:11, 14:9, 15:7, 16:14, 17:9, 18:5}
-
 CIS_CTRL={
 "CIS-1":"Enterprise asset inventory & control","CIS-2":"Software asset inventory & control","CIS-3":"Data protection","CIS-4":"Secure configuration of assets/software","CIS-5":"Account management","CIS-6":"Access control management","CIS-7":"Continuous vulnerability management","CIS-8":"Audit log management","CIS-9":"Email & web browser protections","CIS-10":"Malware defenses","CIS-11":"Data recovery","CIS-12":"Network infrastructure management","CIS-13":"Network monitoring & defense","CIS-14":"Security awareness & skills training","CIS-15":"Service provider management","CIS-16":"Application software security","CIS-17":"Incident response management","CIS-18":"Penetration testing",
 }
@@ -173,23 +159,10 @@ def catalog(fid, ctrl_ids):
             grp=cid.split('.')[0]+'.'+cid.split('.')[1] if False else ("CL" if cid.startswith("Clause") else "A."+cid[2])
             controls.append({"id":cid,"label":lab,"groupingId":grp,"labelSource":"cac-generated","text":None})
     elif fid=='cis-8.1':
-        # The full 153 safeguards, so the "no CSF maps here — assess directly" list
-        # can exist for CIS as it does for ISO. Only the CSF-referenced ones carry a
-        # label; the rest are identifiers alone (labelSource "id-only").
-        #
-        # That is a licensing decision, not a shortcut. The CIS Controls are
-        # CC BY-NC-ND, and ND forbids distributing transformed material — a
-        # paraphrase of a safeguard is arguably exactly that. Identifiers are
-        # structural facts and are all the honesty list needs, since it renders ids.
-        for gid in [f"CIS-{i}" for i in range(1, 19)]:
-            groupings.append({"id":gid,"label":CIS_CTRL[gid]})
-        for gnum in range(1, 19):
-            for n in range(1, CIS_SAFEGUARD_COUNTS[gnum]+1):
-                cid=f"CIS {gnum}.{n}"
-                lab=CIS_SG.get(cid)
-                controls.append({"id":cid,"label":lab,"groupingId":f"CIS-{gnum}",
-                                 "labelSource":"cac-generated" if lab else "id-only",
-                                 "text":None})
+        used_groups=sorted({f"CIS-{c.split(' ')[1].split('.')[0]}" for c in ctrl_ids}, key=lambda g:int(g.split('-')[1]))
+        for gid in used_groups: groupings.append({"id":gid,"label":CIS_CTRL[gid]})
+        for cid in sorted(ctrl_ids, key=lambda s:[int(x) for x in s.replace('CIS ','').split('.')]):
+            controls.append({"id":cid,"label":CIS_SG[cid],"groupingId":f"CIS-{cid.split(' ')[1].split('.')[0]}","labelSource":"cac-generated","text":None})
     else:  # 800-53
         used=sorted({g for _,_,g in edges[fid]})
         for g in used: groupings.append({"id":g,"label":FAM[g]})
@@ -198,24 +171,14 @@ def catalog(fid, ctrl_ids):
             title=TITLES.get(cid)
             controls.append({"id":cid,"label":title or cid,"groupingId":fam,
                              "labelSource":"verbatim-public-domain" if title else "pending-verbatim-title","text":None})
-    src={"tool":"NIST CSF 2.0 Reference Export (xlsx)","retrievedAt":RETRIEVED}
-    if fid=='cis-8.1':
-        # The edges come from the NIST export; the Safeguard enumeration does not.
-        # Recorded separately, and honestly: the workbook read was v8.0, while the
-        # frameworkId stays cis-8.1 because that is the version the OLIR edges cite.
-        # v8.1 renumbered nothing, evidenced by all 49 OLIR-v8.1 ids appearing in the
-        # v8.0 set — but the file actually read is what gets written down.
-        src["enumeration"]={
-            "tool":"CIS Controls v8.0 workbook (CC BY-NC-ND)",
-            "provides":"Safeguard counts per Control only; no CIS wording",
-            "appliesToVersion":"8.1",
-            "note":("Enumeration taken from v8.0 and applied to the 8.1 catalogue because 8.1 "
-                    "did not renumber Safeguards; all 49 ids the v8.1 OLIR references cites are "
-                    "present in the v8.0 set. Ids recovered positionally, since the workbook "
-                    "stores them as floats and corrupts 3.10, 4.10, 8.10, 13.10 and 16.10."),
-        }
     return {"frameworkId":fid,"name":spec['name'],"version":spec['ver'],"license":spec['lic'],
-            "provenance":PROV[fid],"sourceExport":src,
+            "provenance":PROV[fid],"sourceExport":{"tool":"NIST CSF 2.0 Reference Export (xlsx)","retrievedAt":RETRIEVED},
+            # Declared, not inferred. Whether a catalogue holds its framework's whole
+            # control set decides what an empty "outside CSF" list MEANS: genuinely
+            # nothing beyond CSF's reach, or simply nothing else catalogued. A reader
+            # cannot tell those apart from a blank, and guessing it from counts would
+            # be wrong for two of these three.
+            "catalogueScope":SCOPE[fid],
             "groupings":groupings,"controls":controls}
 
 def iso_sort(c):
@@ -224,14 +187,27 @@ def iso_sort(c):
 def nist_sort(c):
     m=re.match(r'^([A-Z]{2})-(\d+)',c); return (m.group(1),int(m.group(2)),c)
 
+SCOPE={
+"800-53-r5":{"coverage":"referenced-subset",
+  "note":("Holds the controls the NIST CSF export references, not all of SP 800-53 Rev 5. "
+          "An empty outside-CSF list therefore means nothing further is catalogued here, not "
+          "that CSF reaches every 800-53 control."),
+  "completable":True},
+"iso-27001-2022":{"coverage":"full",
+  "note":"Holds the full Annex A control set plus the ISMS clauses, so the outside-CSF list is real.",
+  "completable":True},
+"cis-8.1":{"coverage":"referenced-subset",
+  "note":("Holds the Safeguards the NIST CSF export references. The rest are deliberately not "
+          "enumerated: the CIS Controls are CC BY-NC-ND, and republishing their Safeguard set — "
+          "even as bare identifiers taken from CIS materials — is not something that licence "
+          "permits. Check your own licensed copy for Safeguards CSF does not reach."),
+  "completable":False},
+}
+
 PROV={
-"800-53-r5":"NIST-developed CSF→800-53 mapping (public domain). Family names and all per-control titles verbatim from NIST SP 800-53 Rev 5, a US Government work.",
+"800-53-r5":"NIST-developed CSF→800-53 mapping (public domain). Family names verbatim; per-control titles pending a titles ingest.",
 "iso-27001-2022":"Control/clause IDs referenced from NIST's CSF 2.0 informative references (mixed/third-party authority). Labels are CAC paraphrases — ISO/IEC text is copyright; bring your own copy.",
-"cis-8.1":("CSF↔CIS relationships are CIS-authored (used as facts, tagged; CIS document not "
-           "republished). CIS content is CC BY-NC-ND: the 49 CSF-referenced Safeguards carry CAC "
-           "paraphrases, and the remaining 104 are identifiers only (labelSource id-only) rather "
-           "than paraphrases, because ND forbids distributing transformed material. No CIS "
-           "title or description is reproduced."),
+"cis-8.1":"CSF↔CIS relationships are CIS-authored (used as facts, tagged; CIS document not republished). Labels are CAC paraphrases. CIS content is CC BY-NC-ND.",
 }
 for fid,spec in FW.items():
     es=sorted({(a,b) for a,b,_ in edges[fid]})

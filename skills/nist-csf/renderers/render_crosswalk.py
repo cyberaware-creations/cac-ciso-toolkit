@@ -15,9 +15,7 @@ Three things this renderer will not do, each for a stated reason:
   carries the band word as text, so the report survives greyscale printing,
   colour-vision deficiency, and forced-colours mode.
 - It never shows ISO or CIS control titles. Those are copyrighted; the labels here
-  are our own paraphrases, and the label source is stated per lens. Some CIS
-  Safeguards carry no label at all — unmapped ones are identifiers only, because
-  the CIS licence forbids distributing transformed material.
+  are our own paraphrases, and the label source is stated per lens.
 """
 import json
 import sys
@@ -287,11 +285,19 @@ def honesty(block: dict) -> str:
             f'A CSF assessment says nothing about {"it" if len(outside) == 1 else "these"}; '
             f'assess {"it" if len(outside) == 1 else "them"} directly against the standard.</p>'
             f'<p class="subs">{c.esc(", ".join(outside))}</p>')
+    elif (comp.get("catalogueScope") or "") == "full":
+        parts.append('<p><strong>Every control in this framework is reachable from CSF.</strong> '
+                     'This catalogue holds the full control set, so the list is empty because '
+                     'nothing falls outside CSF.</p>')
     else:
-        parts.append('<p><strong>Every control in this catalogue is reachable from CSF.</strong> '
-                     'The catalogue holds the framework&rsquo;s full control set, so this list is '
-                     'empty because no control falls outside CSF &mdash; not because the rest were '
-                     'left out.</p>')
+        # The dangerous case: a blank here would read as full coverage when in fact
+        # the rest of the framework simply is not catalogued.
+        parts.append('<p><strong>This list cannot be produced for this framework.</strong> '
+                     'The catalogue holds the controls the NIST CSF export references, not the '
+                     'framework&rsquo;s full control set &mdash; so an empty list here means '
+                     '<em>not enumerated</em>, not <em>none exist</em>.</p>'
+                     + (f'<p class="muted" style="font-size:12.5px">{c.esc(comp.get("catalogueScopeNote") or "")}</p>'
+                        if comp.get("catalogueScopeNote") else ''))
     if not_in:
         parts.append(
             f'<p><strong>{len(not_in)} rated CSF outcome'

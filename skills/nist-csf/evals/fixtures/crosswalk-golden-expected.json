@@ -9,6 +9,7 @@
         "unknown": 153
       },
       "completeness": {
+        "catalogueScope": "referenced-subset",
         "controlsMapped": 206,
         "controlsOutsideCSF": 0,
         "controlsTotal": 206,
@@ -149,9 +150,10 @@
         "weak": 2
       },
       "completeness": {
+        "catalogueScope": "referenced-subset",
         "controlsMapped": 49,
-        "controlsOutsideCSF": 104,
-        "controlsTotal": 153,
+        "controlsOutsideCSF": 0,
+        "controlsTotal": 49,
         "csfNotInLens": [
           "GV.OC-01"
         ]
@@ -292,6 +294,7 @@
         "unknown": 57
       },
       "completeness": {
+        "catalogueScope": "full",
         "controlsMapped": 88,
         "controlsOutsideCSF": 31,
         "controlsTotal": 119,
