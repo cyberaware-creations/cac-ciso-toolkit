@@ -4768,6 +4768,61 @@ def _cmd_self_test(_args):
     except ValueError:
         ok(True, "load_crosswalk rejects an unknown framework")
 
+    # Real-data parity against a hand-verified golden fixture. The synthetic
+    # checks above lock the math; this locks the math against the actual bundled
+    # catalogs, so a data refresh that moves a mapping cannot pass unnoticed.
+    # The fixture is a .csfa, so it converts onto the 0-4 scale and its bands are
+    # shares of 4 — which is what makes it the regression test for banding
+    # against the wrong scale.
+    _golden = os.path.join(_SKILL_ROOT, "evals", "fixtures", "crosswalk-golden.csfa")
+    _golden_expected = os.path.join(_SKILL_ROOT, "evals", "fixtures",
+                                    "crosswalk-golden-expected.json")
+    if os.path.isfile(_golden) and os.path.isfile(_golden_expected):
+        import importlib.util as _ilu
+        _cc_path = os.path.join(_SKILL_ROOT, "scripts", "csfa_compat.py")
+        _spec = _ilu.spec_from_file_location("_csfa_compat_selftest", _cc_path)
+        _cc = _ilu.module_from_spec(_spec)
+        _spec.loader.exec_module(_cc)
+        with open(_golden, encoding="utf-8") as f:
+            _csfa = json.load(f)
+        with open(_golden_expected, encoding="utf-8") as f:
+            _exp = json.load(f)
+        _store = _cc.convert_to_csfp(_csfa, core, "2026-07-29T00:00:00Z")
+        _asmts = _store["assessments"]
+        _settings = _store["profile"]["settings"]
+        eq(_settings["scale"]["max"], _exp["scaleMax"], "golden fixture converts to the expected scale")
+        for _fid, _want_lens in sorted(_exp["lenses"].items()):
+            _cw = load_crosswalk(_fid)
+            _cov = derive_crosswalk_coverage(_asmts, _cw, _settings, agg="min")
+            _comp = crosswalk_completeness(_cw, _asmts)
+            _byc = {c["controlId"]: c for c in _cov["controls"]}
+            eq(_cov["mappingAuthority"], _want_lens["mappingAuthority"],
+               f"golden {_fid} mapping authority")
+            eq(len(_cov["controls"]), _want_lens["controlsScored"],
+               f"golden {_fid} scored control count")
+            _hist: dict[str, int] = {}
+            for c in _cov["controls"]:
+                _hist[c["band"]] = _hist.get(c["band"], 0) + 1
+            eq(dict(sorted(_hist.items())), _want_lens["bandHistogram"],
+               f"golden {_fid} band histogram")
+            for _gid, _wg in sorted(_want_lens["groupings"].items()):
+                _got = next((g for g in _cov["groupings"] if g["groupingId"] == _gid), None)
+                eq({"score": _got and _got["score"], "band": _got and _got["band"],
+                    "controlsScored": _got and _got["controlsScored"]}, _wg,
+                   f"golden {_fid} theme {_gid}")
+            for _cid, _wc in sorted(_want_lens["handVerifiedControls"].items()):
+                _gc = _byc.get(_cid)
+                eq({k: (_gc or {}).get(k) for k in _wc}, _wc,
+                   f"golden {_fid} control {_cid}")
+            eq({"controlsTotal": _comp["controlsTotal"],
+                "controlsMapped": _comp["controlsMapped"],
+                "controlsOutsideCSF": len(_comp["controlsOutsideCSF"]),
+                "csfNotInLens": _comp["csfNotInLens"]},
+               _want_lens["completeness"], f"golden {_fid} completeness")
+    else:
+        failures.append("golden crosswalk fixture is missing")
+        checks += 1
+
     print(f"self-test: {checks - len(failures)}/{checks} checks passed")
     if failures:
         print("\nFAILED:", file=sys.stderr)

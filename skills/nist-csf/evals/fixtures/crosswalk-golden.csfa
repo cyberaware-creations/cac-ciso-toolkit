@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "frameworkId": "csf-2.0",
+  "frameworkVersion": "2.0",
+  "meta": {
+    "clientName": "Crosswalk Golden Fixture",
+    "assessor": "Darren Alleyne",
+    "scopeNote": "Hand-built parity fixture for crosswalk lenses. Not a real assessment.",
+    "assessedAt": "2026-07-29"
+  },
+  "ratings": {
+    "ID.AM-01": {
+      "tier": 4
+    },
+    "ID.AM-08": {
+      "tier": 1
+    },
+    "PR.AA-01": {
+      "tier": 3
+    },
+    "PR.AA-05": {
+      "tier": 3
+    },
+    "PR.DS-11": {
+      "tier": 4
+    },
+    "RC.RP-03": {
+      "tier": 4
+    },
+    "GV.RR-01": {
+      "tier": 2
+    },
+    "GV.OC-01": {
+      "tier": 3
+    },
+    "ID.AM-04": {
+      "na": true
+    },
+    "GV.SC-04": {
+      "tier": 2
+    }
+  },
+  "targets": {
+    "preset": "custom",
+    "default": 3,
+    "byFunction": {}
+  },
+  "createdAt": "2026-07-29T00:00:00.000Z",
+  "updatedAt": "2026-07-29T00:00:00.000Z"
+}
