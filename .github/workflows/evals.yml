@@ -40,6 +40,15 @@ jobs:
       - name: Board-safety suite, on the floor
         run: PY="$(command -v python3)" ./skills/risk-register/evals/board-safety.sh
 
+      # Needs no browser, so it belongs here rather than behind the `rendered` job's
+      # Chrome/node gate. It builds its register with the real CLI and asserts through the
+      # renderers' own Context, so 3.9 is the interpreter that matters: this is the same
+      # blind spot v0.1.4's 3.12-only construct lived in. The suite refuses to report
+      # success over a partial run on its own — see its EXPECTED_CHECKS guard — rather
+      # than relying on this job to notice, which is the lesson of the guard below.
+      - name: Confirmation-age suite, on the floor
+        run: PY="$(command -v python3)" ./skills/risk-register/evals/confirmation-age.sh
+
   rendered:
     # Width and WCAG AA contrast are properties of a *resolved layout*, so they need a real
     # layout engine. Four shipped defects lived in this blind spot.

@@ -516,6 +516,75 @@ def compute_completeness(assessments: list[dict], index: dict, core: dict) -> di
     }
 
 
+# --- Age bands ----------------------------------------------------------------
+# One notion of "old", anchored to the Profile's own configurable threshold T
+# (settings.reporting.ageThresholdDays, default 180) so the engine never holds two.
+#
+#   within       d <= T//2
+#   approaching  d <= T
+#   beyond       d <= 2T
+#   wellBeyond   d >  2T
+#
+# T//2 is not a tuned figure. It is the halfway mark to the cadence the reader already
+# chose, which is the one inner split that needs no second setting to justify it; a
+# configurable inner boundary would be a second notion of "old" wearing a new name.
+#
+# AGE_BANDS is ordered ascending by age. Reporting renders in tuple order rather than
+# re-deriving it, so reordering this tuple silently reorders every rendered band.
+#
+# `olderThanThreshold` is unchanged and must always equal beyond + wellBeyond. The
+# self-test asserts that identity at three thresholds: 180 (the default), 365 (so that
+# holding is a property of the model rather than an accident of the default), and 198,
+# which puts a fixture rating exactly ON the line. The third is the one that earns its
+# keep. The guarantee lives in two independent expressions — `days <= threshold_days`
+# below and `d > age_days` in _age() — and they can only be caught disagreeing by a
+# rating sitting exactly on the boundary. With 180 and 365 alone, flipping _age()'s
+# `>` to `>=` breaks the identity and every test still passes.
+#
+# A byte-identical twin of this function lives in
+# skills/risk-register/scripts/score_register.py, which carries the matching note back to
+# here. The duplication is deliberate. The obvious cleanup — one shared module, say
+# skills/_shared/age.py — is rejected: every shipped script must run standalone (this
+# one also resolves its assets from _SKILL_ROOT off __file__), so a cross-skill import
+# needs sys.path surgery and breaks outright the moment a single skill directory is used
+# on its own. The obligation that replaces it: the two copies are edited together, and
+# each skill's own self-test is the only thing pinning them to the same semantics.
+# Grep the sibling path above before changing any boundary below.
+#
+# What must match is the SEMANTICS — the four boundaries and the band names. What must
+# NOT converge is the rendered wording: each skill's AGE_BAND_LABEL sits in a different
+# sentence shape, and those live in the renderers, not here.
+AGE_BANDS = ("within", "approaching", "beyond", "wellBeyond")
+
+
+def age_band(days: int, threshold_days: int) -> str:
+    """Which band `days` of age falls in, relative to threshold `threshold_days`.
+
+    Every boundary is inclusive of the lower band, so a rating at exactly T is
+    `approaching` and not yet `beyond` — the threshold is a cadence the reader chose to
+    aim at, and hitting it is meeting it.
+
+    Nothing here is a statement about confidence. The engine reports age; the reader
+    judges what age means for a given Subcategory, because a governance outcome and an
+    asset inventory go stale at completely different rates.
+
+    A negative `days` — a well-formed confirmedAt dated in the future, which nothing
+    upstream currently rejects — reports as `within`. That is the one place in this file
+    where a bad date becomes a positive claim of freshness, and it is left that way
+    knowingly: this function is a pure distance measurement, and an `impossible` band
+    would smuggle a validation verdict into the distribution. The honest fix belongs in
+    check_store, where an impossible date pair can be surfaced as the store defect it
+    is rather than hidden inside a band the reader would read as good news.
+    """
+    if days <= threshold_days // 2:
+        return "within"
+    if days <= threshold_days:
+        return "approaching"
+    if days <= threshold_days * 2:
+        return "beyond"
+    return "wellBeyond"
+
+
 # --- Evidence accretion: derived, never stored ---------------------------------
 #
 # Every state below is computed from `assessments` + `intake` on demand. None of it
@@ -663,6 +732,9 @@ def derive_evidence(assessments: list[dict], intake: list[dict], index: dict, co
                 if states[a["subcategoryId"]] == "confirmed" and a.get("confirmedAt")]
         undated = sum(1 for a in subset
                       if states[a["subcategoryId"]] == "confirmed" and not a.get("confirmedAt"))
+        bands = {b: 0 for b in AGE_BANDS}
+        for d in ages:
+            bands[age_band(d, age_days)] += 1
         return {
             "dated": len(ages),
             # A rating carried over from a v1 Profile has no confirmation date. It is
@@ -672,6 +744,10 @@ def derive_evidence(assessments: list[dict], intake: list[dict], index: dict, co
             "medianDays": _median_int(ages),
             "oldestDays": max(ages) if ages else None,
             "olderThanThreshold": sum(1 for d in ages if d > age_days),
+            # A graded distribution rather than one count past one line. `undated` is
+            # NOT a band: it is the absence of a date, not a distance from one, and
+            # folding it in would report a guess as a measurement.
+            "bands": bands,
         }
 
     by_fn = _group(assessments, index, "functionId")
@@ -1078,15 +1154,40 @@ def build_playbook(gaps: list[dict], settings: dict, guidance: dict, top: int = 
     return rows
 
 
-def attention_lists(store: dict, index: dict, today: str, top: int = 10) -> dict:
-    """What a reviewer must look at. `today` is passed in — never read from the clock."""
+def attention_lists(store: dict, index: dict, today: str, age_days: int,
+                    *, top: int = 10) -> dict:
+    """What a reviewer must look at. `today` is passed in — never read from the clock.
+
+    `age_days` is the Profile's own ageThresholdDays, used only to band each row's
+    confirmation age. It is REQUIRED and deliberately has no default: a default would be
+    a second place this engine holds the age threshold, which is the one thing the note
+    above AGE_BANDS forbids ("so the engine never holds two"). It also turns a caller that
+    forgets to pass it from a silent fallback to 180 — caught only for as long as some
+    assertion happens to exist — into an immediate TypeError.
+
+    `top` is keyword-only for that guarantee's sake. Left positional, a call site that
+    dropped `age_days` would simply slide `top` into it and band every row against a
+    10-day cadence, which is not a TypeError and not 180 either — a new silent wrong
+    answer in place of the one being designed out.
+    """
     settings = store["profile"]["settings"]
     scoped = in_scope(store["assessments"])
     gaps = compute_gaps(store["assessments"], settings, index)
 
     def _brief(a):
+        # Two dates, deliberately. `lastReviewed` is when somebody looked; `confirmedAt`
+        # is when the rating was decided, with a source and a confirmer behind it. The
+        # stalest list is ordered by the first and banded by the second, because the
+        # band belongs to the same field every other age figure in this engine measures.
+        # A rating with no confirmedAt gets no band — never a guessed one.
+        confirmed_at = a.get("confirmedAt")
         return {"subcategoryId": a["subcategoryId"], "text": index[a["subcategoryId"]]["text"],
-                "lastReviewed": a.get("lastReviewed"), "status": a.get("status")}
+                "lastReviewed": a.get("lastReviewed"), "status": a.get("status"),
+                "confirmedAt": confirmed_at,
+                "confirmationAgeDays": (_days_between(confirmed_at, today)
+                                        if confirmed_at else None),
+                "confirmationBand": (age_band(_days_between(confirmed_at, today), age_days)
+                                     if confirmed_at else None)}
 
     never = [_brief(a) for a in scoped if not a.get("lastReviewed")]
     never.sort(key=lambda r: r["subcategoryId"])
@@ -1778,6 +1879,10 @@ def _iso_date(raw, label: str) -> str:
     whether a source is newer than a confirmation by comparing them directly. So
     '2026-3-14' is not merely untidy: it sorts after '2026-12-01' and would make
     every revisit flag and age figure downstream quietly false.
+
+    Twinned with skills/risk-register/scripts/score_register.py::_iso_date, which carries
+    the matching note: same name, same rule, same reason, deliberately duplicated on the
+    same terms as age_band() above. Edit the two together.
     """
     text = str(_s(raw)).strip()
     if _is_iso_date(text):
@@ -2238,7 +2343,13 @@ def _cmd_analyze(args):
     if problems:
         raise ValueError("Profile failed validation: " + "; ".join(problems))
 
-    today = _s(opt.get("today")) if isinstance(opt.get("today"), (str, list)) else _today()
+    # Validated, not merely read. Every age figure here is a subtraction against this
+    # value, and banding the attention rows widened the blast radius: `_age` measures only
+    # ratings in the `confirmed` state, while `_brief` measures any row carrying a
+    # confirmedAt, so a junk --today over a hand-edited store now reaches strptime on
+    # paths it previously could not. cf. --source-date, validated the same way.
+    today = (_iso_date(opt["today"], "--today")
+             if isinstance(opt.get("today"), (str, list)) else _today())
     top = int(_s(opt.get("top"))) if isinstance(opt.get("top"), (str, list)) else 10
     # The playbook and the queue answer different questions and have different safe
     # batch sizes. --top governs the playbook, as it always has; the queue keeps the
@@ -2352,7 +2463,7 @@ def _cmd_analyze(args):
                              index, rank, queue_top),
         "gaps": gaps,
         "playbook": build_playbook(gaps, settings, guidance, top),
-        "attention": attention_lists(store, index, today, top),
+        "attention": attention_lists(store, index, today, rep["ageThresholdDays"], top=top),
         "actionItems": {
             "items": store["actionItems"],
             "summary": {
@@ -2618,7 +2729,7 @@ def _cmd_self_test(_args):
     eq(compute_gaps(fresh["assessments"], settings, index), [], "fresh Profile has no gaps")
 
     # --- Attention lists (today passed in, never the clock) ---
-    att = attention_lists(store, index, "2026-07-26", top=10)
+    att = attention_lists(store, index, "2026-07-26", 180, top=10)
     eq([g["subcategoryId"] for g in att["largestGaps"]],
        ["PR.DS-01", "GV.RM-01", "PR.AA-01", "ID.RA-01", "GV.SC-01", "GV.OC-01"], "largestGaps order")
     eq([r["subcategoryId"] for r in att["neverReviewed"]], ["GV.SC-01", "ID.RA-01"], "neverReviewed")
@@ -2626,14 +2737,57 @@ def _cmd_self_test(_args):
        "stalest ordering (oldest first)")
     ok(all(r["subcategoryId"] not in ("GV.SC-01", "ID.RA-01") for r in att["stalest"]),
        "never-reviewed excluded from stalest")
+    # A stalest row is SORTED on lastReviewed but BANDED on confirmedAt. Those are
+    # different fields on purpose (confirmedAt is never backfilled from lastReviewed —
+    # that would fabricate attribution), so the row carries both and bands only the one
+    # the age model actually measures.
+    ok(all("confirmedAt" in r and "confirmationBand" in r for r in att["stalest"]),
+       "every stalest row carries both the confirmation date and its band")
+    # This v1 fixture carries no confirmedAt anywhere at all, by design, so every one of
+    # its stalest rows IS the reviewed-but-never-confirmed case. Asserted as an exact
+    # list rather than an all(...) over `if r["confirmedAt"]`, which would read the same
+    # and pass just as happily over no rows whatsoever.
+    eq(len(att["stalest"]), 7, "the v1 fixture has seven reviewed in-scope Subcategories")
+    eq([r["confirmationBand"] for r in att["stalest"]], [None] * 7,
+       "a row reviewed but never confirmed shows NO band rather than a guessed one")
+    eq([r["confirmationAgeDays"] for r in att["stalest"]], [None] * 7,
+       "and no confirmation age either — there is no date to measure from")
+
+    # The banded branch needs a Profile that actually holds confirmations, and the v1
+    # fixture above holds none. The shipped v2 fixture does. Its four dated ratings sit
+    # at 420 and 198 days, which straddles a boundary at BOTH thresholds, so every row
+    # moves band when the threshold is rescaled — a rescale that silently fell back to
+    # 180 could not produce the second list. Ordering is pinned here too: banding must
+    # not disturb the lastReviewed sort asserted above.
+    _v2 = load_store(os.path.join(_SKILL_ROOT, "examples", "example-profile-v2.csfp"))
+    _s180 = attention_lists(_v2, index, "2026-07-27", 180, top=10)["stalest"]
+    _s365 = attention_lists(_v2, index, "2026-07-27", 365, top=10)["stalest"]
+    eq([(r["subcategoryId"], r["confirmationBand"]) for r in _s180],
+       [("ID.AM-01", "wellBeyond"), ("ID.AM-02", "wellBeyond"),
+        ("PR.DS-11", "beyond"), ("RC.RP-01", "beyond")],
+       "a row with a confirmation date is banded, at the Profile's default threshold")
+    eq([(r["subcategoryId"], r["confirmationAgeDays"]) for r in _s180],
+       [("ID.AM-01", 420), ("ID.AM-02", 420), ("PR.DS-11", 198), ("RC.RP-01", 198)],
+       "and carries the confirmation age its band was computed from")
+    eq([(r["subcategoryId"], r["confirmationBand"]) for r in _s365],
+       [("ID.AM-01", "beyond"), ("ID.AM-02", "beyond"),
+        ("PR.DS-11", "approaching"), ("RC.RP-01", "approaching")],
+       "stalest bands honour a rescaled age threshold")
+    # Two checks that stood here have been removed rather than kept for reassurance. One
+    # re-derived what the two `eq`s above already fix — the band change between T=180 and
+    # T=365 is visible in those literals, and its truth value was settled at edit time.
+    # The other, `all(band in AGE_BANDS ...)`, is the exact tautology the note at the
+    # AGE_BANDS identity check documents as rejected: the counter is built from
+    # AGE_BANDS, so changing the vocabulary raises KeyError during fixture setup long
+    # before any assertion here could report it.
     eq([i["id"] for i in att["unownedActions"]], ["A-002"], "unowned actions")
     eq([i["id"] for i in att["pastDueActions"]], ["A-003"], "past-due actions (A-004 closed, excluded)")
     eq([r["subcategoryId"] for r in att["acceptedGaps"]], ["PR.DS-01"], "accepted gaps")
 
     # today is honoured, not the wall clock
-    eq([i["id"] for i in attention_lists(store, index, "2026-01-01")["pastDueActions"]], [],
+    eq([i["id"] for i in attention_lists(store, index, "2026-01-01", 180)["pastDueActions"]], [],
        "no past-due when today precedes every target date")
-    eq([i["id"] for i in attention_lists(store, index, "2027-01-01")["pastDueActions"]],
+    eq([i["id"] for i in attention_lists(store, index, "2027-01-01", 180)["pastDueActions"]],
        ["A-001", "A-002", "A-003"], "all open items past due when today is later")
 
     # --- Diff against the fixture's Q1 snapshot ---
@@ -3659,6 +3813,154 @@ def _cmd_self_test(_args):
     eq(age["olderThanThreshold"], 2, "two ratings older than 180 days")
     eq(ev["age"]["thresholdDays"], 180, "the threshold is reported with the counts")
 
+    # --- Age bands: graded distance from the cadence the reader chose ---
+    #
+    # Band names are deliberately not confidence words. `within` / `beyond` state how far
+    # a determination sits from a chosen cadence; they never claim how sure anyone should
+    # be that it is still true.
+    #
+    # Boundary tests go through age_band() directly rather than through the fixture,
+    # because the interesting cases are the three exact edges and a fixture cannot sit on
+    # all of them at once.
+    eq(age_band(0, 180), "within", "a confirmation made today is within")
+    eq(age_band(90, 180), "within", "exactly T//2 is still within — the edge is inclusive")
+    eq(age_band(91, 180), "approaching", "one day past T//2 is approaching")
+    eq(age_band(180, 180), "approaching", "exactly T is still approaching")
+    eq(age_band(181, 180), "beyond", "one day past T is beyond")
+    eq(age_band(360, 180), "beyond", "exactly 2T is still beyond")
+    eq(age_band(361, 180), "wellBeyond", "one day past 2T is wellBeyond")
+    eq(age_band(129, 365), "within", "bands rescale with T: 129 days is within at T=365")
+    eq(age_band(421, 365), "beyond", "bands rescale with T: 421 days is beyond at T=365")
+
+    # The fixture's three dated ages are 129, 198 and 421 days at today=2026-07-27.
+    eq(age["bands"], {"within": 0, "approaching": 1, "beyond": 1, "wellBeyond": 1},
+       "the band counter partitions the fixture's three dated ages")
+    eq(sum(age["bands"].values()), age["dated"],
+       "every dated confirmation lands in exactly one band")
+    eq(age["bands"]["beyond"] + age["bands"]["wellBeyond"], age["olderThanThreshold"],
+       "beyond + wellBeyond IS olderThanThreshold — the two notions cannot drift")
+    # Pinned against a literal, not against itself: comparing the counter's keys to
+    # AGE_BANDS is a tautology, since the counter is built from AGE_BANDS. The exact-dict
+    # assertions above already fix the key set. What is worth pinning is the tuple's
+    # ORDER, which reporting renders in and cannot re-derive.
+    eq(AGE_BANDS, ("within", "approaching", "beyond", "wellBeyond"),
+       "AGE_BANDS is ascending by age — reporting renders in this order")
+
+    # --- The rendered band vocabulary, pinned from the side that owns the bands ---
+    #
+    # Both dashboards take their labels from renderers/_common.py, and until this block
+    # existed nothing asserted them anywhere. That is how the executive age grid came to
+    # label `beyond` — ratings PAST the cadence — as "within 360 days", the opposite
+    # valence to the operational view's "beyond cadence", on the board's own page. The
+    # engine owns this vocabulary, so the engine is where it gets pinned.
+    #
+    # An intra-skill import, the same shape as csfa_compat.py's: this file and the
+    # renderers ship and version together. Not a cross-skill import, which is the thing
+    # the note above AGE_BANDS rules out.
+    #
+    # Bytecode writing is off for this import, for two reasons. A shipped skill directory
+    # is not ours to leave build artefacts in, and it may not even be writable. More
+    # usefully: a mutation test that edits _common.py to the same byte length within the
+    # same second leaves a .pyc that Python still considers valid, so the mutant appears
+    # to survive and the restored original appears to fail. That cost real time to spot
+    # once; nobody should have to spot it twice.
+    _wrote_bytecode = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
+    sys.path.insert(0, os.path.join(_SKILL_ROOT, "renderers"))
+    try:
+        import _common as _rc
+    finally:
+        sys.dont_write_bytecode = _wrote_bytecode
+    eq(tuple(_rc.AGE_BAND_ORDER), AGE_BANDS,
+       "the renderers draw the bands in the engine's own order")
+    eq(sorted(_rc.AGE_BAND_LABEL), sorted(AGE_BANDS),
+       "every band the engine can emit has a rendered label")
+    eq(sorted(_rc.AGE_BAND_FILL), sorted(AGE_BANDS),
+       "every band the engine can emit has a fill")
+    # The values, not just the keys. A relabelling is the defect this catches, and its
+    # failure mode is prose that reads perfectly well while describing a different
+    # population — so the words are fixed here and a reword has to be deliberate.
+    eq(_rc.AGE_BAND_LABEL,
+       {"within": "within cadence", "approaching": "approaching cadence",
+        "beyond": "beyond cadence", "wellBeyond": "well beyond cadence"},
+       "a rating past its cadence is labelled as past it, on every surface")
+    # Ranges are EXCLUSIVE and adjacent: each band begins the day after the one below
+    # ends, so the four together partition the dated population exactly once. A cumulative
+    # phrase over any one of them describes a population it does not count.
+    eq(_rc.age_band_ranges(180),
+       {"within": "0–90d", "approaching": "91–180d", "beyond": "181–360d",
+        "wellBeyond": "over 360d"},
+       "band ranges are exclusive and adjacent, never cumulative")
+    eq(_rc.age_band_ranges(365),
+       {"within": "0–182d", "approaching": "183–365d", "beyond": "366–730d",
+        "wellBeyond": "over 730d"},
+       "and every range boundary is derived from T, never hardcoded")
+    # Both properties the fill ramp claims for itself. Lightness is what orders an ordinal
+    # scale, so it must descend strictly; and each fill must clear AA against the text
+    # colour text_on() picks for it. The suite's contrast eval measures a rendered page —
+    # this measures the tokens, so a retune fails before anything is rendered at all.
+    _lums = [_rc._luminance(_rc.AGE_BAND_FILL[b]) for b in AGE_BANDS]
+    ok(all(x > y for x, y in zip(_lums, _lums[1:])),
+       "the age ramp darkens monotonically — lightness is what orders the bands")
+    ok(all(_rc.contrast_ratio(_rc.text_on(_rc.AGE_BAND_FILL[b]), _rc.AGE_BAND_FILL[b]) >= 4.5
+           for b in AGE_BANDS),
+       "every age band fill clears WCAG AA against its own text colour")
+    ok(all(_rc.AGE_BAND_FILL[b] not in set(_rc.EVIDENCE_FILL.values()) for b in AGE_BANDS),
+       "no age band reuses an evidence-state fill — the two strips sit one above the other")
+
+    # The ranges must agree with age_band() itself, or a label and the count beneath it
+    # describe different populations. Checked at the boundaries, which is where the two can
+    # disagree: the last day each range claims is read back out of the label string and fed
+    # to age_band, and the day after it must land in a different band. That catches an
+    # off-by-one in either direction. Three thresholds, including T=198, which puts a
+    # fixture rating exactly on a line — the same reason the identity checks below use it.
+    for _T in (180, 365, 198):
+        _r = _rc.age_band_ranges(_T)
+        _upper = {"within": _T // 2, "approaching": _T, "beyond": _T * 2}
+        for _b, _hi in _upper.items():
+            ok(_r[_b].endswith(f"{_hi}d") and age_band(_hi, _T) == _b,
+               f"T={_T}: the {_b} range ends where age_band puts its last day")
+            ok(age_band(_hi + 1, _T) != _b,
+               f"T={_T}: one day past the {_b} range is a different band")
+
+    # The identity has to hold at a rescaled threshold too, or it is an accident of 180.
+    ev365 = derive_evidence(fx_assess, fx_intake, index, core, today="2026-07-27",
+                            threshold_pct=60, age_days=365)
+    age365 = ev365["age"]["overall"]
+    eq(age365["bands"], {"within": 1, "approaching": 1, "beyond": 1, "wellBeyond": 0},
+       "at T=365 the same three ages redistribute")
+    eq(age365["bands"]["beyond"] + age365["bands"]["wellBeyond"],
+       age365["olderThanThreshold"], "the identity holds at T=365, not just at T=180")
+    eq(ev365["age"]["thresholdDays"], 365, "the rescaled threshold is reported back")
+
+    # T=198 puts PR.DS-11 exactly ON the line, and that is the whole point of this third
+    # call. beyond + wellBeyond == olderThanThreshold is a claim about two independent
+    # expressions agreeing — age_band's `days <= threshold_days` and _age's `d > age_days`
+    # — and no fixture age equals 180 or 365, so at those thresholds the identity holds
+    # no matter which way either comparison is written. Flip _age's `>` to `>=` and only
+    # a rating sitting on the boundary notices.
+    ev198 = derive_evidence(fx_assess, fx_intake, index, core, today="2026-07-27",
+                            threshold_pct=60, age_days=198)
+    age198 = ev198["age"]["overall"]
+    eq(age198["bands"], {"within": 0, "approaching": 2, "beyond": 0, "wellBeyond": 1},
+       "at T=198 the 198-day rating sits on the line and counts as approaching")
+    eq(age198["bands"]["beyond"] + age198["bands"]["wellBeyond"],
+       age198["olderThanThreshold"],
+       "the identity survives a rating exactly ON the threshold — the only case that "
+       "can catch the two comparisons disagreeing")
+    eq(ev198["age"]["thresholdDays"], 198, "the on-the-line threshold is reported back")
+
+    # Per-Function bands are asserted as whole dicts, not single keys. A single-key check
+    # stays true even if every Function wrongly reports the entire Profile, which is
+    # precisely the claim these labels make. The 198-day rating is PR.DS-11, so `beyond`
+    # sits under PR alone; ID carries the 129-day and 421-day ratings and nothing else.
+    eq(ev["age"]["byFunction"]["PR"]["bands"],
+       {"within": 0, "approaching": 0, "beyond": 1, "wellBeyond": 0},
+       "bands are reported per Function as well as overall")
+    eq(ev["age"]["byFunction"]["ID"]["bands"],
+       {"within": 0, "approaching": 1, "beyond": 0, "wellBeyond": 1},
+       "the per-Function partition puts ID's 421-day rating in wellBeyond, not PR's")
+
     g = ev["scopeGuard"]
     eq(g["assessed"], 3, "scope guard numerator is assessed in-scope")
     eq(g["inScope"], 5, "scope guard denominator excludes not-applicable")
@@ -3864,6 +4166,29 @@ def _cmd_self_test(_args):
            "1 of 106 assessed suppresses the headline")
         eq(an["evidence"]["age"]["thresholdDays"], 180,
            "analyze reports the age threshold in force")
+
+        # ...and hands that same threshold to the attention lists. Nothing above binds
+        # this: every banding check so far calls attention_lists directly, so dropping
+        # the age_days argument at the call site would leave it defaulting to 180 with
+        # every one of them still green. ID.AM-01 was confirmed 2026-03-20 and today is
+        # 2026-07-27 — 129 days, which is `approaching` a 180-day cadence and `within` a
+        # 365-day one. The same store rescaled must therefore move.
+        _an_row = [r for r in an["attention"]["stalest"] if r["subcategoryId"] == "ID.AM-01"]
+        eq([(r["confirmationAgeDays"], r["confirmationBand"]) for r in _an_row],
+           [(129, "approaching")], "analyze bands a stalest row against `today`, not the clock")
+        _v365 = json.load(open(_p, encoding="utf-8"))
+        _v365["profile"]["settings"]["reporting"]["ageThresholdDays"] = 365
+        _p365 = os.path.join(_d, "an365.csfp")
+        _out365 = os.path.join(_d, "an365.json")
+        with open(_p365, "w", encoding="utf-8") as _fh:
+            json.dump(_v365, _fh)
+        _cmd_analyze([_p365, "--today", "2026-07-27", "--out", _out365])
+        with open(_out365, encoding="utf-8") as _fh:
+            an365 = json.load(_fh)
+        eq(an365["evidence"]["age"]["thresholdDays"], 365, "the rescaled threshold is in force")
+        eq([(r["subcategoryId"], r["confirmationBand"]) for r in an365["attention"]["stalest"]],
+           [("ID.AM-01", "within")],
+           "analyze passes the Profile's configured threshold to attention_lists, not 180")
         eq(len(an["intake"]["records"]), 1, "analyze carries the intake records")
         eq(an["intake"]["bySource"][0]["confirmed"], 1, "coverage-by-source counts confirmations")
         eq(an["intake"]["bySource"][0]["pending"], 1, "coverage-by-source counts pending")

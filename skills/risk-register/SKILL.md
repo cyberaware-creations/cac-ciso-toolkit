@@ -145,6 +145,7 @@ python3 scripts/score_register.py set-text <reg.rr> <id> --title '...' --descrip
 python3 scripts/score_register.py set-score <reg.rr> <id> --residual L I --why '...'
 python3 scripts/score_register.py accept <reg.rr> <id> --approver '...' --justification '...' \
     --revalidate 2027-01-31 --expiry 2027-07-31 --why '...'
+python3 scripts/score_register.py confirm <reg.rr> <id> --why '...' --review 2027-05-31
 python3 scripts/score_register.py set-status <reg.rr> <id> closed --why '...'
 python3 scripts/score_register.py add-theme <reg.rr> --id third-party --name 'Third-Party & Supply Chain'
 python3 scripts/score_register.py set-theme <reg.rr> <id> third-party --why '...'
@@ -152,10 +153,26 @@ python3 scripts/score_register.py snapshot <reg.rr> --label 'Q3 2026 Board Revie
 python3 scripts/score_register.py export-csv <reg.rr> --out register.csv
 ```
 
-**Material changes** (score moves, acceptances, closures) require `--why` — the rationale is what
-makes the log an audit trail and a board narrative rather than a bare diff, so always capture it from
-the user. Full rules, trend/velocity derivation, and the review workflow:
+**Material changes** (score moves, acceptances, closures, confirmations) require `--why` — the
+rationale is what makes the log an audit trail and a board narrative rather than a bare diff, so
+always capture it from the user. Full rules, trend/velocity derivation, and the review workflow:
 `references/history-and-review.md`.
+
+`confirm` records that a risk was reviewed and **nothing changed** — it resets the risk's confirmation
+age and moves no score, status or band. Use it instead of re-entering an identical score, which would
+log a `score-changed` event where no score changed. `--review` optionally books the next review date
+in the same breath, because that is the actual review-meeting workflow.
+
+Two refusals worth knowing before you type them:
+
+- **Date flags take canonical `YYYY-MM-DD` only.** `--review` (on `add` and `confirm`) and
+  `--revalidate` / `--expiry` / `--accepted` (on `accept`) reject both `2027-2-01` and `20270201`.
+  Those fields are compared as plain strings downstream, so an unpadded date made an
+  eight-month-overdue review render as on time. A register that already carries a non-canonical date
+  still loads and renders — only new writes are refused.
+- **`confirm` and `accept` refuse while `provisionalScore` is set**, because no affirming event may
+  attach to a score nobody has assessed. `set-score` is the way through: it affirms the number *and*
+  clears the flag. A provisional *title* only warns. Both: `references/schema.md`.
 
 ### Step 7 — Reporting
 
@@ -179,10 +196,15 @@ python3 renderers/render_board.py     <reg.rr> executive.html    --today 2026-07
 python3 renderers/render_report.py    <reg.rr> board-report.html --today 2026-07-26 --translations t.json
 ```
 
-`--today` sets the date staleness is judged against; `--translations` supplies the board language
-from `ciso-board-translation`. **Without `--translations` the narrative slots render as marked
-placeholders — never hand-write board prose into a renderer.** Sidecar shape and a worked example:
-`references/dashboards.md` and `references/example-translations.json`.
+`--today` sets the reference date every age and deadline is judged against, and defaults to today's
+date **in UTC** — the register's own history timestamps are UTC, and comparing them against a local
+date gave confirmations a negative age that read as fresh. Every artifact stamps the zone beside the
+date. `--age-threshold DAYS` (default 180) sets the confirmation-age band width; it is reporting
+furniture and rescores nothing. `--translations` supplies the board language from
+`ciso-board-translation`. **Without `--translations` the narrative slots render as marked
+placeholders — never hand-write board prose into a renderer.** Sidecar shape, the confirmation-age
+surfacing, and a worked example: `references/dashboards.md` and
+`references/example-translations.json`.
 
 Dashboards are self-contained, Limen-branded HTML (tokens in `assets/brand.md`; layouts in
 `references/dashboards.md` and `assets/report-layout.md`). Deliver as files; persist board-facing
@@ -211,7 +233,8 @@ tells the board story the same way — and it's the part a blank prompt can't re
 ## Reference files
 
 - `references/schema.md` — full data model (risks, themes, acceptance, history, snapshots), taxonomy,
-  matrix sizes, band thresholds, v1→v2 migration.
+  matrix sizes, band thresholds, confirmation age and the age-affirming event taxonomy, the canonical
+  date rule, v1→v2 migration.
 - `references/history-and-review.md` — the maintain loop, change-log rules, trend/velocity, and the
   risk-review workflow (workflow B).
 - `references/dashboards.md` — operational and executive dashboard specs, heat matrix, theme rollup,
@@ -225,9 +248,10 @@ tells the board story the same way — and it's the part a blank prompt can't re
   contract for the renderers.
 - `assets/brand.md` — Limen Labs palette, fonts, CVD-safe risk-band colors.
 - `assets/report-layout.md` — the board PDF report structure.
-- `scripts/score_register.py` — scoring, summary, CSF import, **and persistence** (add / set-score /
-  accept / set-status / add-theme / set-theme / snapshot / export-csv, all append-only-history and
-  schema-safe). Standard library only; `self-test` verifies parity with the reference engine.
+- `scripts/score_register.py` — scoring, summary, CSF import, **and persistence** (add / set-text /
+  set-score / accept / confirm / set-status / add-theme / set-theme / snapshot / export-csv, all
+  append-only-history and schema-safe). Standard library only; `self-test` verifies parity with the
+  reference engine.
 - `renderers/` — `render_dashboard.py` (operational working view), `render_board.py` (executive board
   dashboard), `render_report.py` (printable board report), over a shared `_common.py` derivation
   layer. All three take the register path as an argument; nothing about a client is hardcoded.

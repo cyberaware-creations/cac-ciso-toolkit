@@ -96,6 +96,12 @@ def evidence_block(ctx: c.Context) -> str:
     age_html = ('<div class="agegrid">' + "".join(
         f'<div class="agecell"><div class="an">{c.esc(v)}</div>'
         f'<div class="muted">{c.esc(k)}</div></div>' for k, v in cells) + '</div>')
+    # The band distribution grades the same population the `older than T days` cell above
+    # counts — `beyond` + `wellBeyond` IS that figure, an identity the engine asserts. So
+    # it goes below the grid as one strip rather than in it as four more tiles, which
+    # would have set five numbers side by side with no denominator among them.
+    if thr is not None:
+        age_html += c.age_band_bar(age, thr)
     if age.get("dated"):
         if age.get("undated"):
             age_html += (f'<div class="muted" style="margin-top:8px">'

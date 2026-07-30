@@ -32,6 +32,12 @@ or plan changed, a status changed, a risk accepted / re-validated / closed / reo
 theme reassignment, an appetite or matrix-size change, and snapshot creation. Pure cosmetic edits
 (fixing a typo, adding a note) don't need one.
 
+**"I looked at this and nothing changed" is also a material change**, and `confirm` is where it goes.
+It writes a `risk-confirmed` event and moves no score, status or band. Do not record a re-affirmation
+by re-entering an identical score: that writes a `score-changed` event where no score changed, which
+corrodes the log the register exists to keep honest. Which events reset a risk's confirmation age,
+and which deliberately do not, is in `references/schema.md` → Change log and Confirmation age.
+
 ## Capturing the "why"
 
 For **material changes** — score moves, acceptances, closures, reopenings — capture a `rationale`.
@@ -50,6 +56,7 @@ leaves the register byte-identical:
 |---|---|
 | `set-score` | `--why` |
 | `set-text` | `--why` |
+| `confirm` | `--why` |
 | `set-status` | `--why`, when closing a risk or reopening a closed one |
 | `accept` | `--approver`, `--justification`, `--revalidate` |
 
@@ -81,7 +88,10 @@ or similar, work this checklist:
         - risks over appetite (residual band worse than appetite)
         - acceptances past their revalidationDate (stale acceptances)
         - unowned risks; acceptances missing approver/justification
+        - risks whose last confirmation is far past the cadence, or that carry none at all
+          (the working view's "How old these determinations are" section)
 - [ ] 3. Walk each flagged item with the user; apply decisions, logging each with a rationale
+        (`confirm` for the ones that were reviewed and did not change, with the next --review date)
 - [ ] 4. Re-score (scripts/score_register.py) and re-check the flags
 - [ ] 5. Create a named snapshot (e.g. "Q3 2026 Board Review")
 - [ ] 6. Generate the deliverables: operational dashboard + executive board dashboard + board summary
