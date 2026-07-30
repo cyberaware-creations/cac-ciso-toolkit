@@ -2366,17 +2366,22 @@ Expected, with every count at or above baseline:
 ```
 version guard      self-test: 19/19 checks passed
 manifests          consistency: all 4 version strings agree (0.5.0).
-risk-register      62/62 checks passed.
-nist-csf           self-test: 494/494 checks passed
+risk-register      106/106 checks passed.
+nist-csf           self-test: 530/530 checks passed
 csfa compat        csfa-compat self-test: 47/47 checks passed
 board-safety       board-safety: all checks passed          (9 checks)
-confirmation-age   confirmation-age: all checks passed      (18 checks)
+confirmation-age   confirmation-age: all 80 checks passed
 responsive         (passes)
-python floor       python-compat: all N shipped files compile on 3.9.6
+python floor       python-compat: all 16 shipped files compile on 3.9.6
 ```
 
-If any count is *below* its baseline (34 / 472 / 47 / 19), a test was deleted rather than
-added. Find it before going further.
+Run `confirmation-age.sh` under **both** interpreters — bare and `PY=/usr/bin/python3` — since
+the CI `floor` job runs it on 3.9.
+
+If any count is *below* the figure above, a test was deleted rather than added. Find it before
+going further. These are the *measured* end state, not the predictions this plan originally
+carried: it estimated 62 / 494 / 18, and reviews drove the real counts far higher because
+roughly thirty assertions turned out to be unfalsifiable and had to be rebuilt.
 
 - [ ] **Step 3: Confirm the derived-not-stored rule still holds**
 
@@ -2450,11 +2455,11 @@ vocabulary on a board-facing view.
 
 | suite | before | after |
 |---|---|---|
-| risk-register self-test | 34 | 62 |
-| nist-csf self-test | 472 | 494 |
+| risk-register self-test | 34 | 106 |
+| nist-csf self-test | 472 | 530 |
 | csfa_compat | 47 | 47 |
 | board-safety | 7 | 9 |
-| confirmation-age | — | 18 |
+| confirmation-age | — | 80 |
 | version guard | 19 | 19 |
 
 Each new regression test was mutation-tested: the mechanism was reverted and the test
