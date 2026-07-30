@@ -1062,6 +1062,240 @@ def load_elicitation(path: str | None = None) -> dict:
         return json.load(fh)
 
 
+# --- Crosswalk lenses --------------------------------------------------------
+#
+# A crosswalk projects an existing CSF assessment onto another framework. It is
+# derived, read-only, and never stored: nothing here writes to a .csfp, and no
+# control in another framework is ever rated. See references/framework-abstraction.md
+# for the enforced contract, and note that "crosswalk" is not the Cyber AI Profile
+# "overlay" defined below it — different mechanism, different data, no shared state.
+
+# Bands are a share of the Profile's own scale.max, never fixed integers.
+#
+# Two rating scales exist (references/scale-and-scoring.md): the native 0-3
+# achievement scale, and the 0-4 scale a .csfa import deliberately keeps rather
+# than rescaling. A hardcoded ">= 3 is strong" would call a 0-4 Profile rated
+# "Repeatable" strong while calling a native Profile rated "Fully Achieved" —
+# its maximum — the same thing. scale-and-scoring.md is explicit that there is
+# no honest mapping between the two scales, so the band is computed relative to
+# whichever scale the Profile declares, and every rendered view names that scale
+# rather than leaving the reader to assume.
+CROSSWALK_BANDS = (("strong", 0.85), ("moderate", 0.60), ("weak", 0.30), ("minimal", 0.0))
+CROSSWALK_BAND_UNKNOWN = "unknown"
+CROSSWALK_AGGS = ("min", "mean")
+CROSSWALK_DISCLAIMER = "Derived from your NIST CSF assessment — not an audit or certification."
+
+
+def _crosswalk_sort_key(cid: str):
+    """Natural sort, so A.5.10 follows A.5.9 and AC-2 precedes AC-10."""
+    return [(0, int(p)) if p.isdigit() else (1, p)
+            for p in re.split(r"(\d+)", cid or "") if p != ""]
+
+
+def load_crosswalk(framework_id: str, path: str | None = None) -> dict:
+    """Load one crosswalk's catalog + edge map into forward and reverse indexes.
+
+    Returns {catalog, controls, fwd, rev, authority}. `fwd` maps a control id to
+    the CSF Subcategories mapped to it; `rev` is the inverse. Only controls that
+    have at least one edge appear in `fwd` — controls with no CSF mapping are
+    reported by crosswalk_completeness() rather than being scored as zero.
+    """
+    if framework_id not in CROSSWALK_EXPECTED:
+        raise ValueError(
+            f"unknown crosswalk {framework_id!r}; available: "
+            f"{', '.join(sorted(CROSSWALK_EXPECTED))}")
+    base = path or DEFAULT_CROSSWALK_DIR
+    with open(os.path.join(base, f"{framework_id}.catalog.json"), encoding="utf-8") as f:
+        cat = json.load(f)
+    with open(os.path.join(base, f"csf-2.0__{framework_id}.map.json"), encoding="utf-8") as f:
+        mp = json.load(f)
+
+    fwd: dict[str, list[str]] = {}
+    rev: dict[str, list[str]] = {}
+    for e in mp.get("edges", []):
+        fwd.setdefault(e["controlId"], []).append(e["csfSubId"])
+        rev.setdefault(e["csfSubId"], []).append(e["controlId"])
+    for d in (fwd, rev):
+        for k in d:
+            d[k] = sorted(set(d[k]), key=_crosswalk_sort_key)
+    return {
+        "catalog": cat,
+        "controls": {c["id"]: c for c in cat.get("controls", [])},
+        "fwd": fwd,
+        "rev": rev,
+        "authority": mp.get("mappingAuthority"),
+    }
+
+
+def crosswalk_band(score, settings: dict | None) -> str:
+    """Band a derived score as a share of the Profile's declared scale maximum."""
+    if score is None:
+        return CROSSWALK_BAND_UNKNOWN
+    top = ((settings or {}).get("scale") or {}).get("max")
+    if not top or top <= 0:
+        return CROSSWALK_BAND_UNKNOWN
+    share = score / top
+    for name, floor in CROSSWALK_BANDS:
+        if share >= floor:
+            return name
+    return CROSSWALK_BANDS[-1][0]
+
+
+def _crosswalk_agg(vals: list, how: str):
+    v = [x for x in vals if x is not None]
+    if not v:
+        return None
+    if how == "min":
+        return min(v)
+    return round(sum(v) / len(v), 2)
+
+
+def derive_crosswalk_coverage(assessments: list[dict], crosswalk: dict,
+                              settings: dict, agg: str = "min") -> dict:
+    """Project a CSF assessment onto one crosswalk's controls and themes.
+
+    Control coverage is **weakest-link**: the minimum rating across the CSF
+    Subcategories mapped to it, because a control is not satisfied by its best
+    contributing outcome. Theme coverage is the **mean of its member control
+    scores** regardless of `agg` — min-of-min would bottom every theme out at its
+    single weakest control and report nothing useful.
+
+    A contributor is counted, never silently dropped: not-applicable
+    Subcategories are excluded from the score rather than dragging it down, and
+    unrated ones leave the control unknown rather than defaulting to zero. A
+    control with nothing rated behind it scores None and bands "unknown".
+    """
+    if agg not in CROSSWALK_AGGS:
+        raise ValueError(f"agg must be one of {CROSSWALK_AGGS}, got {agg!r}")
+    by_id = {a["subcategoryId"]: a for a in assessments}
+    scoped = {a["subcategoryId"] for a in in_scope(assessments)}
+
+    controls = []
+    for cid in sorted(crosswalk["fwd"], key=_crosswalk_sort_key):
+        subs = crosswalk["fwd"][cid]
+        vals, unrated, not_applicable, absent = [], 0, 0, 0
+        for s in subs:
+            a = by_id.get(s)
+            if a is None:
+                absent += 1
+            elif s not in scoped:
+                not_applicable += 1
+            elif a.get("current") is None:
+                unrated += 1
+            else:
+                vals.append(a["current"])
+        score = _crosswalk_agg(vals, agg)
+        ctl = crosswalk["controls"].get(cid, {})
+        controls.append({
+            "controlId": cid,
+            "label": ctl.get("label"),
+            "labelSource": ctl.get("labelSource"),
+            "groupingId": ctl.get("groupingId"),
+            "mappedSubcategories": subs,
+            "score": score,
+            "band": crosswalk_band(score, settings),
+            "ratedContributors": len(vals),
+            "unratedContributors": unrated,
+            "notApplicableContributors": not_applicable,
+            "absentContributors": absent,
+        })
+
+    scored_by_group: dict[str, list] = {}
+    for c in controls:
+        if c["score"] is not None:
+            scored_by_group.setdefault(c["groupingId"], []).append(c["score"])
+    groupings = []
+    for g in crosswalk["catalog"].get("groupings", []):
+        member_scores = scored_by_group.get(g["id"], [])
+        gs = _crosswalk_agg(member_scores, "mean")
+        groupings.append({
+            "groupingId": g["id"],
+            "label": g.get("label"),
+            "score": gs,
+            "band": crosswalk_band(gs, settings),
+            "controlsScored": len(member_scores),
+        })
+
+    scale = (settings or {}).get("scale") or {}
+    return {
+        "frameworkId": crosswalk["catalog"].get("frameworkId"),
+        "frameworkName": crosswalk["catalog"].get("name"),
+        "frameworkVersion": crosswalk["catalog"].get("version"),
+        "mappingAuthority": crosswalk["authority"],
+        "license": crosswalk["catalog"].get("license"),
+        "controls": controls,
+        "groupings": groupings,
+        # Echoed so a renderer states the scale a band was computed against
+        # instead of leaving two different scales looking comparable.
+        "scale": {"min": scale.get("min"), "max": scale.get("max"),
+                  "labels": scale.get("labels")},
+        "aggregation": {"control": agg, "grouping": "mean"},
+        "disclaimer": CROSSWALK_DISCLAIMER,
+    }
+
+
+def crosswalk_reverse_lookup(crosswalk: dict, control_id: str,
+                             assessments: list[dict], settings: dict) -> dict:
+    """The auditor's question: which CSF outcomes sit behind this control?"""
+    by_id = {a["subcategoryId"]: a for a in assessments}
+    known = control_id in crosswalk["controls"]
+    subs = crosswalk["fwd"].get(control_id, [])
+    ctl = crosswalk["controls"].get(control_id, {})
+
+    behind = []
+    for s in subs:
+        a = by_id.get(s) or {}
+        behind.append({
+            "csfSubId": s,
+            "current": a.get("current"),
+            "target": a.get("target"),
+            "applicability": a.get("applicability", "in-scope"),
+            "status": a.get("status"),
+        })
+    if not known:
+        note = (f"{control_id} is not a control in "
+                f"{crosswalk['catalog'].get('name', 'this framework')}.")
+    elif not subs:
+        note = "No CSF Subcategory maps here — assess this control directly against the standard."
+    else:
+        note = ""
+    scores = [b["current"] for b in behind
+              if b["current"] is not None and b["applicability"] == "in-scope"]
+    score = _crosswalk_agg(scores, "min")
+    return {
+        "controlId": control_id,
+        "known": known,
+        "label": ctl.get("label"),
+        "groupingId": ctl.get("groupingId"),
+        "score": score,
+        "band": crosswalk_band(score, settings),
+        "behind": behind,
+        "note": note,
+        "disclaimer": CROSSWALK_DISCLAIMER,
+    }
+
+
+def crosswalk_completeness(crosswalk: dict, assessments: list[dict]) -> dict:
+    """Both honesty lists: what the lens cannot see, in each direction.
+
+    `controlsOutsideCSF` are controls no CSF Subcategory maps to — they must be
+    assessed directly against the standard, and a coverage view that omitted
+    them would overstate what one CSF assessment can tell you. `csfNotInLens`
+    are rated CSF outcomes no control in this lens references, i.e. work already
+    done that this projection gives no credit for.
+    """
+    all_controls = set(crosswalk["controls"])
+    mapped = set(crosswalk["fwd"])
+    rated = {a["subcategoryId"] for a in in_scope(assessments)
+             if a.get("current") is not None}
+    return {
+        "controlsTotal": len(all_controls),
+        "controlsMapped": len(mapped & all_controls),
+        "controlsOutsideCSF": sorted(all_controls - mapped, key=_crosswalk_sort_key),
+        "csfNotInLens": sorted(rated - set(crosswalk["rev"])),
+    }
+
+
 OVERLAY_FOCUS_AREAS = ("secure", "defend", "thwart")
 OVERLAY_MODES = ("advisory", "reorder")   # `floor` is deliberately absent; see
                                           # references/cyber-ai-overlay.md
@@ -4413,6 +4647,126 @@ def _cmd_self_test(_args):
        ["subcategory_id", "function_id", "category_id", "current_tier", "target_tier",
         "priority", "subcategory_text", "note"],
        "export columns match the risk-register import contract exactly")
+
+    # --- Crosswalk lenses ---
+    #
+    # Data-independent: a synthetic crosswalk built inline, so the math is
+    # asserted in isolation from whatever the bundled catalogs happen to contain.
+    # Every expectation below was computed by hand before the code was written.
+    synth = {
+        "catalog": {"frameworkId": "synth", "name": "Synthetic", "version": "1",
+                    "license": "test",
+                    "groupings": [{"id": "G1", "label": "Group one"},
+                                  {"id": "G2", "label": "Group two"}]},
+        "controls": {
+            "X-1": {"id": "X-1", "label": "min of 1 and 3", "groupingId": "G1",
+                    "labelSource": "cac-generated"},
+            "X-2": {"id": "X-2", "label": "only unrated behind it", "groupingId": "G1",
+                    "labelSource": "cac-generated"},
+            "X-10": {"id": "X-10", "label": "sorts after X-2", "groupingId": "G2",
+                     "labelSource": "cac-generated"},
+            "X-99": {"id": "X-99", "label": "no CSF maps here", "groupingId": "G2",
+                     "labelSource": "cac-generated"},
+        },
+        "fwd": {"X-1": ["S.A", "S.B"], "X-2": ["S.C"], "X-10": ["S.D", "S.E"]},
+        "rev": {"S.A": ["X-1"], "S.B": ["X-1"], "S.C": ["X-2"],
+                "S.D": ["X-10"], "S.E": ["X-10"]},
+        "authority": "test",
+    }
+    cw_asmts = [
+        {"subcategoryId": "S.A", "current": 1, "target": 3, "applicability": "in-scope"},
+        {"subcategoryId": "S.B", "current": 3, "target": 3, "applicability": "in-scope"},
+        {"subcategoryId": "S.C", "current": None, "target": 3, "applicability": "in-scope"},
+        {"subcategoryId": "S.D", "current": 2, "target": 3, "applicability": "in-scope"},
+        {"subcategoryId": "S.E", "current": 0, "target": 3, "applicability": "not-applicable"},
+        {"subcategoryId": "S.Z", "current": 3, "target": 3, "applicability": "in-scope"},
+    ]
+    s3 = {"scale": {"min": 0, "max": 3, "labels": {}}}
+    cov = derive_crosswalk_coverage(cw_asmts, synth, s3, agg="min")
+    byc = {c["controlId"]: c for c in cov["controls"]}
+
+    # Weakest link, not the average: min(1, 3) is 1, and the mean would be 2.
+    eq(byc["X-1"]["score"], 1, "crosswalk X-1 is the weakest link")
+    eq(byc["X-1"]["ratedContributors"], 2, "crosswalk X-1 counts both contributors")
+    # A control with nothing rated behind it is unknown, never zero.
+    eq(byc["X-2"]["score"], None, "crosswalk X-2 unrated scores None")
+    eq(byc["X-2"]["band"], "unknown", "crosswalk X-2 bands unknown")
+    eq(byc["X-2"]["unratedContributors"], 1, "crosswalk X-2 counts the unrated contributor")
+    # not-applicable is excluded from the score rather than dragging it to 0,
+    # and is reported so the exclusion is visible.
+    eq(byc["X-10"]["score"], 2, "crosswalk not-applicable excluded from min")
+    eq(byc["X-10"]["notApplicableContributors"], 1, "crosswalk counts the n/a contributor")
+    # Natural sort: X-10 comes after X-2, not between X-1 and X-2.
+    eq([c["controlId"] for c in cov["controls"]], ["X-1", "X-2", "X-10"],
+       "crosswalk controls sort naturally")
+    # Theme is the mean of member control scores, not min-of-min.
+    bygrp = {g["groupingId"]: g for g in cov["groupings"]}
+    eq(bygrp["G1"]["score"], 1.0, "crosswalk theme G1 = mean([1])")
+    eq(bygrp["G2"]["score"], 2.0, "crosswalk theme G2 = mean([2])")
+    eq(bygrp["G1"]["controlsScored"], 1, "crosswalk theme G1 counts scored controls only")
+    # mean aggregation is available and differs from min on X-1.
+    cov_mean = derive_crosswalk_coverage(cw_asmts, synth, s3, agg="mean")
+    eq({c["controlId"]: c["score"] for c in cov_mean["controls"]}["X-1"], 2.0,
+       "crosswalk mean agg averages contributors")
+    ok(_crosswalk_agg([], "min") is None, "crosswalk agg of nothing is None")
+
+    # Bands are a share of the declared scale, so the same rating bands
+    # differently on the two scales the skill supports. This is the whole reason
+    # crosswalk_band takes settings: a hardcoded ">= 3 is strong" would call a
+    # 0-4 Profile rated 3 ("Repeatable") the same as a native 0-3 Profile rated
+    # 3 ("Fully Achieved"), which is its maximum.
+    s4 = {"scale": {"min": 0, "max": 4, "labels": {}}}
+    eq(crosswalk_band(3, s3), "strong", "3 of 3 is strong")
+    eq(crosswalk_band(3, s4), "moderate", "3 of 4 is not strong")
+    eq(crosswalk_band(4, s4), "strong", "4 of 4 is strong")
+    eq(crosswalk_band(2, s3), "moderate", "2 of 3 is moderate")
+    eq(crosswalk_band(1, s3), "weak", "1 of 3 is weak")
+    eq(crosswalk_band(0, s3), "minimal", "0 of 3 is minimal")
+    eq(crosswalk_band(None, s3), "unknown", "no score bands unknown")
+    eq(crosswalk_band(2, {"scale": {"max": 0}}), "unknown", "a zero scale cannot band")
+    eq(crosswalk_band(2, {}), "unknown", "a missing scale cannot band")
+    eq(cov["scale"]["max"], 3, "crosswalk coverage echoes the scale it banded against")
+    eq(cov["aggregation"], {"control": "min", "grouping": "mean"},
+       "crosswalk coverage states its aggregation")
+    ok(cov["disclaimer"].startswith("Derived from your NIST CSF assessment"),
+       "crosswalk coverage carries the derived-not-audit disclaimer")
+
+    # Reverse lookup: the auditor's direction.
+    rl = crosswalk_reverse_lookup(synth, "X-1", cw_asmts, s3)
+    eq([b["csfSubId"] for b in rl["behind"]], ["S.A", "S.B"], "reverse lookup lists what is behind")
+    eq(rl["behind"][0]["current"], 1, "reverse lookup carries the rating")
+    eq(rl["score"], 1, "reverse lookup agrees with forward coverage")
+    # A control that exists but nothing maps to differs from one that does not exist.
+    rl_unmapped = crosswalk_reverse_lookup(synth, "X-99", cw_asmts, s3)
+    ok(rl_unmapped["known"] and "assess this control directly" in rl_unmapped["note"],
+       "reverse lookup tells an unmapped control to be assessed directly")
+    rl_absent = crosswalk_reverse_lookup(synth, "NOPE-1", cw_asmts, s3)
+    ok(not rl_absent["known"] and "not a control" in rl_absent["note"],
+       "reverse lookup rejects a control the framework does not have")
+
+    # Honesty lists, both directions.
+    comp = crosswalk_completeness(synth, cw_asmts)
+    eq(comp["controlsOutsideCSF"], ["X-99"], "completeness lists controls outside CSF")
+    eq(comp["csfNotInLens"], ["S.Z"], "completeness lists rated outcomes the lens cannot see")
+    ok("S.E" not in comp["csfNotInLens"], "a not-applicable outcome is not owed lens credit")
+
+    # Bundled data: every edge resolves and the counts are the pinned ones.
+    eq(check_crosswalks(index), [], "bundled crosswalk data is clean")
+    for _fid, _want in sorted(CROSSWALK_EXPECTED.items()):
+        _cw = load_crosswalk(_fid)
+        eq(len(_cw["controls"]), _want["controls"], f"{_fid} control count")
+        eq(sum(len(v) for v in _cw["fwd"].values()), _want["edges"], f"{_fid} edge count")
+        ok(all(s in index for subs in _cw["fwd"].values() for s in subs),
+           f"{_fid} every edge cites a real Subcategory")
+        ok(all(c.get("text") in (None, "") for c in _cw["controls"].values())
+           if not _want["verbatimAllowed"] else True,
+           f"{_fid} ships no normative text")
+    try:
+        load_crosswalk("not-a-framework")
+        failures.append("load_crosswalk accepted an unknown framework")
+        checks += 1
+    except ValueError:
+        ok(True, "load_crosswalk rejects an unknown framework")
 
     print(f"self-test: {checks - len(failures)}/{checks} checks passed")
     if failures:
