@@ -14,13 +14,22 @@ description: >-
   every confirmed rating attributed to a named person and source, and ranks what
   to confirm or ask next. Applies the NIST Cyber AI Profile (IR 8596) as an
   optional overlay that reweights the same Subcategories for AI relevance.
-  Bundles the full CSF 2.0 Core with all 363 Implementation Examples. Use
-  whenever the user mentions NIST CSF, CSF 2.0, a Current or Target Profile, an
-  Organizational Profile, framework coverage or gaps, a cybersecurity framework
-  assessment, security programme maturity or posture, CSF Tiers, where the
-  programme stands against a standard, building up a CSF picture from audit
-  findings or reviews over time, the NIST Cyber AI Profile, or reporting
-  framework progress to a board — even if they don't say "NIST". Not for scoring
+  Projects that one assessment through ISO/IEC 27001:2022, CIS Controls v8.1,
+  and NIST SP 800-53 Rev 5 as read-only crosswalk lenses — bidirectionally, so
+  it also answers which CSF outcomes sit behind a given ISO, CIS, or 800-53
+  control — without re-assessing anything, and always as a derived projection
+  rather than an audit or certification. Bundles the full CSF 2.0 Core with all
+  363 Implementation Examples. Use whenever the user mentions NIST CSF, CSF 2.0,
+  a Current or Target Profile, an Organizational Profile, framework coverage or
+  gaps, a cybersecurity framework assessment, security programme maturity or
+  posture, CSF Tiers, where the programme stands against a standard, building up
+  a CSF picture from audit findings or reviews over time, the NIST Cyber AI
+  Profile, or reporting framework progress to a board — even if they don't say
+  "NIST". Also use when they want their existing CSF picture read through
+  another framework: how they look against ISO 27001, ISO 27002 Annex A
+  controls, the CIS Controls or a CIS safeguard, SP 800-53 controls or control
+  families, a control crosswalk or mapping between frameworks, or which CSF
+  Subcategories evidence a specific named control. Not for scoring
   individual risks, likelihood and impact, or risk appetite (use risk-register),
   not for writing policies, and not for assessing an individual AI system — the
   Cyber AI overlay is organization-level only.
@@ -223,6 +232,60 @@ The source is a **preliminary draft** (IR 8596, 2025-12-16) and an initial publi
 expected. Say so whenever its output goes anywhere that outlives the conversation. Full
 contract, caveats, and the reasons behind every decision: `references/cyber-ai-overlay.md`.
 
+## Crosswalk lenses — reading the Profile as ISO, CIS, or 800-53
+
+One assessment, read through another framework's controls. **No re-assessment, and nothing is
+stored**: a lens is chosen when you report, not when you assess, and no control in the other
+framework is ever rated.
+
+Do not confuse this with the Cyber AI Profile overlay above. That reweights CSF Subcategories and
+writes to the store; a crosswalk projects outward and writes nothing. Different verbs on purpose.
+
+```bash
+python3 scripts/profile_analysis.py crosswalk list          # the three lenses, edges, authority
+
+# "Show me where we stand against ISO 27001"
+python3 scripts/profile_analysis.py crosswalk coverage acme.csfp --lens iso-27001-2022
+
+# The auditor's direction: "which CSF sits behind ISO A.8.9?"
+python3 scripts/profile_analysis.py crosswalk reverse acme.csfp --lens iso-27001-2022 --control A.8.9
+
+# A full report, one tab per lens
+python3 scripts/profile_analysis.py analyze acme.csfp --crosswalk iso-27001-2022 \
+    --crosswalk cis-8.1 --crosswalk 800-53-r5 > analysis.json
+python3 renderers/render_crosswalk.py --in analysis.json --out crosswalk.html
+```
+
+| Lens | `--lens` | Mapping authority | Labels |
+|---|---|---|---|
+| ISO/IEC 27001:2022 | `iso-27001-2022` | `mixed-third-party` | ours |
+| CIS Controls v8.1 | `cis-8.1` | `cis-authored` | ours |
+| NIST SP 800-53 Rev 5 | `800-53-r5` | `nist-developed` | verbatim |
+
+**Say what it is, every time: derived, not an audit.** A crosswalk view is a projection of a CSF
+assessment. It is not an audit, not a certification, and not evidence of conformance — never let
+it be presented as any of those, and never as a gap assessment against the other standard.
+
+**Never quote ISO or CIS control text.** Those titles are copyrighted, so the bundled catalogues
+carry identifiers plus our own paraphrases and no normative text — enforced, not trusted
+(`check_crosswalks`, and the CI gate). Give the identifier so the user can read the official
+wording in their own licensed copy. 800-53 is a US Government work, so its titles are verbatim.
+
+**How a figure is derived.** A control scores the **weakest** of the CSF Subcategories mapped to it
+— a control is not satisfied by its best contributing outcome. A theme is the **mean** of its
+member controls. Bands are a share of *this Profile's* scale, so quote the scale with the band:
+"moderate on a 0–4 scale" says something, "moderate" alone does not, and scores from a 0–3 and a
+0–4 Profile are not comparable (`references/scale-and-scoring.md`).
+
+**Two things a lens cannot see, and both get reported.** Controls no CSF Subcategory maps to must
+be assessed directly against the standard — CSF says nothing about them. Rated CSF outcomes no
+control in the lens references drop out of that view, so work already done earns no credit there.
+Where a catalogue ships only the mapped subset, an empty "outside CSF" list means the unmapped
+controls are not catalogued, **not** that none exist — CIS currently ships the 49 mapped
+safeguards, not all 153.
+
+Full contract and invariants: `references/framework-abstraction.md`.
+
 ## Reporting
 
 ```bash
@@ -328,6 +391,7 @@ report talking to its author.
 | The user wants | Skill |
 |---|---|
 | Where does the programme stand against the framework; where are the gaps | **this skill** |
+| The same assessment read as ISO 27001, CIS, or 800-53 | `crosswalk` here — derived, never an audit |
 | A specific risk scored by likelihood × impact; is it within appetite | `risk-register` |
 | A CSF gap turned into a tracked, scored risk | `export-gaps` here → `import-gaps` there |
 | Board-ready language for any of it | `ciso-board-translation` |
@@ -352,13 +416,16 @@ crosswalks. See `references/framework-abstraction.md`.
 | `references/guidance.json` | Authored guidance: 15 deep entries, Function slants, tier transitions |
 | `references/assessment-and-review.md` | Workflows 0, A, B, C0, and C, command by command |
 | `references/dashboards.md` | What each dashboard must contain, and the rules binding both |
-| `references/framework-abstraction.md` | The multi-framework seam and the crosswalk plan |
+| `references/framework-abstraction.md` | The multi-framework seam and the enforced crosswalk contract |
 | `references/nist-csf-2.0-core.json` | The bundled Core — read-only framework data |
 | `references/cold-start-rank.json` | 37 Subcategories ranked for the queue's cold-start band — CAC editorial judgment, not NIST's; carries its own record of what informed it |
+| `references/crosswalks/*.catalog.json` | Control catalogues for the three lenses — identifiers, our labels for ISO/CIS, verbatim titles for 800-53 |
+| `references/crosswalks/csf-2.0__*.map.json` | CSF-keyed crosswalk edges, each carrying its mapping authority |
+| `references/crosswalks/label-style.md` | How our ISO/CIS labels are written, and why they are not the official titles |
 | `references/cyber-ai-overlay.md` | The overlay contract: modes, the Focus Areas, what it deliberately does not touch, and why there is no floor mode |
 | `references/cyber-ai-profile.json` | NIST IR 8596 proposed priorities, 106 Subcategories × 3 Focus Areas — preliminary-draft data, swappable, version-stamped |
 | `references/elicitation.json` | Nine batched cold-start questions covering the ranked 37 — what to ask, and what to listen for |
-| `assets/brand.md` | Limen tokens, the coverage ramp, and the mandatory footer |
+| `assets/brand.md` | Limen tokens, the coverage and crosswalk ramps, and the mandatory footer |
 | `examples/example-profile.csfp` | A small worked Profile, used by `self-test` |
 | `examples/example-profile-v2.csfp` | A Profile exercising every v2 state: intake, attribution, a revisit, an age spread, below-threshold scope |
 | `examples/acme-manufacturing.csfa` | A worked web-tool assessment — the input `csfa_compat.py convert` and `gaps` are tested against |
