@@ -65,6 +65,28 @@ def main():
             if not e.get("authority"):
                 errors.append(f"[{fid}] edge {e['csfSubId']}->{e['controlId']} missing authority tag")
 
+    # The catalogues are checked above, but they are not the only thing that ships
+    # from this directory. label-style.md shipped for a while with a third column of
+    # the official ISO and CIS titles, headed "for our internal keying" — an
+    # authoring aid, in a file whose own first line promises we never reproduce
+    # them. The JSON rules could not see it because it is prose.
+    #
+    # Detecting arbitrary official wording is not possible; detecting the shape of
+    # this mistake is. A table column that announces itself as the official title is
+    # the tell, and it is what an author reaches for next time.
+    for p in sorted(glob.glob(os.path.join(DATA, "*.md"))):
+        with open(p, encoding="utf-8") as f:
+            for n, line in enumerate(f, 1):
+                s = line.strip()
+                if not s.startswith("|"):
+                    continue
+                cells = [x.strip().lower() for x in s.strip("|").split("|")]
+                if any("official" in cx and "not" not in cx for cx in cells):
+                    errors.append(
+                        f"[{os.path.basename(p)}:{n}] a table column headed "
+                        f"'official' — ISO and CIS titles are not ours to publish; "
+                        f"give the identifier and let the reader use their licensed copy")
+
     for w in warns: print(f"WARN  {w}")
     for e in errors: print(f"ERROR {e}")
     print(f"\n{len(catalogs)} catalogs · {len(errors)} errors · {len(warns)} warnings")
