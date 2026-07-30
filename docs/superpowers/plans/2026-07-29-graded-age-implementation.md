@@ -2001,6 +2001,25 @@ sentence cannot silently disappear or drift off the board's own denominator."
 > *and* clears the flag. A provisional *title* only warns, because wording is a
 > board-eligibility question rather than a magnitude one.
 >
+> **4. There are THREE confirmation-age outcomes, not two.** Task 4's reviewers found that a
+> single `undated` bucket conflated two genuinely different states, while its own docstring
+> claimed the bucket meant absence. The resolution was a third state rather than a relabel:
+>
+> | outcome | `lastConfirmedAt` / `lastConfirmedBy` | `confirmationAgeDays` / `confirmationBand` |
+> |---|---|---|
+> | banded | populated | populated |
+> | `undated` — no affirming event exists | `None` | `None` |
+> | `unreadableDate` — an affirming event exists but its `ts` will not parse | **populated** | `None` |
+>
+> `unreadableDate` populates the attribution deliberately: a risk with a confirmation and a
+> named confirmer on record *has* both, and reporting otherwise would be a lie. What is absent
+> is the *age*, not the confirmation. `bands + undated + unreadableDate == live` is asserted
+> exactly.
+>
+> Document all three, and make clear that a renderer must not caption `undated` as "never
+> confirmed" without also handling `unreadableDate` — that mislabelling is the defect the third
+> state exists to prevent.
+>
 > `score_register.py` carries a `DOCS HANDOVER (Task 8)` note; **remove it** once these land.
 
 - [ ] **Step 1: Fix and extend the risk-register event list**
