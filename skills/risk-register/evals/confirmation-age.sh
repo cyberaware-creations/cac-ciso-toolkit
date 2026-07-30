@@ -37,10 +37,16 @@ PY="${PY:-python3}"
 RR="$repo/skills/risk-register"
 mkdir -p "$work"
 
-# Every check the derivation block emits on a whole run. A partial run is a failure, and
-# the only way to notice one is to know how many checks a whole run produces. Update this
-# deliberately when adding a check — that is the point of it.
+# Every check each block emits on a whole run. A partial run is a failure, and the only
+# way to notice one is to know how many checks a whole run produces. Update these
+# deliberately when adding a check — that is the point of them.
+#
+# Two counts because there are two verdict streams: the derivation block asserts the
+# four derived fields and the rollup through the Context, and the rendered-HTML block
+# asserts what the operational panel and the attention cards actually say. A check added
+# to one does not change the other, and neither number is the total.
 EXPECTED_CHECKS=46
+EXPECTED_RENDER_CHECKS=9
 
 fails=0
 chk() {
@@ -48,6 +54,40 @@ chk() {
   [ "$3" = PASS ] || fails=$((fails + 1))
 }
 die() { echo "confirmation-age: FIXTURE FAILED — $1"; exit 1; }
+
+# Read one verdict stream, and refuse to report success over a partial run.
+#
+#   read_verdicts <out.txt> <err.txt> <exit status> <expected count> <label>
+#
+# The three guards from rule 1 above, in one implementation because there are two streams
+# now. Two copies of this logic would be two rules that have to agree forever, and the
+# second copy is exactly where a missing guard would sit unnoticed — a block whose count
+# nobody pinned reports every check it managed to reach as a pass.
+read_verdicts() {
+  local out="$1" err="$2" rc="$3" expected="$4" label="$5"
+  local seen=0 sentinel="" verdict name
+  while IFS=$'\t' read -r verdict name; do
+    if [ "$verdict" = "#DONE" ]; then sentinel="$name"; continue; fi
+    chk "$n" "$name" "$verdict"
+    n=$((n + 1)); seen=$((seen + 1))
+  done < "$out"
+  if [ "$rc" -ne 0 ]; then
+    chk "$n" "the $label block ran to completion (exit $rc)" FAIL
+    n=$((n + 1))
+    echo
+    echo "  stderr from the $label block:"
+    sed 's/^/    /' "$err"
+    echo
+  fi
+  if [ "$sentinel" != "$seen" ]; then
+    chk "$n" "every emitted $label check was read (sentinel '${sentinel:-none}' vs $seen read)" FAIL
+    n=$((n + 1))
+  fi
+  if [ "$seen" -ne "$expected" ]; then
+    chk "$n" "all $expected $label checks ran (got $seen)" FAIL
+    n=$((n + 1))
+  fi
+}
 
 # Logged so a CI run proves which interpreter actually executed. A PY= override that was
 # quietly ignored would otherwise leave a pass on 3.13 looking like a pass on the floor.
@@ -428,31 +468,7 @@ py_rc=$?
 set -u
 
 n=1
-seen=0
-sentinel=""
-while IFS=$'\t' read -r verdict name; do
-  if [ "$verdict" = "#DONE" ]; then sentinel="$name"; continue; fi
-  chk "$n" "$name" "$verdict"
-  n=$((n + 1)); seen=$((seen + 1))
-done < "$work/out.txt"
-
-# --- the guards against reporting success over a partial run ---------------------
-if [ "$py_rc" -ne 0 ]; then
-  chk "$n" "the derivation block ran to completion (exit $py_rc)" FAIL
-  n=$((n + 1))
-  echo
-  echo "  stderr from the derivation block:"
-  sed 's/^/    /' "$work/err.txt"
-  echo
-fi
-if [ "$sentinel" != "$seen" ]; then
-  chk "$n" "every emitted check was read (sentinel '${sentinel:-none}' vs $seen read)" FAIL
-  n=$((n + 1))
-fi
-if [ "$seen" -ne "$EXPECTED_CHECKS" ]; then
-  chk "$n" "all $EXPECTED_CHECKS derivation checks ran (got $seen)" FAIL
-  n=$((n + 1))
-fi
+read_verdicts "$work/out.txt" "$work/err.txt" "$py_rc" "$EXPECTED_CHECKS" derivation
 
 # The board page is the artifact directors read, so the rationale rule is asserted on
 # rendered output as well as on the derivation.
@@ -466,6 +482,140 @@ else
   chk "$n" "rendered board change log carries the change rationales" FAIL
 fi
 n=$((n + 1))
+
+# ===================== what the working view actually says ========================
+# The operational panel is the deliverable, so it is asserted on rendered HTML rather
+# than on the rollup it reads: every property below — an exclusive range, three non-band
+# states kept apart, a note that sits BESIDE the review date — is a property of the prose,
+# and a check against ctx.confirmation would pass over a panel that says the opposite.
+#
+# --today is passed explicitly. score_register writes ts in UTC while --today defaults to
+# the local date, so on any machine west of Greenwich an unpinned render reports every
+# event written this evening as -1 days old and "confirmed 0d ago" is flaky by timezone.
+today="$("$PY" -c 'import json,sys
+print(max(e["ts"] for e in json.load(open(sys.argv[1]))["history"])[:10])' "$work/a.rr")" \
+  || die "could not read the register's newest timestamp"
+yday="$("$PY" -c 'import datetime,sys
+print((datetime.date.fromisoformat(sys.argv[1]) - datetime.timedelta(days=1)).isoformat())' \
+  "$today")" || die "could not compute the day before $today"
+
+# Four registers the derivation block already built, each reaching a state the others
+# cannot: a.rr all-dated, u.rr one unreadable ts, b.rr no affirming event at all. The
+# fourth render is a.rr as of YESTERDAY, which is the future-dated case — the only way to
+# reach it without hand-editing a ts, and the case a UTC/local skew produces by itself.
+for fx in a u b; do
+  "$PY" "$RR/renderers/render_dashboard.py" "$work/$fx.rr" "$work/dash_$fx.html" \
+    --offline --today "$today" >/dev/null || die "render_dashboard errored on $fx.rr"
+done
+"$PY" "$RR/renderers/render_dashboard.py" "$work/a.rr" "$work/dash_fut.html" \
+  --offline --today "$yday" >/dev/null || die "render_dashboard errored at --today $yday"
+
+set +e
+"$PY" - "$work" "$RR" "$today" <<'PY' > "$work/render_out.txt" 2> "$work/render_err.txt"
+import pathlib, re, sys
+work, rr, today = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2]), sys.argv[3]
+sys.path.insert(0, str(rr / "renderers"))
+sys.path.insert(0, str(rr / "scripts"))
+import _common as C
+
+HTML = {k: (work / ("dash_%s.html" % k)).read_text() for k in ("a", "u", "b", "fut")}
+
+emitted = [0]
+
+
+def add(name, good):
+    emitted[0] += 1
+    print(("PASS" if good else "FAIL") + "\t" + name, flush=True)
+
+
+# The six rows and the four rendered ranges, as independent literals. NOT read from
+# render_dashboard.AGE_BAND_LABEL or recomputed from the threshold: rule 3 in the header —
+# a fixture derived from the constant under test moves with the mutant, and a cumulative
+# range built from the same expression as the panel's cannot disagree with it.
+BANDS = ["inside the cadence", "nearing the cadence", "past the cadence",
+         "far past the cadence"]
+RANGES = ["0–90d", "91–180d", "181–360d", "over 360d"]
+UNDATED = "with no confirmation on record"
+UNREADABLE = "confirmed, but the date will not parse"
+LABELS = BANDS + [UNDATED, UNREADABLE]
+# What the same four rows would say if the ranges were made cumulative — the defect that
+# shipped once on the board renderer, where "within 360 days" captioned the count of
+# determinations PAST the cadence.
+CUMULATIVE = ["0–180d", "0–360d"]
+
+PANEL = re.compile(r'<h3>Confirmation age <span class="cnt">(\d+)</span></h3>(.*?)</ul>',
+                   re.S)
+
+
+def panel(key):
+    """The rendered panel as (live, [(count, label, note)], markup), or None if absent."""
+    m = PANEL.search(HTML[key])
+    if not m:
+        return None
+    rows = []
+    for li in re.findall(r"<li>(.*?)</li>", m.group(2), re.S):
+        head, _, note = li.partition('<span class="d">')
+        lead = re.match(r"<b>(\d+)</b>", head)      # the count leads the row, or this dies
+        rows.append((int(lead.group(1)),
+                     re.sub(r"<[^>]+>", "", head[lead.end():]).strip(),
+                     re.sub(r"<[^>]+>", "", note).strip()))
+    return {"live": int(m.group(1)), "rows": rows, "markup": m.group(2)}
+
+
+pa, pu, pb = panel("a"), panel("u"), panel("b")
+
+# Deleting the call to confirmation_panel() has to fail something, and the denominator is
+# pinned at the same time: the register holds 4 risks and 1 is closed, so a rollup that
+# lets the closed one in reads 4 here.
+add("the panel renders with the live population as its denominator",
+    pa is not None and pa["live"] == 3)
+# Ranges checked as (label, range) pairs, not as a set of substrings: "181–360d" present
+# somewhere in the panel does not say it is sitting on the row it describes.
+add("the band ranges are exclusive, not cumulative",
+    [(lab, note) for _, lab, note in pa["rows"][:4]] == list(zip(BANDS, RANGES))
+    and not any(x in pa["markup"] for x in CUMULATIVE))
+add("the six rows partition the live population, band by band",
+    [lab for _, lab, _ in pa["rows"]] == LABELS
+    and [k for k, _, _ in pa["rows"]] == [3, 0, 0, 0, 0, 0]
+    and sum(k for k, _, _ in pa["rows"]) == pa["live"] == 3)
+# The two non-band states are the ones a renderer conflates. u.rr has a confirmation with
+# a named confirmer and an unreadable ts; b.rr has no affirming event at all. Folding the
+# two rows into one leaves five rows and fails both halves.
+add("undated and unreadableDate are never folded into one line",
+    [(k, lab) for k, lab, _ in pu["rows"]] == list(zip([2, 0, 0, 0, 0, 1], LABELS))
+    and [(k, lab) for k, lab, _ in pb["rows"]] == list(zip([0, 0, 0, 0, 3, 0], LABELS))
+    and UNDATED != UNREADABLE)
+# BAND is a fill ramp: as text on the white card it runs 1.68–2.61:1. Asserted as a
+# measured ratio rather than as an expected hex, so the check states the property that
+# matters and cannot be satisfied by a different unreadable colour. The panel is drawn
+# with a coloured word in every state, so this is never vacuous — and the count is pinned
+# so a colour added without a contrast opinion cannot slip past it.
+inline = re.findall(r"color:(#[0-9A-Fa-f]{6})", pa["markup"])
+add("every coloured word in the panel clears AA on the card surface",
+    len(inline) == 1 and all(C.contrast_ratio(c, C.WB_SURF) >= 4.5 for c in inline))
+
+# ---- the per-risk note on an attention card -------------------------------------
+# Beside the existing detail, not instead of it: a review date is a deadline somebody
+# committed to and the confirmation age is how long since anyone acted on it. Asserted as
+# one string so replacing the detail fails even though both halves would still be present.
+add("the per-risk note sits beside the existing detail, not instead of it",
+    "residual 25 Critical · confirmed 0d ago · D. Alleyne" in HTML["a"])
+add("an unreadable date is not captioned 'never confirmed'",
+    "confirmed, but the date cannot be read: 2026-02-30 · D. Alleyne" in HTML["u"]
+    and "never confirmed" not in HTML["u"])
+add("a genuinely unconfirmed risk says so on its card",
+    "no owner assigned · never confirmed" in HTML["b"])
+add("a future-dated confirmation is named rather than printed as negative days",
+    ("confirmed %s, dated in the future" % today) in HTML["fut"]
+    and "-1d ago" not in HTML["fut"])
+
+print("#DONE\t%d" % emitted[0], flush=True)
+PY
+render_rc=$?
+set -u
+
+read_verdicts "$work/render_out.txt" "$work/render_err.txt" "$render_rc" \
+  "$EXPECTED_RENDER_CHECKS" rendered-HTML
 
 echo
 if [ "$fails" -eq 0 ]; then
