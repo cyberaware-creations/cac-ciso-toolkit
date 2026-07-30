@@ -76,6 +76,215 @@ def tiles(ctx: C.Context) -> str:
     return f'<div class="tiles">{out}</div><div class="bandrow">{pills}</div>'
 
 
+def _confirmed_note(r: dict) -> str:
+    """`· confirmed 42d ago · R. Calder`, or an honest statement of what is missing.
+
+    Sits beside the review date rather than replacing it: the review date is a deadline
+    somebody committed to, and the confirmation age is how long since anyone acted on it.
+    Two different facts, and collapsing them was the asymmetry this work exists to fix.
+
+    Three outcomes, because `_common._confirmation()` produces three and conflating any
+    two of them makes this line assert something false. `lastConfirmedAt` is the branch,
+    NOT the day count: a risk whose affirming event has an unreadable `ts` has a
+    confirmation and a named confirmer on record and only the distance is unknown, so
+    "never confirmed" would be a lie about it. The bad date is printed rather than
+    swallowed, because the reader of this screen is the person who can go and fix it.
+
+    A fourth arm for the same reason, and it is not defensive padding — a negative age is
+    routine, and THREE separate routes reach it (see _confirmation_rollup in _common.py):
+
+      1. An explicit `--today` behind the register's newest confirmation. references/
+         dashboards.md tells the reader to pass --today for a reproducible "as of" view, so
+         `--today 2026-06-30` over a register confirmed in July puts every sound record
+         here. This is the common route, and the record is not defective.
+      2. A hand-edited or imported register carrying a genuinely wrong ts.
+      3. Clock skew between whatever wrote the register and whoever renders it.
+
+    This skill's own CLI was a fourth route until _today_utc() closed it: score_register
+    writes every `ts` in UTC while `--today` defaulted to the LOCAL date, so an event
+    written after 17:00 in California came back as -1 days. That route is gone; the other
+    three are not, and the premise of an earlier version of this paragraph — that the
+    branch exists to catch a local/UTC skew — is now false.
+
+    age_band() deliberately reports a negative age as `within` — it is a pure distance and
+    an `impossible` band would smuggle a validation verdict into the distribution — but
+    "confirmed -1d ago" is not a sentence, and rounding it to "confirmed today" would hide
+    from this reader the one fact that matters: no age can be measured from that record
+    against the date this page was rendered for. So it is named, with its date, and which
+    of the three routes produced it is left to the reader, who can go and look.
+    """
+    when = r.get("lastConfirmedAt")
+    if not when:
+        return " · never confirmed"
+    who = r.get("lastConfirmedBy")
+    tail = f" · {C.esc(who)}" if who else ""
+    days = r.get("confirmationAgeDays")
+    if days is None:
+        return f" · confirmed, but the date cannot be read: {C.esc(when)}{tail}"
+    if days < 0:
+        return f" · confirmed {C.esc(when)}, dated in the future{tail}"
+    return f" · confirmed {days}d ago{tail}"
+
+
+# The four graded age bands, ascending by age. The engine owns the KEY SET and emits the
+# counts — see AGE_BANDS and age_band() in ../scripts/score_register.py; this module only
+# names and draws them, in the engine's own order rather than a second copy of it.
+#
+# The LABELS are this view's own and must NOT be merged with the near-identical
+# AGE_BAND_LABEL in skills/nist-csf/renderers/_common.py, which carries the matching note
+# back to here. What must match across the two skills is the SEMANTICS — the four
+# boundaries and the four band names. What must NOT converge is the wording, because the
+# two sit in different sentence shapes: over there a label is a trailing clause after a
+# date ("confirmed 2026-01-10, beyond cadence"); here it is the predicate of a counted row
+# ("1 past the cadence"). So "keep the two in step" applies to the keys and the boundaries
+# and to nothing else. Do not unify these values.
+#
+# Each label carries the same valence as its band name, which is not free: an earlier
+# board renderer labelled `beyond` — determinations PAST the chosen cadence — as "within
+# 360 days", and three of its four labels were arithmetically wrong in the flattering
+# direction. `beyond` reads "past the cadence" here for that reason.
+#
+# What holds this honest is the rendered-HTML block in evals/confirmation-age.sh: it pins
+# this key set against sr.AGE_BANDS, and it pins the rendered ranges at TWO thresholds. A
+# missing key here only raises KeyError at render time and an extra one is silent, and the
+# ranges read at 180 alone cannot tell "derived from t" from "the argparse default" — so
+# that block is the only thing standing between a relabelling and a quietly flattering
+# working view. It is not optional.
+#
+# These are distances from a cadence the reader chose, never confidence words. Nothing in
+# this panel suppresses, expires or rescores anything, and no label may imply otherwise.
+AGE_BAND_LABEL = {"within": "inside the cadence", "approaching": "nearing the cadence",
+                  "beyond": "past the cadence", "wellBeyond": "far past the cadence"}
+
+
+def confirmation_panel(ctx: C.Context) -> str:
+    """How old the determinations on this register are, as a distribution.
+
+    This is the working view, so it gets the shape rather than a sentence — the reader is
+    deciding what to look at next, and "three risks have not been re-affirmed in over a
+    year" is a work queue. The board page gets one sentence instead; operational views get
+    the distribution.
+
+    Its own section, NOT one of the attention lists. Filed inside `attgrid` under "Needs
+    attention" it said that three risks inside the cadence are three things needing
+    attention — the exact judgement the rest of this docstring refuses to make — and it
+    gave `.cnt` two meanings on one screen, "flagged risks" on every sibling card and "live
+    population" on this one. references/dashboards.md also enumerates the attention lists,
+    and this is not one of them.
+
+    The `wellBeyond` row names the risks it counts. The rollup builds that list oldest-first
+    for exactly this, and without it the row is a number the reader cannot act on: a risk
+    that is stale but not over appetite, overdue, unowned or accepted appears on no
+    attention card, carries no confirmation column in the register table, and is therefore
+    unfindable from a screen that just told you it exists.
+
+    Six rows, always drawn, even at zero. They partition the live population exactly
+    (`_confirmation_rollup` asserts that), so a reader can add them up against the
+    denominator in the heading — which is the whole reason the denominator is there. A row
+    suppressed at zero would also make every check over this panel vacuous on a fixture
+    that happens not to reach that state, and would leave "0 undated" indistinguishable
+    from "this panel does not report undated at all".
+
+    `undated` and `unreadableDate` are NOT bands and are never folded together or into
+    one. A band is a distance from a cadence; those two are the absence of a distance for
+    two different reasons, and a panel captioned "never confirmed" must never name a risk
+    that has a confirmation and a named confirmer on record.
+
+    Deliberately NOT coloured with the band ramp. `C.BAND`/`C.BAND_TEXT` is the RAG
+    severity ramp this register spends on residual bands and on ⚠ marks, so painting
+    `wellBeyond` red would tell the reader that an old determination is a critical one —
+    a verdict the data explicitly refuses to make, and the same conclusion nist-csf's
+    age_band_bar() reached when it chose a non-RAG lightness ramp over red. A proportional
+    strip like that one was considered and rejected here: this card is half a column wide
+    and one column on a phone, the counts are small enough that four segments would be
+    slivers, and the two non-band rows have no honest place inside a bar whose width means
+    "distance". Row order plus an explicit exclusive range carries the ordering instead,
+    in the same markup shape as every sibling card in this grid.
+
+    Nothing here suppresses, expires or rescores anything. The bands report distance from
+    a cadence the reader chose; whether that distance matters for a given risk is the
+    reader's judgement, because a supplier concentration and a patching backlog go stale
+    at completely different rates.
+    """
+    c = ctx.confirmation
+    if not c["live"]:
+        return ""
+    t = c["thresholdDays"]
+    # EXCLUSIVE ranges, and no boundary arithmetic here at all. C.age_bounds() owns the
+    # `t // 2` derivation for this skill; this dict is only the WORDING, which is this view's
+    # own and must not converge with the board sentence's ("0–90d" on a counted row against
+    # "within the last 90 days" in prose). Cumulative ranges over mutually-exclusive counts
+    # are both false and flattering: "0–360d" against the count of determinations that are
+    # PAST the cadence reads as reassurance, and that shipped on the board renderer.
+    #
+    # The open-ended band takes `beyond`'s upper bound rather than recomputing `t * 2`, so
+    # the two adjacent rows cannot disagree about where one ends and the next begins — the
+    # same expression the board sentence uses for its own last clause.
+    bounds = C.age_bounds(t)
+    edges = {b: (f'over {bounds["beyond"][1]}d' if hi is None else f"{lo}–{hi}d")
+             for b, (lo, hi) in bounds.items()}
+    notes = dict(edges)
+
+    # A future-dated confirmation is a negative age, which age_band() reports as `within` on
+    # purpose — it is a pure distance, and an `impossible` band would smuggle a validation
+    # verdict into the distribution. But then the `within` row silently captions those
+    # records with the freshest range, which is false in the flattering direction while every
+    # attention card on the same page names them. Disclosed here rather than rebanded.
+    #
+    # Routine rather than exotic, and the common route is an explicitly-passed `--today`:
+    # references/dashboards.md documents doing that for a reproducible "as of" view, which
+    # makes every confirmation later than the chosen date land here. The other two routes are
+    # a genuinely wrong ts in a hand-edited or imported register, and clock skew. So the note
+    # states the FACT — dated after the reference date, so no age can be measured — and never
+    # the cause. An earlier version of it called a negative age "a file defect", which is a
+    # diagnosis this code cannot make and is simply wrong on the documented route; the board
+    # sentence had the same overclaim removed. The bar is lower here than on a board page
+    # because this reader is the one who can go and look, but a false diagnosis is still
+    # false, and the IDs are what make looking possible.
+    #
+    # The list comes from the rollup, which derives it once and sorts it most-impossible
+    # first. It was re-derived inline here with a second comprehension over C.live_risks(),
+    # so one rule lived in two places and the count could disagree with the list.
+    future = c["futureDatedRisks"]
+    if future:
+        notes["within"] = (f'{edges["within"]} · includes {c["futureDated"]} dated after the '
+                           f'{C.esc(ctx.today)} reference date ({C.id_list(future, cap=6)}), '
+                           f'so no age can be measured for them')
+    # Named, oldest first, from the list the rollup built for this. Capped: the row is a
+    # pointer into the register, not a second register.
+    if c["wellBeyond"]:
+        notes["wellBeyond"] = (f'{edges["wellBeyond"]} · '
+                               f'{C.id_list(c["wellBeyond"], cap=6)}')
+
+    def row(n, label: str, note: str) -> str:
+        return f'<li><b>{n}</b> {label}<span class="d">{note}</span></li>'
+
+    rows = "".join(row(c["bands"][b], AGE_BAND_LABEL[b], notes[b]) for b in C.sr.AGE_BANDS)
+    rows += row(c["undated"], "with no confirmation on record",
+                "no affirming event exists at all — not an age of zero")
+    # The one coloured word in the panel, and it is not an age verdict: an affirming event
+    # whose ts will not parse is a broken record, and `.warnmark` is already this page's ink
+    # for a broken record — an overdue review, a missing owner. Taking the CLASS rather than
+    # re-inlining its colour: BAND is a fill ramp and reads 1.68:1 (medium) to 5.44:1
+    # (critical) as text, with `high` at 2.61:1, and a hand-copied colour judgement is the
+    # thing text_on() and this file's four-copies note exist to stop.
+    #
+    # The note claims only what the count can support. "The confirmer is on record" was an
+    # inference: an affirming event with a blank actor AND an unreadable ts lands in this row
+    # with lastConfirmedBy None, so the panel would have asserted a confirmer while the card
+    # correctly showed none.
+    rows += row(c["unreadableDate"],
+                '<span class="warnmark">confirmed, but the date will not parse</span>',
+                "an affirming event exists — only the distance is unknown")
+    return (f'<div class="att">'
+            f'<h3>Confirmation age <span class="cnt">{c["live"]}</span></h3>'
+            f'<div class="d" style="margin-bottom:8px">How long since anyone affirmed each '
+            f'live risk’s score or treatment decision, against the {t}-day cadence this '
+            f'register was rendered with. These six rows account for all {c["live"]} live '
+            f'risks. Scores do not expire — the age is reported and you judge.</div>'
+            f'<ul class="plain">{rows}</ul></div>')
+
+
 def attention_lists(ctx: C.Context) -> str:
     a = ctx.attention
     groups = [
@@ -108,7 +317,8 @@ def attention_lists(ctx: C.Context) -> str:
         # support. See PROVTAG.
         items = "".join(f'<li><b>{r["id"]}</b> {C.esc(r["title"])}'
                         f'{PROVTAG if r.get("provisionalTitle") else ""}'
-                        f'<span class="d">{detail(r)}</span></li>' for r in rs)
+                        f'<span class="d">{detail(r)}{_confirmed_note(r)}</span></li>'
+                        for r in rs)
         cards += (f'<div class="att" style="border-left-color:{colour}">'
                   f'<h3>{title} <span class="cnt">{len(rs)}</span></h3>'
                   f'<ul class="plain">{items}</ul></div>')
@@ -400,6 +610,12 @@ def render(ctx: C.Context) -> str:
     note = C.provisional_note(ctx.live)
     prov_banner = (f'<div class="sub provisional"><div class="wrap">{note}</div></div>'
                    if note else "")
+    # Its own section, deliberately not an attention list — see confirmation_panel(). Built
+    # here rather than interpolated inline so a register with no live risk renders no heading
+    # over an empty card.
+    conf = confirmation_panel(ctx)
+    conf_section = (f'<div class="section"><h2>How old these determinations are</h2>{conf}'
+                    f'</div>' if conf else "")
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Risk Register — Working View{title_tail}</title>
@@ -438,6 +654,7 @@ def render(ctx: C.Context) -> str:
   </div>
   <div class="section"><h2>Needs attention</h2>
     <div class="attgrid">{attention_lists(ctx)}</div></div>
+  {conf_section}
   <div class="section"><h2>Owner load — open risk per owner</h2>
     <div class="tscroll slim">{owner_table(ctx)}</div></div>
   <footer>{C.esc(ctx.footer("operational working view"))}</footer>

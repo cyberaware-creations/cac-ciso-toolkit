@@ -150,12 +150,24 @@ def changed_block(ctx: C.Context) -> str:
 
 
 def summary_block(ctx: C.Context) -> str:
+    # C.freshness_line() goes on BOTH branches. It is a caveat on the figures, and the
+    # figures are present either way — a page whose narrative slot is a placeholder is
+    # exactly the page most likely to be read off the numbers alone.
+    #
+    # It lives in _common.py rather than here because render_report.py::exec_summary() has
+    # this identical two-branch shape and now calls it too. That renderer is the printable
+    # board report — the artifact most likely to be handed round a table on paper, and the
+    # one board-safety.sh's own header records as having kept exposing raw framework wording
+    # for a full release after the executive dashboard was fixed. Two board-facing surfaces,
+    # one sentence, one place: a reworded caveat cannot land on one page and not the other.
     if ctx.tr.executive_summary:
         return (f'<p class="lead">{C.esc(ctx.tr.executive_summary)}</p>'
-                f'<div class="note">Executive narrative from the ciso-board-translation skill.</div>')
+                f'<div class="note">Executive narrative from the ciso-board-translation skill.</div>'
+                + C.freshness_line(ctx))
     return (f'<p class="lead placeholder">{C.PLACEHOLDER}</p>'
             f'<div class="note">The figures on this page are derived from the register and are '
-            f'complete; only the narrative is missing.</div>')
+            f'complete; only the narrative is missing.</div>'
+            + C.freshness_line(ctx))
 
 
 CSS = f"""
@@ -218,6 +230,14 @@ header .wrap{{padding-bottom:0;display:flex;align-items:center;justify-content:s
 .decision{{background:{C.WB_SURF};border:1px solid {C.WB_LINE};border-left:5px solid {C.PATINA};
   border-radius:10px;padding:11px 14px;margin-bottom:10px;font-size:13px;line-height:1.5}}
 .note{{color:{C.SLATE};font-size:11.5px;font-style:italic;margin-top:8px}}
+/* The freshness sentence is a caveat on the whole page, not a continuation of the
+   sidecar attribution note above it, so it takes a rule and a separator. Italic is
+   dropped because this note is mostly numbers and day ranges, which italics at
+   11.5px make measurably harder to read. Colour is left inherited from .note
+   deliberately: SLATE on the surface is the one contrast judgement responsive.sh
+   already measures, and a second value here would be a second judgement to keep. */
+.note.freshness{{font-style:normal;border-top:1px solid {C.WB_LINE};padding-top:9px;
+  margin-top:11px;line-height:1.55}}
 .placeholder{{color:{C.SLATE};background:repeating-linear-gradient(135deg,#EFEBE0,#EFEBE0 6px,
   #F6F4EE 6px,#F6F4EE 12px);border-radius:6px;padding:2px 6px;display:inline-block}}
 .legend{{display:flex;gap:12px;justify-content:center;margin-top:2px}}

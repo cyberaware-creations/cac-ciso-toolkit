@@ -15,7 +15,7 @@
 - Snapshots
 - Action items
 - Derived evidence states
-- Ratings never expire
+- Ratings never expire (and the age bands)
 - Derived-not-stored rule
 - Coverage arithmetic
 - Privacy
@@ -116,8 +116,9 @@ number, only whether a headline figure is shown and what age is called out for a
   The denominator is `assessed / inScope`, deliberately not attribution — gating on `attributed /
   inScope` would blank the headline on every Profile written before v2 existed.
 - **`ageThresholdDays`** (default 180) — a confirmed rating older than this is counted in
-  `evidence.age.overall.olderThanThreshold` and by Function. It is a reporting threshold only:
-  ratings do not expire (see "Ratings never expire" below).
+  `evidence.age.overall.olderThanThreshold` and by Function, and it anchors the four age bands
+  (`within` / `approaching` / `beyond` / `wellBeyond`) at `T/2`, `T` and `2T`. It is a reporting
+  threshold only: ratings do not expire (see "Ratings never expire" below).
 
 A v1 file has no `reporting` key at all, and a v2 file may set only one of the two. `load_store`
 fills in the shipped default for whichever is missing, rather than merging `settings` as one flat
@@ -429,6 +430,34 @@ silent until someone confirms it and gives it a date to compare against. An impl
 guards the `revisit` check on `confirmedAt` being set silently drops every v1 rating from the queue
 and from both dashboards' revisit counts, which is precisely the false "nothing to revisit" this
 flag exists to prevent.
+
+### Age bands
+
+`evidence.age.overall.bands` and `evidence.age.byFunction.<id>.bands` grade every *dated*
+confirmation by its distance from `settings.reporting.ageThresholdDays` (`T`, default 180).
+Boundaries are inclusive of the lower band, so a rating at exactly `T` is `approaching` and not yet
+`beyond`:
+
+| band | boundary | at T=180 |
+|---|---|---|
+| `within` | `d ≤ T//2` | 0–90d |
+| `approaching` | `d ≤ T` | 91–180d |
+| `beyond` | `d ≤ 2T` | 181–360d |
+| `wellBeyond` | `d > 2T` | over 360d |
+
+`olderThanThreshold` is unchanged and **always equals `beyond + wellBeyond`**. The self-test asserts
+that identity at three different thresholds (180, 198 and 365), so the two notions cannot drift apart
+and the check cannot be satisfied by a coincidence at one value.
+
+`undated` is **not a band**, and the two never merge. A band is a distance from a cadence; `undated`
+is the absence of a date to measure from. Counting it as `within` would report a guess as a
+measurement, and counting it as `wellBeyond` would invent an age nobody recorded. It stays its own
+number, and `bands` sums to `dated`.
+
+Band names state distance from a cadence this Profile chose, never confidence. Ratings do not expire;
+new material is what questions a rating, not the passage of time. `risk-register` derives the same
+four bands from the same boundaries for the confirmation ages of its own risks — the semantics are
+deliberately identical across the two skills, and the wording on each surface deliberately is not.
 
 ## Derived-not-stored rule
 

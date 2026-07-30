@@ -314,6 +314,51 @@ def by_source(ctx: c.Context) -> str:
             f'{"".join(cards)}</section>')
 
 
+def _age_note(row: dict) -> str:
+    """The confirmation age of one stalest row, or an honest blank.
+
+    The band vocabulary is c.AGE_BAND_LABEL, shared with the executive view so the two
+    dashboards cannot put opposite words on one band — they did, briefly, and the
+    flattering wording was the one on the board page.
+
+    Three cases, and the difference between the last two matters:
+
+    - A band, with a date behind it: name the band and its age in days.
+    - `confirmationBand` present and None: the rating was reviewed but never confirmed.
+      A rating carried over from a v1 Profile has no confirmedAt, and the whole point of
+      not backfilling it is to avoid inventing the attribution — so the row says the date
+      is missing rather than guessing a band.
+    - `confirmationBand` absent from the row entirely: this is analyze output from an
+      engine that predates age banding (_common's degrade-don't-crash contract). Nothing
+      is known about this row's confirmation either way, so nothing is said. Printing
+      "no confirmation date" here would turn a gap in the payload into a claim about
+      the Profile.
+
+    The confirmation date is printed only when it DIFFERS from the lastReviewed date the
+    row already leads with. `set` writes both from one timestamp, so on a Profile built
+    under v2 they are equal on every row, and naming the date twice per row was pure
+    noise dressed up as rigour. They are still two different facts — the section hint
+    says so once — and the row shows both the moment they diverge, which is what a bare
+    `set --reviewed` after a confirmation produces. An unexpected band value renders as
+    itself rather than raising KeyError, and a band arriving with no date renders without
+    a dangling "confirmed ,": both are unreachable from this engine and both are exactly
+    the payload skew the three-way split above exists to absorb.
+    """
+    if "confirmationBand" not in row:
+        return ""
+    band = row["confirmationBand"]
+    if not band:
+        return '<span class="muted"> · no confirmation date</span>'
+    bits = []
+    confirmed_at = row.get("confirmedAt")
+    if confirmed_at and confirmed_at != row.get("lastReviewed"):
+        bits.append(f'confirmed {c.esc(confirmed_at)}')
+    days = row.get("confirmationAgeDays")
+    bits.append(c.esc(c.AGE_BAND_LABEL.get(band, band))
+                + (f" ({days}d)" if days is not None else ""))
+    return f'<span class="muted"> · {", ".join(bits)}</span>'
+
+
 def attention(ctx: c.Context) -> str:
     a = ctx.attention
     panels = [
@@ -324,9 +369,16 @@ def attention(ctx: c.Context) -> str:
         ("Never reviewed", "Why has nobody looked at these at all?",
          [f'<span class="mono">{c.esc(r["subcategoryId"])}</span> {c.esc(c.trunc(r["text"], 70))}'
           for r in a.get("neverReviewed", [])]),
+        # Ordered on lastReviewed, banded on confirmedAt — two different facts, and the
+        # section hint below says so, because `set` writes both from one timestamp and
+        # printing the date twice on every row said it ten times over and taught nothing.
+        # A row with no confirmation date says so rather than taking a band it has not
+        # earned; a row where the two dates diverge shows both.
         ("Stalest", "Is this rating still true, or just old?",
          [f'<span class="mono">{c.esc(r["subcategoryId"])}</span> '
-          f'<span class="muted">{c.esc(r["lastReviewed"])}</span> {c.esc(c.trunc(r["text"], 60))}'
+          f'<span class="muted">{c.esc(r["lastReviewed"])}</span> '
+          f'{c.esc(c.trunc(r["text"], 60))}'
+          f'{_age_note(r)}'
           for r in a.get("stalest", [])]),
         ("Unowned actions", "An action without an owner is a wish.",
          [f'<span class="mono">{c.esc(i["id"])}</span> {c.esc(i["title"])}'
@@ -348,7 +400,11 @@ def attention(ctx: c.Context) -> str:
                      f'<div class="q muted">{c.esc(question)}</div><ul>{body}</ul></div>')
     return (f'<section><h2>Needs attention</h2>'
             f'<div class="hint">Never-reviewed and stalest are separate lists on purpose — '
-            f'"nobody ever looked" is a different problem from "nobody looked lately".</div>'
+            f'"nobody ever looked" is a different problem from "nobody looked lately". '
+            f'Stalest is ordered by the date somebody last looked; the cadence note on '
+            f'each row measures a different date, the day the rating was decided with a '
+            f'source behind it. A row names that second date whenever it differs from '
+            f'the first.</div>'
             f'<div class="grid">{"".join(cards)}</div></section>')
 
 

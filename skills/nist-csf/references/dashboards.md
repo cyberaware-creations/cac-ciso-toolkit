@@ -38,6 +38,9 @@ These exist because each one is a way a coverage report can mislead:
 8. **Age travels with every set of ratings.** Wherever confirmed ratings are shown, their age is
    shown alongside — and where no rating in the Profile carries a confirmation date, that is said in
    words ("no rating here carries a confirmation date yet"), never rendered as a blank or a zero.
+   Age is graded (`within` / `approaching` / `beyond` / `wellBeyond`) and every label states distance
+   from the cadence this Profile set for itself. **No age word on any surface may imply confidence:**
+   the engine reports how old a determination is, never how sure anyone should be that it still holds.
 9. **Reordered is never silently reordered.** When an overlay changes row order, the dashboard
    says so *adjacent to the affected table* — not in the footer, and not only in documentation.
    A reader who is not told assumes a prioritized gap table is ordered by gap severity, because
@@ -108,6 +111,16 @@ Two blocks under one heading.
 says so in its row rather than showing zeros. The threshold in force is stated once, as a hint above
 the table, not repeated per cell.
 
+This table itself carries no bands — Function, dated count, median, oldest, and the past-threshold
+count. Grading appears on the two surfaces where a reader is looking at *rows* rather than a summary:
+the per-row cadence note in the **Stalest** panel below, and the band distribution in the executive
+age grid. The four bands (`within` / `approaching` / `beyond` / `wellBeyond`) are anchored to
+`ageThresholdDays` at `T/2`, `T` and `2T`; boundaries and reasoning are in `references/schema.md` →
+Age bands. Wherever a range is printed beside a band it is **exclusive**, because the counts it
+annotates are: a cumulative phrase over one of them is simply false, and the board grid once labelled
+`beyond` — ratings *past* the cadence — as "within 360 days". `undated` is not a band and never
+renders as one.
+
 **Revisit** — every confirmed rating that cannot be shown to predate material recorded against it:
 Subcategory, outcome, confirmed date (or "undated"), the source date, the source id(s), and **why**
 the row is there. Two reasons, and they are not interchangeable: `newer-material` means the
@@ -150,6 +163,13 @@ Six panels, from `attention`, each labeled with the question it answers:
 
 Never-reviewed and stalest are **separate panels**, never merged — they are different failures.
 
+Each **Stalest** row is *ordered* on `lastReviewed` and *banded* on `confirmedAt`. Those are different
+fields on purpose: `lastReviewed` is "when did a human last look at this outcome?", `confirmedAt` is
+"when was this rating decided, with a source behind it?", and `confirmedAt` is never backfilled from
+`lastReviewed` because that would fabricate the attribution the schema exists to make honest. So a row
+shows both dates whenever they differ, and a row whose rating carries no confirmation date says so
+instead of being given a band it has not earned.
+
 ### Action plan
 Table of `actionItems.items`: id, title, linked Subcategories, owner, milestone, target date,
 status. Unowned rows and past-due rows are marked inline as well as appearing in their panels.
@@ -182,6 +202,17 @@ median, oldest, the count older than the configured `ageThresholdDays`, and a co
 currently flagged `revisit`. Captioned explicitly that ratings do not expire — age is reported, the
 reader judges. Where no confirmed rating in the Profile carries a `confirmedAt` yet, the section says
 so in words rather than rendering empty cells.
+
+The age grid carries the **band distribution** alongside those figures, drawn as one proportional
+strip over the stated `dated` denominator rather than as four more tiles. Because
+`beyond + wellBeyond` is exactly the past-threshold count, the grid grades one population instead of
+reporting two — four bare counts beside the `older than T days` cell gave a reader five numbers, one
+of them the sum of two others, and a denominator for none of them. A band absent from the payload is
+dropped rather than drawn as 0, a band present and genuinely 0 has no width, and the caption states
+outright that an unlisted band is zero so nothing is left to inference. It is coloured with a
+single-hue lightness ramp, never the coverage ramp and never RAG: an old rating is not a bad one, and
+colouring `wellBeyond` red would make that judgement for the reader on the page where it carries most
+weight. Lightness carries the ordering instead, which is what an ordinal measure asks for.
 
 ### Function-level rollup
 Six tiles (one per Function), each: Function name, coverage `x/y` and percentage, delta versus the

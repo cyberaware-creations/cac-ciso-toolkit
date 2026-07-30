@@ -6,6 +6,8 @@
 - Themes
 - Structured acceptance
 - Change log (history)
+- Confirmation age
+- Date fields are canonical `YYYY-MM-DD`
 - Snapshots
 - Categories / taxonomy
 - Matrix sizes and rating labels
@@ -119,13 +121,168 @@ makes the log defensible and the trend real):
 }
 ```
 
-Event `type` values: `risk-added`, `risk-updated`, `score-changed`, `response-changed`,
-`status-changed`, `risk-accepted`, `acceptance-revalidated`, `risk-closed`, `risk-reopened`,
-`risk-deleted`, `theme-changed`, `settings-changed`, `snapshot-created`.
+Event `type` values. The **age-affirming** column is what resets a risk's confirmation age (see
+Confirmation age below); everything else leaves it exactly where it was.
 
-**Material changes require a `rationale`** (score moves, acceptances, closures, reopenings). Capture
-the *why* in-session — it is what powers the board narrative and the audit trail. Non-material edits
-(typo fixes, notes) may omit it.
+| type | written by | age-affirming |
+|---|---|---|
+| `register-created` | `init` | no |
+| `risk-added` | `add` | **yes** |
+| `risk-confirmed` | `confirm` | **yes** |
+| `score-changed` | `set-score` | **yes** |
+| `risk-accepted` | `accept` | **yes** |
+| `acceptance-revalidated` | *nothing writes it yet* | **yes** |
+| `risk-updated` | `set-text`; also `set-score`, once, when it clears `provisionalScore` | no |
+| `status-changed` | `set-status` | no |
+| `theme-changed` | `add-theme`, `set-theme` | no |
+| `snapshot-created` | `snapshot` | no |
+| `import-merged` | `import-gaps --write` | no |
+| `response-changed`, `risk-closed`, `risk-reopened`, `risk-deleted`, `settings-changed` | *nothing writes them yet* | no |
+
+Only an assertion about a risk's **magnitude** or its **treatment decision** affirms age. A
+rewording, a theme move, a status flip and a snapshot deliberately do not: an age that any edit
+resets makes the confirmation-age report worthless — the same rule `nist-csf` states about notes and
+staleness in its own `references/schema.md`.
+
+The unwritten types are classified now so they behave correctly when something starts emitting them.
+`scripts/score_register.py` holds the classification as `AGE_AFFIRMING`, `NON_AGE_AFFIRMING` and
+`KNOWN_EVENT_TYPES`, and its `self-test` asserts the first two are disjoint and that their union is
+exactly the third, against an emitted set scraped from the script's own source. A newly-emitted type
+therefore fails the suite until somebody places it on one side, rather than defaulting to "does not
+affirm age" by omission.
+
+**Material changes require a `rationale`** (score moves, acceptances, closures, reopenings,
+confirmations). Capture the *why* in-session — it is what powers the board narrative and the audit
+trail. Non-material edits (typo fixes, notes) may omit it.
+
+## Confirmation age
+
+**Scores do not expire.** No threshold in this skill expires a score, suppresses a figure, or moves
+a band on the strength of a date. Age is reported and the reader judges — a supplier concentration
+and a patching backlog go stale at completely different rates, and the tool does not claim to know
+either rate.
+
+Four values are derived per risk from `history[]` alone. None is stored, on the same terms as
+exposure and band:
+
+| field | meaning |
+|---|---|
+| `lastConfirmedAt` | newest `ts` among that risk's age-affirming events, as `YYYY-MM-DD` |
+| `lastConfirmedBy` | that event's `actor`, or `null` if it carries none |
+| `confirmationAgeDays` | whole days from `lastConfirmedAt` to the reference date (`--today`) |
+| `confirmationBand` | the band below, or `null` |
+
+Bands are anchored to the renderers' `--age-threshold` (`T`, default 180). Every boundary is
+inclusive of the lower band, so a risk at exactly `T` is `approaching` and not yet `beyond`:
+
+| band | boundary | at T=180 |
+|---|---|---|
+| `within` | `d ≤ T//2` | 0–90d |
+| `approaching` | `d ≤ T` | 91–180d |
+| `beyond` | `d ≤ 2T` | 181–360d |
+| `wellBeyond` | `d > 2T` | over 360d |
+
+The band names describe **distance from a cadence you chose**. They are not confidence words and
+never become them: age is derivable from stored data, confidence is not. `evals/board-safety.sh`
+check 9 fails if confidence vocabulary reaches a board-facing view.
+
+### Three outcomes, not two
+
+A missing band is not one state but two, and conflating them makes a renderer assert something
+false:
+
+| outcome | `lastConfirmedAt` / `lastConfirmedBy` | `confirmationAgeDays` / `confirmationBand` |
+|---|---|---|
+| banded | populated | populated |
+| **`undated`** — no age-affirming event exists | `null` | `null` |
+| **`unreadableDate`** — an age-affirming event exists and names a confirmer, but its `ts` will not parse | populated | `null` |
+
+`undated` is the v1 register and the fresh `import-gaps`: nobody has ever re-affirmed the risk.
+Never inferred, never backfilled. `unreadableDate` populates the attribution deliberately — a risk
+with a confirmation and a named confirmer on record *has* both, and reporting otherwise would be a
+lie. What is absent is the *age*, not the confirmation.
+
+So a renderer must not caption `undated` as "never confirmed" without also handling
+`unreadableDate`. That mislabelling is the defect the third state exists to prevent. Over the live
+register (closed risks excluded, as everywhere else), `bands + undated + unreadableDate == live`
+exactly, and that is asserted.
+
+`futureDated` / `futureDatedRisks` are a **named subset of `bands`, never a summand**. A
+confirmation dated after the reference date has a negative age, and `age_band` reports a negative
+age as `within` on purpose — it is a pure distance, and an `impossible` band would smuggle a
+validation verdict into a distribution. Those risks are therefore already counted inside `bands`;
+they are surfaced separately so a view can say "this many of the fresh ones cannot be measured"
+rather than presenting them as the best news on the page.
+
+`reviewDate` is a different thing and stays boolean. It is a deadline a human committed to, so
+passing it is a fact rather than decay: `reviewOverdue` remains a flag, and `reviewOverdueDays`
+exists only so a renderer can rank by how far it slipped.
+
+### Recording a re-affirmation
+
+```bash
+python3 scripts/score_register.py confirm register.rr R-004 \
+  --why "reviewed at the November risk forum; controls unchanged and still effective" \
+  --review 2027-05-31
+```
+
+`--why` is required. Asserting that a risk is still right is a material claim and belongs in the
+audit trail on the same terms as a score change. Before `confirm` existed the only way to record one
+was `set-score` at an identical value, which writes a `score-changed` event where no score changed.
+
+`confirm` changes no score, status or band, and its rationale is deliberately **not** eligible to
+caption a change on a board page — a claim that nothing changed cannot explain a change. The
+rationale stays in history and belongs to the confirmation-age view.
+
+### No affirming event may attach to a provisional-score risk
+
+`confirm` and `accept` both refuse while `provisionalScore` is true, and the reason is that
+invariant rather than fussiness. A provisional score is the importer's seed off a CSF gap's
+priority; affirming it would reset confirmation age on a number nobody has assessed and feed it to a
+board-facing freshness figure as though it had been.
+
+The invariant holds because the affirming writers are exactly four. `risk-added` comes only from
+`add`, which creates the risk and never sets the provisional flags — only `import-gaps` does, and it
+writes the non-affirming `import-merged`. `score-changed` comes from `set-score`, which affirms
+*and* clears the flag in the same breath, so it is the sanctioned way through rather than an
+exception. That left `confirm` and `accept` as the last two doors, and both now refuse before
+anything is written, leaving the file byte-identical.
+
+A provisional **title** only warns. Wording is a board-eligibility question, not a magnitude one,
+which is the same line `set-score` draws.
+
+## Date fields are canonical `YYYY-MM-DD`
+
+`reviewDate`, `acceptance.revalidationDate`, `acceptance.expiryDate` and `acceptance.acceptedDate`
+are compared and sorted **as plain strings** by the renderers, so a non-canonical date does not
+merely look untidy — it inverts the comparison. `2027-2-01` sorts *after* `2027-11-01`, which made an
+eight-month-overdue review render as on time and dropped it off the attention list entirely.
+
+Every date flag that writes one of those fields therefore validates it and refuses otherwise:
+
+| command | flags validated |
+|---|---|
+| `add` | `--review` |
+| `confirm` | `--review` |
+| `accept` | `--revalidate`, `--expiry`, `--accepted` |
+
+Both the unpadded form `2027-2-01` and the basic form `20270201` are rejected, the second because
+Python 3.11+ accepts it and the 3.9 floor does not — one flag meaning two things on two supported
+interpreters is worse than a refusal.
+
+The write-path rule is house-wide: `nist-csf` enforces the identical one on the dates its own
+commands take, and its `references/schema.md` gives the same reason — *"`2026-3-14` sorts after
+`2026-12-01` and would make every revisit flag and age figure downstream quietly wrong."*
+
+**Here, validation guards writes only, deliberately.** A pre-existing register hand-carrying
+`"reviewDate": "2027-3-01"` still loads, scores and renders; only a *new write* of that date is
+refused. Do not "fix" this into a load-time validator — that would make an existing user's file
+unopenable, which is worse than the bug it came from. (The two skills part company here on purpose:
+`nist-csf`'s `analyze` runs `check_store` and *does* refuse a store carrying a non-canonical
+`confirmedAt`, because there a bad date reaches a `strptime` and would surface as a bare traceback
+instead of a labelled problem. This skill's renderers tolerate a malformed date by reporting the age
+as unknown, so there is nothing to protect the reader from and no reason to lock them out of their
+own file.)
 
 ## Snapshots
 
@@ -184,8 +341,11 @@ appetite (CSF 2.0 GV.RM) that boards ask to see.
 ## Derived-not-stored rule
 
 Exposure and band are never persisted on a risk — the script computes them from likelihood × impact
-every time, so a stale number can't contradict the inputs. (Snapshots are the one exception: they
-freeze a *computed* summary on purpose, as a historical record.)
+every time, so a stale number can't contradict the inputs. The same holds for the four
+confirmation-age fields and for `reviewOverdue` / `reviewOverdueDays`: `history[]` is the single
+source of truth for when anything was last affirmed, and a stored age field would be a second one.
+(Snapshots are the one exception: they freeze a *computed* summary on purpose, as a historical
+record.)
 
 ## v1 → v2 migration
 
