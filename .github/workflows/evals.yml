@@ -76,6 +76,19 @@ jobs:
       - name: Board-safety (metrics), on the floor
         run: PY="$(command -v python3)" ./skills/metrics-register/evals/board-safety.sh
 
+      # exceptions-register: the refusal discipline is the product, so the suite's
+      # centrepiece is that a refused command leaves the store byte-identical. It also
+      # pins that a lapsed clock surfaces an item and never removes it, and that the
+      # one-way risk-register bridge is idempotent.
+      - name: Exceptions engine self-test, on the floor
+        run: python3 ./skills/exceptions-register/scripts/exceptions_register.py self-test
+
+      - name: Re-validation lifecycle suite, on the floor
+        run: PY="$(command -v python3)" ./skills/exceptions-register/evals/revalidation-lifecycle.sh
+
+      - name: Board-safety (exceptions), on the floor
+        run: PY="$(command -v python3)" ./skills/exceptions-register/evals/board-safety.sh
+
       # Needs no browser, so it belongs here rather than behind the `rendered` job's
       # Chrome/node gate. It builds its register with the real CLI and asserts through the
       # renderers' own Context, so 3.9 is the interpreter that matters: this is the same
