@@ -55,6 +55,14 @@ jobs:
       - name: Board-safety suite, on the floor
         run: PY="$(command -v python3)" ./skills/risk-register/evals/board-safety.sh
 
+      # The board section contract, across both shipped consumers. The claim worth
+      # protecting is that the contractVersion retrofit is additive: a sidecar written
+      # before the contract existed renders byte-identically to a stamped one. This is
+      # listed here rather than discovered, like every suite above — an eval CI does not
+      # name is an eval that never runs.
+      - name: Section contract, on the floor
+        run: PY="$(command -v python3)" ./skills/board-pack/evals/section-contract.sh
+
       # Needs no browser, so it belongs here rather than behind the `rendered` job's
       # Chrome/node gate. It builds its register with the real CLI and asserts through the
       # renderers' own Context, so 3.9 is the interpreter that matters: this is the same
