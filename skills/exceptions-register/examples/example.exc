@@ -1,0 +1,153 @@
+{
+  "schemaVersion": 1,
+  "family": "exceptions-register",
+  "meta": {
+    "clientName": "Acme Manufacturing",
+    "owner": "CISO",
+    "scopeNote": "",
+    "asOf": "2026-07-31"
+  },
+  "settings": {
+    "dueWindowDays": 30
+  },
+  "acceptances": [
+    {
+      "id": "A-001",
+      "title": "40-day patch window on nine internet-facing systems",
+      "description": "",
+      "approver": "CISO",
+      "justification": "Vendor patch cadence is quarterly; continuous monitoring and virtual patching are in place for the affected hosts.",
+      "acceptedDate": "2026-04-01",
+      "revalidationDate": "2027-01-15",
+      "expiryDate": "2027-04-01",
+      "status": "active",
+      "riskIds": [
+        "R-006"
+      ],
+      "csfSubcategoryIds": [
+        "ID.RA-01"
+      ],
+      "incidentIds": [],
+      "sourceRiskRef": null,
+      "notes": ""
+    },
+    {
+      "id": "A-002",
+      "title": "Customer records held by the CRM vendor without direct control",
+      "description": "",
+      "approver": "Board",
+      "justification": "Contractual controls and cyber insurance rider accepted in lieu of direct technical control; alternative vendors assessed as materially worse.",
+      "acceptedDate": "2025-10-01",
+      "revalidationDate": "2026-04-01",
+      "expiryDate": "2027-10-01",
+      "status": "active",
+      "riskIds": [
+        "R-003"
+      ],
+      "csfSubcategoryIds": [],
+      "incidentIds": [],
+      "sourceRiskRef": null,
+      "notes": ""
+    }
+  ],
+  "exceptions": [
+    {
+      "id": "X-001",
+      "title": "Finance operates without phishing-resistant MFA",
+      "deviationFrom": "NYDFS-500.12",
+      "compensatingControl": "Out-of-band callback verification on every payment instruction change above $10,000, logged and sampled monthly.",
+      "approver": "CFO",
+      "justification": "Hardware token rollout is blocked until the ERP upgrade completes in Q1.",
+      "acceptedDate": "2026-05-01",
+      "revalidationDate": "2026-08-10",
+      "expiryDate": "2026-11-30",
+      "status": "active",
+      "riskIds": [
+        "R-007"
+      ],
+      "csfSubcategoryIds": [
+        "PR.AA-01"
+      ],
+      "incidentIds": [],
+      "notes": ""
+    },
+    {
+      "id": "X-002",
+      "title": "Legacy OT segment excluded from endpoint detection",
+      "deviationFrom": "Internal Standard SEC-014 (EDR on all endpoints)",
+      "compensatingControl": "Network segmentation with an allow-list gateway and full flow capture at the boundary.",
+      "approver": "COO",
+      "justification": "Vendor does not support an agent on the controller OS; replacement is on the 2027 capital plan.",
+      "acceptedDate": "2026-02-15",
+      "revalidationDate": "2027-02-15",
+      "expiryDate": null,
+      "status": "active",
+      "riskIds": [],
+      "csfSubcategoryIds": [],
+      "incidentIds": [],
+      "notes": ""
+    }
+  ],
+  "history": [
+    {
+      "event": "register-created",
+      "target": "skills/exceptions-register/examples/example.exc",
+      "actor": "R. Calder",
+      "ts": "2026-07-31T19:02:08+00:00"
+    },
+    {
+      "event": "acceptance-added",
+      "target": "A-001",
+      "actor": "R. Calder",
+      "ts": "2026-07-31T19:02:08+00:00",
+      "detail": {
+        "title": "40-day patch window on nine internet-facing systems",
+        "approver": "CISO"
+      }
+    },
+    {
+      "event": "acceptance-added",
+      "target": "A-002",
+      "actor": "R. Calder",
+      "ts": "2026-07-31T19:02:08+00:00",
+      "detail": {
+        "title": "Customer records held by the CRM vendor without direct control",
+        "approver": "Board"
+      }
+    },
+    {
+      "event": "exception-added",
+      "target": "X-001",
+      "actor": "R. Calder",
+      "ts": "2026-07-31T19:02:08+00:00",
+      "detail": {
+        "title": "Finance operates without phishing-resistant MFA",
+        "deviationFrom": "NYDFS-500.12"
+      }
+    },
+    {
+      "event": "exception-added",
+      "target": "X-002",
+      "actor": "R. Calder",
+      "ts": "2026-07-31T19:02:08+00:00",
+      "detail": {
+        "title": "Legacy OT segment excluded from endpoint detection",
+        "deviationFrom": "Internal Standard SEC-014 (EDR on all endpoints)"
+      }
+    },
+    {
+      "event": "acceptance-revalidated",
+      "target": "A-001",
+      "actor": "R. Calder",
+      "ts": "2026-07-31T19:02:20+00:00",
+      "why": "Reviewed with Infrastructure: vendor cadence unchanged, virtual patching verified effective on the affected hosts in June.",
+      "detail": {
+        "on": "2026-07-15",
+        "from": "2026-08-20",
+        "to": "2027-01-15"
+      }
+    }
+  ],
+  "createdAt": "2026-07-31T19:02:08+00:00",
+  "updatedAt": "2026-07-31T19:02:20+00:00"
+}

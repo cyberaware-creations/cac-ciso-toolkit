@@ -39,6 +39,7 @@ PY="${PY:-python3}"
 RR="$repo/skills/risk-register"
 CSF="$repo/skills/nist-csf"
 MX="$repo/skills/metrics-register"
+XR="$repo/skills/exceptions-register"
 PORT="${CDP_PORT:-9333}"
 export CDP_PORT="$PORT"
 
@@ -143,6 +144,19 @@ done
 (cd "$MX/renderers" && "$PY" render_operational.py --in "$work/mx.json" \
   --out "$work/mx_ops.html" --offline) >/dev/null || {
     echo "responsive: FIXTURE FAILED — metrics render_operational errored"; exit 1; }
+
+# exceptions-register, both surfaces. The board view carries its sidecar; the inventory is
+# the widest table in the suite (six columns of prose), which is the shape that overflows.
+"$PY" "$XR/scripts/exceptions_register.py" analyze "$XR/examples/example.exc" \
+  --today 2026-07-31 --out "$work/xr.json" >/dev/null || {
+    echo "responsive: FIXTURE FAILED — exceptions analyze errored"; exit 1; }
+(cd "$XR/renderers" && "$PY" render_board.py --in "$work/xr.json" \
+  --translations "$XR/examples/example-translations.json" \
+  --out "$work/xr_board.html" --offline) >/dev/null || {
+    echo "responsive: FIXTURE FAILED — exceptions render_board errored"; exit 1; }
+(cd "$XR/renderers" && "$PY" render_inventory.py --in "$work/xr.json" \
+  --out "$work/xr_inv.html" --offline) >/dev/null || {
+    echo "responsive: FIXTURE FAILED — exceptions render_inventory errored"; exit 1; }
 
 # A second CSF pair, deliberately below the scope threshold. The first fixture seeds
 # ratings across every Function, so it renders the headline path only — the scope
@@ -258,7 +272,8 @@ pages=("$work/render_board.html" "$work/render_dashboard.html" "$work/render_rep
        "$work/csf_exec_partial.html" "$work/csf_ops_partial.html"
        "$work/csf_exec_v2ex.html" "$work/csf_ops_v2ex.html"
        "$work/csf_exec_overlay.html" "$work/csf_ops_overlay.html"
-       "$work/mx_exec.html" "$work/mx_ops.html")
+       "$work/mx_exec.html" "$work/mx_ops.html"
+       "$work/xr_board.html" "$work/xr_inv.html")
 fails=0
 echo
 for vw in 320 375 768 1265; do
