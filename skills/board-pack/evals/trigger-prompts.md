@@ -157,8 +157,18 @@ client, the current quarter, and the date the fixture was written. `P1` put it p
 
 Both refused on exactly that basis, which is the refusal working. But a fixture that renders a
 complete, correctly-dated pack is a poor thing to leave lying next to a skill whose entire premise
-is that fabricated governance evidence is the worst failure available to it. **Open: make the
-example unmistakable as a fixture rather than relying on the model to catch it every time.**
+is that fabricated governance evidence is the worst failure available to it.
+
+**Closed.** The example now identifies itself: `"client": "Northwind Financial (fictional)"` and
+`"period": "Q3 2026 — SPECIMEN, not a real pack"`, both of which reach the cover and every slide
+eyebrow. `assembly.sh` check 29 fails if either marker stops surviving into the rendered HTML, so
+the property is a file's now rather than a model's.
+
+`asOf` deliberately did **not** move. It is passed to every producer as `--today`, so re-dating it
+would change every age band, clock state and overdue list — the fixture would stop meaning what it
+was built to mean, which is a worse outcome than the one being fixed. `client` and `period` are
+display-only, so they carry the marker for nothing. That asymmetry is now documented in `SKILL.md`,
+where it was previously discoverable only by reading `PRODUCERS`.
 
 ### Reference reads
 
