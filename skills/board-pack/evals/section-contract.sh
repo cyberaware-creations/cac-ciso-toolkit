@@ -22,7 +22,7 @@ repo="$(cd "$here/../../.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=34
+EXPECTED_CHECKS=40
 checks=0
 fails=0
 
@@ -33,6 +33,7 @@ RR="$repo/skills/risk-register"
 NC="$repo/skills/nist-csf"
 MX="$repo/skills/metrics-register"
 XR="$repo/skills/exceptions-register"
+IM="$repo/skills/incident-materiality"
 CONTRACT="$repo/skills/board-pack/references/section-contract.md"
 
 echo "section-contract: $($PY -V 2>&1)"
@@ -80,11 +81,19 @@ render_xr() {  # render_xr <sidecar> <out>
 $PY "$XR/scripts/exceptions_register.py" analyze "$XR/examples/example.exc" \
     --today 2026-07-31 --out "$work/xr.json" >/dev/null 2>&1
 
+render_im() {  # render_im <sidecar> <out>
+  (cd "$IM/renderers" && $PY render_board.py --in "$work/im.json" \
+      --translations "$1" --out "$2" --offline) >/dev/null 2>"$work/err.txt"
+}
+$PY "$IM/scripts/incident_analysis.py" analyze "$IM/examples/example-incident.inc" \
+    --today 2026-07-31 --now 2026-07-31T09:00:00+00:00 --out "$work/im.json" >/dev/null 2>&1
+
 # Strip the contract keys to make a pre-contract sidecar, and mutate them to make the
 # refusal cases. Written by the same script so the only difference is the keys involved.
 $PY - "$RR/references/example-translations.json" "$NC/references/example-translations.json" "$work" \
     "$MX/examples/example-translations.json" \
-    "$XR/examples/example-translations.json" <<'PY'
+    "$XR/examples/example-translations.json" \
+    "$IM/examples/example-translations.json" <<'PY'
 import json, sys
 rr_src, nc_src, work = sys.argv[1], sys.argv[2], sys.argv[3]
 rr, nc = json.load(open(rr_src)), json.load(open(nc_src))
@@ -111,6 +120,11 @@ xr = json.load(open(sys.argv[5]))
 json.dump(drop(xr), open(f"{work}/xr-precontract.json", "w"))
 json.dump(dict(xr, contractVersion=2), open(f"{work}/xr-v2.json", "w"))
 json.dump(dict(xr, section="metrics"), open(f"{work}/xr-wrongsection.json", "w"))
+
+im = json.load(open(sys.argv[6]))
+json.dump(drop(im), open(f"{work}/im-precontract.json", "w"))
+json.dump(dict(im, contractVersion=2), open(f"{work}/im-v2.json", "w"))
+json.dump(dict(im, section="exceptions"), open(f"{work}/im-wrongsection.json", "w"))
 PY
 
 # --- 2/3. every --translations consumer renders, and does so identically pre-contract
@@ -187,6 +201,28 @@ if render_xr "$work/xr-wrongsection.json" "$work/x.html"; then
   bad "exceptions renderer refuses a 'metrics' sidecar" "it rendered"
 else
   ok "exceptions renderer refuses a 'metrics' sidecar"
+fi
+
+if render_im "$IM/examples/example-translations.json" "$work/im-stamped.html"; then
+  ok "incident render_board renders a stamped incident sidecar"
+else
+  bad "incident render_board renders a stamped incident sidecar" "$(tail -2 "$work/err.txt")"
+fi
+render_im "$work/im-precontract.json" "$work/im-pre.html"
+if cmp -s "$work/im-stamped.html" "$work/im-pre.html"; then
+  ok "incident: a pre-contract sidecar renders byte-identically"
+else
+  bad "incident: a pre-contract sidecar renders byte-identically" "the stamp changed the page"
+fi
+if render_im "$work/im-v2.json" "$work/x.html"; then
+  bad "incident renderer refuses contractVersion 2" "it rendered"
+else
+  ok "incident renderer refuses contractVersion 2"
+fi
+if render_im "$work/im-wrongsection.json" "$work/x.html"; then
+  bad "incident renderer refuses an 'exceptions' sidecar" "it rendered"
+else
+  ok "incident renderer refuses an 'exceptions' sidecar"
 fi
 
 # --- 4. the deprecated alias still resolves -----------------------------------------
@@ -285,6 +321,18 @@ xside = json.load(open(
 xmine = set(xside.get("acceptances") or {}) | set(xside.get("exceptions") or {})
 verdicts.append(("exceptions example invents no record id", sorted(xmine - xids)))
 verdicts.append(("exceptions example leaves no active record unwritten", sorted(xids - xmine)))
+
+im = json.loads(subprocess.run(
+    [sys.executable, f"{repo}/skills/incident-materiality/scripts/incident_analysis.py",
+     "analyze", f"{repo}/skills/incident-materiality/examples/example-incident.inc",
+     "--today", "2026-07-31", "--now", "2026-07-31T09:00:00+00:00"],
+    capture_output=True, text=True).stdout)
+iids = {r["id"] for r in im["incidents"]}
+iside = json.load(open(
+    f"{repo}/skills/incident-materiality/examples/example-translations.json"))
+imine = set(iside.get("incidents") or {})
+verdicts.append(("incident example invents no incident id", sorted(imine - iids)))
+verdicts.append(("incident example leaves no incident unwritten", sorted(iids - imine)))
 
 for label, offenders in verdicts:
     print(("PASS" if not offenders else "FAIL"), label, ",".join(offenders))

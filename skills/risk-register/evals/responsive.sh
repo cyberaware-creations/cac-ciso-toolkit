@@ -40,6 +40,7 @@ RR="$repo/skills/risk-register"
 CSF="$repo/skills/nist-csf"
 MX="$repo/skills/metrics-register"
 XR="$repo/skills/exceptions-register"
+IM="$repo/skills/incident-materiality"
 PORT="${CDP_PORT:-9333}"
 export CDP_PORT="$PORT"
 
@@ -158,6 +159,20 @@ done
   --out "$work/xr_inv.html" --offline) >/dev/null || {
     echo "responsive: FIXTURE FAILED — exceptions render_inventory errored"; exit 1; }
 
+# incident-materiality, both surfaces. The worksheet is the densest page in the suite —
+# four incidents, each with a six-row factor table carrying a paragraph of prose per row —
+# which is the shape that overflows at 320px if a wrapper is missing a min-width:0.
+"$PY" "$IM/scripts/incident_analysis.py" analyze "$IM/examples/example-incident.inc" \
+  --today 2026-07-31 --now 2026-07-31T09:00:00+00:00 --out "$work/im.json" >/dev/null || {
+    echo "responsive: FIXTURE FAILED — incident analyze errored"; exit 1; }
+(cd "$IM/renderers" && "$PY" render_board.py --in "$work/im.json" \
+  --translations "$IM/examples/example-translations.json" \
+  --out "$work/im_board.html" --offline) >/dev/null || {
+    echo "responsive: FIXTURE FAILED — incident render_board errored"; exit 1; }
+(cd "$IM/renderers" && "$PY" render_worksheet.py --in "$work/im.json" \
+  --out "$work/im_ws.html" --offline) >/dev/null || {
+    echo "responsive: FIXTURE FAILED — incident render_worksheet errored"; exit 1; }
+
 # A second CSF pair, deliberately below the scope threshold. The first fixture seeds
 # ratings across every Function, so it renders the headline path only — the scope
 # guard, the four-way evidence bar and the by-source cards would never be drawn.
@@ -273,7 +288,8 @@ pages=("$work/render_board.html" "$work/render_dashboard.html" "$work/render_rep
        "$work/csf_exec_v2ex.html" "$work/csf_ops_v2ex.html"
        "$work/csf_exec_overlay.html" "$work/csf_ops_overlay.html"
        "$work/mx_exec.html" "$work/mx_ops.html"
-       "$work/xr_board.html" "$work/xr_inv.html")
+       "$work/xr_board.html" "$work/xr_inv.html"
+       "$work/im_board.html" "$work/im_ws.html")
 fails=0
 echo
 for vw in 320 375 768 1265; do
