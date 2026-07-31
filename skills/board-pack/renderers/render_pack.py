@@ -239,9 +239,18 @@ def build_pptx(pack: dict, path: str) -> None:
             if not items:
                 continue
             entries = list(items.items())
+            label = ITEM_LABEL.get(key, key)
+            # Two failures pulling in opposite directions, both found by opening the deck.
+            # "Incidents — Incidents" repeats itself, because that section's only item map is
+            # named after the section. But collapsing to plain "Incidents" then collides with
+            # the section's own summary slide, and two slides sharing a title is worse than
+            # one clumsy title — a deck is navigated by its titles.
+            heading = (f"{title} — detail" if label.lower() == title.lower()
+                       else f"{title} — {label}")
             for i in range(0, len(entries), 4):
                 chunk = entries[i:i + 4]
-                deck.add(f'{title} — {ITEM_LABEL.get(key, key)}',
+                part = "" if len(entries) <= 4 else f" ({i // 4 + 1})"
+                deck.add(heading + part,
                          [(f"{k}: {v}", 1150, False, PX.INK, True) for k, v in chunk],
                          eyebrow=eyebrow)
 
