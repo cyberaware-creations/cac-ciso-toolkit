@@ -373,6 +373,25 @@ def verify(path: str) -> list:
                 ext = name.rsplit(".", 1)[-1].lower()
                 if ext not in defaults and "/" + name not in overrides:
                     problems.append(f"no content type declared for {name}")
+            # A content type is not enough — it has to be the RIGHT one. Every part below
+            # falls under `Default Extension="xml"`, so a missing Override leaves it typed
+            # as plain application/xml and the check above passes over it. PowerPoint does
+            # not: a slide typed as application/xml is a slide it will not open. This gap
+            # was found by mutation testing, not by reading the code.
+            required = [("ppt/presentation.xml", CT_PRES),
+                        ("ppt/slideMasters/slideMaster1.xml", CT_MASTER),
+                        ("ppt/slideLayouts/slideLayout1.xml", CT_LAYOUT),
+                        ("ppt/theme/theme1.xml", CT_THEME)]
+            required += [(n, CT_SLIDE) for n in sorted(names)
+                         if n.startswith("ppt/slides/slide") and n.endswith(".xml")]
+            typed = {e.get("PartName"): e.get("ContentType") for e in ct
+                     if e.tag.endswith("Override")}
+            for name, want in required:
+                if name not in names:
+                    continue
+                got = typed.get("/" + name)
+                if got != want:
+                    problems.append(f"{name} is typed {got!r}, expected {want!r}")
         # The slide list must match the slide parts, or PowerPoint shows an empty deck.
         try:
             pres = ET.fromstring(zf.read("ppt/presentation.xml"))
