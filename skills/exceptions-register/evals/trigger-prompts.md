@@ -4,10 +4,10 @@ Confirms the skill fires on the **lifecycle of a decision already taken** — a 
 accepted, a control deviation approved — and stays quiet when the question is about a risk that
 has not been accepted, an incident that actually happened, or how to phrase either for a board.
 
-**Status: 14/15 routing mode, 14/15 reference mode** as of 2026-07-31 (plugin 0.9.3). The one
-failure in both is `X9`, and it is the case that was wrong, not the routing — see below. Written
-after Phase C, when a review found `exceptions-register` had shipped in Phase B without a
-checklist at all.
+**Status: 15/15 routing mode, 15/15 reference mode** as of 2026-07-31 (plugin 0.9.4). The first
+pass scored 14/15 in both, failing `X9` — a case that was wrong, not a routing failure. Rewritten
+and re-run green. Written after Phase C, when a review found `exceptions-register` had shipped in
+Phase B without a checklist at all.
 
 ## How to run
 
@@ -112,6 +112,12 @@ That is correct, and the misconception was mine, written into the prompt. The ca
 *"Bring the accepted risks from our risk register into the acceptance register so we can track
 re-validation"* and accepts either skill, because a two-skill bridge genuinely has two valid
 entry points.
+
+**Re-run green at plugin 0.9.4, both modes.** The corrected case routes here and the answer holds
+the line the requirement was written for: the bridge is one-way, the import is idempotent on
+source risk id, and imported rows face the same refusal a hand-entered record does —
+*"an import isn't a side door"* — with a promise to show which rows bounced and what each was
+missing rather than lose them silently.
 
 ### The behavioural requirements: all four met, two exceeded
 
