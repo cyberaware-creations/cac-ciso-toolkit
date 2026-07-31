@@ -90,6 +90,19 @@ Name the other incidents in `relatedIncidentIds` and say in the rationale **why*
 not related. A recorded "considered and not related, because —" is worth as much as a link; what
 is worth nothing is never having asked.
 
+**Shared infrastructure is evidence, not the test.** Three sprays from the same hosting provider
+against different properties months apart are not a series; three waves of one campaign replaying
+one credential list against one login path are. What pushes toward *one series*:
+
+- the same actor or campaign, and the same corpus or tooling being reused
+- the same target surface and the same **unremediated weakness** — the strongest signal, because
+  it is the thing that made all of them possible
+- continuity in time: the later event is a resumption, not a coincidence
+- one remediation would close all of them
+
+The failure mode this factor exists to catch: each occurrence lands just under whatever the
+disclosure committee treats as consequential, while the combined impact would not have.
+
 **Honest limit:** the engine will not infer relatedness. It records the ids you name and reports
 them; it does not cluster incidents by time, actor or asset, because a false cluster and a missed
 one are both judgments about facts the tool does not have.
