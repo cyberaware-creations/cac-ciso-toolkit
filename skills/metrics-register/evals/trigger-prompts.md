@@ -3,7 +3,8 @@
 Confirms the skill fires when a request needs **state** — a number compared against last
 period — and stays quiet when `ciso-board-translation` should handle a one-shot ask.
 
-**Status: 15/15 passing** as of 2026-07-31 (plugin 0.7.1), after one description fix.
+**Status: 15/15 routing mode** as of 2026-07-31 (plugin 0.7.1), after one description fix, and
+**15/15 reference mode** at plugin 0.9.3 — see "Reference mode" below.
 The first run at 0.7.0 scored **13/15** and lost exactly the two cases flagged below as
 the soft boundaries — see "What the first run found".
 
@@ -23,6 +24,50 @@ harness over a different file, and two copies of a hundred lines drift.
 Every `claude -p` is a fresh session — a warm session has already seen the skill and biases
 the result — and each case runs in its own empty working directory, because routing is
 decided before any file is read.
+
+## Reference mode — do `metrics-method.md` and `archetype-bridge.md` earn their place?
+
+Run at plugin 0.9.3 with `ALLOWED_TOOLS="Read Glob Grep Skill"`, which grants the reads the
+routing-mode default declines. **15/15**, $9.56 including the re-run described below.
+
+Every reference file was opened by at least one case, which is the minimum bar and not a
+foregone conclusion:
+
+| file | cases that opened it |
+|---|---|
+| `references/schema.md` | M1, M2, M6, M7 |
+| `references/archetype-bridge.md` | M1, M2, M8 |
+| `references/metrics-method.md` | M1 |
+| **`ciso-board-translation/references/metric-archetypes.md`** | **M8**, T1, T2, T4 |
+
+The last row is the result worth having. `archetype-bridge.md` is deliberately a **pointer, not
+a copy** — it maps each archetype to the canonical prose in `ciso-board-translation` rather than
+duplicating it. `M8` followed that pointer across the skill boundary and read the canonical file.
+The composition design is not just documented; it is exercised.
+
+`M8` is also the case that failed at 0.7.0 by inventing a Mandiant benchmark. In reference mode
+it invented nothing, resolved the direction correctly (dwell time is lower-better, 11 → 8 is a
+27% reduction), and volunteered **survivorship bias** — a falling average that counts only the
+incidents you found looks identical to getting worse at finding slow-burn intrusions. Then it
+ended on a decision. Nothing in the references says "survivorship bias"; the reasoning came from
+the direction and vanity-risk framing they do carry.
+
+### The turn cap, which is a harness defect and not a skill defect
+
+`M1` and `M2` first came back `error_max_turns` — routed correctly, **nothing produced to read**,
+and scored as errors rather than passes. Reference mode spends turns: both had opened two
+reference files before they began composing. The routing-mode default of 12 turns is not enough
+for it.
+
+`run-triggers.sh` now takes `MAX_TURNS` (default 12, unchanged). Re-run at 24, both pass:
+
+```bash
+ALLOWED_TOOLS="Read Glob Grep Skill" MAX_TURNS=24 PROMPTS=... ./run-triggers.sh /tmp/out M1 M2
+```
+
+Worth noting the harness caught this itself — it printed `re-run before quoting a total` rather
+than folding two answerless runs into a green score. That guard exists because a run that made
+its Skill call and then died was once reported as a pass.
 
 ## The boundary this has to pin
 
