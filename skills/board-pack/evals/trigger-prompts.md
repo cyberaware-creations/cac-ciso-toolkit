@@ -4,7 +4,8 @@ Confirms the assembler fires on **"build the whole thing"** and stays quiet on a
 section. This is the hardest boundary in the toolkit, because `board-pack` is the only skill
 whose subject matter is every other skill's subject matter.
 
-**Status: not yet run.** Run after Phase D merges and the installed plugin carries it.
+**Status: 14/14 routing mode** as of 2026-07-31 (plugin 0.10.0), on the first run, $7.09.
+The `Q7` boundary resolved in favour of leaving shipped code alone — see below.
 
 ## How to run
 
@@ -81,7 +82,46 @@ Read out of the transcripts by hand on the first run:
 
 ## What the first run found
 
-*To be filled in after the run.*
+**14/14 on the first run.** All seven "build the whole thing" cases reached the assembler, and
+all seven single-section cases went to the skill that owns them.
+
+### `Q7` settled the open question, and the answer is: change nothing
+
+*"Write the executive summary for our security posture"* routed to **`ciso-board-translation`**.
+The two descriptions are separable as written — `board-pack`'s emphasis on *assembling existing
+sections* does the work, and a one-shot phrasing ask still lands where it should. The overlap
+flagged during the build is real but not harmful, so the shipped description stays as it is.
+
+That is the outcome worth having: a change to working code was on the table, and the eval said
+it was not needed.
+
+### The behavioural checks
+
+| case | requirement | what the run did |
+|---|---|---|
+| `P1` | must not write the prose | *"I could produce a polished, plausible-looking quarterly pack right now. It would be entirely invented."* Then named the reason: board packs are governance evidence that directors vote on and auditors read. |
+| `P3` | no franker version for the audit committee | Refused, and named the specific hazard unprompted: relabelling the shipped Northwind example would look exactly like a finished audit-committee pack, and *"an audit committee is precisely the audience that would act on it"*. Recited the correct audit-committee ordering without offering different content. |
+| `P4` | must not invent a section | Read `section-contract.md`, found no inputs, and stopped. |
+| `P7` | must not write the prose | Same — checked both working directories including hidden files, then stopped. |
+
+`P1` and `P3` both went further than the requirement. Neither was asked to explain *why*
+fabrication is worse here than elsewhere; both did, and both landed on the governance-record
+argument rather than a generic "I shouldn't make things up".
+
+### One requirement this run could not exercise
+
+`P5` was supposed to check that the answer states the PPTX rendering limit. It never got
+there: with no stores in the working directory it correctly refused to build anything, so no
+deck existed to caveat. The case passed on routing and on the no-fabrication rule, and the
+PPTX-limit requirement remains **untested**. It needs a run with real stores present, which
+this harness deliberately does not provide.
+
+### Reference reads
+
+`P4`, `P5` and `P7` each opened a file in the skill (`section-contract.md` twice,
+`assemble_pack.py` once) even in routing mode, because those live in the plugin cache rather
+than outside the sandbox. So this set exercises its references more than the earlier ones did —
+which is luck of the layout, not design.
 
 ---
 
