@@ -1,0 +1,20 @@
+{
+  "_comment": "Example board-language sidecar for the exceptions section. Every figure is read from example.exc as at 2026-07-31 — two accepted risks, two control exceptions, one overdue for re-validation, one due within thirty days. Two per-item maps, because an accepted risk and a control exception are different objects. See skills/board-pack/references/section-contract.md.",
+  "section": "exceptions",
+  "contractVersion": 1,
+  "generatedBy": "ciso-board-translation",
+  "asOf": "2026-07-31",
+  "executiveSummary": "We formally accept two residual risks and operate two documented exceptions to our own standards. Three of the four are on schedule. The one that is not is the CRM vendor acceptance, which the board approved last October and which passed its review date in April — four months carrying a decision nobody has re-confirmed. That is the item to deal with today, and the choice is binary: re-validate it on the record, or withdraw the acceptance and fund a different answer. The MFA exception in Finance comes up for review in ten days and expires at the end of November, so it will return to this table either way. Both exceptions have a compensating control in place and named, which is the difference between an exception and a gap.",
+  "acceptances": {
+    "A-002": "The board accepted in October that customer records sit with our CRM vendor beyond our direct control, on the basis of contractual terms and the insurance rider. That acceptance was due for re-confirmation in April and has not been re-confirmed, so we are four months into carrying a decision on paper that nobody has re-tested against the current facts.",
+    "A-001": "We accept a forty-day patch window on nine internet-facing systems because the vendor ships quarterly. Re-validated in July against verified virtual patching, and next due in January."
+  },
+  "exceptions": {
+    "X-001": "Finance operates without phishing-resistant MFA until the ERP upgrade lands, offset by out-of-band callback verification on every payment change above ten thousand. Due for review in ten days and expiring at the end of November.",
+    "X-002": "The legacy OT segment runs without endpoint detection because the controller operating system cannot host an agent. It is offset by network segmentation and full flow capture at the boundary, and the replacement sits in the 2027 capital plan."
+  },
+  "decisions": [
+    "Re-validate the CRM vendor acceptance (A-002) on the record, or withdraw it and fund a change of vendor or of control.",
+    "Decide whether to extend the Finance MFA exception (X-001) past its November expiry or accept the ERP timeline slipping into the risk it creates."
+  ]
+}

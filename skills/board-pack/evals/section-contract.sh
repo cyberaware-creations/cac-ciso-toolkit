@@ -22,7 +22,7 @@ repo="$(cd "$here/../../.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=28
+EXPECTED_CHECKS=34
 checks=0
 fails=0
 
@@ -32,6 +32,7 @@ bad() { checks=$((checks + 1)); fails=$((fails + 1)); printf '  FAIL  %s\n      
 RR="$repo/skills/risk-register"
 NC="$repo/skills/nist-csf"
 MX="$repo/skills/metrics-register"
+XR="$repo/skills/exceptions-register"
 CONTRACT="$repo/skills/board-pack/references/section-contract.md"
 
 echo "section-contract: $($PY -V 2>&1)"
@@ -72,10 +73,18 @@ render_mx() {  # render_mx <sidecar> <out>
 $PY "$MX/scripts/metrics_analysis.py" analyze "$MX/examples/example-metrics.mtr" \
     --today 2026-07-31 --out "$work/mx.json" >/dev/null 2>&1
 
+render_xr() {  # render_xr <sidecar> <out>
+  (cd "$XR/renderers" && $PY render_board.py --in "$work/xr.json" \
+      --translations "$1" --out "$2" --offline) >/dev/null 2>"$work/err.txt"
+}
+$PY "$XR/scripts/exceptions_register.py" analyze "$XR/examples/example.exc" \
+    --today 2026-07-31 --out "$work/xr.json" >/dev/null 2>&1
+
 # Strip the contract keys to make a pre-contract sidecar, and mutate them to make the
 # refusal cases. Written by the same script so the only difference is the keys involved.
 $PY - "$RR/references/example-translations.json" "$NC/references/example-translations.json" "$work" \
-    "$MX/examples/example-translations.json" <<'PY'
+    "$MX/examples/example-translations.json" \
+    "$XR/examples/example-translations.json" <<'PY'
 import json, sys
 rr_src, nc_src, work = sys.argv[1], sys.argv[2], sys.argv[3]
 rr, nc = json.load(open(rr_src)), json.load(open(nc_src))
@@ -97,6 +106,11 @@ mx = json.load(open(sys.argv[4]))
 json.dump(drop(mx), open(f"{work}/mx-precontract.json", "w"))
 json.dump(dict(mx, contractVersion=2), open(f"{work}/mx-v2.json", "w"))
 json.dump(dict(mx, section="posture"), open(f"{work}/mx-wrongsection.json", "w"))
+
+xr = json.load(open(sys.argv[5]))
+json.dump(drop(xr), open(f"{work}/xr-precontract.json", "w"))
+json.dump(dict(xr, contractVersion=2), open(f"{work}/xr-v2.json", "w"))
+json.dump(dict(xr, section="metrics"), open(f"{work}/xr-wrongsection.json", "w"))
 PY
 
 # --- 2/3. every --translations consumer renders, and does so identically pre-contract
@@ -151,6 +165,28 @@ if render_mx "$work/mx-wrongsection.json" "$work/x.html"; then
   bad "metrics renderer refuses a 'posture' sidecar" "it rendered"
 else
   ok "metrics renderer refuses a 'posture' sidecar"
+fi
+
+if render_xr "$XR/examples/example-translations.json" "$work/xr-stamped.html"; then
+  ok "exceptions render_board renders a stamped exceptions sidecar"
+else
+  bad "exceptions render_board renders a stamped exceptions sidecar" "$(tail -2 "$work/err.txt")"
+fi
+render_xr "$work/xr-precontract.json" "$work/xr-pre.html"
+if cmp -s "$work/xr-stamped.html" "$work/xr-pre.html"; then
+  ok "exceptions: a pre-contract sidecar renders byte-identically"
+else
+  bad "exceptions: a pre-contract sidecar renders byte-identically" "the stamp changed the page"
+fi
+if render_xr "$work/xr-v2.json" "$work/x.html"; then
+  bad "exceptions renderer refuses contractVersion 2" "it rendered"
+else
+  ok "exceptions renderer refuses contractVersion 2"
+fi
+if render_xr "$work/xr-wrongsection.json" "$work/x.html"; then
+  bad "exceptions renderer refuses a 'metrics' sidecar" "it rendered"
+else
+  ok "exceptions renderer refuses a 'metrics' sidecar"
 fi
 
 # --- 4. the deprecated alias still resolves -----------------------------------------
@@ -238,6 +274,17 @@ mside = json.load(open(f"{repo}/skills/metrics-register/examples/example-transla
 mine = set(mside.get("metrics") or {})
 verdicts.append(("metrics example invents no metric id", sorted(mine - mids)))
 verdicts.append(("metrics example leaves no metric unwritten", sorted(mids - mine)))
+
+xr = json.loads(subprocess.run(
+    [sys.executable, f"{repo}/skills/exceptions-register/scripts/exceptions_register.py",
+     "analyze", f"{repo}/skills/exceptions-register/examples/example.exc",
+     "--today", "2026-07-31"], capture_output=True, text=True).stdout)
+xids = {r["id"] for r in xr["records"] if r["band"] != "closed"}
+xside = json.load(open(
+    f"{repo}/skills/exceptions-register/examples/example-translations.json"))
+xmine = set(xside.get("acceptances") or {}) | set(xside.get("exceptions") or {})
+verdicts.append(("exceptions example invents no record id", sorted(xmine - xids)))
+verdicts.append(("exceptions example leaves no active record unwritten", sorted(xids - xmine)))
 
 for label, offenders in verdicts:
     print(("PASS" if not offenders else "FAIL"), label, ",".join(offenders))
