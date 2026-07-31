@@ -22,7 +22,7 @@ repo="$(cd "$here/../../.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=40
+EXPECTED_CHECKS=42
 checks=0
 fails=0
 
@@ -293,6 +293,42 @@ real = {g["subcategoryId"] for g in an["gaps"]}
 mine = set(side.get("gaps") or {})
 verdicts.append(("posture example invents no Subcategory id", sorted(mine - real)))
 verdicts.append(("posture example leaves no real gap unwritten", sorted(real - mine)))
+
+# Ids were never the whole risk. The shipped posture summary once claimed "twenty-one
+# outcomes are in scope this cycle and nine of them have been assessed" over a store with
+# nine in scope and eight assessed, and said three gaps were "one step short" when only one
+# was — four false statements that every id check passed straight over. A board example that
+# is wrong about its own store teaches the reader to trust prose the tool did not compute.
+WORDS = {0: "no", 1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six",
+         7: "seven", 8: "eight", 9: "nine", 10: "ten", 11: "eleven", 12: "twelve"}
+overall = (an.get("completeness") or {}).get("overall") or {}
+summary = (side.get("executiveSummary") or "").lower()
+claims = []
+for value, phrase in ((overall.get("inScope"), "outcomes are in scope"),
+                      (overall.get("assessed"), "of them have been assessed"),
+                      (len(an["gaps"]), "fall short")):
+    word = WORDS.get(value)
+    if word is None:
+        continue
+    # Exact phrase only. A looser "is the word anywhere in the summary" test would have
+    # let the original through: it said "twenty-one outcomes are in scope ... and NINE of
+    # them have been assessed", so the word "nine" was present and the in-scope claim would
+    # have passed on the strength of a different sentence being wrong.
+    if f"{word} {phrase}" not in summary:
+        claims.append(f"expected '{word} {phrase}' ({phrase}={value})")
+verdicts.append(("posture example states its own store's counts", claims))
+
+# "One step short" is a claim about a number, and it is checkable per gap.
+by_id = {g["subcategoryId"]: g for g in an["gaps"]}
+wrong_steps = []
+for gid, sentence in (side.get("gaps") or {}).items():
+    low = sentence.lower()
+    gap = (by_id.get(gid) or {}).get("gap")
+    if "one step short" in low and gap != 1:
+        wrong_steps.append(f"{gid} says 'one step short' but its gap is {gap}")
+    if "two steps short" in low and gap != 2:
+        wrong_steps.append(f"{gid} says 'two steps short' but its gap is {gap}")
+verdicts.append(("posture example describes each gap's true distance", wrong_steps))
 
 rr = json.load(open(f"{repo}/skills/risk-register/examples/example-register-v2.rr"))
 ids = {r["id"] for r in rr["risks"]}
