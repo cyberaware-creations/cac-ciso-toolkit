@@ -22,13 +22,12 @@ repo="$(cd "$here/../../.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=15
+EXPECTED_CHECKS=22
 checks=0
 fails=0
 
 ok()  { checks=$((checks + 1)); printf '  ok    %s\n' "$1"; }
 bad() { checks=$((checks + 1)); fails=$((fails + 1)); printf '  FAIL  %s\n         %s\n' "$1" "$2"; }
-is()  { if [ "$2" = "$3" ]; then ok "$1"; else bad "$1" "expected '$3', got '$2'"; fi; }
 
 RR="$repo/skills/risk-register"
 NC="$repo/skills/nist-csf"
@@ -56,6 +55,10 @@ render_rr() {  # render_rr <sidecar> <out>  -> exit status of the renderer
   $PY "$RR/renderers/render_board.py" "$RR/examples/example-register-v2.rr" "$2" \
       --translations "$1" --offline >/dev/null 2>"$work/err.txt"
 }
+render_rr_any() {  # render_rr_any <renderer> <sidecar> <out>
+  $PY "$RR/renderers/$1.py" "$RR/examples/example-register-v2.rr" "$3" \
+      --translations "$2" --offline >/dev/null 2>"$work/err.txt"
+}
 render_nc() {  # render_nc <sidecar> <out>
   (cd "$NC/renderers" && $PY render_executive.py --in "$work/csf.json" \
       --translations "$1" --out "$2" --offline) >/dev/null 2>"$work/err.txt"
@@ -82,30 +85,36 @@ alias = dict(nc); alias["subcategories"] = alias.pop("gaps")
 json.dump(alias, open(f"{work}/nc-alias.json", "w"))
 PY
 
-# --- 2. the stamped example sidecars render -----------------------------------------
-if render_rr "$RR/references/example-translations.json" "$work/rr-stamped.html"; then
-  ok "risk sidecar with section+contractVersion renders"
-else
-  bad "risk sidecar with section+contractVersion renders" "$(tail -2 "$work/err.txt")"
-fi
-if render_nc "$NC/references/example-translations.json" "$work/nc-stamped.html"; then
-  ok "posture sidecar with section+contractVersion renders"
-else
-  bad "posture sidecar with section+contractVersion renders" "$(tail -2 "$work/err.txt")"
-fi
+# --- 2/3. every --translations consumer renders, and does so identically pre-contract
+#
+# All four go through the same loader, so one test would "prove" the other three by
+# argument rather than by running them — and the day someone gives a renderer its own
+# loading path is exactly the day that argument stops holding. Each is cheap; run it.
+for r in render_board render_dashboard render_report; do
+  if render_rr_any "$r" "$RR/references/example-translations.json" "$work/$r-stamped.html"; then
+    ok "$r renders a stamped risk sidecar"
+  else
+    bad "$r renders a stamped risk sidecar" "$(tail -2 "$work/err.txt")"
+  fi
+  render_rr_any "$r" "$work/rr-precontract.json" "$work/$r-pre.html"
+  if cmp -s "$work/$r-stamped.html" "$work/$r-pre.html"; then
+    ok "$r: a pre-contract sidecar renders byte-identically"
+  else
+    bad "$r: a pre-contract sidecar renders byte-identically" "the stamp changed the page"
+  fi
+done
+cp "$work/render_board-stamped.html" "$work/rr-stamped.html"
 
-# --- 3. backward compatibility, asserted on the bytes -------------------------------
-render_rr "$work/rr-precontract.json" "$work/rr-pre.html"
-if cmp -s "$work/rr-stamped.html" "$work/rr-pre.html"; then
-  ok "a pre-contract risk sidecar renders byte-identically"
+if render_nc "$NC/references/example-translations.json" "$work/nc-stamped.html"; then
+  ok "render_executive renders a stamped posture sidecar"
 else
-  bad "a pre-contract risk sidecar renders byte-identically" "the stamp changed the page"
+  bad "render_executive renders a stamped posture sidecar" "$(tail -2 "$work/err.txt")"
 fi
 render_nc "$work/nc-precontract.json" "$work/nc-pre.html"
 if cmp -s "$work/nc-stamped.html" "$work/nc-pre.html"; then
-  ok "a pre-contract posture sidecar renders byte-identically"
+  ok "render_executive: a pre-contract sidecar renders byte-identically"
 else
-  bad "a pre-contract posture sidecar renders byte-identically" "the stamp changed the page"
+  bad "render_executive: a pre-contract sidecar renders byte-identically" "the stamp changed the page"
 fi
 
 # --- 4. the deprecated alias still resolves -----------------------------------------
@@ -153,6 +162,46 @@ if render_rr "$work/flat.json" "$work/x.html"; then
 else
   ok "a flat per-item map is still refused"
 fi
+
+# --- 8. the shipped examples name real ids, and no others ---------------------------
+#
+# "Never invent numbers" is the toolkit's own rule, and the example sidecars are where a
+# reader learns what a good one looks like — so an id in an example that does not exist in
+# its store teaches the opposite. This check exists because the first draft of the posture
+# example claimed six outcomes were in scope when twenty-one were, and silently dropped the
+# one gap that had never been assessed. Both were caught by hand; neither should have needed
+# to be.
+$PY - "$repo" "$work" <<'PY' > "$work/honesty.txt" 2>&1
+import json, subprocess, sys
+repo, work = sys.argv[1], sys.argv[2]
+verdicts = []
+
+side = json.load(open(f"{repo}/skills/nist-csf/references/example-translations.json"))
+an = json.loads(subprocess.run(
+    [sys.executable, f"{repo}/skills/nist-csf/scripts/profile_analysis.py", "analyze",
+     f"{repo}/skills/nist-csf/examples/example-profile.csfp", "--today", "2026-07-26"],
+    capture_output=True, text=True).stdout)
+real = {g["subcategoryId"] for g in an["gaps"]}
+mine = set(side.get("gaps") or {})
+verdicts.append(("posture example invents no Subcategory id", sorted(mine - real)))
+verdicts.append(("posture example leaves no real gap unwritten", sorted(real - mine)))
+
+rr = json.load(open(f"{repo}/skills/risk-register/examples/example-register-v2.rr"))
+ids = {r["id"] for r in rr["risks"]}
+rside = json.load(open(f"{repo}/skills/risk-register/references/example-translations.json"))
+# The risk sidecar covers the top risks by design, so an unwritten risk is not a defect
+# here — only an id that does not exist is.
+verdicts.append(("risk example invents no risk id", sorted(set(rside.get("risks") or {}) - ids)))
+
+for label, offenders in verdicts:
+    print(("PASS" if not offenders else "FAIL"), label, ",".join(offenders))
+PY
+while IFS= read -r line; do
+  case "$line" in
+    PASS*) ok "${line#PASS }" ;;
+    FAIL*) bad "${line#FAIL }" "offending ids listed above" ;;
+  esac
+done < "$work/honesty.txt"
 
 echo
 if [ "$checks" -ne "$EXPECTED_CHECKS" ]; then
