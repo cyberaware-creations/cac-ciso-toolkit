@@ -34,7 +34,7 @@
           "rationale": "No fraudulent transactions completed. Response absorbed by the retained IR hours.",
           "relatedIncidentIds": [],
           "actor": "d.alleyne",
-          "ts": "2026-07-31T19:35:37+00:00"
+          "ts": "2026-07-31T20:42:39+00:00"
         },
         {
           "key": "operational",
@@ -42,7 +42,7 @@
           "rationale": "Portal remained available throughout; rate limiting absorbed the volume.",
           "relatedIncidentIds": [],
           "actor": "d.alleyne",
-          "ts": "2026-07-31T19:35:37+00:00"
+          "ts": "2026-07-31T20:42:39+00:00"
         },
         {
           "key": "data",
@@ -50,7 +50,7 @@
           "rationale": "41 accounts reached; profile and order history visible. No payment card or SSN data is held in the portal.",
           "relatedIncidentIds": [],
           "actor": "d.alleyne",
-          "ts": "2026-07-31T19:35:37+00:00"
+          "ts": "2026-07-31T20:42:39+00:00"
         },
         {
           "key": "regulatory",
@@ -58,7 +58,7 @@
           "rationale": "State breach-notice analysis run for the 41 affected accounts; notice sent in two states. No SEC or DORA trigger.",
           "relatedIncidentIds": [],
           "actor": "d.alleyne",
-          "ts": "2026-07-31T19:35:37+00:00"
+          "ts": "2026-07-31T20:42:39+00:00"
         },
         {
           "key": "reputational",
@@ -66,7 +66,7 @@
           "rationale": "No press coverage. Two customers contacted support; both retained.",
           "relatedIncidentIds": [],
           "actor": "d.alleyne",
-          "ts": "2026-07-31T19:35:38+00:00"
+          "ts": "2026-07-31T20:42:39+00:00"
         },
         {
           "key": "aggregation",
@@ -74,7 +74,7 @@
           "rationale": "First occurrence of this pattern. Nothing to aggregate yet; revisit if it recurs.",
           "relatedIncidentIds": [],
           "actor": "d.alleyne",
-          "ts": "2026-07-31T19:35:38+00:00"
+          "ts": "2026-07-31T20:42:39+00:00"
         }
       ],
       "determinations": [
@@ -83,7 +83,7 @@
           "rationale": "41 accounts, no financial impact, no operational disruption, no regulated data beyond the state notices already sent. Not information a reasonable investor would consider important.",
           "decider": "General Counsel",
           "determinedAt": "2026-03-18",
-          "ts": "2026-07-31T19:35:38+00:00"
+          "ts": "2026-07-31T20:42:39+00:00"
         }
       ],
       "disclosure": {
@@ -104,58 +104,58 @@
     },
     {
       "id": "I-002",
-      "title": "Vendor payroll portal breach",
+      "title": "CRM vendor breach — customer records exposed",
       "discoveredAt": "2026-07-06",
-      "scopeNote": "Third-party HR SaaS. Our tenant only; no production systems touched.",
+      "scopeNote": "Third-party CRM platform, our tenant only. No production system was reachable from it.",
       "status": "open",
       "factors": [
         {
           "key": "data",
           "assessment": "unknown",
-          "rationale": "Exfiltration not confirmed as of 9 July. Vendor forensics engaged; scope of the tenant export unknown.",
+          "rationale": "Exfiltration not confirmed as of 9 July. Vendor forensics engaged; the scope of the tenant export is unknown.",
           "relatedIncidentIds": [],
           "actor": "d.alleyne",
-          "ts": "2026-07-31T19:35:38+00:00"
+          "ts": "2026-07-31T20:42:39+00:00"
         },
         {
           "key": "data",
           "assessment": "bearing",
-          "rationale": "Forensics confirmed export of the full employee table on 13 July: name, home address, SSN and bank details for 1,940 current and former employees.",
+          "rationale": "Forensics confirmed export of the customer table on 13 July: name, email, postal address and order history for 84,000 customers. Payment card data is tokenised at the gateway and was not in the tenant.",
           "relatedIncidentIds": [],
           "actor": "d.alleyne",
-          "ts": "2026-07-31T19:35:38+00:00"
+          "ts": "2026-07-31T20:42:39+00:00"
         },
         {
           "key": "financial",
           "assessment": "bearing",
-          "rationale": "Credit monitoring for 1,940 people, vendor-transition costs and outside counsel are expected to exceed the retention on the cyber policy. Range recorded in the finance memo of 14 July.",
+          "rationale": "Notification, call-centre and outside-counsel costs are expected to exceed the retention on the cyber policy. The insurance rider recorded against acceptance A-002 moves the financial loss; it does not move the notification duty or the customer-facing consequence. Range in the finance memo of 14 July.",
           "relatedIncidentIds": [],
           "actor": "d.alleyne",
-          "ts": "2026-07-31T19:35:38+00:00"
+          "ts": "2026-07-31T20:42:39+00:00"
         },
         {
           "key": "operational",
           "assessment": "no-bearing",
-          "rationale": "Payroll ran on schedule on 15 July. No production system was reachable from the vendor tenant.",
+          "rationale": "Order processing continued on the internal system of record throughout. No customer-facing outage and no disruption to fulfilment.",
           "relatedIncidentIds": [],
           "actor": "d.alleyne",
-          "ts": "2026-07-31T19:35:38+00:00"
+          "ts": "2026-07-31T20:42:39+00:00"
         },
         {
           "key": "regulatory",
           "assessment": "bearing",
-          "rationale": "State breach-notice duties in eleven states; DOL notification under review. The EU subsidiary's staff are not in this tenant, so no GDPR or DORA angle.",
+          "rationale": "State breach-notice duties in eleven states, and the EU subsidiary's customers bring a GDPR Article 33 assessment running on its own clock. Separate questions from Item 1.05, tracked separately.",
           "relatedIncidentIds": [],
           "actor": "d.alleyne",
-          "ts": "2026-07-31T19:35:38+00:00"
+          "ts": "2026-07-31T20:42:39+00:00"
         },
         {
           "key": "reputational",
           "assessment": "bearing",
-          "rationale": "Two trade outlets contacted us on 13 July. Works council briefed 14 July; three employees have engaged counsel.",
+          "rationale": "Two trade outlets contacted us on 13 July. Three enterprise customers invoked the notice clause in their contracts; none has terminated.",
           "relatedIncidentIds": [],
           "actor": "d.alleyne",
-          "ts": "2026-07-31T19:35:38+00:00"
+          "ts": "2026-07-31T20:42:39+00:00"
         },
         {
           "key": "aggregation",
@@ -163,7 +163,7 @@
           "rationale": "Considered against I-001 and the May wave: different actor, different vector, different system. Not a related series.",
           "relatedIncidentIds": [],
           "actor": "d.alleyne",
-          "ts": "2026-07-31T19:35:38+00:00"
+          "ts": "2026-07-31T20:42:39+00:00"
         }
       ],
       "determinations": [
@@ -172,14 +172,14 @@
           "rationale": "Scope not yet established. Vendor forensics engaged 8 July; determination deferred pending the export scope.",
           "decider": "CISO",
           "determinedAt": "2026-07-09",
-          "ts": "2026-07-31T19:35:38+00:00"
+          "ts": "2026-07-31T20:42:39+00:00"
         },
         {
           "state": "material",
-          "rationale": "Export of SSN and bank details for 1,940 employees confirmed 13 July. Expected costs exceed the policy retention, and the workforce and press exposure is significant. Determined material by the disclosure committee.",
+          "rationale": "Export of records for 84,000 customers confirmed 13 July. Notification duties across eleven states and a GDPR assessment, expected costs above the policy retention, and press attention. This is the residual risk the board accepted in October as A-002, and it has now occurred. Determined material by the disclosure committee.",
           "decider": "General Counsel, on the disclosure committee's recommendation",
           "determinedAt": "2026-07-14",
-          "ts": "2026-07-31T19:35:38+00:00"
+          "ts": "2026-07-31T20:42:40+00:00"
         }
       ],
       "disclosure": {
@@ -197,10 +197,10 @@
         "classifiedAt": null
       },
       "linkedRiskIds": [
-        "R-006"
+        "R-003"
       ],
       "linkedExceptionIds": [
-        "A-001"
+        "A-002"
       ],
       "notes": ""
     },
@@ -217,7 +217,7 @@
           "rationale": "Authorisation latency above the SLA for 4h12m across the EU card estate. Classified major under the DORA criteria on 20 July.",
           "relatedIncidentIds": [],
           "actor": "d.alleyne",
-          "ts": "2026-07-31T19:35:38+00:00"
+          "ts": "2026-07-31T20:42:40+00:00"
         },
         {
           "key": "financial",
@@ -225,7 +225,7 @@
           "rationale": "SLA credits to three acquirers, quantified at well under the quantitative screen. No lost settlement.",
           "relatedIncidentIds": [],
           "actor": "d.alleyne",
-          "ts": "2026-07-31T19:35:38+00:00"
+          "ts": "2026-07-31T20:42:40+00:00"
         },
         {
           "key": "data",
@@ -233,7 +233,7 @@
           "rationale": "Latency only. No data was exposed, altered or made unavailable.",
           "relatedIncidentIds": [],
           "actor": "d.alleyne",
-          "ts": "2026-07-31T19:35:38+00:00"
+          "ts": "2026-07-31T20:42:40+00:00"
         },
         {
           "key": "regulatory",
@@ -241,7 +241,7 @@
           "rationale": "Major under DORA; initial notification and intermediate report submitted to the NCA. Separate from the Item 1.05 question.",
           "relatedIncidentIds": [],
           "actor": "d.alleyne",
-          "ts": "2026-07-31T19:35:38+00:00"
+          "ts": "2026-07-31T20:42:40+00:00"
         },
         {
           "key": "reputational",
@@ -249,7 +249,7 @@
           "rationale": "No press coverage. Two acquirers raised it on the weekly call and accepted the remediation plan.",
           "relatedIncidentIds": [],
           "actor": "d.alleyne",
-          "ts": "2026-07-31T19:35:39+00:00"
+          "ts": "2026-07-31T20:42:40+00:00"
         },
         {
           "key": "aggregation",
@@ -257,7 +257,7 @@
           "rationale": "Considered against the April capacity incident: same platform, different root cause (a config change, not capacity). Not a related series.",
           "relatedIncidentIds": [],
           "actor": "d.alleyne",
-          "ts": "2026-07-31T19:35:39+00:00"
+          "ts": "2026-07-31T20:42:40+00:00"
         }
       ],
       "determinations": [
@@ -266,7 +266,7 @@
           "rationale": "Service degradation for 4h12m with no data affected and SLA credits well below any screen. Not information a reasonable investor would consider important.",
           "decider": "General Counsel",
           "determinedAt": "2026-07-24",
-          "ts": "2026-07-31T19:35:39+00:00"
+          "ts": "2026-07-31T20:42:40+00:00"
         }
       ],
       "disclosure": {
@@ -304,7 +304,7 @@
             "I-001"
           ],
           "actor": "d.alleyne",
-          "ts": "2026-07-31T19:35:39+00:00"
+          "ts": "2026-07-31T20:42:40+00:00"
         },
         {
           "key": "data",
@@ -312,7 +312,7 @@
           "rationale": "Account-takeover count not yet established. Log review with the fraud team runs to 3 August.",
           "relatedIncidentIds": [],
           "actor": "d.alleyne",
-          "ts": "2026-07-31T19:35:39+00:00"
+          "ts": "2026-07-31T20:42:40+00:00"
         }
       ],
       "determinations": [
@@ -321,7 +321,7 @@
           "rationale": "Aggregate scope across the three waves not yet established; determination deferred pending the log review.",
           "decider": "CISO",
           "determinedAt": "2026-07-27",
-          "ts": "2026-07-31T19:35:39+00:00"
+          "ts": "2026-07-31T20:42:40+00:00"
         }
       ],
       "disclosure": {
@@ -348,13 +348,13 @@
       "event": "store-created",
       "target": "/Users/darren/Documents/GitHub/cac-ciso-toolkit/skills/incident-materiality/examples/example-incident.inc",
       "actor": "d.alleyne",
-      "ts": "2026-07-31T19:35:37+00:00"
+      "ts": "2026-07-31T20:42:39+00:00"
     },
     {
       "event": "incident-opened",
       "target": "I-001",
       "actor": "d.alleyne",
-      "ts": "2026-07-31T19:35:37+00:00",
+      "ts": "2026-07-31T20:42:39+00:00",
       "detail": {
         "title": "Credential-stuffing against the customer portal — first wave",
         "discoveredAt": "2026-03-11",
@@ -367,7 +367,7 @@
       "event": "factor-assessed",
       "target": "I-001",
       "actor": "d.alleyne",
-      "ts": "2026-07-31T19:35:37+00:00",
+      "ts": "2026-07-31T20:42:39+00:00",
       "detail": {
         "factor": "financial",
         "assessment": "no-bearing"
@@ -377,7 +377,7 @@
       "event": "factor-assessed",
       "target": "I-001",
       "actor": "d.alleyne",
-      "ts": "2026-07-31T19:35:37+00:00",
+      "ts": "2026-07-31T20:42:39+00:00",
       "detail": {
         "factor": "operational",
         "assessment": "no-bearing"
@@ -387,7 +387,7 @@
       "event": "factor-assessed",
       "target": "I-001",
       "actor": "d.alleyne",
-      "ts": "2026-07-31T19:35:37+00:00",
+      "ts": "2026-07-31T20:42:39+00:00",
       "detail": {
         "factor": "data",
         "assessment": "no-bearing"
@@ -397,7 +397,7 @@
       "event": "factor-assessed",
       "target": "I-001",
       "actor": "d.alleyne",
-      "ts": "2026-07-31T19:35:37+00:00",
+      "ts": "2026-07-31T20:42:39+00:00",
       "detail": {
         "factor": "regulatory",
         "assessment": "bearing"
@@ -407,7 +407,7 @@
       "event": "factor-assessed",
       "target": "I-001",
       "actor": "d.alleyne",
-      "ts": "2026-07-31T19:35:38+00:00",
+      "ts": "2026-07-31T20:42:39+00:00",
       "detail": {
         "factor": "reputational",
         "assessment": "no-bearing"
@@ -417,7 +417,7 @@
       "event": "factor-assessed",
       "target": "I-001",
       "actor": "d.alleyne",
-      "ts": "2026-07-31T19:35:38+00:00",
+      "ts": "2026-07-31T20:42:39+00:00",
       "detail": {
         "factor": "aggregation",
         "assessment": "unknown"
@@ -427,7 +427,7 @@
       "event": "determination-recorded",
       "target": "I-001",
       "actor": "d.alleyne",
-      "ts": "2026-07-31T19:35:38+00:00",
+      "ts": "2026-07-31T20:42:39+00:00",
       "detail": {
         "state": "not-material",
         "from": null,
@@ -439,7 +439,7 @@
       "event": "disclosure-set",
       "target": "I-001",
       "actor": "d.alleyne",
-      "ts": "2026-07-31T19:35:38+00:00",
+      "ts": "2026-07-31T20:42:39+00:00",
       "detail": {
         "decision": "no-file",
         "regimes": [
@@ -451,16 +451,16 @@
       "event": "incident-closed",
       "target": "I-001",
       "actor": "d.alleyne",
-      "ts": "2026-07-31T19:35:38+00:00",
+      "ts": "2026-07-31T20:42:39+00:00",
       "why": "Credentials reset, rate limiting tightened, state notices completed. Retained as the reference point for later waves."
     },
     {
       "event": "incident-opened",
       "target": "I-002",
       "actor": "d.alleyne",
-      "ts": "2026-07-31T19:35:38+00:00",
+      "ts": "2026-07-31T20:42:39+00:00",
       "detail": {
-        "title": "Vendor payroll portal breach",
+        "title": "CRM vendor breach — customer records exposed",
         "discoveredAt": "2026-07-06",
         "regimes": [
           "sec-1.05"
@@ -471,7 +471,7 @@
       "event": "factor-assessed",
       "target": "I-002",
       "actor": "d.alleyne",
-      "ts": "2026-07-31T19:35:38+00:00",
+      "ts": "2026-07-31T20:42:39+00:00",
       "detail": {
         "factor": "data",
         "assessment": "unknown"
@@ -481,7 +481,7 @@
       "event": "factor-assessed",
       "target": "I-002",
       "actor": "d.alleyne",
-      "ts": "2026-07-31T19:35:38+00:00",
+      "ts": "2026-07-31T20:42:39+00:00",
       "detail": {
         "factor": "data",
         "assessment": "bearing"
@@ -491,7 +491,7 @@
       "event": "factor-assessed",
       "target": "I-002",
       "actor": "d.alleyne",
-      "ts": "2026-07-31T19:35:38+00:00",
+      "ts": "2026-07-31T20:42:39+00:00",
       "detail": {
         "factor": "financial",
         "assessment": "bearing"
@@ -501,7 +501,7 @@
       "event": "factor-assessed",
       "target": "I-002",
       "actor": "d.alleyne",
-      "ts": "2026-07-31T19:35:38+00:00",
+      "ts": "2026-07-31T20:42:39+00:00",
       "detail": {
         "factor": "operational",
         "assessment": "no-bearing"
@@ -511,7 +511,7 @@
       "event": "factor-assessed",
       "target": "I-002",
       "actor": "d.alleyne",
-      "ts": "2026-07-31T19:35:38+00:00",
+      "ts": "2026-07-31T20:42:39+00:00",
       "detail": {
         "factor": "regulatory",
         "assessment": "bearing"
@@ -521,7 +521,7 @@
       "event": "factor-assessed",
       "target": "I-002",
       "actor": "d.alleyne",
-      "ts": "2026-07-31T19:35:38+00:00",
+      "ts": "2026-07-31T20:42:39+00:00",
       "detail": {
         "factor": "reputational",
         "assessment": "bearing"
@@ -531,7 +531,7 @@
       "event": "factor-assessed",
       "target": "I-002",
       "actor": "d.alleyne",
-      "ts": "2026-07-31T19:35:38+00:00",
+      "ts": "2026-07-31T20:42:39+00:00",
       "detail": {
         "factor": "aggregation",
         "assessment": "no-bearing"
@@ -541,7 +541,7 @@
       "event": "determination-recorded",
       "target": "I-002",
       "actor": "d.alleyne",
-      "ts": "2026-07-31T19:35:38+00:00",
+      "ts": "2026-07-31T20:42:39+00:00",
       "detail": {
         "state": "assessing",
         "from": null,
@@ -553,7 +553,7 @@
       "event": "determination-recorded",
       "target": "I-002",
       "actor": "d.alleyne",
-      "ts": "2026-07-31T19:35:38+00:00",
+      "ts": "2026-07-31T20:42:40+00:00",
       "detail": {
         "state": "material",
         "from": "assessing",
@@ -565,7 +565,7 @@
       "event": "disclosure-set",
       "target": "I-002",
       "actor": "d.alleyne",
-      "ts": "2026-07-31T19:35:38+00:00",
+      "ts": "2026-07-31T20:42:40+00:00",
       "detail": {
         "decision": "file",
         "regimes": [
@@ -577,7 +577,7 @@
       "event": "filing-recorded",
       "target": "I-002",
       "actor": "d.alleyne",
-      "ts": "2026-07-31T19:35:38+00:00",
+      "ts": "2026-07-31T20:42:40+00:00",
       "detail": {
         "window": "sec-1.05:8-K",
         "at": "2026-07-17"
@@ -587,13 +587,13 @@
       "event": "incident-linked",
       "target": "I-002",
       "actor": "d.alleyne",
-      "ts": "2026-07-31T19:35:38+00:00",
+      "ts": "2026-07-31T20:42:40+00:00",
       "detail": {
         "risk": [
-          "R-006"
+          "R-003"
         ],
         "exception": [
-          "A-001"
+          "A-002"
         ]
       }
     },
@@ -601,7 +601,7 @@
       "event": "incident-opened",
       "target": "I-003",
       "actor": "d.alleyne",
-      "ts": "2026-07-31T19:35:38+00:00",
+      "ts": "2026-07-31T20:42:40+00:00",
       "detail": {
         "title": "Card authorisation degradation, EU payments subsidiary",
         "discoveredAt": "2026-07-20",
@@ -614,7 +614,7 @@
       "event": "anchor-set",
       "target": "I-003",
       "actor": "d.alleyne",
-      "ts": "2026-07-31T19:35:38+00:00",
+      "ts": "2026-07-31T20:42:40+00:00",
       "detail": {
         "awareAt": "2026-07-20T14:10:00+00:00",
         "classifiedAt": "2026-07-20T17:40:00+00:00"
@@ -624,7 +624,7 @@
       "event": "filing-recorded",
       "target": "I-003",
       "actor": "d.alleyne",
-      "ts": "2026-07-31T19:35:38+00:00",
+      "ts": "2026-07-31T20:42:40+00:00",
       "detail": {
         "window": "dora:initial",
         "at": "2026-07-20T20:05:00+00:00"
@@ -634,7 +634,7 @@
       "event": "filing-recorded",
       "target": "I-003",
       "actor": "d.alleyne",
-      "ts": "2026-07-31T19:35:38+00:00",
+      "ts": "2026-07-31T20:42:40+00:00",
       "detail": {
         "window": "dora:intermediate",
         "at": "2026-07-23T11:30:00+00:00"
@@ -644,7 +644,7 @@
       "event": "factor-assessed",
       "target": "I-003",
       "actor": "d.alleyne",
-      "ts": "2026-07-31T19:35:38+00:00",
+      "ts": "2026-07-31T20:42:40+00:00",
       "detail": {
         "factor": "operational",
         "assessment": "bearing"
@@ -654,7 +654,7 @@
       "event": "factor-assessed",
       "target": "I-003",
       "actor": "d.alleyne",
-      "ts": "2026-07-31T19:35:38+00:00",
+      "ts": "2026-07-31T20:42:40+00:00",
       "detail": {
         "factor": "financial",
         "assessment": "no-bearing"
@@ -664,7 +664,7 @@
       "event": "factor-assessed",
       "target": "I-003",
       "actor": "d.alleyne",
-      "ts": "2026-07-31T19:35:38+00:00",
+      "ts": "2026-07-31T20:42:40+00:00",
       "detail": {
         "factor": "data",
         "assessment": "no-bearing"
@@ -674,7 +674,7 @@
       "event": "factor-assessed",
       "target": "I-003",
       "actor": "d.alleyne",
-      "ts": "2026-07-31T19:35:38+00:00",
+      "ts": "2026-07-31T20:42:40+00:00",
       "detail": {
         "factor": "regulatory",
         "assessment": "bearing"
@@ -684,7 +684,7 @@
       "event": "factor-assessed",
       "target": "I-003",
       "actor": "d.alleyne",
-      "ts": "2026-07-31T19:35:39+00:00",
+      "ts": "2026-07-31T20:42:40+00:00",
       "detail": {
         "factor": "reputational",
         "assessment": "no-bearing"
@@ -694,7 +694,7 @@
       "event": "factor-assessed",
       "target": "I-003",
       "actor": "d.alleyne",
-      "ts": "2026-07-31T19:35:39+00:00",
+      "ts": "2026-07-31T20:42:40+00:00",
       "detail": {
         "factor": "aggregation",
         "assessment": "no-bearing"
@@ -704,7 +704,7 @@
       "event": "disclosure-set",
       "target": "I-003",
       "actor": "d.alleyne",
-      "ts": "2026-07-31T19:35:39+00:00",
+      "ts": "2026-07-31T20:42:40+00:00",
       "detail": {
         "decision": "no-file",
         "regimes": [
@@ -717,7 +717,7 @@
       "event": "determination-recorded",
       "target": "I-003",
       "actor": "d.alleyne",
-      "ts": "2026-07-31T19:35:39+00:00",
+      "ts": "2026-07-31T20:42:40+00:00",
       "detail": {
         "state": "not-material",
         "from": null,
@@ -729,7 +729,7 @@
       "event": "incident-opened",
       "target": "I-004",
       "actor": "d.alleyne",
-      "ts": "2026-07-31T19:35:39+00:00",
+      "ts": "2026-07-31T20:42:40+00:00",
       "detail": {
         "title": "Credential-stuffing against the customer portal — third wave",
         "discoveredAt": "2026-07-24",
@@ -742,7 +742,7 @@
       "event": "factor-assessed",
       "target": "I-004",
       "actor": "d.alleyne",
-      "ts": "2026-07-31T19:35:39+00:00",
+      "ts": "2026-07-31T20:42:40+00:00",
       "detail": {
         "factor": "aggregation",
         "assessment": "bearing"
@@ -752,7 +752,7 @@
       "event": "factor-assessed",
       "target": "I-004",
       "actor": "d.alleyne",
-      "ts": "2026-07-31T19:35:39+00:00",
+      "ts": "2026-07-31T20:42:40+00:00",
       "detail": {
         "factor": "data",
         "assessment": "unknown"
@@ -762,7 +762,7 @@
       "event": "determination-recorded",
       "target": "I-004",
       "actor": "d.alleyne",
-      "ts": "2026-07-31T19:35:39+00:00",
+      "ts": "2026-07-31T20:42:40+00:00",
       "detail": {
         "state": "assessing",
         "from": null,
@@ -774,7 +774,7 @@
       "event": "incident-linked",
       "target": "I-004",
       "actor": "d.alleyne",
-      "ts": "2026-07-31T19:35:39+00:00",
+      "ts": "2026-07-31T20:42:40+00:00",
       "detail": {
         "risk": [
           "R-011"
@@ -783,6 +783,6 @@
       }
     }
   ],
-  "createdAt": "2026-07-31T19:35:37+00:00",
-  "updatedAt": "2026-07-31T19:35:39+00:00"
+  "createdAt": "2026-07-31T20:42:39+00:00",
+  "updatedAt": "2026-07-31T20:42:40+00:00"
 }
