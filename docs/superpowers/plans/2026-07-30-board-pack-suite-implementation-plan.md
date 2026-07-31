@@ -2,14 +2,21 @@
 
 **Date:** 2026-07-30 (rev b — all open decisions resolved)
 **Status:** Ready for execution
-**Target repo:** the `cyber-aware-creations` plugin (shipped v0.5.1)
+**Target repo:** the `cyber-aware-creations` plugin (shipped v0.6.0 — see the version note below)
 **Design docs (approved):**
 - `strategy/metrics-register-skill-design-2026-07-30.md` (#2)
 - `strategy/exceptions-acceptances-skill-design-2026-07-30.md` (#3 — standalone `exceptions-register`)
 - `strategy/incident-materiality-skill-design-2026-07-30.md` (#4)
 - `strategy/board-pack-assembler-skill-design-2026-07-30.md` (#1)
 
-> **For Claude Code + Superpowers:** execute phase-by-phase with `superpowers:executing-plans`. Each skill is independently shippable; each phase ends with a checkpoint. Steps use `- [ ]` for tracking. Bump the plugin `version` at each phase checkpoint (0.6.0 → 0.7.0 → 0.8.0 → 0.9.0).
+> **For Claude Code + Superpowers:** execute phase-by-phase with `superpowers:executing-plans`. Each skill is independently shippable; each phase ends with a checkpoint. Steps use `- [ ]` for tracking. Bump the plugin `version` at each phase checkpoint (0.7.0 → 0.8.0 → 0.9.0 → 0.10.0).
+
+> **Version note (2026-07-30, after filing).** This plan was written against a shipped v0.5.1 and
+> allocated 0.6.0 to Phase A. **0.6.0 shipped first**, carrying the `nist-csf` crosswalk lenses
+> (PR #18), so the whole ladder moves up one step: **A → 0.7.0, B → 0.8.0, C → 0.9.0, D → 0.10.0.**
+> Nothing else about the plan changes. Note that 0.10.0 sorts *after* 0.9.0 — `check-versions.py`
+> requires every manifest to agree and to have moved forward against the merge base, so a phase
+> that forgets the bump fails CI at the PR, not silently.
 
 ---
 
@@ -137,7 +144,7 @@ Adds the four "board-pack suite" capabilities on top of the three shipped skills
 **Verification:** `metric-trend.sh` exits 0 with exact check count; trigger set separates register asks from translation asks.
 - [ ] TA.7 complete
 
-**Phase A checkpoint:** self-test + evals green; end-to-end (init → record two periods → render board) yields valid `metrics.board.json` + HTML. Bump to 0.6.0.
+**Phase A checkpoint:** self-test + evals green; end-to-end (init → record two periods → render board) yields valid `metrics.board.json` + HTML. Bump to 0.7.0.
 - [ ] Phase A checkpoint passed
 
 ---
@@ -185,7 +192,7 @@ Adds the four "board-pack suite" capabilities on top of the three shipped skills
 **Verification:** bridge round-trips; register regression-clean; `revalidation-lifecycle.sh` exits 0 with exact count; trigger set routes exception/acceptance asks to the new skill, register asks to the register.
 - [ ] TB.6 complete
 
-**Phase B checkpoint:** `exceptions-register` self-test + evals green; full acceptance+exception lifecycle demonstrable standalone; register bridge round-trips; register regression-clean. Bump to 0.7.0. **Hold the exceptions marketing surface until G1.**
+**Phase B checkpoint:** `exceptions-register` self-test + evals green; full acceptance+exception lifecycle demonstrable standalone; register bridge round-trips; register regression-clean. Bump to 0.8.0. **Hold the exceptions marketing surface until G1.**
 - [ ] Phase B checkpoint passed
 
 ---
@@ -226,7 +233,7 @@ Adds the four "board-pack suite" capabilities on top of the three shipped skills
 **Verification:** board-safety fails on injected fear phrasing; trigger set clean; risk/exception links resolve.
 - [ ] TC.5 complete
 
-**Phase C checkpoint:** self_test + evals green; end-to-end (open → assess → determine → disclosure → board render); every artifact carries not-legal-advice. Bump to 0.8.0.
+**Phase C checkpoint:** self_test + evals green; end-to-end (open → assess → determine → disclosure → board render); every artifact carries not-legal-advice. Bump to 0.9.0.
 - [ ] Phase C checkpoint passed
 
 ---
@@ -267,7 +274,7 @@ Adds the four "board-pack suite" capabilities on top of the three shipped skills
 **Verification:** board-safety green on assembled pack; trigger set clean.
 - [ ] TD.5 complete
 
-**Phase D checkpoint (toolkit integration test):** assemble a full pack from example `.rr`/`.csfa`/`.mtr`/`.exc`/`.inc` → PPTX+PDF, one through-line, consolidated decisions, all disclaimers. Bump to 0.9.0.
+**Phase D checkpoint (toolkit integration test):** assemble a full pack from example `.rr`/`.csfa`/`.mtr`/`.exc`/`.inc` → PPTX+PDF, one through-line, consolidated decisions, all disclaimers. Bump to 0.10.0.
 - [ ] Phase D checkpoint passed
 
 ---
