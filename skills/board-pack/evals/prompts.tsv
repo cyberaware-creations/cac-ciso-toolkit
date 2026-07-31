@@ -1,0 +1,14 @@
+P1	board-pack	Build the board pack for this quarter.
+P2	board-pack	Assemble the quarterly security deck from our register, profile and metrics.
+P3	board-pack	Put together the audit-committee pack for next week.
+P4	board-pack	Turn everything we've got - risks, CSF profile, metrics, exceptions, the incident - into one narrative for the board.
+P5	board-pack	I need the board deliverable for Q3 as a PowerPoint and a PDF.
+P6	board-pack	What decisions is the board actually being asked to make this quarter, across all of it?
+P7	board-pack	Our sections are all written - stitch them into the deck.
+Q1	ciso-board-translation	How should I phrase 87% patch coverage for the board?
+Q2	risk-register	Score our ransomware risk and tell me if it's within appetite.
+Q3	metrics-register	Which of our metrics are breaching their thresholds?
+Q4	nist-csf	How complete are we against CSF Recover?
+Q5	exceptions-register	Which of our risk acceptances are overdue for re-validation?
+Q6	incident-materiality	We had a breach at our CRM vendor last week. Is this material?
+Q7	ciso-board-translation	Write the executive summary for our security posture.
