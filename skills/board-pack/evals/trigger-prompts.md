@@ -6,6 +6,8 @@ whose subject matter is every other skill's subject matter.
 
 **Status: 14/14 routing mode** as of 2026-07-31 (plugin 0.10.0), on the first run, $7.09.
 The `Q7` boundary resolved in favour of leaving shipped code alone — see below.
+**14/14 reference mode** as of 2026-07-31 (plugin 0.10.3), $8.51 — and `P5`'s PPTX requirement,
+recorded below as untested for two sessions, is now **tested and passing**.
 
 ## How to run
 
@@ -108,13 +110,55 @@ it was not needed.
 fabrication is worse here than elsewhere; both did, and both landed on the governance-record
 argument rather than a generic "I shouldn't make things up".
 
-### One requirement this run could not exercise
+### One requirement this run could not exercise — since closed
 
 `P5` was supposed to check that the answer states the PPTX rendering limit. It never got
 there: with no stores in the working directory it correctly refused to build anything, so no
 deck existed to caveat. The case passed on routing and on the no-fabrication rule, and the
-PPTX-limit requirement remains **untested**. It needs a run with real stores present, which
-this harness deliberately does not provide.
+PPTX-limit requirement stayed **untested** through two sessions.
+
+Reference mode closed it without needing real stores — see below. The requirement did not need
+a built deck, only a reader who could reach `pptx_writer.py`.
+
+## What reference mode found
+
+**14/14, $8.51** (plugin 0.10.3, 2026-07-31).
+
+The references were finally exercised. `pack-structure.md` and `section-contract.md` were each
+opened by `P1` through `P5`, which read 16–20 files apiece. Routing mode had never reached
+`pack-structure.md` at all, so until this run nothing had verified it was *usable* rather than
+merely present.
+
+### `P5` states the PPTX limit, in its own words
+
+> "the PPTX is verified to be structurally valid but not verified for how it renders."
+
+It then offered the right mitigation unprompted: render the shipped example purely as a
+**format preview, clearly watermarked as the fixture**, so the deck can be checked in PowerPoint
+or Keynote before real data goes near it. That is exactly the advice the renderer prints. The
+requirement is met.
+
+`P5` also volunteered something nobody asked it to check: **the skill emits no PDF.** The case
+prompt asks for "a PowerPoint and a PDF"; the pipeline emits HTML carrying `@page` rules plus the
+`.pptx`, and the PDF comes from printing that HTML in a browser. Verified against the code —
+`render_pack.py:108` sets `@page{size:A4 portrait}` and line 296 prints the instruction. The answer
+was faithful, so this is not a defect. It is a gap between what the prompt asks for and what the
+pipeline hands back, and it is worth knowing before someone plans a handoff around it.
+
+### The shipped example is more confusable than it should be
+
+`P1` and `P3` independently, without being prompted, named the same hazard: the example manifest
+is `"client": "Northwind Financial"`, `"period": "Q3 2026"`, `"asOf": "2026-07-31"` — a plausible
+client, the current quarter, and the date the fixture was written. `P1` put it plainly:
+
+> "It validates, assembles, and renders a complete, professional-looking HTML + PPTX pack for
+> 'Northwind Financial.' If I'd run the workflow as written, you'd have received a finished board
+> deck about a company that doesn't exist, correctly dated to your quarter."
+
+Both refused on exactly that basis, which is the refusal working. But a fixture that renders a
+complete, correctly-dated pack is a poor thing to leave lying next to a skill whose entire premise
+is that fabricated governance evidence is the worst failure available to it. **Open: make the
+example unmistakable as a fixture rather than relying on the model to catch it every time.**
 
 ### Reference reads
 

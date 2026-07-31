@@ -4,8 +4,11 @@ Confirms the skill fires on the **governance decision around an incident** and s
 the **response to one**. That is the whole boundary, and it is sharper here than in the other
 skills because both sides of it contain the word "incident".
 
-**Status: 15/15 passing** as of 2026-07-31 (plugin 0.9.0), on the first run, with no
+**Status: 15/15 routing mode** as of 2026-07-31 (plugin 0.9.0), on the first run, with no
 description fix needed. $7.18, ~4 min wall clock.
+**15/15 reference mode** as of 2026-07-31 (plugin 0.10.3), $8.12 — see
+[what reference mode found](#what-reference-mode-found), which is the run that put the
+disclosure clocks in front of a reader instead of merely shipping them.
 
 ## How to run
 
@@ -14,7 +17,16 @@ claude plugin update cyber-aware-creations@cyber-aware-creations   # or the run 
 PROMPTS="$PWD/skills/incident-materiality/evals/prompts.tsv" \
   ./skills/nist-csf/evals/run-triggers.sh /tmp/im-trigger          # all 15
 PROMPTS=... ./skills/nist-csf/evals/run-triggers.sh /tmp/im-trigger N7 B1   # or named cases
+
+# reference mode — do the clock references survive contact with a reader?
+ALLOWED_TOOLS="Read Glob Grep Skill" MAX_TURNS=24 \
+PROMPTS="$PWD/skills/incident-materiality/evals/prompts.tsv" \
+  ./skills/nist-csf/evals/run-triggers.sh /tmp/im-trigger-ref
 ```
+
+Routing-mode and reference-mode scores are **not comparable** and should not be averaged. They
+answer different questions: routing mode asks whether the description wins the case, reference
+mode asks whether the files behind it are usable. A skill can pass one and fail the other.
 
 The harness lives under `nist-csf/evals/` and takes the case list as a `PROMPTS` parameter —
 shared rather than copied, because a second skill's routing checklist is the same harness over
@@ -135,8 +147,48 @@ That last point was a genuine omission and is now in `materiality-factors.md`. T
 demonstrably improves the answer, so `run-triggers.sh` gained an optional `ALLOWED_TOOLS`
 parameter — unset by default, so every previously recorded score stays comparable.
 
-**Scores from the two modes are not comparable.** Record which mode a number came from. The
-15/15 above is routing-mode.
+**Scores from the two modes are not comparable.** Record which mode a number came from.
+
+## What reference mode found
+
+**15/15, $8.12** (plugin 0.10.3, 2026-07-31) — the full set this time, not just `N7`.
+
+All three references were opened across the set: `materiality-factors.md` by six cases,
+`incident_analysis.py` by five, `disclosure-clocks.md` by two, `schema.md` by two. `N8` answered
+from the description alone and read nothing, which is the right call for "which incidents are
+waiting on a determination" — that is a store query, not a doctrine question.
+
+### The clock answers were audited against the engine, not eyeballed
+
+This is the skill where being wrong means a missed filing deadline, so the arithmetic was checked
+rather than read.
+
+`N3` built a ten-row table of determination dates against their 8-K deadlines **by hand**, because
+the sandbox withheld Bash and it could not run the engine. All eleven rows it produced — including
+the worked example from the reference — match `business_days_after()` exactly. It also identified
+the two holidays bounding the window correctly (Independence Day observed Fri 3 July, Labor Day
+Mon 7 September 2026).
+
+More to the point, it *said* the arithmetic was unverified: "I calculated this table by hand — the
+engine's `self-test` and its date math need a Bash approval I didn't get... I'd rather run it than
+assert it." Right answer, correctly labelled as not-yet-checked.
+
+`N6` reproduced the DORA windows exactly — initial at the earlier of classification + 4h or
+awareness + 24h, intermediate at 72h from the initial *as filed*, final one month from the
+intermediate *as filed* — and drew the consequence the reference implies without stating: **a late
+classification buys no time**, because the 24h awareness cap binds regardless. It also separated
+"major under DORA" from "material under Item 1.05" unprompted, which is the confusion the two
+regimes invite.
+
+### The fix from the earlier `N7` re-run is load-bearing
+
+`N7` reproduced *both* paragraphs that this checklist's previous entry added to
+`materiality-factors.md`: "shared infrastructure is evidence, not the test", and the consequence
+that aggregating moves the discovery date back to wave one while leaving the four-day window
+alone. Neither was in the model's answer before those paragraphs existed; both are now.
+
+That closes the loop a reference eval is for. The 2026-07-31 routing run could not have shown it,
+because it never opened the file.
 
 ---
 
