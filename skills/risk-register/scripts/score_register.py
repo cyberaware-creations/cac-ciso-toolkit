@@ -35,6 +35,9 @@ Mutations (each appends an append-only history event and writes a schema-valid f
   set-theme    <register.rr> <risk-id> <theme-id|none> [--why ...]
   snapshot     <register.rr> --label 'Q3 2026 Board Review' [--note ...]
   export-csv   <register.rr> [--out out.csv]
+  export-acceptances <register.rr> [--out out.json]   Accepted risks, in the
+                                         exceptions-register intake shape. One-way:
+                                         that skill is the system of record.
 
 Usage:
   python3 score_register.py score client-register.rr
@@ -1541,6 +1544,62 @@ def _cmd_snapshot(args):
     return 0
 
 
+def _cmd_export_acceptances(args):
+    """Emit accepted risks in the exceptions-register intake shape.
+
+    One-way, by design. `exceptions-register` is the system of record for acceptances:
+    the full lifecycle — justification, approver, re-validation as an act, expiry, the
+    DORA inventory — lives there. This register keeps the lightweight `accepted` marker it
+    always had and feeds it across; it does NOT grow a second re-validation lifecycle, and
+    `revalidate` is deliberately absent here. Two homes for the same clock is how the two
+    disagree.
+
+    `sourceRiskRef` carries the originating risk id so the import is idempotent: re-running
+    the export updates the record it created rather than adding a second one.
+
+    Only risks with a complete acceptance are exported. A risk marked accepted without an
+    approver or justification cannot be exported into a register whose whole discipline is
+    refusing exactly that, and it is reported rather than silently dropped.
+    """
+    pos, opt = parse_flags(args)
+    if not pos:
+        raise ValueError("usage: export-acceptances <register.rr> [--out out.json]")
+    reg = load_register(pos[0])
+    rows, incomplete = [], []
+    for r in reg["risks"]:
+        acc = r.get("acceptance")
+        if (r.get("response") or {}).get("type") != "accept" or not acc:
+            continue
+        missing = [f for f in ("approver", "justification", "revalidationDate")
+                   if not str(acc.get(f) or "").strip()]
+        if missing:
+            incomplete.append((r["id"], missing))
+            continue
+        rows.append({
+            "title": r["title"],
+            "approver": acc["approver"],
+            "justification": acc["justification"],
+            "acceptedDate": acc.get("acceptedDate") or "",
+            "revalidationDate": acc["revalidationDate"],
+            "expiryDate": acc.get("expiryDate") or "",
+            "riskIds": [r["id"]],
+            "csfSubcategoryIds": ([r["csfSubcategoryId"]]
+                                  if r.get("csfSubcategoryId") else []),
+            "sourceRiskRef": r["id"],
+        })
+    text = json.dumps(rows, indent=2, ensure_ascii=False) + "\n"
+    out = _s(opt.get("out")) if isinstance(opt.get("out"), (str, list)) else None
+    if out:
+        with open(out, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        print(f"Wrote {out} — {len(rows)} acceptance(s) in exceptions-register intake shape")
+    else:
+        sys.stdout.write(text)
+    for rid, missing in incomplete:
+        print(f"  skipped {rid}: acceptance is missing {', '.join(missing)}", file=sys.stderr)
+    return 0
+
+
 def _cmd_export_csv(args):
     pos, opt = parse_flags(args)
     if not pos:
@@ -1577,6 +1636,7 @@ COMMANDS = {
     "add": _cmd_add, "set-score": _cmd_set_score, "accept": _cmd_accept,
     "confirm": _cmd_confirm,
     "set-status": _cmd_set_status, "snapshot": _cmd_snapshot, "export-csv": _cmd_export_csv,
+    "export-acceptances": _cmd_export_acceptances,
     "add-theme": _cmd_add_theme, "set-theme": _cmd_set_theme,
 }
 
