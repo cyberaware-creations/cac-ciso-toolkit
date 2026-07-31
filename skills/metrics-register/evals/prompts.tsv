@@ -1,0 +1,15 @@
+M1	metrics-register	Start tracking our patch coverage so I can show the trend at each board meeting.
+M2	metrics-register	Add this quarter's numbers: phishing click rate 6.8%, dwell time 8 days.
+M3	metrics-register	Which of our metrics are breaching their thresholds?
+M4	metrics-register	Which of our security numbers haven't been refreshed since the last review?
+M5	metrics-register	Show me how MFA coverage has moved over the last three quarters.
+M6	metrics-register	Build the metrics section for the Q3 board pack.
+M7	metrics-register	Set a warning threshold of 90% on our patch SLA metric.
+M8	metrics-register	Our dwell time went from 11 days to 8 - is that good or bad?
+T1	ciso-board-translation	How should I phrase 87% patch coverage for the board?
+T2	ciso-board-translation	What's the trap in reporting a phishing click rate to a board?
+T3	ciso-board-translation	Give me a board sentence for "we blocked 2 million attacks".
+T4	ciso-board-translation	What are the seven board metric archetypes?
+R1	risk-register	Score our ransomware risk and tell me if it's within appetite.
+R2	risk-register	Which of our risks are past their review date?
+C1	nist-csf	How complete are we against CSF Recover?
