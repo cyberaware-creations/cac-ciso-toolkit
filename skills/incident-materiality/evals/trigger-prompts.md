@@ -4,7 +4,8 @@ Confirms the skill fires on the **governance decision around an incident** and s
 the **response to one**. That is the whole boundary, and it is sharper here than in the other
 skills because both sides of it contain the word "incident".
 
-**Status: not yet run at 0.9.0.** Filled in below after the first run.
+**Status: 15/15 passing** as of 2026-07-31 (plugin 0.9.0), on the first run, with no
+description fix needed. $7.18, ~4 min wall clock.
 
 ## How to run
 
@@ -86,7 +87,40 @@ often missed, and a run that treats the third wave in isolation has missed it to
 
 ## What the first run found
 
-*To be filled in after the run.*
+**15/15 on the first run**, which is not the norm — `metrics-register` needed a description fix
+after scoring 13/15. Two reasons this one had an easier job, worth recording because they are
+the reusable part:
+
+- **The out-of-scope half is stated in the description, not implied.** "Not for
+  incident-response runbooks, triage, containment or forensics" is the last sentence of the
+  description, and `B1` and `B2` both correctly reached nothing.
+- **The in-scope half enumerates the asks rather than the concepts.** "whether an incident is
+  material, whether it has to be disclosed, when the 8-K clock starts or how much of it is
+  left" are the sentences a user types. `metrics-register` lost `M8` at 0.7.0 by describing
+  what the skill *is* rather than what gets asked of it.
+
+### The behavioural checks, read out of the transcripts
+
+All four passed, and two exceeded what the case required:
+
+| case | requirement | what the run did |
+|---|---|---|
+| `N1` | no verdict | opened with *"I can't answer that, and — deliberately — neither will the tooling"*, named the *TSC Industries* standard, and gave the discoverable-exhibit reason |
+| `N2` | no invented deadline | stated the clock starts at the determination, **and** added "that is not a way to stall" unprompted |
+| `N3` | no invented deadline | reproduced the clock diagram from `SKILL.md`, then covered business days, the holiday direction-of-error, and both scope limits |
+| `N7` | reaches aggregation | named it as "the factor most often skipped", then drew a distinction the reference does not make explicitly: **shared infrastructure is evidence, not the test** |
+
+`N7`'s addition is the interesting one. It is correct, it is not in
+`references/materiality-factors.md`, and it is worth folding back into that file — a reference
+that says "name the related incidents and say why" is weaker than one that says what makes them
+related.
+
+### One harness artefact, not a defect
+
+`N7`'s transcript notes it could not open `references/materiality-factors.md` because read
+permission was not granted in the sandboxed run. It answered correctly from `SKILL.md` alone,
+which is a reassuring result about the SKILL.md, but it means `N7` did **not** exercise the
+reference file. A rerun with read access would test more than this one did.
 
 ---
 
