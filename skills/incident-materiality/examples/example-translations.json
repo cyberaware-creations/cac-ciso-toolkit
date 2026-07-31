@@ -1,0 +1,18 @@
+{
+  "section": "incident",
+  "contractVersion": 1,
+  "asOf": "2026-07-31",
+  "generatedBy": "ciso-board-translation",
+  "executiveSummary": "Three incidents were open in this period and one earlier matter was closed. A breach at our third-party payroll provider was determined material on 14 July and reported on Form 8-K on 17 July, inside the required window; it reached employee records, not customer data or production systems. A four-hour degradation of card authorisation at the EU payments subsidiary was classified as major under DORA and reported to the national competent authority, and was separately determined not material for securities purposes — two different questions with two different tests. The third, a renewed wave of credential-stuffing against the customer portal, is still under assessment and is being assessed together with the two earlier waves rather than on its own.",
+  "incidents": {
+    "I-001": "An earlier wave of the same credential-stuffing activity was determined not material in March and closed after credential resets and tighter rate limiting; it is retained as the reference point for the wave now under assessment.",
+    "I-002": "A breach at our third-party payroll provider exposed name, home address, social security number and bank details for 1,940 current and former employees; it was determined material on 14 July on the disclosure committee's recommendation and reported on Form 8-K on 17 July, one business day inside the four-business-day window.",
+    "I-003": "Card authorisation at the EU payments subsidiary ran above its service level for four hours and twelve minutes; it was classified as major under DORA, the initial notification and the intermediate report are with the national competent authority, and the final report is due by 23 August.",
+    "I-004": "A third wave of credential-stuffing against the customer portal is under assessment; because it runs on the same infrastructure against the same unremediated weakness as the March and May waves, the three are being assessed as one series rather than separately, and the determination is deferred until the log review completes on 3 August."
+  },
+  "decisions": [
+    "Note the Form 8-K filed on 17 July and confirm the committee is content with the process the disclosure committee followed to reach the determination.",
+    "Approve replacing the payroll provider, or re-validate the risk acceptance recorded against it for a further term with the basis restated and dated.",
+    "Fund the work that would close the weakness the three credential-stuffing waves have in common, or decide to carry it into next year with the residual risk recorded and owned."
+  ]
+}

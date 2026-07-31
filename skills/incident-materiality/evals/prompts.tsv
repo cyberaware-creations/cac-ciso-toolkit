@@ -1,0 +1,15 @@
+N1	incident-materiality	We had a breach at our payroll vendor last week. Is this material?
+N2	incident-materiality	Do we have to file an 8-K for the vendor breach?
+N3	incident-materiality	When does the four-business-day clock start on this, and how much of it is left?
+N4	incident-materiality	Record that the GC determined the payroll breach material on 14 July, and the basis.
+N5	incident-materiality	Draft the audit-committee update on the payroll incident.
+N6	incident-materiality	Our EU subsidiary classified an outage as major under DORA - track the reporting windows.
+N7	incident-materiality	We've had three waves of credential stuffing from the same infrastructure. Do we have to assess them together?
+N8	incident-materiality	Which of our incidents are still waiting on a materiality determination?
+N9	incident-materiality	We decided not to disclose the outage. Record the decision and the basis for it.
+N10	incident-materiality	Walk me through the factors we should be assessing on this incident.
+B1	neither	Write me an incident response runbook for a ransomware outbreak.
+B2	neither	Our SIEM is alerting on lateral movement - what should the SOC do first?
+B3	exceptions-register	Log an exception for the finance team running without phishing-resistant MFA.
+B4	ciso-board-translation	How should I phrase "we had a security incident" for a board audience?
+B5	risk-register	Score our third-party breach risk and tell me if it's within appetite.
