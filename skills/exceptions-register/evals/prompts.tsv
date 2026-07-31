@@ -6,7 +6,7 @@ X5	exceptions-register	Produce the risk-acceptance inventory our DORA reviewer i
 X6	exceptions-register	What do we need on file for an accepted risk to be defensible?
 X7	exceptions-register	Our auditor wants a list of every control exception and what compensates for it.
 X8	exceptions-register	Close the vendor exception - we've migrated off that platform.
-X9	exceptions-register	Move the accepted risks out of our risk register and into the acceptance register.
+X9	exceptions-register|risk-register	Bring the accepted risks from our risk register into the acceptance register so we can track re-validation.
 X10	exceptions-register	Is "users are reminded to choose strong passwords" a real compensating control?
 Y1	risk-register	Score our ransomware risk and tell me if it's within appetite.
 Y2	risk-register	Which of our risks are past their review date?

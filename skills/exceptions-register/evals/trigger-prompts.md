@@ -4,8 +4,10 @@ Confirms the skill fires on the **lifecycle of a decision already taken** — a 
 accepted, a control deviation approved — and stays quiet when the question is about a risk that
 has not been accepted, an incident that actually happened, or how to phrase either for a board.
 
-**Status: not yet run.** This set was written after Phase C, when a review found that
-`exceptions-register` shipped in Phase B without one. That was the gap; this file closes it.
+**Status: 14/15 routing mode, 14/15 reference mode** as of 2026-07-31 (plugin 0.9.3). The one
+failure in both is `X9`, and it is the case that was wrong, not the routing — see below. Written
+after Phase C, when a review found `exceptions-register` had shipped in Phase B without a
+checklist at all.
 
 ## How to run
 
@@ -88,7 +90,58 @@ Read out of the transcripts by hand on the first run:
 
 ## What the first run found
 
-*To be filled in after the run.*
+Two runs, both at plugin 0.9.3: routing mode ($7.27) and reference mode
+(`ALLOWED_TOOLS`, $8.13). **14/15 in both**, failing the same case.
+
+### `X9` was a bad case, not a bad result
+
+The original prompt was *"Move the accepted risks **out of** our risk register and into the
+acceptance register."* Both runs went to `risk-register` first; the reference-mode run reached
+both skills.
+
+The transcript is why the case was rewritten rather than the skill:
+
+> "You said 'move the accepted risks **out of** our risk register.' I'd read that as a transfer
+> that empties them from the register — but that's likely not what you want... The risk itself
+> **stays** in the register, carrying `response.type: accept`. It keeps its scores, its band,
+> its history, and its place in the heat matrix. Deleting accepted risks from the register would
+> drop them out of your over-appetite view — and accepted risks are frequently the ones sitting
+> over appetite, which is precisely what a board wants to see."
+
+That is correct, and the misconception was mine, written into the prompt. The case now reads
+*"Bring the accepted risks from our risk register into the acceptance register so we can track
+re-validation"* and accepts either skill, because a two-skill bridge genuinely has two valid
+entry points.
+
+### The behavioural requirements: all four met, two exceeded
+
+| case | requirement | what the run did |
+|---|---|---|
+| `X1` | the refusal must surface | tabulated all seven required fields as ✅/❌ — **and refused to promote the SKILL.md's own illustrative values** (CFO, NYDFS-500.12, the "$10k callback") into a real register, citing the discoverability caveat unprompted |
+| `X5` | no invented inventory, no overstated DORA | searched for a real `.rr`, found only fixtures, and stopped: *"A fabricated inventory handed to a DORA reviewer is worse than having none — it's the one failure mode this artifact cannot survive."* |
+| `X10` | must not answer "yes" | *"No. That exact sentence is the textbook example of the failure — it reads as a control and functions as a sentence."* |
+| `X9` | bridge stays one-way | stated it explicitly, and corrected the premise |
+
+`X1`'s refusal to reuse the documentation's placeholder values was not asked for by any
+requirement. It is the behaviour the discoverability caveat exists to produce, arriving without
+being invoked.
+
+### What `X10` taught the reference
+
+It gave three tests that separate a control from a sentence — what must an attacker now defeat,
+does anything fail closed, what evidence would show it operated — and then a fourth point the
+reference did not make: **the reminder is aimed at an objective NIST SP 800-63B abandoned**,
+in favour of length, breached-password screening and no forced rotation. So the measure is not
+merely weak; it is pointed at the wrong target.
+
+Folded into `references/exceptions.md`, along with the four real compensating controls the run
+listed for unenforced MFA.
+
+### The boundaries held
+
+`Y2` (risks past their review date → `risk-register`) passed in both modes, which is the result
+worth having: both skills own a re-validation clock and only the noun separates them. `Y4`
+(framing an acceptance for the board → `ciso-board-translation`) also held in both.
 
 ---
 
