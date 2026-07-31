@@ -13,6 +13,21 @@
 # BEFORE YOU RUN THIS: the installed plugin must match your working tree. See
 # trigger-prompts.md ("Refresh the plugin first") — `claude plugin update` is a no-op
 # when the version number hasn't changed, so an edited skill will NOT be under test.
+#
+# ALLOWED_TOOLS: by default this is UNSET, and a run therefore measures routing only —
+# reads of the skill's own reference/ files are declined, so the model answers from
+# SKILL.md alone. That default is correct for a routing test and it is what every shipped
+# score was measured under.
+#
+# It is NOT correct for testing whether the references earn their place. Setting
+# ALLOWED_TOOLS grants those reads:
+#
+#   ALLOWED_TOOLS="Read Glob Grep Skill" PROMPTS=... ./run-triggers.sh /tmp/out N7
+#
+# The distinction is real and was measured: incident-materiality N7 answered well from
+# SKILL.md alone, and with the reference readable produced a materially sharper answer
+# plus a consequence the reference had not stated. Scores from the two modes are not
+# comparable — record which mode a number came from.
 
 set -u
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -36,7 +51,11 @@ run_one() {
   local id="$1" prompt="$2"
   local wd="$out/work/$id"
   mkdir -p "$wd"
+  # Unquoted on purpose: ALLOWED_TOOLS is a space-separated list that must reach claude
+  # as separate argv entries, and it is empty by default so nothing is added.
+  # shellcheck disable=SC2086
   ( cd "$wd" && claude -p "$prompt" \
+      ${ALLOWED_TOOLS:+--allowedTools $ALLOWED_TOOLS} \
       --output-format stream-json --verbose --max-turns 12 \
       > "$out/runs/$id.jsonl" 2> "$out/runs/$id.err" </dev/null )
   echo "  $id done"

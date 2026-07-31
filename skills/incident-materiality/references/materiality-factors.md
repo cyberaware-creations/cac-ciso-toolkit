@@ -103,6 +103,18 @@ one credential list against one login path are. What pushes toward *one series*:
 The failure mode this factor exists to catch: each occurrence lands just under whatever the
 disclosure committee treats as consequential, while the combined impact would not have.
 
+**Aggregating moves the discovery date back, and that is the consequence people miss.** If
+three waves are one incident, the incident was discovered at the first wave — not the third.
+The four-business-day Item 1.05 window still starts at the determination and is unaffected.
+What *is* affected is *without unreasonable delay*, which runs from discovery: a determination
+that looks prompt against wave three may look very different against wave one.
+
+That is a reason to assess the aggregation question early, not a reason to answer it "no". The
+engine does not compute this — it records the ids you name and the reasoning you write — but
+the elapsed-days figure it reports is measured from the `discoveredAt` of the incident you are
+looking at, so if you conclude the waves are one series, say so in the rationale and be
+deliberate about which record carries the earlier date.
+
 **Honest limit:** the engine will not infer relatedness. It records the ids you name and reports
 them; it does not cluster incidents by time, actor or asset, because a false cluster and a missed
 one are both judgments about facts the tool does not have.
