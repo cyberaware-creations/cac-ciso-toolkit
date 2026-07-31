@@ -115,12 +115,28 @@ All four passed, and two exceeded what the case required:
 that says "name the related incidents and say why" is weaker than one that says what makes them
 related.
 
-### One harness artefact, not a defect
+### The harness gap this run exposed, and what closing it found
 
-`N7`'s transcript notes it could not open `references/materiality-factors.md` because read
-permission was not granted in the sandboxed run. It answered correctly from `SKILL.md` alone,
-which is a reassuring result about the SKILL.md, but it means `N7` did **not** exercise the
-reference file. A rerun with read access would test more than this one did.
+`N7`'s first transcript noted it could not open `references/materiality-factors.md` — reads
+outside the empty working directory are declined under the harness's default permissions. That
+is true of **every case in every skill's trigger set**: the shipped scores measure routing, and
+the model answers from `SKILL.md` alone. For a routing test that is the right default.
+
+It is the wrong default for asking whether the references earn their place, so `N7` was re-run
+with `ALLOWED_TOOLS="Read Glob Grep Skill"` ($0.40). The result settles it:
+
+- It read exactly one file — `references/materiality-factors.md` — and nothing else.
+- It reproduced the aggregation signals close to verbatim, which is the reference doing its job.
+- **It then derived a consequence the reference did not state:** aggregating the waves moves the
+  *discovery* date back to wave one, which does not touch the four-business-day window (that
+  still runs from the determination) but does change how *without unreasonable delay* reads.
+
+That last point was a genuine omission and is now in `materiality-factors.md`. The reference
+demonstrably improves the answer, so `run-triggers.sh` gained an optional `ALLOWED_TOOLS`
+parameter — unset by default, so every previously recorded score stays comparable.
+
+**Scores from the two modes are not comparable.** Record which mode a number came from. The
+15/15 above is routing-mode.
 
 ---
 
