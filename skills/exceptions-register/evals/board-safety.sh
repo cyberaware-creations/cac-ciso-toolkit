@@ -17,7 +17,7 @@ skill="$(cd "$here/.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=6
+EXPECTED_CHECKS=8
 checks=0
 fails=0
 ok()  { checks=$((checks + 1)); printf '  ok    %s\n' "$1"; }
@@ -47,13 +47,34 @@ PY
   else bad "no confidence vocabulary in the rendered $page view" "found: $hit"; fi
 done
 
+# Catastrophizing, on the same two pages. Introduced for incident-materiality in Phase C and
+# extended here after the board pack caught a shipped sidecar calling an untested backup the
+# difference between "a bad week or an existential event". Deliberately NOT banning "severe",
+# "critical" or "major": those are the classification vocabulary the frameworks themselves
+# use, and banning them would ban the subject matter.
+for page in board op; do
+  hit=$($PY - "$work/$page.html" <<'PY'
+import re, sys
+text = re.sub(r"<[^>]+>", " ", open(sys.argv[1], encoding="utf-8").read()).lower()
+banned = ("catastroph", "devastat", "existential", "crippl", "disastrous", "nightmare",
+          "ruinous", "calamit", "apocalyp", "bet-the-company", "reputational ruin",
+          "could destroy", "wiped out")
+print(",".join(b for b in banned if b in text))
+PY
+)
+  if [ -z "$hit" ]; then ok "no catastrophizing in the rendered $page view"
+  else bad "no catastrophizing in the rendered $page view" "found: $hit"; fi
+done
+
 # 3. Our source, by stem. Docstrings are exempt — the refusal has to be explainable, and
 # every file here carries a paragraph naming the claim it declines to make.
 res=$($PY - "$skill" <<'PY'
 import ast, pathlib, sys
 root = pathlib.Path(sys.argv[1])
 STEMS = ("confiden", "degrad", "decay", "reliab", "assumed",
-         "trust", "certainty", "uncertain", "doubt")
+         "trust", "certainty", "uncertain", "doubt",
+         "catastroph", "devastat", "existential", "crippl", "disastrous",
+         "nightmare", "ruinous", "calamit", "apocalyp")
 FILES = ("renderers/_common.py", "renderers/render_board.py",
          "renderers/render_inventory.py", "scripts/exceptions_register.py")
 problems, scanned = [], 0

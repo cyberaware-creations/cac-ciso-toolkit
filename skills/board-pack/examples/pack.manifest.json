@@ -1,0 +1,35 @@
+{
+  "manifestVersion": 1,
+  "client": "Northwind Financial",
+  "period": "Q3 2026",
+  "asOf": "2026-07-31",
+  "audience": "board",
+  "throughLine": "pack.board.json",
+  "sections": [
+    {
+      "section": "posture",
+      "store": "../../nist-csf/examples/example-profile.csfp",
+      "translations": "../../nist-csf/references/example-translations.json"
+    },
+    {
+      "section": "risk",
+      "store": "../../risk-register/examples/example-register-v2.rr",
+      "translations": "../../risk-register/references/example-translations.json"
+    },
+    {
+      "section": "metrics",
+      "store": "../../metrics-register/examples/example-metrics.mtr",
+      "translations": "../../metrics-register/examples/example-translations.json"
+    },
+    {
+      "section": "exceptions",
+      "store": "../../exceptions-register/examples/example.exc",
+      "translations": "../../exceptions-register/examples/example-translations.json"
+    },
+    {
+      "section": "incident",
+      "store": "../../incident-materiality/examples/example-incident.inc",
+      "translations": "../../incident-materiality/examples/example-translations.json"
+    }
+  ]
+}

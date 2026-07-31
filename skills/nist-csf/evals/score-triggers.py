@@ -36,7 +36,7 @@ SCRIPT_TO_SKILL = {
 # called it a failure anyway. A result that changes with the operator's plugin
 # list is not measuring this repo.
 OURS = ("nist-csf", "risk-register", "ciso-board-translation", "metrics-register",
-        "exceptions-register", "incident-materiality")
+        "exceptions-register", "incident-materiality", "board-pack")
 
 
 def parse_run(path):
