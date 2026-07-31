@@ -38,6 +38,7 @@ work="${1:-$(mktemp -d)}"
 PY="${PY:-python3}"
 RR="$repo/skills/risk-register"
 CSF="$repo/skills/nist-csf"
+MX="$repo/skills/metrics-register"
 PORT="${CDP_PORT:-9333}"
 export CDP_PORT="$PORT"
 
@@ -128,6 +129,20 @@ done
 "$PY" "$CSF/renderers/render_operational.py" --in "$work/an.json" \
   --out "$work/csf_ops.html" --offline >/dev/null || {
     echo "responsive: FIXTURE FAILED — render_operational errored"; exit 1; }
+
+# metrics-register, both surfaces. The board view is rendered WITH its sidecar and the
+# operational view without one, so the pass covers a page full of narrative and a page
+# full of table — the two shapes that fail differently at 320px.
+"$PY" "$MX/scripts/metrics_analysis.py" analyze "$MX/examples/example-metrics.mtr" \
+  --today 2026-07-31 --out "$work/mx.json" >/dev/null || {
+    echo "responsive: FIXTURE FAILED — metrics analyze errored"; exit 1; }
+(cd "$MX/renderers" && "$PY" render_executive.py --in "$work/mx.json" \
+  --translations "$MX/examples/example-translations.json" \
+  --out "$work/mx_exec.html" --offline) >/dev/null || {
+    echo "responsive: FIXTURE FAILED — metrics render_executive errored"; exit 1; }
+(cd "$MX/renderers" && "$PY" render_operational.py --in "$work/mx.json" \
+  --out "$work/mx_ops.html" --offline) >/dev/null || {
+    echo "responsive: FIXTURE FAILED — metrics render_operational errored"; exit 1; }
 
 # A second CSF pair, deliberately below the scope threshold. The first fixture seeds
 # ratings across every Function, so it renders the headline path only — the scope
@@ -242,7 +257,8 @@ pages=("$work/render_board.html" "$work/render_dashboard.html" "$work/render_rep
        "$work/csf_exec.html" "$work/csf_ops.html"
        "$work/csf_exec_partial.html" "$work/csf_ops_partial.html"
        "$work/csf_exec_v2ex.html" "$work/csf_ops_v2ex.html"
-       "$work/csf_exec_overlay.html" "$work/csf_ops_overlay.html")
+       "$work/csf_exec_overlay.html" "$work/csf_ops_overlay.html"
+       "$work/mx_exec.html" "$work/mx_ops.html")
 fails=0
 echo
 for vw in 320 375 768 1265; do

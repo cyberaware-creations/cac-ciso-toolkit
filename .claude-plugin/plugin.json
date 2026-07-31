@@ -1,7 +1,7 @@
 {
   "name": "cyber-aware-creations",
   "displayName": "Cyber Aware Creations — CISO Toolkit",
-  "version": "0.6.2",
+  "version": "0.7.0",
   "description": "NIST-aligned cybersecurity skills for security leaders. Build, score, and maintain a risk register with change history and board dashboards; assess your program against the NIST CSF 2.0 as a tracked Organizational Profile with gap analysis and coverage reporting; and translate security facts into board-ready language with sourced regulatory receipts.",
   "author": {
     "name": "Cyber Aware Creations, LLC.",
@@ -9,5 +9,22 @@
   },
   "homepage": "https://cyberawarecreations.com",
   "license": "Apache-2.0",
-  "keywords": ["ciso", "risk-register", "nist", "nist-csf", "csf", "cybersecurity", "board", "grc", "risk-management", "framework", "maturity", "gap-analysis", "assessment"]
+  "keywords": [
+    "ciso",
+    "risk-register",
+    "nist",
+    "nist-csf",
+    "csf",
+    "cybersecurity",
+    "board",
+    "grc",
+    "risk-management",
+    "framework",
+    "maturity",
+    "gap-analysis",
+    "assessment",
+    "metrics",
+    "kri",
+    "metrics-register"
+  ]
 }
