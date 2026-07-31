@@ -63,6 +63,19 @@ jobs:
       - name: Section contract, on the floor
         run: PY="$(command -v python3)" ./skills/board-pack/evals/section-contract.sh
 
+      # metrics-register: the engine's own parity discipline, then the derivations through
+      # the real CLI. Polarity is the case both exist for — a lower-better metric that
+      # RISES is slipping, and the naive implementation reports it as an improvement,
+      # which reads exactly like a correct answer in a board pack.
+      - name: Metrics engine self-test, on the floor
+        run: python3 ./skills/metrics-register/scripts/metrics_analysis.py self-test
+
+      - name: Metric trend suite, on the floor
+        run: PY="$(command -v python3)" ./skills/metrics-register/evals/metric-trend.sh
+
+      - name: Board-safety (metrics), on the floor
+        run: PY="$(command -v python3)" ./skills/metrics-register/evals/board-safety.sh
+
       # Needs no browser, so it belongs here rather than behind the `rendered` job's
       # Chrome/node gate. It builds its register with the real CLI and asserts through the
       # renderers' own Context, so 3.9 is the interpreter that matters: this is the same

@@ -1,0 +1,500 @@
+{
+  "schemaVersion": 1,
+  "family": "metrics-register",
+  "meta": {
+    "clientName": "Acme Manufacturing",
+    "owner": "CISO",
+    "scopeNote": "",
+    "asOf": "2026-07-31"
+  },
+  "settings": {
+    "cadenceDays": 90
+  },
+  "metrics": [
+    {
+      "id": "M-001",
+      "name": "Critical patches applied within SLA",
+      "archetype": "patch-coverage",
+      "unit": "percent",
+      "direction": "higher-better",
+      "threshold": {
+        "target": 95.0,
+        "warn": 90.0,
+        "critical": 80.0
+      },
+      "owner": "Head of Infrastructure",
+      "csfSubcategoryIds": [
+        "ID.RA-01"
+      ],
+      "riskIds": [
+        "R-006"
+      ],
+      "vanityRisk": false,
+      "notes": ""
+    },
+    {
+      "id": "M-002",
+      "name": "Median attacker dwell time",
+      "archetype": "dwell-time",
+      "unit": "days",
+      "direction": "lower-better",
+      "threshold": {
+        "target": 5.0,
+        "warn": 10.0,
+        "critical": 20.0
+      },
+      "owner": "SOC Lead",
+      "csfSubcategoryIds": [],
+      "riskIds": [],
+      "vanityRisk": false,
+      "notes": ""
+    },
+    {
+      "id": "M-003",
+      "name": "Phishing simulation click rate",
+      "archetype": "phishing-click",
+      "unit": "percent",
+      "direction": "lower-better",
+      "threshold": {
+        "target": 3.0,
+        "warn": 6.0,
+        "critical": 10.0
+      },
+      "owner": "Security Awareness",
+      "csfSubcategoryIds": [],
+      "riskIds": [],
+      "vanityRisk": false,
+      "notes": ""
+    },
+    {
+      "id": "M-004",
+      "name": "Privileged accounts with MFA",
+      "archetype": "mfa-coverage",
+      "unit": "percent",
+      "direction": "higher-better",
+      "threshold": {
+        "target": 100.0,
+        "warn": 98.0,
+        "critical": 95.0
+      },
+      "owner": "",
+      "csfSubcategoryIds": [
+        "PR.AA-01"
+      ],
+      "riskIds": [
+        "R-001"
+      ],
+      "vanityRisk": false,
+      "notes": ""
+    },
+    {
+      "id": "M-005",
+      "name": "Malicious emails blocked",
+      "archetype": null,
+      "unit": "count",
+      "direction": "higher-better",
+      "threshold": {},
+      "owner": "SOC Lead",
+      "csfSubcategoryIds": [],
+      "riskIds": [],
+      "vanityRisk": true,
+      "notes": ""
+    },
+    {
+      "id": "M-006",
+      "name": "Backup restores tested",
+      "archetype": "backup-recovery",
+      "unit": "percent",
+      "direction": "higher-better",
+      "threshold": {
+        "target": 100.0,
+        "warn": 75.0,
+        "critical": 50.0
+      },
+      "owner": "Infrastructure",
+      "csfSubcategoryIds": [
+        "RC.RP-01"
+      ],
+      "riskIds": [],
+      "vanityRisk": false,
+      "notes": ""
+    }
+  ],
+  "readings": [
+    {
+      "metricId": "M-001",
+      "period": "2026-Q2",
+      "value": 93.0,
+      "date": "2026-04-01",
+      "source": "quarterly pull",
+      "actor": "D. Alleyne",
+      "ts": "2026-07-31T18:25:13+00:00",
+      "note": ""
+    },
+    {
+      "metricId": "M-001",
+      "period": "2026-Q3",
+      "value": 88.0,
+      "date": "2026-07-01",
+      "source": "quarterly pull",
+      "actor": "D. Alleyne",
+      "ts": "2026-07-31T18:25:13+00:00",
+      "note": ""
+    },
+    {
+      "metricId": "M-002",
+      "period": "2026-Q2",
+      "value": 11.0,
+      "date": "2026-04-01",
+      "source": "quarterly pull",
+      "actor": "D. Alleyne",
+      "ts": "2026-07-31T18:25:13+00:00",
+      "note": ""
+    },
+    {
+      "metricId": "M-002",
+      "period": "2026-Q3",
+      "value": 8.0,
+      "date": "2026-07-01",
+      "source": "quarterly pull",
+      "actor": "D. Alleyne",
+      "ts": "2026-07-31T18:25:13+00:00",
+      "note": ""
+    },
+    {
+      "metricId": "M-003",
+      "period": "2026-Q2",
+      "value": 4.1,
+      "date": "2026-04-01",
+      "source": "quarterly pull",
+      "actor": "D. Alleyne",
+      "ts": "2026-07-31T18:25:13+00:00",
+      "note": ""
+    },
+    {
+      "metricId": "M-003",
+      "period": "2026-Q3",
+      "value": 6.8,
+      "date": "2026-07-01",
+      "source": "quarterly pull",
+      "actor": "D. Alleyne",
+      "ts": "2026-07-31T18:25:13+00:00",
+      "note": ""
+    },
+    {
+      "metricId": "M-004",
+      "period": "2026-Q2",
+      "value": 96.0,
+      "date": "2026-04-01",
+      "source": "quarterly pull",
+      "actor": "D. Alleyne",
+      "ts": "2026-07-31T18:25:13+00:00",
+      "note": ""
+    },
+    {
+      "metricId": "M-004",
+      "period": "2026-Q3",
+      "value": 99.0,
+      "date": "2026-07-01",
+      "source": "quarterly pull",
+      "actor": "D. Alleyne",
+      "ts": "2026-07-31T18:25:13+00:00",
+      "note": ""
+    },
+    {
+      "metricId": "M-005",
+      "period": "2026-Q3",
+      "value": 2140000.0,
+      "date": "2026-07-01",
+      "source": "quarterly pull",
+      "actor": "D. Alleyne",
+      "ts": "2026-07-31T18:25:13+00:00",
+      "note": ""
+    },
+    {
+      "metricId": "M-006",
+      "period": "2025-Q4",
+      "value": 40.0,
+      "date": "2025-11-15",
+      "source": "quarterly pull",
+      "actor": "D. Alleyne",
+      "ts": "2026-07-31T18:25:13+00:00",
+      "note": ""
+    }
+  ],
+  "history": [
+    {
+      "event": "register-created",
+      "target": "skills/metrics-register/examples/example-metrics.mtr",
+      "actor": "D. Alleyne",
+      "ts": "2026-07-31T18:24:39+00:00"
+    },
+    {
+      "event": "metric-added",
+      "target": "M-001",
+      "actor": "D. Alleyne",
+      "ts": "2026-07-31T18:24:39+00:00",
+      "detail": {
+        "name": "Critical patches applied within SLA",
+        "direction": "higher-better"
+      }
+    },
+    {
+      "event": "metric-added",
+      "target": "M-002",
+      "actor": "D. Alleyne",
+      "ts": "2026-07-31T18:24:39+00:00",
+      "detail": {
+        "name": "Median attacker dwell time",
+        "direction": "lower-better"
+      }
+    },
+    {
+      "event": "metric-added",
+      "target": "M-003",
+      "actor": "D. Alleyne",
+      "ts": "2026-07-31T18:24:39+00:00",
+      "detail": {
+        "name": "Phishing simulation click rate",
+        "direction": "lower-better"
+      }
+    },
+    {
+      "event": "metric-added",
+      "target": "M-004",
+      "actor": "D. Alleyne",
+      "ts": "2026-07-31T18:24:39+00:00",
+      "detail": {
+        "name": "Privileged accounts with MFA",
+        "direction": "higher-better"
+      }
+    },
+    {
+      "event": "metric-added",
+      "target": "M-005",
+      "actor": "D. Alleyne",
+      "ts": "2026-07-31T18:24:39+00:00",
+      "detail": {
+        "name": "Malicious emails blocked",
+        "direction": "higher-better"
+      }
+    },
+    {
+      "event": "metric-added",
+      "target": "M-006",
+      "actor": "D. Alleyne",
+      "ts": "2026-07-31T18:24:39+00:00",
+      "detail": {
+        "name": "Backup restores tested",
+        "direction": "higher-better"
+      }
+    },
+    {
+      "event": "threshold-set",
+      "target": "M-001",
+      "actor": "D. Alleyne",
+      "ts": "2026-07-31T18:24:54+00:00",
+      "detail": {
+        "target": 95.0,
+        "warn": 90.0,
+        "critical": 80.0
+      }
+    },
+    {
+      "event": "threshold-set",
+      "target": "M-002",
+      "actor": "D. Alleyne",
+      "ts": "2026-07-31T18:24:54+00:00",
+      "detail": {
+        "target": 5.0,
+        "warn": 10.0,
+        "critical": 20.0
+      }
+    },
+    {
+      "event": "threshold-set",
+      "target": "M-003",
+      "actor": "D. Alleyne",
+      "ts": "2026-07-31T18:24:54+00:00",
+      "detail": {
+        "target": 3.0,
+        "warn": 6.0,
+        "critical": 10.0
+      }
+    },
+    {
+      "event": "threshold-set",
+      "target": "M-004",
+      "actor": "D. Alleyne",
+      "ts": "2026-07-31T18:24:54+00:00",
+      "detail": {
+        "target": 100.0,
+        "warn": 98.0,
+        "critical": 95.0
+      }
+    },
+    {
+      "event": "threshold-set",
+      "target": "M-006",
+      "actor": "D. Alleyne",
+      "ts": "2026-07-31T18:24:54+00:00",
+      "detail": {
+        "target": 100.0,
+        "warn": 75.0,
+        "critical": 50.0
+      }
+    },
+    {
+      "event": "metric-linked",
+      "target": "M-001",
+      "actor": "D. Alleyne",
+      "ts": "2026-07-31T18:24:55+00:00",
+      "detail": {
+        "csf": [
+          "ID.RA-01"
+        ],
+        "risk": [
+          "R-006"
+        ]
+      }
+    },
+    {
+      "event": "metric-linked",
+      "target": "M-004",
+      "actor": "D. Alleyne",
+      "ts": "2026-07-31T18:24:55+00:00",
+      "detail": {
+        "csf": [
+          "PR.AA-01"
+        ],
+        "risk": [
+          "R-001"
+        ]
+      }
+    },
+    {
+      "event": "metric-linked",
+      "target": "M-006",
+      "actor": "D. Alleyne",
+      "ts": "2026-07-31T18:24:55+00:00",
+      "detail": {
+        "csf": [
+          "RC.RP-01"
+        ],
+        "risk": []
+      }
+    },
+    {
+      "event": "reading-recorded",
+      "target": "M-001",
+      "actor": "D. Alleyne",
+      "ts": "2026-07-31T18:25:13+00:00",
+      "detail": {
+        "period": "2026-Q2",
+        "value": 93.0,
+        "date": "2026-04-01"
+      }
+    },
+    {
+      "event": "reading-recorded",
+      "target": "M-001",
+      "actor": "D. Alleyne",
+      "ts": "2026-07-31T18:25:13+00:00",
+      "detail": {
+        "period": "2026-Q3",
+        "value": 88.0,
+        "date": "2026-07-01"
+      }
+    },
+    {
+      "event": "reading-recorded",
+      "target": "M-002",
+      "actor": "D. Alleyne",
+      "ts": "2026-07-31T18:25:13+00:00",
+      "detail": {
+        "period": "2026-Q2",
+        "value": 11.0,
+        "date": "2026-04-01"
+      }
+    },
+    {
+      "event": "reading-recorded",
+      "target": "M-002",
+      "actor": "D. Alleyne",
+      "ts": "2026-07-31T18:25:13+00:00",
+      "detail": {
+        "period": "2026-Q3",
+        "value": 8.0,
+        "date": "2026-07-01"
+      }
+    },
+    {
+      "event": "reading-recorded",
+      "target": "M-003",
+      "actor": "D. Alleyne",
+      "ts": "2026-07-31T18:25:13+00:00",
+      "detail": {
+        "period": "2026-Q2",
+        "value": 4.1,
+        "date": "2026-04-01"
+      }
+    },
+    {
+      "event": "reading-recorded",
+      "target": "M-003",
+      "actor": "D. Alleyne",
+      "ts": "2026-07-31T18:25:13+00:00",
+      "detail": {
+        "period": "2026-Q3",
+        "value": 6.8,
+        "date": "2026-07-01"
+      }
+    },
+    {
+      "event": "reading-recorded",
+      "target": "M-004",
+      "actor": "D. Alleyne",
+      "ts": "2026-07-31T18:25:13+00:00",
+      "detail": {
+        "period": "2026-Q2",
+        "value": 96.0,
+        "date": "2026-04-01"
+      }
+    },
+    {
+      "event": "reading-recorded",
+      "target": "M-004",
+      "actor": "D. Alleyne",
+      "ts": "2026-07-31T18:25:13+00:00",
+      "detail": {
+        "period": "2026-Q3",
+        "value": 99.0,
+        "date": "2026-07-01"
+      }
+    },
+    {
+      "event": "reading-recorded",
+      "target": "M-005",
+      "actor": "D. Alleyne",
+      "ts": "2026-07-31T18:25:13+00:00",
+      "detail": {
+        "period": "2026-Q3",
+        "value": 2140000.0,
+        "date": "2026-07-01"
+      }
+    },
+    {
+      "event": "reading-recorded",
+      "target": "M-006",
+      "actor": "D. Alleyne",
+      "ts": "2026-07-31T18:25:13+00:00",
+      "detail": {
+        "period": "2025-Q4",
+        "value": 40.0,
+        "date": "2025-11-15"
+      }
+    }
+  ],
+  "createdAt": "2026-07-31T18:24:39+00:00",
+  "updatedAt": "2026-07-31T18:25:13+00:00"
+}
