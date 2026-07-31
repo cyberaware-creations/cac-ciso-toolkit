@@ -22,7 +22,7 @@ repo="$(cd "$here/../../.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=22
+EXPECTED_CHECKS=28
 checks=0
 fails=0
 
@@ -31,6 +31,7 @@ bad() { checks=$((checks + 1)); fails=$((fails + 1)); printf '  FAIL  %s\n      
 
 RR="$repo/skills/risk-register"
 NC="$repo/skills/nist-csf"
+MX="$repo/skills/metrics-register"
 CONTRACT="$repo/skills/board-pack/references/section-contract.md"
 
 echo "section-contract: $($PY -V 2>&1)"
@@ -64,9 +65,17 @@ render_nc() {  # render_nc <sidecar> <out>
       --translations "$1" --out "$2" --offline) >/dev/null 2>"$work/err.txt"
 }
 
+render_mx() {  # render_mx <sidecar> <out>
+  (cd "$MX/renderers" && $PY render_executive.py --in "$work/mx.json" \
+      --translations "$1" --out "$2" --offline) >/dev/null 2>"$work/err.txt"
+}
+$PY "$MX/scripts/metrics_analysis.py" analyze "$MX/examples/example-metrics.mtr" \
+    --today 2026-07-31 --out "$work/mx.json" >/dev/null 2>&1
+
 # Strip the contract keys to make a pre-contract sidecar, and mutate them to make the
 # refusal cases. Written by the same script so the only difference is the keys involved.
-$PY - "$RR/references/example-translations.json" "$NC/references/example-translations.json" "$work" <<'PY'
+$PY - "$RR/references/example-translations.json" "$NC/references/example-translations.json" "$work" \
+    "$MX/examples/example-translations.json" <<'PY'
 import json, sys
 rr_src, nc_src, work = sys.argv[1], sys.argv[2], sys.argv[3]
 rr, nc = json.load(open(rr_src)), json.load(open(nc_src))
@@ -83,6 +92,11 @@ json.dump(dict(nc, section="risk"), open(f"{work}/nc-wrongsection.json", "w"))
 # The deprecated alias: same content, older spelling.
 alias = dict(nc); alias["subcategories"] = alias.pop("gaps")
 json.dump(alias, open(f"{work}/nc-alias.json", "w"))
+
+mx = json.load(open(sys.argv[4]))
+json.dump(drop(mx), open(f"{work}/mx-precontract.json", "w"))
+json.dump(dict(mx, contractVersion=2), open(f"{work}/mx-v2.json", "w"))
+json.dump(dict(mx, section="posture"), open(f"{work}/mx-wrongsection.json", "w"))
 PY
 
 # --- 2/3. every --translations consumer renders, and does so identically pre-contract
@@ -115,6 +129,28 @@ if cmp -s "$work/nc-stamped.html" "$work/nc-pre.html"; then
   ok "render_executive: a pre-contract sidecar renders byte-identically"
 else
   bad "render_executive: a pre-contract sidecar renders byte-identically" "the stamp changed the page"
+fi
+
+if render_mx "$MX/examples/example-translations.json" "$work/mx-stamped.html"; then
+  ok "metrics render_executive renders a stamped metrics sidecar"
+else
+  bad "metrics render_executive renders a stamped metrics sidecar" "$(tail -2 "$work/err.txt")"
+fi
+render_mx "$work/mx-precontract.json" "$work/mx-pre.html"
+if cmp -s "$work/mx-stamped.html" "$work/mx-pre.html"; then
+  ok "metrics: a pre-contract sidecar renders byte-identically"
+else
+  bad "metrics: a pre-contract sidecar renders byte-identically" "the stamp changed the page"
+fi
+if render_mx "$work/mx-v2.json" "$work/x.html"; then
+  bad "metrics renderer refuses contractVersion 2" "it rendered"
+else
+  ok "metrics renderer refuses contractVersion 2"
+fi
+if render_mx "$work/mx-wrongsection.json" "$work/x.html"; then
+  bad "metrics renderer refuses a 'posture' sidecar" "it rendered"
+else
+  ok "metrics renderer refuses a 'posture' sidecar"
 fi
 
 # --- 4. the deprecated alias still resolves -----------------------------------------
@@ -192,6 +228,16 @@ rside = json.load(open(f"{repo}/skills/risk-register/references/example-translat
 # The risk sidecar covers the top risks by design, so an unwritten risk is not a defect
 # here — only an id that does not exist is.
 verdicts.append(("risk example invents no risk id", sorted(set(rside.get("risks") or {}) - ids)))
+
+mx = json.loads(subprocess.run(
+    [sys.executable, f"{repo}/skills/metrics-register/scripts/metrics_analysis.py", "analyze",
+     f"{repo}/skills/metrics-register/examples/example-metrics.mtr", "--today", "2026-07-31"],
+    capture_output=True, text=True).stdout)
+mids = {r["metricId"] for r in mx["metrics"]}
+mside = json.load(open(f"{repo}/skills/metrics-register/examples/example-translations.json"))
+mine = set(mside.get("metrics") or {})
+verdicts.append(("metrics example invents no metric id", sorted(mine - mids)))
+verdicts.append(("metrics example leaves no metric unwritten", sorted(mids - mine)))
 
 for label, offenders in verdicts:
     print(("PASS" if not offenders else "FAIL"), label, ",".join(offenders))
