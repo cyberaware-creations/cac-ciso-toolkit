@@ -1,6 +1,6 @@
 # Board-Pack Skill Suite — Claude Code Handoff
 
-**Target repo:** the `cyber-aware-creations` plugin (shipped v0.5.1)
+**Target repo:** the `cyber-aware-creations` plugin (shipped **v0.6.0** — the bundle was written against v0.5.1)
 **Date:** 2026-07-30
 
 ## What's in this bundle
@@ -13,13 +13,18 @@
 | `incident-materiality-skill-design-2026-07-30.md` | Design spec — #4 `incident-materiality` |
 | `board-pack-assembler-skill-design-2026-07-30.md` | Design spec — #1 `board-pack` |
 
+**Filed 2026-07-30 (PR #19)** under the repo's existing convention, not the paths suggested below:
+the plan and this handoff at `docs/superpowers/plans/2026-07-30-*`, the four specs at
+`docs/superpowers/specs/2026-07-30-<skill>-design.md`. Content is unchanged from the bundle apart
+from the version ladder.
+
 ## How to execute
 
-1. Drop these files into the repo — e.g. the plan in `docs/plans/`, the four specs in `docs/specs/`.
+1. ~~Drop these files into the repo~~ — done; see the paths above.
 2. Open Claude Code in the repo.
-3. Say: **"Execute the plan in docs/plans/board-pack-suite-implementation-plan-2026-07-30.md."**
+3. Say: **"Execute the plan in `docs/superpowers/plans/2026-07-30-board-pack-suite-implementation-plan.md`."**
 
-Superpowers (`superpowers:executing-plans`) runs it phase-by-phase with a checkpoint and a plugin version bump at each (0.6.0 → 0.7.0 → 0.8.0 → 0.9.0). Build order: Phase 0 (section contract) → A (`metrics-register`) → B (`exceptions-register`) → C (`incident-materiality`) → D (`board-pack`).
+Superpowers (`superpowers:executing-plans`) runs it phase-by-phase with a checkpoint and a plugin version bump at each (**0.7.0 → 0.8.0 → 0.9.0 → 0.10.0** — shifted up one step because 0.6.0 shipped the `nist-csf` crosswalk lenses first; see the version note in the plan). Build order: Phase 0 (section contract) → A (`metrics-register`) → B (`exceptions-register`) → C (`incident-materiality`) → D (`board-pack`).
 
 ## Two gates (in the plan, resolved)
 
