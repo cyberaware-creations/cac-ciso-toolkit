@@ -30,6 +30,16 @@ already have; see [Requirements](#requirements).
 
 ## Skills
 
+Seven skills, in three layers. **Five own data** — each is the system of record for one thing and
+persists it in a local file: risks, a CSF Profile, metrics, accepted exceptions, incident
+determinations. **One owns language** — `ciso-board-translation` holds the board-facing phrasing the
+others call rather than each inventing its own. **One owns the deliverable** — `board-pack` assembles
+what the producers wrote into a single document, and owns no data at all.
+
+The seam is deliberate. A producer decides what is true, the translation skill decides how it is
+said, and the assembler decides what order a board reads it in. No skill does two of those jobs, so
+a fact has exactly one home and changing how something is phrased never edits a store.
+
 ### `risk-register`
 Build, score, and maintain a cybersecurity risk register that persists in a local `.rr` file and
 tracks how risk changes over time. NISTIR 8286 event-statement risks, deterministic Likelihood ×
@@ -87,7 +97,8 @@ against that log as evidence arrives.
   past it so the number can appear on a dashboard. It flags nothing, gates nothing, suppresses
   nothing, and changes no score. Age is reported in four bands derived from that same threshold `T` —
   `within` (≤ T/2), `approaching` (≤ T), `beyond` (≤ 2T), `wellBeyond` (> 2T) — with identical
-  boundaries in both skills, over CSF ratings in one and over risk confirmations in the other. They
+  boundaries in all three skills that have a cadence to measure against: over CSF ratings here,
+  over risk confirmations in `risk-register`, and over reading dates in `metrics-register`. They
   are **distance-from-cadence labels, not confidence labels**: age is derivable from stored data and
   confidence is not, so the engine reports how old a determination is and the reader judges what that
   means. An inverted check in `risk-register/evals/board-safety.sh` fails if confidence vocabulary
@@ -113,11 +124,102 @@ Profiles written before v0.2.0 keep working: schema v1 is normalized to v2 in me
 stamped on the next write. Their existing ratings carry no attribution — which is exactly what the
 Profile now says about them, rather than quietly implying they were sourced.
 
+### `metrics-register`
+Maintain security metrics and KRIs as a trended record in a local `.mtr` file, so the same numbers
+can be compared period over period instead of re-derived each quarter. Dated readings with their
+source, deterministic direction-aware trend and threshold status, and the attention lists a metrics
+review actually works from.
+
+- **Direction is required at definition time** — `higher-better` or `lower-better`. Without it,
+  "87% → 91%" is not an improvement, it is just a different number, and the engine refuses to
+  guess from the metric's name. Every trend verdict in the skill is derived from that declaration.
+- **Six attention lists, from the same data** — `breached`, `worsening`, `stale`, `unowned`,
+  `untagged` and `vanity`. `unowned` is the one nobody asks for and everybody needs: a metric with
+  no owner has no one to move it.
+- **The vanity flag is declared, not inferred.** Whether a metric mostly flatters the programme is
+  a judgment about what it is *for*, and no amount of reading its history reveals that. So a human
+  sets it and the engine reports it, rather than guessing from a line that only goes up.
+- **Archetypes are tagged here and explained elsewhere.** Each metric carries an archetype tag
+  resolved against `ciso-board-translation` at render time. What an archetype *means*, and what
+  trap it hides, is that skill's content and is deliberately not duplicated — ask this skill and
+  it will hand you off.
+- **Age bands, not expiry** — the same `within` / `approaching` / `beyond` / `wellBeyond` bands as
+  the CSF Profile and the register, over reading dates here. Distance from cadence, never a
+  confidence claim, and nothing expires on a timer.
+
+### `exceptions-register`
+The defensible record of what the organisation knowingly accepted — risk acceptances and control
+exceptions with their compensating controls — persisted in a local `.exc` file, so an auditor, a
+regulator or a board can be shown the basis, the approver, and whether the reasoning still holds.
+
+- **Three things are non-negotiable, and their absence is a refusal.** No approver, no
+  justification, or no re-validation date means the record is not written. Not a warning: an
+  exception with no named approver is indistinguishable from a decision nobody made. The refusal
+  is raised *before the file is opened*, so a rejected mutation leaves the store byte-identical.
+- **Re-validation is an act, never a timer reset.** Extending an acceptance records who looked at
+  it again and why. A register where dates advance without anyone re-deciding is the failure mode
+  this skill exists to prevent.
+- **Status is derived from the dates, never stored** — `current`, `due`, `overdue`, `expired`. A
+  stored status is a second source of truth that goes wrong quietly.
+- **Exports the evidence artifact, not a screenshot of one** — the active inventory as CSV or JSON,
+  which is the form a DORA or NYDFS reviewer asks for.
+- **Fed one-way from the register.** `risk-register`'s `export-acceptances` pushes accepted risks
+  in; this skill owns the lifecycle from there, and the register does not duplicate it.
+
+### `incident-materiality`
+Structure and record a cybersecurity incident materiality determination, and run the disclosure
+clocks that follow from it — the six factors the judgment turns on, each recorded with its
+reasoning, the person, and the date, in a local `.inc` file.
+
+- **It never emits a verdict. No score, no scale, no threshold.** This is the sharpest constraint
+  in the toolkit and it is not squeamishness: materiality is a legal judgment made with counsel,
+  and a generated number would be **discoverable alongside the determination it disagreed with**.
+  A tool that quietly said "62% material" would hand a plaintiff the exhibit. So the skill
+  structures the judgment, records who made it, and stops.
+- **Three assessments that deliberately do not add up** — `bearing`, `no-bearing`, `unknown`.
+  There is no arithmetic to do on them, which is the point: six factors do not sum to an answer.
+- **The SEC clock runs from determination, not discovery.** Four business days from the
+  determination date — so an incident still under assessment has *no window open yet*, which is
+  the part most often misread. The obligation in the meantime is to determine "without
+  unreasonable delay", which has no numeric threshold; the skill does not invent one.
+- **DORA windows in clock hours** — initial at the earlier of classification + 4h and awareness +
+  24h, intermediate 72h from the initial notification *as filed*, final one month from the
+  intermediate. Clock hours, not business days, and each anchored to an act rather than a date.
+- **Aggregation moves the discovery date backwards, not the deadline.** Treating related
+  occurrences as one series bears on "without unreasonable delay"; it does not shorten the
+  four-day window.
+- Every view carries three standing blocks — not legal advice, no verdict is being offered, and
+  the rule the clock is running under — because these outputs are read under exactly the
+  conditions where a caveat gets separated from its number.
+
 ### `ciso-board-translation`
 The reusable "moat" skill. Turns a raw security fact — a metric, a risk, or a quarter of program
 work — into board-ready language a director acts on, using the four-question method, a curated
 board-question bank, and sourced regulatory receipts (Caremark, DORA RTS, SEC Item 106, NYDFS Part
-500) with their honest limits kept intact. `risk-register` calls it for all board-facing output.
+500) with their honest limits kept intact. Every board-facing sentence in the suite comes from here.
+
+### `board-pack`
+Assembles the quarterly board pack or audit-committee pack from the section objects the other
+skills produce, and outputs it as a print-ready document and an editable PowerPoint deck.
+
+- **It owns no data and computes nothing.** Every figure is read from the producing skill's own
+  analysis rather than recomputed, and every sentence comes from `ciso-board-translation`. A slot
+  with no translation renders a **visible placeholder**, never an invented line — a board pack is
+  the one artifact where a plausible sentence is worse than an obvious hole.
+- **A versioned section contract.** Each producer writes a `*.board.json` the assembler validates
+  before reading; a section that does not meet the contract is reported, not guessed at.
+- **The audience changes the reading order, never the facts.** The audit-committee pack leads with
+  incidents and exceptions where the board pack leads with posture. Same content, same
+  disclaimers — there is no franker version.
+- **One decisions list, merged textually and never semantically.** Consolidating what the board is
+  actually being asked to approve is the job no single producer can do. Where two sections raise
+  asks naming the same record, that is *flagged for a human*, not silently merged.
+- **A real `.pptx`, written with the standard library.** No dependency: the OPC container is
+  written by hand from `zipfile` and structurally verified — every relationship resolves and every
+  part has a content type. What that cannot check is how it *renders*, so the renderer says as
+  much when it writes the deck: open it once before it goes to a board. Doing exactly that is what
+  caught two slides sharing a title, which no structural check could see.
+- **A provenance page records what was missing**, so a thin pack reads as thin rather than complete.
 
 ## Layout
 
@@ -144,9 +246,38 @@ skills/
     assets/                    brand tokens
     examples/                  worked Profiles (v1 and v2), worked .csfa + gap CSV
     evals/                     trigger-routing and conversational-behaviour suites
+  metrics-register/
+    SKILL.md
+    scripts/metrics_analysis.py  metrics + KRI engine, trend and thresholds (stdlib only)
+    renderers/                 render_operational / render_executive
+    references/                schema, metrics method, archetype bridge
+    examples/                  worked .mtr + its board translations
+    evals/                     metric-trend, board-safety, trigger-routing suites
+  exceptions-register/
+    SKILL.md
+    scripts/exceptions_register.py  acceptance + exception lifecycle (stdlib only)
+    renderers/                 render_inventory / render_board
+    references/                schema, exceptions method
+    examples/                  worked .exc + its board translations
+    evals/                     revalidation-lifecycle, board-safety, trigger-routing suites
+  incident-materiality/
+    SKILL.md
+    scripts/incident_analysis.py  six factors + SEC and DORA disclosure clocks (stdlib only)
+    renderers/                 render_worksheet / render_board
+    references/                schema, materiality factors, disclosure clocks
+    examples/                  worked .inc + its board translations
+    evals/                     disclosure-clock, board-safety, trigger-routing suites
   ciso-board-translation/
     SKILL.md
     references/                four-questions, board-question bank, receipts, metric archetypes
+  board-pack/
+    SKILL.md
+    scripts/assemble_pack.py   contract validation + assembly, owns no data (stdlib only)
+    scripts/pptx_writer.py     OOXML/OPC writer built on zipfile — no dependency
+    renderers/render_pack.py   print-ready HTML + the deck, from one content model
+    references/                pack structure, the versioned section contract
+    examples/                  worked manifest + assembled pack
+    evals/                     assembly, section-contract, board-safety, trigger-routing suites
 tools/                         build-time only, never shipped — regenerates the bundled
                                reference data from its published sources. See tools/README.md.
 docs/superpowers/              implementation plans and verification notes
@@ -179,8 +310,25 @@ python3 skills/nist-csf/scripts/csfa_compat.py self-test           # .csfa port 
 python3 skills/nist-csf/evals/score-conversations.py self-test     # the eval scorer's own tests
 python3 skills/nist-csf/evals/score-triggers.py self-test         # routing scorer's own tests
 
+python3 skills/metrics-register/scripts/metrics_analysis.py self-test      # trend + threshold math
+python3 skills/exceptions-register/scripts/exceptions_register.py self-test  # lifecycle + refusals
+python3 skills/incident-materiality/scripts/incident_analysis.py self-test   # clocks + banding
+python3 skills/board-pack/scripts/assemble_pack.py self-test               # contract + assembly
+
+./skills/metrics-register/evals/metric-trend.sh          # direction-aware trend, end to end
+./skills/exceptions-register/evals/revalidation-lifecycle.sh  # re-validation as an act, not a reset
+./skills/incident-materiality/evals/disclosure-clock.sh  # SEC and DORA windows, and the band order
+./skills/board-pack/evals/assembly.sh                    # ordering, merge, refusals, a sound .pptx
+./skills/board-pack/evals/section-contract.sh            # the contract every producer writes to
+
+./skills/metrics-register/evals/board-safety.sh           # each of these four guards its own views
+./skills/exceptions-register/evals/board-safety.sh
+./skills/incident-materiality/evals/board-safety.sh
+./skills/board-pack/evals/board-safety.sh
+
 ./tools/check-versions.py                                # the four plugin version strings agree
 ./tools/check-versions.py --self-test                    # and the guard's own tests
+./tools/check-versions.py --base main                    # ...and that a shipped change bumped them
 ```
 
 Each prints its own count. Don't pin those counts in prose — three of them have already gone
@@ -202,13 +350,40 @@ and every test passed because they all ran on 3.14 — on an older interpreter t
 imported at all, so a whole dashboard was missing rather than degraded. Testing on the author's
 interpreter proves nothing about the user's.
 
+**The five `board-safety.sh` suites are not copies of each other.** Each is *inverted*: it passes
+only if forbidden language never reaches a rendered artifact, so the claim stays unmade rather than
+merely un-typed. All five reject confidence vocabulary attached to an age band. The four newest add
+a catastrophizing guard, written after a shipped metrics example described an untested backup
+restore as the difference between a bad week and "an existential event" — a sentence that was
+arguably right about the stakes and wrong about this toolkit's job. `board-pack` adds the strictest
+check of the set: every sentence the pack presents as board prose must appear **verbatim** in a
+producer's translation sidecar. Not paraphrased, not trimmed, not joined. The assembler is not
+permitted to improve the prose on its way past.
+
+`nist-csf` is the gap in that list: it renders board-facing dashboards and ships no board-safety
+suite of its own. Worth closing.
+
 ## Design principles
 
 - **Local-only, structure not data.** Everything runs on the user's own machine against the risks
   they provide. Nothing is uploaded anywhere. Rendered dashboards link Google Fonts by default;
   pass `--offline` for artifacts that must make no outbound request at all.
 - **Deterministic where it must be.** Scoring and banding are scripted, never eyeballed.
-- **Composable.** Board language lives in one skill and is reused across the suite.
+- **Composable.** Board language lives in one skill and is reused across the suite. A fact has one
+  home; the skill that owns it is the only one that writes it.
+- **Derived, never stored.** Status, banding, trend, age and clock state are computed from the
+  stored facts every time they are shown. A stored derivation is a second source of truth that
+  goes wrong quietly, and disagrees with the first exactly when someone is relying on it.
+- **Append-only, and a refusal costs nothing.** Every mutation appends a history event with its
+  rationale. Where a skill refuses one, the refusal is raised *before the file is opened*, so a
+  rejected write leaves the store byte-identical rather than half-applied.
+- **A placeholder beats a fabrication.** Where a board-facing slot has no sourced content, the
+  artifact shows a visible hole. Governance documents are read by people who will act on them, and
+  a plausible invented sentence is worse than an obvious gap — it is indistinguishable from a fact.
+- **The tools decline to make judgments that are not theirs.** No materiality verdict, no maturity
+  score from a Tier, no confidence figure attached to an age, no decay rate chosen on your behalf.
+  Each of those is a decision a named person makes; the toolkit's job is to structure it, record
+  who made it, and get out of the way.
 
 ## Licence
 
