@@ -1,5 +1,7 @@
 {
   "_comment": "Example board-language sidecar, the shape the ciso-board-translation skill produces. Pass to any renderer with --translations. Every figure here is read from examples/example-register-v2.rr — the skill supplies structure and judgment, never invented numbers. Keys are optional: omit any and that slot renders as a labelled placeholder.",
+  "section": "risk",
+  "contractVersion": 1,
   "generatedBy": "ciso-board-translation",
   "asOf": "2026-07-26",
   "executiveSummary": "Two of our eleven tracked risks sit above the appetite the board set, down from three at the Q3 review — the direction is right, but the composition changed. Ransomware exposure through the internet-facing VPN appliance came down after an emergency patch and is now within appetite. Payment fraud moved the other way: two further supplier-invoice fraud attempts landed this quarter and email authentication is still not enforcing, so that risk rose from High to Critical and now sits alongside the third-party CRM exposure. Two accepted risks passed their re-validation date and need the board to either renew or withdraw the acceptance, and two risks are past their scheduled review. We are asking for two decisions today: fund DMARC enforcement to close the payment-fraud path, and renew or withdraw the two lapsed acceptances.",

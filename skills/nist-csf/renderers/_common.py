@@ -312,6 +312,13 @@ def parse_args(argv: list[str], description: str, default_out: str) -> argparse.
 class Translations:
     """The ciso-board-translation sidecar. Never fabricates: absent means absent."""
 
+    # The section this renderer's sidecar describes, per
+    # board-pack/references/section-contract.md. `gaps` is the canonical item key;
+    # `subcategories` stays readable so no sidecar written before the contract stops
+    # rendering, but it is deprecated and not extended to other sections.
+    SECTION = "posture"
+    CONTRACT_VERSION = 1
+
     def __init__(self, raw: dict | None):
         self.absent = raw is None
         raw = raw or {}
@@ -319,6 +326,11 @@ class Translations:
         self.gaps = raw.get("gaps") or raw.get("subcategories") or {}
         self.decisions = raw.get("decisions") or []
         self.as_of = raw.get("asOf") or None
+        # Absent means 1: every sidecar written before the contract existed is a
+        # valid v1 document. Stated here so the default is one line, not a guess
+        # spread across call sites.
+        self.contract_version = raw.get("contractVersion", self.CONTRACT_VERSION)
+        self.section = raw.get("section") or None
 
     def gap(self, sid: str) -> str | None:
         return self.gaps.get(sid) or None
@@ -350,6 +362,20 @@ class Translations:
                         'Wrap it: {"gaps": { ... }}.')
             raise SystemExit(f"error: --translations file {path} contains no usable keys "
                              f'(expected "gaps", "executiveSummary" or "decisions").{hint}')
+        # Two contract checks, both refusing rather than rendering on a best-effort
+        # basis. A section that half-renders is worse than one that does not render,
+        # because only one of those gets noticed before it reaches a board.
+        if tr.contract_version != Translations.CONTRACT_VERSION:
+            raise SystemExit(
+                f"error: --translations file {path} declares contractVersion "
+                f"{tr.contract_version!r}; this renderer implements version "
+                f"{Translations.CONTRACT_VERSION}. See "
+                f"skills/board-pack/references/section-contract.md.")
+        if tr.section is not None and tr.section != Translations.SECTION:
+            raise SystemExit(
+                f"error: --translations file {path} is a {tr.section!r} section; "
+                f"this renderer produces the {Translations.SECTION!r} section. "
+                f"Pass the sidecar written for this skill.")
         return tr
 
 
