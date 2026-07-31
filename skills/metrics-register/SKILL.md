@@ -7,14 +7,17 @@ description: >-
   target/warn/critical thresholds, record dated readings with their source, and
   get deterministic direction-aware trend, threshold status, reading age, and the
   attention lists a metrics review works from — breached, worsening, stale,
-  unowned, untagged, and vanity-flagged. Tags each metric to one of the seven
-  board metric archetypes, cross-links to CSF Subcategories and register risks,
-  and produces an operational review view plus a board section whose language
-  comes from ciso-board-translation. Use when asked to track a metric or KRI, add
-  this quarter's numbers, show how a metric is trending, find which metrics are
-  breaching or going stale, or build the metrics section of a board pack. For a
-  one-shot "translate this one number for the board" with nothing to store, use
-  ciso-board-translation instead.
+  unowned, untagged, and vanity-flagged. Carries an archetype tag per metric that
+  it resolves against ciso-board-translation at render time, cross-links to CSF
+  Subcategories and register risks, and produces an operational review view plus
+  a board section whose language comes from ciso-board-translation. Use when
+  asked to track a metric or KRI, add this quarter's numbers, show how a metric
+  is trending, judge whether a move between two readings is an improvement or a
+  slip, find which metrics are breaching or going stale, or build the metrics
+  section of a board pack. Do NOT use for a one-shot "translate this one number
+  for the board" with nothing to store, or for questions about what a metric
+  archetype means, what trap a kind of metric hides, or what the archetypes are —
+  that content belongs to ciso-board-translation and is not duplicated here.
 ---
 
 # Metrics Register
