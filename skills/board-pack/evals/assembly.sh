@@ -22,7 +22,7 @@ skill="$(cd "$here/.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=28
+EXPECTED_CHECKS=29
 checks=0
 fails=0
 ok()  { checks=$((checks + 1)); printf '  ok    %s\n' "$1"; }
@@ -252,6 +252,27 @@ if "$PY" "$A" assemble "$work/nope.json" --out "$work/x.json" >/dev/null 2>&1; t
   bad "a manifest that does not exist is refused" "it assembled"
 else
   ok "a manifest that does not exist is refused"
+fi
+
+# --- 29. The shipped example must announce itself as a specimen ---------------
+# Two independent reference-mode trigger cases (`P1`, `P3`, 2026-07-31) named the same
+# hazard without being prompted: the example manifest assembles and renders a complete,
+# professional-looking pack dated to the current quarter, so running the documented
+# workflow with no data of your own produces "a finished board deck about a company that
+# doesn't exist, correctly dated to your quarter". Both refused, which is the refusal
+# working — but the refusal is a model behaviour and this is a file, so the file says it.
+#
+# The marker lives in `client` and `period` because those are display-only. `asOf` cannot
+# carry it: it is passed to every producer as `--today`, so moving it would change every
+# age band, clock state and overdue list in the pack — the fixture would stop meaning what
+# it was built to mean. Marking the two free fields gets the same result for nothing.
+#
+# Checked on the RENDERED artifacts, in both formats, because that is what reaches a reader.
+if grep -qi "SPECIMEN" "$work/full.html" && grep -qi "fictional" "$work/full.html"; then
+  ok "the shipped example renders as an identified specimen, not as a real pack"
+else
+  bad "the shipped example renders as an identified specimen, not as a real pack" \
+      "neither marker survived into the HTML cover"
 fi
 
 echo

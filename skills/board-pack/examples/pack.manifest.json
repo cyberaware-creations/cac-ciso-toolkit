@@ -1,7 +1,7 @@
 {
   "manifestVersion": 1,
-  "client": "Northwind Financial",
-  "period": "Q3 2026",
+  "client": "Northwind Financial (fictional)",
+  "period": "Q3 2026 — SPECIMEN, not a real pack",
   "asOf": "2026-07-31",
   "audience": "board",
   "throughLine": "pack.board.json",
