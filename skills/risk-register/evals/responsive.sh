@@ -41,6 +41,7 @@ CSF="$repo/skills/nist-csf"
 MX="$repo/skills/metrics-register"
 XR="$repo/skills/exceptions-register"
 IM="$repo/skills/incident-materiality"
+BP="$repo/skills/board-pack"
 PORT="${CDP_PORT:-9333}"
 export CDP_PORT="$PORT"
 
@@ -173,6 +174,16 @@ done
   --out "$work/im_ws.html" --offline) >/dev/null || {
     echo "responsive: FIXTURE FAILED — incident render_worksheet errored"; exit 1; }
 
+# board-pack: the assembled deliverable. It is the widest page in the suite by content —
+# five sections of prose plus a ten-tile figure strip — and the only one carrying @page
+# rules, so it is the one where a screen fix can silently break the print geometry.
+"$PY" "$BP/scripts/assemble_pack.py" assemble "$BP/examples/pack.manifest.json" \
+  --out "$work/pack.json" >/dev/null 2>&1 || {
+    echo "responsive: FIXTURE FAILED — pack assemble errored"; exit 1; }
+(cd "$BP/renderers" && "$PY" render_pack.py --in "$work/pack.json" \
+  --html "$work/bp_pack.html" --no-pptx) >/dev/null || {
+    echo "responsive: FIXTURE FAILED — render_pack errored"; exit 1; }
+
 # A second CSF pair, deliberately below the scope threshold. The first fixture seeds
 # ratings across every Function, so it renders the headline path only — the scope
 # guard, the four-way evidence bar and the by-source cards would never be drawn.
@@ -289,7 +300,8 @@ pages=("$work/render_board.html" "$work/render_dashboard.html" "$work/render_rep
        "$work/csf_exec_overlay.html" "$work/csf_ops_overlay.html"
        "$work/mx_exec.html" "$work/mx_ops.html"
        "$work/xr_board.html" "$work/xr_inv.html"
-       "$work/im_board.html" "$work/im_ws.html")
+       "$work/im_board.html" "$work/im_ws.html"
+       "$work/bp_pack.html")
 fails=0
 echo
 for vw in 320 375 768 1265; do
