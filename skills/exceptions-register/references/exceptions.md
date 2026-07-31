@@ -24,6 +24,27 @@ sentence. When the review cannot say what an attacker now has to defeat, the hon
 are to fix the deviation, to accept the residual risk explicitly as an **acceptance** rather
 than dressing it as an exception, or to escalate.
 
+Three tests that separate a control from a sentence:
+
+1. **What does an attacker now have to defeat that they did not before?** If there is no
+   answer, there is no control.
+2. **Does anything fail closed?** A measure that depends on the same population whose
+   behaviour is the risk has not changed the outcome, only the paperwork.
+3. **What evidence would show it operated?** "The reminder was sent" is evidence the reminder
+   was sent. It is not evidence that a single password got stronger.
+
+The reminder example fails a fourth way worth naming, because it is easy to miss: it is aimed
+at an objective the standard abandoned. **NIST SP 800-63B** moved off user-chosen complexity
+years ago in favour of length, screening against breached-password corpora, and no forced
+rotation. Exhorting users toward "strong" passwords asks them to do the thing the guidance
+stopped asking for — so the measure is not merely weak, it is pointed at the wrong target.
+
+What a real compensating control for unenforced MFA looks like: MFA at a layer that *can* be
+enforced (VPN, SSO front end, jump host); breached-credential screening at set-time and
+periodically, with forced reset on a hit; network reachability cut so a stolen credential is
+unusable from the internet; or rate limiting and lockout with alerting on anomalous
+authentication. Each of those changes an attacker's job, and each produces evidence.
+
 ## Acceptance or exception?
 
 | | acceptance | exception |

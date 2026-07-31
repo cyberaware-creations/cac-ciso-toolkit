@@ -28,6 +28,14 @@
 # SKILL.md alone, and with the reference readable produced a materially sharper answer
 # plus a consequence the reference had not stated. Scores from the two modes are not
 # comparable — record which mode a number came from.
+#
+# MAX_TURNS: reference mode SPENDS turns. Reading two reference files before answering can
+# exhaust the routing-mode default of 12 and end the run with error_max_turns — routed
+# correctly, nothing produced to read, scored as an error rather than a pass. That is what
+# happened to metrics M1 and M2 on the first reference-mode run. Raise it whenever
+# ALLOWED_TOOLS is set:
+#
+#   ALLOWED_TOOLS="Read Glob Grep Skill" MAX_TURNS=20 PROMPTS=... ./run-triggers.sh /tmp/out
 
 set -u
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -56,7 +64,7 @@ run_one() {
   # shellcheck disable=SC2086
   ( cd "$wd" && claude -p "$prompt" \
       ${ALLOWED_TOOLS:+--allowedTools $ALLOWED_TOOLS} \
-      --output-format stream-json --verbose --max-turns 12 \
+      --output-format stream-json --verbose --max-turns "${MAX_TURNS:-12}" \
       > "$out/runs/$id.jsonl" 2> "$out/runs/$id.err" </dev/null )
   echo "  $id done"
 }
