@@ -35,7 +35,7 @@ SCRIPT_TO_SKILL = {
 # skill: the case was right that none of OUR skills should fire, and the scorer
 # called it a failure anyway. A result that changes with the operator's plugin
 # list is not measuring this repo.
-OURS = ("nist-csf", "risk-register", "ciso-board-translation")
+OURS = ("nist-csf", "risk-register", "ciso-board-translation", "metrics-register")
 
 
 def parse_run(path):

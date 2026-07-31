@@ -3,10 +3,26 @@
 Confirms the skill fires when a request needs **state** — a number compared against last
 period — and stays quiet when `ciso-board-translation` should handle a one-shot ask.
 
-**Status: not yet run.** The cases below are authored; the harness that runs them
-(`run-triggers.sh` + `score-triggers.py`) lives in `skills/nist-csf/evals/` and shells out
-to `claude -p` once per prompt against the *installed* plugin. Bump the plugin version and
-reinstall before running, or the run scores a stale build.
+**Status: 15/15 passing** as of 2026-07-31 (plugin 0.7.1), after one description fix.
+The first run at 0.7.0 scored **13/15** and lost exactly the two cases flagged below as
+the soft boundaries — see "What the first run found".
+
+## How to run
+
+```bash
+claude plugin update cyber-aware-creations@cyber-aware-creations   # or the run scores a stale build
+PROMPTS="$PWD/skills/metrics-register/evals/prompts.tsv" \
+  ./skills/nist-csf/evals/run-triggers.sh /tmp/mx-trigger          # all 15, ~$7, ~4 min
+PROMPTS=... ./skills/nist-csf/evals/run-triggers.sh /tmp/mx-trigger M8 T4   # or named cases
+```
+
+The harness lives under `nist-csf/evals/` and takes the case list as a `PROMPTS`
+parameter. It is shared rather than copied: a second skill's routing checklist is the same
+harness over a different file, and two copies of a hundred lines drift.
+
+Every `claude -p` is a fresh session — a warm session has already seen the skill and biases
+the result — and each case runs in its own empty working directory, because routing is
+decided before any file is read.
 
 ## The boundary this has to pin
 
@@ -63,3 +79,27 @@ and is worse than useless in a plugin with four skills.
 ---
 
 *A Cyber Aware Creation · Not affiliated with NIST.*
+
+## What the first run found
+
+Both failures were description defects, and both were on the boundaries this file predicted.
+
+**T4 — "What are the seven board metric archetypes?" reached `metrics-register`.**
+The description said *"Tags each metric to one of the seven board metric archetypes"*, and
+that phrase was enough to match a pure-knowledge question about content this skill does not
+own. Worse, the model answered by listing all seven **out of the description itself**,
+without opening the file that actually defines them. Advertising a list you do not own is
+how a skill cannibalises its neighbour. Reworded to *"carries an archetype tag it resolves
+against ciso-board-translation at render time"*, with an explicit negative clause.
+
+**M8 — "dwell time went from 11 days to 8, is that good or bad?" reached nothing at all.**
+No skill fired; the model answered directly. It got the polarity right — and then **invented
+a benchmark**, citing a Mandiant global median from memory to say 8 days was "at or slightly
+ahead of typical". That is precisely the move every guardrail in this toolkit exists to
+prevent, and it is the strongest argument for the case: left unrouted, the default behaviour
+is the failure mode. The description now claims *"judge whether a move between two readings
+is an improvement or a slip"* explicitly.
+
+The fix was re-run on the two cases, then on **all fifteen**, because a two-case retry cannot
+show that a sharpened description has not suppressed the thirteen that were already passing —
+and the added negative clauses were exactly the kind of edit that could.

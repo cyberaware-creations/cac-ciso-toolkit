@@ -19,6 +19,11 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 out="${1:?usage: run-triggers.sh <output-dir> [id ...]}"; shift || true
 only=("$@")
 maxjobs="${MAXJOBS:-5}"
+# The case list is a parameter, not a fixture. A second skill's routing checklist is a
+# different set of prompts scored the same way, and duplicating a hundred lines of harness
+# to hold one file path is how the two copies drift.
+prompts="${PROMPTS:-$here/prompts.tsv}"
+[ -r "$prompts" ] || { echo "no readable prompts file at $prompts"; exit 2; }
 
 mkdir -p "$out/runs" "$out/work"
 # Each run `cd`s into its own working directory, so every path handed to it has to be
@@ -44,8 +49,8 @@ while IFS=$'\t' read -r id exp prompt; do
   fi
   while [ "$(jobs -rp | wc -l)" -ge "$maxjobs" ]; do wait -n 2>/dev/null || sleep 1; done
   run_one "$id" "$prompt" &
-done < "$here/prompts.tsv"
+done < "$prompts"
 wait
 
 echo "ALL DONE — scoring"
-python3 "$here/score-triggers.py" "$here/prompts.tsv" "$out"
+python3 "$here/score-triggers.py" "$prompts" "$out"
