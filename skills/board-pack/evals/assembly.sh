@@ -22,7 +22,7 @@ skill="$(cd "$here/.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=27
+EXPECTED_CHECKS=28
 checks=0
 fails=0
 ok()  { checks=$((checks + 1)); printf '  ok    %s\n' "$1"; }
@@ -164,6 +164,26 @@ sys.exit(0 if b"Not affiliated with NIST" in text else 1)
 PY
 then ok "every deck carries the footer"
 else bad "every deck carries the footer" "absent"; fi
+
+# --- 20b. no two slides share a title -----------------------------------------
+# A deck is navigated by its titles. Two slides called "Incidents" is a reader looking at the
+# wrong one and not knowing. Found by actually opening the deck: the section summary and its
+# item slides both resolved to the section name, because that section's only item map is
+# named after the section.
+res=$("$PY" - "$work/full.pptx" <<'PY'
+import re, sys, zipfile
+zf = zipfile.ZipFile(sys.argv[1])
+titles = []
+for i in range(1, 1 + len([n for n in zf.namelist()
+                           if n.startswith("ppt/slides/slide") and n.endswith(".xml")])):
+    runs = re.findall(r"<a:t>(.*?)</a:t>", zf.read(f"ppt/slides/slide{i}.xml").decode())
+    titles.append(runs[1] if len(runs) > 1 else f"<slide {i} has no title>")
+dupes = sorted({t for t in titles if titles.count(t) > 1})
+print(",".join(dupes))
+PY
+)
+if [ -z "$res" ]; then ok "no two slides in the deck share a title"
+else bad "no two slides in the deck share a title" "duplicated: $res"; fi
 
 # --- 21-23. the assembler consumes and never derives --------------------------
 # A figure in the pack that no producer computed would be the assembler doing a producer's
