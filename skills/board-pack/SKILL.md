@@ -70,7 +70,7 @@ break between sections. The `.pptx` opens as an editable deck.
 ```json
 {
   "manifestVersion": 1,
-  "client": "Northwind Financial",
+  "client": "Your Organisation",
   "period": "Q3 2026",
   "asOf": "2026-07-31",
   "audience": "board",
@@ -84,6 +84,13 @@ break between sections. The `.pptx` opens as an editable deck.
 
 Paths resolve **relative to the manifest**, not the working directory, so a manifest committed
 beside its sources keeps working from a Makefile, a CI job and a shell alike.
+
+`asOf` is **not a label.** It is passed to every producer as `--today`, so it decides every age
+band, clock state and overdue list in the pack. Changing it re-dates the analysis rather than the
+cover, and a pack built with the wrong `asOf` is wrong in its figures, not just its heading.
+`client` and `period` are the display-only pair — they reach the cover and the slide eyebrow and
+nothing else. That is why the shipped example marks itself a specimen in those two fields and
+leaves `asOf` alone.
 
 `store` is optional and is used only to read that producer's headline figures. A store that
 cannot be read costs you the figures and is named on the provenance page; it never stops a pack
