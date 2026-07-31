@@ -55,6 +55,15 @@ jobs:
       - name: Board-safety suite, on the floor
         run: PY="$(command -v python3)" ./skills/risk-register/evals/board-safety.sh
 
+      # nist-csf rendered two board-facing dashboards for four phases with no inverted
+      # suite of its own. Beyond the shared vocabulary rule it pins the two claims specific
+      # to a Profile: a Tier is a judgment and not a score, and a coverage figure withheld
+      # for thin assessment stays withheld on BOTH dashboards and on stdout — an agent
+      # reads stdout and repeats it, so a number suppressed in the page and printed to the
+      # terminal has not been suppressed.
+      - name: Board-safety (nist-csf), on the floor
+        run: PY="$(command -v python3)" ./skills/nist-csf/evals/board-safety.sh
+
       # The board section contract, across both shipped consumers. The claim worth
       # protecting is that the contractVersion retrofit is additive: a sidecar written
       # before the contract existed renders byte-identically to a stamped one. This is
@@ -62,6 +71,31 @@ jobs:
       # name is an eval that never runs.
       - name: Section contract, on the floor
         run: PY="$(command -v python3)" ./skills/board-pack/evals/section-contract.sh
+
+      # The rest of board-pack. Phase D wired only the contract suite in, so the assembler's
+      # own engine and its two behavioural suites shipped green and then never ran again —
+      # exactly the failure the comment above names, committed one section below it.
+      - name: Assembler self-test, on the floor
+        run: python3 ./skills/board-pack/scripts/assemble_pack.py self-test
+
+      - name: Assembly suite, on the floor
+        run: PY="$(command -v python3)" ./skills/board-pack/evals/assembly.sh
+
+      - name: Board-safety (board-pack), on the floor
+        run: PY="$(command -v python3)" ./skills/board-pack/evals/board-safety.sh
+
+      # incident-materiality shipped in Phase C with three suites and none of them listed
+      # here. The disclosure-clock suite is the one that matters most: the SEC window runs
+      # from the determination and not from discovery, and an off-by-one in business-day
+      # arithmetic is a missed filing deadline rather than a wrong number on a page.
+      - name: Incident engine self-test, on the floor
+        run: python3 ./skills/incident-materiality/scripts/incident_analysis.py self-test
+
+      - name: Disclosure-clock suite, on the floor
+        run: PY="$(command -v python3)" ./skills/incident-materiality/evals/disclosure-clock.sh
+
+      - name: Board-safety (incident), on the floor
+        run: PY="$(command -v python3)" ./skills/incident-materiality/evals/board-safety.sh
 
       # metrics-register: the engine's own parity discipline, then the derivations through
       # the real CLI. Polarity is the case both exist for — a lower-better metric that

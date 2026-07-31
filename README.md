@@ -245,7 +245,8 @@ skills/
                                framework abstraction
     assets/                    brand tokens
     examples/                  worked Profiles (v1 and v2), worked .csfa + gap CSV
-    evals/                     trigger-routing and conversational-behaviour suites
+    evals/                     board-safety, crosswalk-e2e, trigger-routing and
+                               conversational-behaviour suites
   metrics-register/
     SKILL.md
     scripts/metrics_analysis.py  metrics + KRI engine, trend and thresholds (stdlib only)
@@ -321,7 +322,8 @@ python3 skills/board-pack/scripts/assemble_pack.py self-test               # con
 ./skills/board-pack/evals/assembly.sh                    # ordering, merge, refusals, a sound .pptx
 ./skills/board-pack/evals/section-contract.sh            # the contract every producer writes to
 
-./skills/metrics-register/evals/board-safety.sh           # each of these four guards its own views
+./skills/nist-csf/evals/board-safety.sh                   # each of these five guards its own views
+./skills/metrics-register/evals/board-safety.sh
 ./skills/exceptions-register/evals/board-safety.sh
 ./skills/incident-materiality/evals/board-safety.sh
 ./skills/board-pack/evals/board-safety.sh
@@ -350,18 +352,27 @@ and every test passed because they all ran on 3.14 — on an older interpreter t
 imported at all, so a whole dashboard was missing rather than degraded. Testing on the author's
 interpreter proves nothing about the user's.
 
-**The five `board-safety.sh` suites are not copies of each other.** Each is *inverted*: it passes
+**The six `board-safety.sh` suites are not copies of each other.** Each is *inverted*: it passes
 only if forbidden language never reaches a rendered artifact, so the claim stays unmade rather than
-merely un-typed. All five reject confidence vocabulary attached to an age band. The four newest add
-a catastrophizing guard, written after a shipped metrics example described an untested backup
-restore as the difference between a bad week and "an existential event" — a sentence that was
-arguably right about the stakes and wrong about this toolkit's job. `board-pack` adds the strictest
-check of the set: every sentence the pack presents as board prose must appear **verbatim** in a
-producer's translation sidecar. Not paraphrased, not trimmed, not joined. The assembler is not
-permitted to improve the prose on its way past.
+merely un-typed. All six reject confidence vocabulary attached to an age band. Four of them add a
+catastrophizing guard, written after a shipped metrics example described an untested backup restore
+as the difference between a bad week and "an existential event" — a sentence that was arguably
+right about the stakes and wrong about this toolkit's job. `board-pack` adds the strictest check of
+the set: every sentence the pack presents as board prose must appear **verbatim** in a producer's
+translation sidecar. Not paraphrased, not trimmed, not joined. The assembler is not permitted to
+improve the prose on its way past.
 
-`nist-csf` is the gap in that list: it renders board-facing dashboards and ships no board-safety
-suite of its own. Worth closing.
+`nist-csf`'s suite additionally pins the two claims specific to a Profile. **A Tier is a considered
+judgment and not a score** calculated from the ratings, which is the single easiest thing for a
+board to misread off a dashboard. And **a withheld coverage figure stays withheld everywhere** —
+both dashboards *and* stdout, because an agent reads what a renderer prints and repeats it, so a
+number suppressed in the page and printed to the terminal has not been suppressed. That last
+property was stated in a source comment and tested by nothing.
+
+Two words are deliberately *not* banned. `severe`, `critical` and `major` are the frameworks' own
+classification vocabulary, and banning them would ban the subject matter. And `trust` survives in
+`nist-csf` because the evidence bar ends *"none of this says how much to trust a rating"* — banning
+the word would ban the sentence that makes the refusal, so the suite pins that sentence instead.
 
 ## Design principles
 
