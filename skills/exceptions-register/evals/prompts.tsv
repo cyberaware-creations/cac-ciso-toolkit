@@ -1,0 +1,15 @@
+X1	exceptions-register	Log an exception for the finance team running without phishing-resistant MFA.
+X2	exceptions-register	Record that the CISO accepted the 40-day patch window on our internet-facing systems.
+X3	exceptions-register	Which of our risk acceptances are overdue for re-validation?
+X4	exceptions-register	We reviewed the MFA exception with the CFO and it still holds - record that.
+X5	exceptions-register	Produce the risk-acceptance inventory our DORA reviewer is asking for.
+X6	exceptions-register	What do we need on file for an accepted risk to be defensible?
+X7	exceptions-register	Our auditor wants a list of every control exception and what compensates for it.
+X8	exceptions-register	Close the vendor exception - we've migrated off that platform.
+X9	exceptions-register	Move the accepted risks out of our risk register and into the acceptance register.
+X10	exceptions-register	Is "users are reminded to choose strong passwords" a real compensating control?
+Y1	risk-register	Score our ransomware risk and tell me if it's within appetite.
+Y2	risk-register	Which of our risks are past their review date?
+Y3	incident-materiality	We had a breach at our payroll vendor last week. Is this material?
+Y4	ciso-board-translation	How should I frame this risk acceptance for the board?
+Y5	nist-csf	How complete are we against CSF Recover?
