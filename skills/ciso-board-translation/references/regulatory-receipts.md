@@ -48,7 +48,18 @@ oversight, not to be perfect.
 **Translation implication.** An answer that names the exposure and forces a
 *recorded* board decision manufactures the documented, decision-ready oversight
 this line rewards. "Record the acceptance" is not paperwork for its own sake —
-it produces the governance artifact that wins dismissal.
+it produces the kind of governance artifact the boards above were able to point
+to.
+
+Say it that way, and **never say a record "wins dismissal."** No artifact wins a
+case. Read the two receipts above again: Marriott was dismissed under **Rule
+23.1 for failure to plead demand futility** — a pleading-stage posture, not a
+merits holding that the oversight was adequate — and *Bingle* turned on the
+absence of **bad faith**, with the reporting system called "subpar" in the same
+breath. Neither outcome was earned by a document. A record improves the account
+a board can give of itself; predicting a legal outcome from it is precisely the
+overclaim this file exists to prevent, and counsel in the room will hear it as
+one.
 
 **HONEST LIMIT (load-bearing).** Protection attaches to documented process at
 the **oversight / board level** — not to accumulating granular internal risk
@@ -161,3 +172,32 @@ appropriate*" traces to unattributed consultant commentary, **not the directive
 text**. Use these as background motivation only. Never present a personal-
 liability threat as an established legal requirement to move a decision — that is
 both false and the kind of fear-framing that loses the room.
+
+## Sources — pull the primary text before you quote it
+
+Every receipt above is cited by **identifier, not by hyperlink**, and that is
+deliberate. A link that has rotted, or that was never right, reads in the room
+exactly like a link that works — right up to the moment someone opens it. The
+identifiers below are stable and let anyone retrieve the primary text from the
+issuing body directly.
+
+**Verify before citing in a board or regulatory setting.** Record the date you
+checked. Nothing here is a substitute for counsel reading the current text.
+
+| Receipt | Cite as | Where it comes from |
+|---|---|---|
+| Marriott | *Firemen's Retirement System of St. Louis v. Sorenson*, C.A. No. 2019-0965-LWW (Del. Ch. 26 Oct. 2021) | Delaware Court of Chancery opinions |
+| SolarWinds derivative | *Construction Industry Laborers Pension Fund v. Bingle*, C.A. No. 2021-0940-SG (Del. Ch. 5 Sep. 2022), *aff'd*, No. 411, 2022 (Del. 17 May 2023) | Del. Ch.; Delaware Supreme Court |
+| Boeing | *In re The Boeing Company Derivative Litigation*, C.A. No. 2019-0907-MTZ (Del. Ch. 7 Sep. 2021) | Delaware Court of Chancery |
+| DORA RTS | Commission Delegated Regulation **(EU) 2024/1774**, Art. 3(d)(iii)–(iv) | EUR-Lex, CELEX 32024R1774 |
+| DORA Level 1 | Regulation **(EU) 2022/2554** | EUR-Lex, CELEX 32022R2554 |
+| SEC cyber disclosure rule | Release Nos. **33-11216; 34-97989** (adopted 26 July 2023) | SEC final rules |
+| Item 106 / Item 1.05 | **17 C.F.R. § 229.106**; Form 8-K **Item 1.05** | eCFR, Title 17 |
+| Gerding statement | Erik Gerding, Dir. of Corporation Finance, "Cybersecurity Disclosure," 14 Dec. 2023 | SEC statements |
+| NYDFS | **23 NYCRR Part 500**, §§ 500.9, 500.12, 500.15, 500.17 | NY Dept. of Financial Services |
+| NIS2 | Directive **(EU) 2022/2555**, Art. 20 | EUR-Lex, CELEX 32022L2555 |
+
+**Two of these have moved since they were written down, and both moves are
+already reflected above:** the SEC's SolarWinds enforcement action was dismissed
+with prejudice on **20 November 2025**, and the Item 106 rule faces rescission
+pressure. Check both before relying on either.

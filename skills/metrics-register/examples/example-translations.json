@@ -14,7 +14,13 @@
     "M-005": "We blocked 2.14 million malicious emails this quarter. This is a volume figure, not a risk figure — it measures how much arrived, not how much got through, and it should not be read as reassurance."
   },
   "decisions": [
-    "Fund the patching backlog on internet-facing systems to bring M-001 back inside the agreed service level, or record the board's acceptance of a 40-day window on those systems.",
-    "Schedule and resource a backup restore test before the next review, so M-006 reports a measured figure rather than an eight-month-old one."
+    {
+      "text": "Fund the patching backlog on internet-facing systems to bring M-001 back inside the agreed service level, or record the board's acceptance of a 40-day window on those systems.",
+      "altitude": "board"
+    },
+    {
+      "text": "Schedule and resource a backup restore test before the next review, so M-006 reports a measured figure rather than an eight-month-old one.",
+      "altitude": "management"
+    }
   ]
 }
