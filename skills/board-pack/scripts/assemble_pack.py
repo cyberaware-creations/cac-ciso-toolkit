@@ -37,6 +37,15 @@ import re
 import sys
 from datetime import date
 
+# The graphics library owns the colour contract, including which brand tokens a client may
+# override and the contrast floors an override has to clear. It is imported here — rather
+# than the rules being restated — so a brand block is refused by `validate`, before a pack
+# is assembled and rendered, instead of at render time when the operator has moved on.
+# One copy of the floors, checked at the earliest moment they can be checked.
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                "..", "renderers"))
+import cac_graphics as _G  # noqa: E402
+
 MANIFEST_VERSION = 1
 CONTRACT_VERSION = 1
 
@@ -109,6 +118,36 @@ def _read_json(path: str, what: str) -> dict:
                       f"{exc.msg}")
 
 
+# --- The client brand ---------------------------------------------------------
+
+def resolve_brand(value, base: str) -> dict:
+    """Resolve a manifest `brand` — inline object or path — into a checked brand block.
+
+    A client may re-colour the chrome and the measure bucket. A client may not re-colour
+    RAG: those hexes carry measured contrast and colour-vision separation, and a substituted
+    palette would discard both while still producing a chart that looked fine. The graphics
+    library holds that rule; this function only decides *where the block came from* and
+    refuses early if it fails.
+
+    Returns {} for "no override", which renders CAC. An empty dict and an absent key mean the
+    same thing here, which is why an absent key is not an error.
+    """
+    if value is None:
+        return {}
+    if isinstance(value, str):
+        path = os.path.normpath(os.path.join(base, value))
+        value = _read_json(path, "brand")
+        if not isinstance(value, dict):
+            raise Refusal(f"{path} must contain a JSON object, got {type(value).__name__}")
+    if not isinstance(value, dict):
+        raise Refusal("manifest 'brand' must be an object or a path to one, "
+                      f"got {type(value).__name__}")
+    problems = _G.validate_brand(value)
+    if problems:
+        raise Refusal("the brand override was refused:\n  - " + "\n  - ".join(problems))
+    return value
+
+
 # --- The manifest -------------------------------------------------------------
 
 def load_manifest(path: str) -> dict:
@@ -151,6 +190,7 @@ def load_manifest(path: str) -> dict:
                 entry[key + "Path"] = os.path.normpath(os.path.join(base, entry[key]))
     if raw.get("throughLine"):
         raw["throughLinePath"] = os.path.normpath(os.path.join(base, raw["throughLine"]))
+    raw["brand"] = resolve_brand(raw.get("brand"), base)
     raw["audience"] = audience
     raw["manifestDir"] = base
     raw["manifestPath"] = os.path.abspath(path)
@@ -675,6 +715,9 @@ def assemble(manifest: dict, skills_root: str = None, with_stores: bool = True) 
         "period": manifest.get("period") or "",
         "audience": manifest["audience"],
         "asOf": manifest["asOf"],
+        # {} means CAC. Carried in the model rather than re-read by the renderers, so the
+        # HTML and the deck cannot end up branded differently from one another.
+        "brand": manifest.get("brand") or {},
         "throughLine": through_line,
         "sections": ordered,
         "decisions": decisions,
@@ -788,8 +831,21 @@ def _cmd_compose_brief(args):
     return 0
 
 
-def _cmd_assemble(args):
+def _load_with_brand(args) -> dict:
+    """The manifest, with `--brand FILE` overriding any block inside it.
+
+    `--brand` resolves against the working directory, not the manifest: it is a flag someone
+    typed just now, and a flag that silently resolved somewhere else would be the surprise.
+    Manifest paths resolve against the manifest for the opposite reason.
+    """
     manifest = load_manifest(args.manifest)
+    if getattr(args, "brand", None):
+        manifest["brand"] = resolve_brand(args.brand, os.getcwd())
+    return manifest
+
+
+def _cmd_assemble(args):
+    manifest = _load_with_brand(args)
     pack = assemble(manifest, with_stores=not args.no_stores)
     text = json.dumps(pack, indent=2, ensure_ascii=False)
     if args.out:
@@ -809,10 +865,12 @@ def _cmd_assemble(args):
 
 
 def _cmd_validate(args):
-    manifest = load_manifest(args.manifest)
+    manifest = _load_with_brand(args)
     result = validate_pack(manifest)
+    brand_note = ("CAC" if not manifest.get("brand")
+                  else "client override (%s)" % ", ".join(sorted(manifest["brand"])))
     print(f"{os.path.basename(args.manifest)}: {len(result['sections'])} sections, "
-          f"audience {manifest['audience']}, as at {manifest['asOf']}")
+          f"audience {manifest['audience']}, as at {manifest['asOf']}, brand {brand_note}")
     for s in result["sections"]:
         print(f"  {s['section']:<11} {s['itemCount']:>3} items · "
               f"{len(s['decisions'])} decisions · "
@@ -829,8 +887,13 @@ def build_parser() -> argparse.ArgumentParser:
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd")
 
+    brand_help = ("a client brand block, overriding any in the manifest. Chrome and the "
+                  "measure colour only — RAG is fixed, and a palette that misses the "
+                  "contrast floors is refused rather than applied")
+
     sp = sub.add_parser("validate", help="check a manifest and its sections against the contract")
     sp.add_argument("manifest")
+    sp.add_argument("--brand", default=None, help=brand_help)
     sp.set_defaults(fn=_cmd_validate)
 
     sp = sub.add_parser("compose-brief",
@@ -846,6 +909,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--no-stores", action="store_true",
                     help="skip the store-backed headline figures; sections and decisions "
                          "still assemble")
+    sp.add_argument("--brand", default=None, help=brand_help)
     sp.set_defaults(fn=_cmd_assemble)
 
     sp = sub.add_parser("self-test")
@@ -1018,6 +1082,34 @@ def _cmd_self_test(_args):
                 "the same section declared twice is refused", "twice")
         refuses(lambda: load_manifest(os.path.join(work, "nope.json")),
                 "a manifest that does not exist is refused", "no such manifest")
+
+        # --- the client brand --------------------------------------------------
+        # Absent means CAC, and {} and "absent" have to be the same thing or a manifest
+        # that never heard of branding would start refusing.
+        eq(m["brand"], {}, "a manifest with no brand block renders CAC")
+
+        inline = {"ink": "#101820", "measure": "#7A3E9D", "mark": "Northwind"}
+        eq(load_manifest(write("mb1.json", dict(base, brand=inline)))["brand"], inline,
+           "an inline brand block is carried through")
+
+        write("client.brand.json", inline)
+        eq(load_manifest(write("mb2.json", dict(base, brand="client.brand.json")))["brand"],
+           inline,
+           "a brand given as a path resolves relative to the manifest, like every other path")
+
+        # Refused early — at validate time, not at render time. An operator who learns
+        # their palette is illegal only once the deck is written has already moved on.
+        refuses(lambda: load_manifest(write("mb3.json", dict(base, brand={"ink": "#AAAAAA"}))),
+                "a brand below the contrast floor is refused when the manifest loads",
+                "needs 4.5:1")
+        refuses(lambda: load_manifest(write("mb4.json", dict(base, brand={"critical": "#F00"}))),
+                "a brand that tries to re-colour RAG is refused", "not overridable")
+        refuses(lambda: load_manifest(write("mb5.json", dict(base, brand={"accent": "#123456"}))),
+                "a brand with an unknown key is refused", "unknown brand key")
+        refuses(lambda: load_manifest(write("mb6.json", dict(base, brand="nope.brand.json"))),
+                "a brand path that does not exist is refused", "brand")
+        refuses(lambda: load_manifest(write("mb7.json", dict(base, brand=["#101820"]))),
+                "a brand that is neither an object nor a path is refused", "must be an object")
 
         # --- the whole pack ----------------------------------------------------
         write("posture.board.json", {"section": "posture", "contractVersion": 1,

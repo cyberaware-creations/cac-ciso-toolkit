@@ -52,15 +52,7 @@ SLATE = "#666D7C"; WB = "#F6F4EE"; WB_SURF = "#FFFFFF"; WB_LINE = "#D8D3C6"
 # green→red brand.md claims. Lightness now carries the step as well as hue.
 # low was #2e8b57, which tops out at 4.25:1 against its best text colour — the one
 # band fill no text colour could rescue. A small lift clears AA with ink on top.
-BAND = {"low": "#30915B", "medium": "#e8c547", "high": "#e08e0b", "critical": "#c0392b"}
 BAND_LABEL = {"low": "Low", "medium": "Medium", "high": "High", "critical": "Critical"}
-
-# A fill and a text colour are different jobs and the same hex cannot do both.
-# BAND is for fills — text goes *on* it, and text_on() picks what. BAND_TEXT is
-# for the cases where the band colour IS the text (a ⚠ mark, a velocity arrow, a
-# tag) on a light surface, where the fill values run 1.5–2.6:1 and are unreadable.
-BAND_TEXT = {"low": "#25764A", "medium": "#7A6410", "high": "#8F5B06",
-             "critical": "#c0392b"}
 
 # --- Engine band -> the graphics library's RAG band ---------------------------
 # This skill's lowest band is `low`; cac_graphics calls the same band `good`. The
@@ -77,6 +69,21 @@ BAND_TEXT = {"low": "#25764A", "medium": "#7A6410", "high": "#8F5B06",
 # engine band, because the engine's band is the fact and the library's is the
 # rendering of it — a reverse lookup would be a second place the band is decided.
 RISK_SEV = {"low": "good", "medium": "medium", "high": "high", "critical": "critical"}
+
+# A fill and a text colour are different jobs and the same hex cannot do both. BAND is for
+# fills — text goes *on* it, and text_on() picks what. BAND_TEXT is for the cases where the
+# band colour IS the text (a ⚠ mark, a velocity arrow, a tag) on a light surface, where the
+# fill values run 1.5–2.6:1 and are unreadable.
+#
+# Both are now read out of the library through RISK_SEV rather than spelled out again. They
+# were spelled out, and they had drifted by exactly one value: `critical` text was #c0392b,
+# the fill hex reused as text. That is defensible on its own terms — it measures 5.44:1 on
+# white — which is precisely why no contrast check ever flagged it. But the other three had
+# each been darkened to the library's `text` variant and this one had not, so a critical tag
+# drew in one red while a critical mark beside it drew in another. Three aligned and one
+# adrift is an oversight, not a decision, and the fix is to stop restating the table.
+BAND = {band: G._RAG[sev]["fill"] for band, sev in RISK_SEV.items()}
+BAND_TEXT = {band: G._RAG[sev]["text"] for band, sev in RISK_SEV.items()}
 
 
 def sev(band_name: str) -> str:

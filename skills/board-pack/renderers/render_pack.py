@@ -30,20 +30,24 @@ sys.path.insert(0, os.path.join(_HERE, "..", "scripts"))
 import cac_graphics as G  # noqa: E402
 import pptx_writer as PX  # noqa: E402
 
-INK = "#14171C"
-LIME = "#EAE7DF"
+# Four of these follow the brand and are rebound by apply_brand(); the rest are page
+# furniture the brand has no opinion about. They are declared here with their CAC values
+# so this module reads the same whether or not a client override is in play.
+INK = G._INK
+MUTED = G._MUTED
+WB = G._BG
 # Patina is the brand accent. It appears on the cover, on rules and on the section
 # kickers, and nowhere a reader could mistake it for a measurement.
-PATINA = "#2FA98C"
-SLATE = "#666D7C"
-WB = "#F6F4EE"
+PATINA = G._PATINA
+
+LIME = "#EAE7DF"     # the warm off-white the cover sets on ink
+SLATE = "#666D7C"    # placeholder and note borders
 WB_SURF = "#FFFFFF"
 WB_LINE = "#D8D3C6"
-MUTED = "#4A4F58"
 
-LOCKUP = "Cyber Aware Creations"
+LOCKUP = G.brand()["mark"]
 
-FOOTER = "A Cyber Aware Creation · Not affiliated with NIST"
+FOOTER = G.footer()
 NOT_LEGAL = ("Not legal advice. The incident record structures and documents a materiality "
              "determination; it does not make one. Involve counsel on the determination and "
              "on any filing.")
@@ -66,6 +70,35 @@ ITEM_LABEL = {
 
 def esc(s) -> str:
     return html.escape("" if s is None else str(s))
+
+
+def apply_brand(brand: dict) -> None:
+    """Apply the pack's brand block to the library and to this renderer's chrome.
+
+    The library floors what the library can see: text on white, a data mark against its
+    surface, a bar against its own track. It cannot see the cover, because the cover sets
+    a warm off-white on the *ink* — a pairing that exists only here. So this function
+    checks that pairing itself rather than assuming a brand that passed the library's
+    floors is safe everywhere it will be used.
+    """
+    global INK, MUTED, WB, PATINA, LOCKUP, FOOTER
+    G.set_brand(brand or {})          # raises BrandError on a palette that misses the floors
+    INK, MUTED, WB, PATINA = G._INK, G._MUTED, G._BG, G._PATINA
+    LOCKUP, FOOTER = G.brand()["mark"], G.footer()
+
+    problems = []
+    if G.contrast(LIME, INK) < 4.5:
+        problems.append("the cover sets %s on ink %s at %.2f:1, and the cover is body text"
+                        % (LIME, INK, G.contrast(LIME, INK)))
+    if G.contrast(PATINA, INK) < 3.0:
+        problems.append("the cover eyebrow and kicker set patina %s on ink %s at %.2f:1"
+                        % (PATINA, INK, G.contrast(PATINA, INK)))
+    if problems:
+        G.set_brand()                 # never leave a half-applied brand behind
+        raise G.BrandError("the brand override was refused by the pack chrome:\n  - "
+                           + "\n  - ".join(problems))
+
+    PX.apply_brand(INK, MUTED, PATINA, WB, LOCKUP)
 
 
 # --- HTML ---------------------------------------------------------------------
@@ -465,6 +498,12 @@ def main(argv=None) -> int:
             raise SystemExit(
                 f"error: {args.infile} is not an assembled pack (no {key!r} key). "
                 f"Produce it with `assemble_pack.py assemble <manifest> --out {args.infile}`.")
+
+    # Before anything is drawn, so the HTML and the deck are branded identically or neither is.
+    try:
+        apply_brand(pack.get("brand") or {})
+    except G.BrandError as exc:
+        raise SystemExit(f"error: {exc}")
 
     doc = build_html(pack)
     with open(args.html, "w", encoding="utf-8") as fh:

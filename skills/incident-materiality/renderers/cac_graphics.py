@@ -26,10 +26,19 @@ _RAG = {
 }
 _MEASURE       = "#2E6FA7"   # data without thresholds
 _MEASURE_TRACK = "#D8E4F1"   # track / background of measure bars
-_PATINA        = "#2FA98C"   # chrome only — never a data mark
+_PATINA        = "#2FA98C"   # decorative chrome only — never a data mark, never read
 _INK           = "#14171C"   # brand ink (dark chrome / body text)
 _MUTED         = "#4A4F58"   # brand muted (secondary text)
 _BG            = "#F6F4EE"   # brand workbench
+
+# The brand patina sits at 2.93:1 on white — below the 3:1 floor for a graphical
+# object and well below the 4.5:1 a 9px label needs. That is acceptable for a
+# purely decorative rule and unacceptable the moment a reader has to *read* the
+# thing, and the TODAY marker on a timeline is squarely the second case: it is
+# the reference point every bar is judged against. So the hue splits the same way
+# RAG does, into a decorative fill and an accessible text variant, and every
+# informative use takes the accessible one.
+_PATINA_TEXT   = "#25846D"   # 4.57:1 on white — patina wherever it carries meaning
 
 # Font stacks — brand tokens with system fallbacks
 _FONT_DISPLAY = "'Space Grotesk',system-ui,sans-serif"  # numbers, kickers
@@ -51,12 +60,25 @@ def _sev_colour(sev, variant="fill"):
     return _MEASURE
 
 
+def chip(sev):
+    """The (ground, text) pair for a status chip in band `sev`.
+
+    Every skill draws these chips and every skill used to spell the pair out itself. The
+    two halves had half converged: the grounds matched this table exactly while the text
+    colours did not, so a chip and a mark that meant the same thing drew it in two
+    different reds on the same page. Both sets cleared AA, which is exactly why no check
+    caught it — the defect was consistency, not contrast.
+    """
+    return (_RAG[sev]["tint"], _RAG[sev]["text"])
+
+
 # Sequential MEASURE ramp — composition WITHOUT risk semantics.
 # A stack over incident source, asset class or control family is not a stack over
 # severity. Painting those categories red/amber/green asserts a danger the data
 # never claimed, so categorical composition stays inside the MEASURE bucket and
 # separates by lightness instead of by hue.
-_MEASURE_RAMP = ["#1B4E7A", "#2E6FA7", "#5B9BD0", "#94BEE2", "#C4DAEE", "#E4EEF7"]
+_CAC_MEASURE_RAMP = ["#1B4E7A", "#2E6FA7", "#5B9BD0", "#94BEE2", "#C4DAEE", "#E4EEF7"]
+_MEASURE_RAMP = list(_CAC_MEASURE_RAMP)
 _UNASSESSED   = "#D6D2C7"   # a band-less segment in an otherwise-RAG stack
 
 _SURFACE = "#FFFFFF"   # every mark carries its own surface
@@ -134,6 +156,234 @@ def _hatch_def():
         f'<line x1="0" y1="0" x2="0" y2="6" stroke="{_HATCH_FG}" '
         f'stroke-width="2"/></pattern></defs>'
     )
+
+
+# ── Client brand override ─────────────────────────────────────────────────────
+# A client may re-colour the *chrome* and the *measure* bucket. A client may not
+# re-colour RAG.
+#
+# That asymmetry is the whole point. The RAG hexes are not decoration: green↔red
+# is ΔE 6.2 under deuteranopia and medium↔high is ΔE 13.3, and the four `text`
+# variants were each darkened until they cleared 4.5:1 on the workbench ground.
+# A client palette substituted into those four slots would silently discard every
+# one of those measurements while still producing a plausible-looking chart — the
+# worst possible failure, because nothing about the output would look wrong.
+# Status therefore renders in toolkit colours in every deck the toolkit produces,
+# and the client's identity lives in the chrome around it.
+#
+# What *is* overridable still gets validated rather than trusted, against the
+# same floors the defaults were built to.
+
+DEFAULT_BRAND = {
+    "ink":          _INK,
+    "muted":        _MUTED,
+    "measure":      _MEASURE,
+    "measureTrack": _MEASURE_TRACK,
+    "patina":       _PATINA,
+    "patinaText":   _PATINA_TEXT,
+    "bg":           _BG,
+    "wordmark":     "A Cyber Aware Creation",
+    "mark":         "Cyber Aware Creations",
+    "whiteLabel":   False,
+}
+
+_COLOUR_KEYS = ("ink", "muted", "measure", "measureTrack", "patina",
+                "patinaText", "bg")
+_TEXT_KEYS   = ("wordmark", "mark")
+_FLAG_KEYS   = ("whiteLabel",)
+
+# The NIST disclaimer is not branding, and white-labelling cannot remove it.
+_DISCLAIMER = "Not affiliated with NIST"
+
+
+def footer():
+    """
+    The attribution line every deliverable carries.
+
+    White-labelling drops the maker's name and keeps the disclaimer. Those two
+    clauses look alike on the page and are not alike at all: one says who built
+    the thing, which a client is entitled to replace, and the other says the
+    thing is not a NIST product, which is a statement about the world that stays
+    true no matter whose logo is on the cover. A white-label switch that removed
+    both would let a client ship an unaffiliated document that reads as endorsed.
+    """
+    if _brand.get("whiteLabel"):
+        return _DISCLAIMER + "."
+    return "%s · %s" % (_brand["wordmark"], _DISCLAIMER)
+
+# `surface` is deliberately absent. Every contrast number in this file was
+# measured against white, and _surf() pins the surface light for exactly that
+# reason. Letting a client darken it would invalidate the whole palette at once.
+
+_brand = dict(DEFAULT_BRAND)
+
+
+class BrandError(ValueError):
+    """A supplied brand block was rejected. Carries every problem, not the first."""
+
+
+def contrast(a, b):
+    """WCAG contrast ratio between two #rrggbb colours."""
+    la, lb = _relative_luminance(a), _relative_luminance(b)
+    hi, lo = max(la, lb), min(la, lb)
+    return (hi + 0.05) / (lo + 0.05)
+
+
+def _is_hex(v):
+    if not isinstance(v, str) or len(v) != 7 or not v.startswith("#"):
+        return False
+    try:
+        int(v[1:], 16)
+    except ValueError:
+        return False
+    return True
+
+
+def _mix(colour, toward, f):
+    """Blend `colour` toward `toward` by fraction f."""
+    c = colour.lstrip("#")
+    t = toward.lstrip("#")
+    out = "#"
+    for i in (0, 2, 4):
+        a = int(c[i:i + 2], 16)
+        b = int(t[i:i + 2], 16)
+        out += "%02X" % round(a + (b - a) * f)
+    return out
+
+
+def _derive_ramp(measure):
+    """
+    Six sequential steps from a client measure hue.
+
+    The shipped CAC ramp is hand-tuned and is NOT reproduced by this function —
+    it stays a literal, so overriding nothing changes nothing. This is the
+    fallback for a client hue nobody has hand-tuned: one step darker, the hue
+    itself, then four mixes toward white. Monotone in lightness by construction,
+    which is the property a sequential ramp has to have.
+    """
+    return [_mix(measure, "#000000", 0.30), measure] + [
+        _mix(measure, "#FFFFFF", f) for f in (0.30, 0.55, 0.75, 0.90)
+    ]
+
+
+def validate_brand(brand):
+    """
+    Every problem with a candidate brand block, as a list of strings. Empty = usable.
+
+    Returned rather than raised so a caller can report all of them at once; a
+    client handed one contrast failure at a time will iterate four times.
+    """
+    problems = []
+
+    for key in sorted(brand):
+        if key in _RAG or key in ("rag", "good", "medium", "high", "critical",
+                                  "severity", "status"):
+            problems.append(
+                "%s: RAG is not overridable. The status ramp carries measured "
+                "contrast and colour-vision-deficiency separation; a substituted "
+                "palette would discard both silently. Override the chrome instead."
+                % key)
+        elif key not in DEFAULT_BRAND:
+            problems.append("%s: unknown brand key (known: %s)"
+                            % (key, ", ".join(sorted(DEFAULT_BRAND))))
+
+    for key in _TEXT_KEYS:
+        v = brand.get(key, DEFAULT_BRAND[key])
+        if not isinstance(v, str) or not v.strip():
+            problems.append("%s: must be a non-empty string" % key)
+
+    for key in _FLAG_KEYS:
+        v = brand.get(key, DEFAULT_BRAND[key])
+        if not isinstance(v, bool):
+            problems.append("%s: must be true or false, got %r" % (key, v))
+
+    for key in _COLOUR_KEYS:
+        v = brand.get(key, DEFAULT_BRAND[key])
+        if not _is_hex(v):
+            problems.append("%s: %r is not a #rrggbb colour" % (key, v))
+
+    if problems:
+        return problems   # ratios on a malformed hex would raise, not report
+
+    m = dict(DEFAULT_BRAND)
+    m.update(brand)
+
+    def floor(name, fg, bg, need, why):
+        r = contrast(fg, bg)
+        if r < need:
+            problems.append("%s: %s on %s is %.2f:1, needs %.1f:1 (%s)"
+                            % (name, fg, bg, r, need, why))
+
+    # Text floors. Body and secondary text must clear AA on both grounds a mark
+    # can present them on: its own white surface, and the workbench panel.
+    floor("ink", m["ink"], _SURFACE, 4.5, "body text on a mark surface")
+    floor("ink", m["ink"], m["bg"], 4.5, "body text on the workbench ground")
+    floor("muted", m["muted"], _SURFACE, 4.5, "secondary text")
+    floor("muted", m["muted"], m["bg"], 4.5, "secondary text on the workbench")
+    floor("patinaText", m["patinaText"], _SURFACE, 4.5, "kickers and the TODAY label")
+
+    # Graphical floors.
+    floor("measure", m["measure"], _SURFACE, 3.0, "a data mark against its surface")
+    floor("measure", m["measure"], m["measureTrack"], 3.0,
+          "the filled part of a bar against its own track")
+
+    if _relative_luminance(m["measureTrack"]) <= _relative_luminance(m["measure"]):
+        problems.append(
+            "measureTrack: %s is not lighter than measure %s. The track is the "
+            "unfilled remainder; a track darker than the fill inverts the mark."
+            % (m["measureTrack"], m["measure"]))
+
+    # `patina` carries no floor, and that is a deliberate exemption rather than an
+    # oversight: it is the one token barred from carrying information, so there is
+    # nothing on it for a floor to protect. Anything a reader must read uses
+    # `patinaText`, which is floored above.
+
+    # The consequence of RAG being fixed: a client `bg` has to work with it.
+    for sev in ("good", "medium", "high", "critical"):
+        floor("bg", _RAG[sev]["text"], m["bg"], 4.5,
+              "RAG %s label on the client ground; RAG cannot move, so bg must" % sev)
+
+    return problems
+
+
+def set_brand(brand=None):
+    """
+    Apply a client brand override process-wide, or reset to CAC with no argument.
+
+    Raises BrandError listing every problem if the block fails validation. Absent
+    keys keep their CAC value, so a block naming only `ink` is a legal block.
+
+    This rebinds module state, so it is process-wide and not thread-safe. Marks
+    are built from these tokens in ~40 places; threading a palette through every
+    signature would be a far larger change than the feature justifies, and every
+    caller in this toolkit is a single-threaded CLI. Call it once, before
+    rendering.
+    """
+    global _brand, _INK, _MUTED, _MEASURE, _MEASURE_TRACK, _PATINA
+    global _PATINA_TEXT, _BG, _MEASURE_RAMP
+
+    if brand is None:
+        brand = {}
+    problems = validate_brand(brand)
+    if problems:
+        raise BrandError("brand override rejected:\n  - " + "\n  - ".join(problems))
+
+    m = dict(DEFAULT_BRAND)
+    m.update(brand)
+    _brand = m
+
+    _INK, _MUTED = m["ink"], m["muted"]
+    _MEASURE, _MEASURE_TRACK = m["measure"], m["measureTrack"]
+    _PATINA, _PATINA_TEXT = m["patina"], m["patinaText"]
+    _BG = m["bg"]
+
+    _MEASURE_RAMP = (_CAC_MEASURE_RAMP if m["measure"] == DEFAULT_BRAND["measure"]
+                     else _derive_ramp(m["measure"]))
+
+
+def brand():
+    """The active brand, as a copy. Renderers read `wordmark` and `mark` here."""
+    return dict(_brand)
 
 
 def _normalize_direction(direction):
@@ -1191,9 +1441,9 @@ def milestone_timeline(events, today=""):
         tx = to_x(today)
         out += (
             f'<line x1="{tx:.1f}" y1="12" x2="{tx:.1f}" y2="{h - 12}" '
-            f'stroke="{_PATINA}" stroke-width="1.5" stroke-dasharray="5,3"/>'
+            f'stroke="{_PATINA_TEXT}" stroke-width="1.5" stroke-dasharray="5,3"/>'
             f'<text x="{tx + 4:.1f}" y="{h - 14}" font-size="9" font-weight="600" '
-            f'font-family="{_FONT_BODY}" fill="{_PATINA}">TODAY</text>'
+            f'font-family="{_FONT_BODY}" fill="{_PATINA_TEXT}">TODAY</text>'
         )
 
     return (
@@ -1345,7 +1595,7 @@ def gantt(phases, today="", milestones=None):
         out += (
             f'<line x1="{tx:.1f}" y1="{pad_y - 10}" '
             f'x2="{tx:.1f}" y2="{h - 10}" '
-            f'stroke="{_PATINA}" stroke-width="1.5" stroke-dasharray="5,3"/>'
+            f'stroke="{_PATINA_TEXT}" stroke-width="1.5" stroke-dasharray="5,3"/>'
         )
 
     return (
@@ -1474,7 +1724,7 @@ def _self_test():
         stacked_bar([{"label": "Q1",
                       "segments": [{"sev": "good", "value": 3},
                                    {"sev": "high", "value": 2}]}]),
-        absent=[_PATINA])
+        absent=[_PATINA, _PATINA_TEXT])
 
     # 21. milestone_timeline event no sev → no RAG hex
     chk("milestone no-sev event → no RAG",
@@ -1487,11 +1737,12 @@ def _self_test():
                              "sev": "high"}]),
         present=['fill="#e08e0b"'])
 
-    # 23. milestone_timeline today → PATINA
-    chk("milestone today → patina",
+    # 23. milestone_timeline today → the ACCESSIBLE patina, not the decorative one.
+    #     The TODAY marker is read, so it may not use the 2.93:1 brand hue.
+    chk("milestone today → accessible patina, decorative absent",
         milestone_timeline([{"label": "Now", "date": "2026-03"}],
                            today="2026-03"),
-        present=[_PATINA])
+        present=[_PATINA_TEXT], absent=[_PATINA])
 
     # 24. gantt → MEASURE present
     chk("gantt → MEASURE present",
@@ -1510,11 +1761,11 @@ def _self_test():
                 "sev": "good"}]),
         present=['fill="#30915B"', "ON TRACK"])
 
-    # 27. gantt today → PATINA
-    chk("gantt today → patina",
+    # 27. gantt today → the ACCESSIBLE patina, not the decorative one
+    chk("gantt today → accessible patina, decorative absent",
         gantt([{"label": "Ph1", "start": "2026-01", "end": "2026-06"}],
               today="2026-03"),
-        present=[_PATINA])
+        present=[_PATINA_TEXT], absent=[_PATINA])
 
     # 28. rag_chip "good" → #30915B
     chk("rag_chip good → #30915B", rag_chip("good", "On Track"),
@@ -1526,7 +1777,7 @@ def _self_test():
 
     # 30. column_trend → no PATINA
     chk("column_trend → no patina", column_trend([5, 10, 8, 12]),
-        absent=[_PATINA])
+        absent=[_PATINA, _PATINA_TEXT])
 
     # 31. bar_chart no sev → MEASURE
     chk("bar_chart no sev → MEASURE",
@@ -1980,9 +2231,131 @@ def _self_test():
     except ValueError as e:
         bad("_zone_sev accepts direction='lower-better'", str(e))
 
+    # ── Client brand override (P5) ───────────────────────────────────────────
+
+    # 43. the shipped defaults pass the floors they are validated against.
+    #     A validator its own defaults fail is a validator nobody can use.
+    problems = validate_brand({})
+    if problems:
+        bad("CAC defaults pass their own floors", "; ".join(problems))
+    else:
+        ok("CAC defaults pass their own floors")
+
+    # 44. a legal override reaches the marks
+    try:
+        set_brand({"ink": "#101820", "measure": "#7A3E9D",
+                   "wordmark": "Northwind Group", "mark": "NW"})
+        svg = progress_bar(50, 100)
+        if "#7A3E9D" in svg and DEFAULT_BRAND["measure"] not in svg:
+            ok("an override re-colours the measure bucket")
+        else:
+            bad("an override re-colours the measure bucket",
+                "client hue absent, or the CAC hue survived")
+    finally:
+        set_brand()
+
+    # 45. …and resetting restores CAC exactly, so nothing leaks between renders
+    set_brand({"measure": "#7A3E9D"})
+    set_brand()
+    if (_MEASURE == DEFAULT_BRAND["measure"]
+            and _MEASURE_RAMP == _CAC_MEASURE_RAMP
+            and brand() == DEFAULT_BRAND):
+        ok("reset restores CAC exactly")
+    else:
+        bad("reset restores CAC exactly", f"measure={_MEASURE} ramp={_MEASURE_RAMP[:2]}")
+
+    # 46. no override at all leaves the marks byte-identical
+    before = bar_chart([("A", 10), ("B", 20)])
+    set_brand()
+    if bar_chart([("A", 10), ("B", 20)]) == before:
+        ok("set_brand() with no argument changes no output")
+    else:
+        bad("set_brand() with no argument changes no output")
+
+    # 47. an overridden measure derives a ramp; adjacent steps stay ordered
+    set_brand({"measure": "#7A3E9D"})
+    lums = [_relative_luminance(c) for c in _MEASURE_RAMP]
+    if (len(_MEASURE_RAMP) == 6 and _MEASURE_RAMP[1] == "#7A3E9D"
+            and all(lums[i] < lums[i + 1] for i in range(5))):
+        ok("an overridden measure derives a monotone ramp")
+    else:
+        bad("an overridden measure derives a monotone ramp", str(_MEASURE_RAMP))
+    set_brand()
+
+    # 48-53. every refusal fires, one guard at a time. Each block is legal in
+    #        every respect except the one named, so a passing check proves *that*
+    #        guard fired and not a neighbour's.
+    refusals = [
+        ("RAG is not overridable", {"critical": "#FF0000"}, "not overridable"),
+        ("an unknown key is refused", {"accent": "#123456"}, "unknown brand key"),
+        ("a malformed hex is refused", {"ink": "blue"}, "not a #rrggbb"),
+        ("ink below 4.5:1 is refused", {"ink": "#AAAAAA"}, "needs 4.5:1"),
+        ("a measure below 3:1 is refused", {"measure": "#CCE0F5"}, "needs 3.0:1"),
+        ("a track darker than its fill is refused",
+         {"measureTrack": "#0A0A0A"}, "inverts the mark"),
+    ]
+    for name, block, needle in refusals:
+        try:
+            set_brand(block)
+            bad(name, "accepted a block that should have been refused")
+            set_brand()
+        except BrandError as e:
+            if needle in str(e):
+                ok(name)
+            else:
+                bad(name, f"refused for the wrong reason: {e}")
+
+    # 54. a refused override leaves the previous brand untouched — a client whose
+    #     palette fails gets CAC, never a half-applied hybrid.
+    set_brand()
+    try:
+        set_brand({"ink": "#AAAAAA"})
+    except BrandError:
+        pass
+    if _INK == DEFAULT_BRAND["ink"] and brand()["ink"] == DEFAULT_BRAND["ink"]:
+        ok("a refused override leaves the active brand untouched")
+    else:
+        bad("a refused override leaves the active brand untouched", _INK)
+
+    # 55. RAG survives an override. The whole point of the asymmetry.
+    set_brand({"ink": "#101820", "measure": "#7A3E9D", "bg": "#FFFFFF"})
+    svg = kpi_tile(4, "Open P1", sev="critical")
+    if 'fill="#c0392b"' in svg:
+        ok("RAG survives a brand override")
+    else:
+        bad("RAG survives a brand override", "critical no longer renders in #c0392b")
+    set_brand()
+
+    # 56. the default footer carries both clauses
+    set_brand()
+    if footer() == "A Cyber Aware Creation · Not affiliated with NIST":
+        ok("the default footer carries maker and disclaimer")
+    else:
+        bad("the default footer carries maker and disclaimer", footer())
+
+    # 57. white-labelling drops the maker and KEEPS the disclaimer
+    set_brand({"whiteLabel": True, "wordmark": "Northwind Group"})
+    f = footer()
+    if _DISCLAIMER in f and "Cyber Aware" not in f and "Northwind" not in f:
+        ok("white-label drops the maker, keeps the NIST disclaimer")
+    else:
+        bad("white-label drops the maker, keeps the NIST disclaimer", f)
+    set_brand()
+
+    # 58. whiteLabel is a flag, not a truthy string — "false" must not enable it
+    try:
+        set_brand({"whiteLabel": "false"})
+        bad("whiteLabel refuses a non-boolean", "accepted the string 'false'")
+        set_brand()
+    except BrandError as e:
+        if "must be true or false" in str(e):
+            ok("whiteLabel refuses a non-boolean")
+        else:
+            bad("whiteLabel refuses a non-boolean", str(e))
+
     print()
-    if checks != 70:
-        print(f"self-test: ran {checks} checks, expected 70")
+    if checks != 86:
+        print(f"self-test: ran {checks} checks, expected 86")
         _sys.exit(1)
     if fails:
         print(f"self-test: {fails} of {checks} checks FAILED")

@@ -34,10 +34,15 @@ MUTED = "#4A4F58"
 # Lifecycle bands are a STATUS palette: named states, not points on a scale. Light fill,
 # dark ink, so each chip clears AA against its own background by a wide margin. The band
 # word is always inside the chip — colour never carries the meaning alone.
+#
+# The banded pairs come from the library so a chip and the mark beside it cannot draw one
+# meaning in two colours. `expired` and `closed` keep their own: neither is a RAG band —
+# expired is a lifecycle terminus rather than a severity, and holding it apart from
+# `revalidation-overdue` is the point of showing both.
 BAND_FILL = {
-    "current":              ("#E3EDE4", "#2F5D3A"),
-    "revalidation-due":     ("#F7EBD9", "#7A5218"),
-    "revalidation-overdue": ("#F6E0DC", "#7C3A32"),
+    "current":              G.chip("good"),
+    "revalidation-due":     G.chip("high"),
+    "revalidation-overdue": G.chip("critical"),
     "expired":              ("#EDE0EA", "#5E3660"),
     "closed":               ("#EFEDE7", MUTED),
 }

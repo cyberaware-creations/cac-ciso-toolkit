@@ -58,6 +58,23 @@ LIMESTONE_DIM = "9AA0A6"   # muted text on ink; the footer stamp
 PATINA = "2FA98C"          # brand/action accent — chrome only, never a measurement
 WORKBENCH = "F6F4EE"       # light working ground
 
+LOCKUP = "Cyber Aware Creations"
+
+
+def apply_brand(ink: str, muted: str, patina: str, workbench: str, lockup: str) -> None:
+    """Rebind the deck's chrome to a client brand. Colours arrive as `#rrggbb` or `rrggbb`.
+
+    Called by render_pack.apply_brand so a pack is branded once, in one place, and the deck
+    cannot end up carrying a different brand from the HTML built beside it. The RAG ramp is
+    not a parameter here for the same reason it is not overridable in the graphics library.
+    """
+    global INK, MUTED, PATINA, SURFACE, WORKBENCH, LOCKUP, PALETTE
+    INK, MUTED = ink.lstrip("#").upper(), muted.lstrip("#").upper()
+    PATINA = patina.lstrip("#").upper()
+    SURFACE = WORKBENCH = workbench.lstrip("#").upper()
+    LOCKUP = lockup
+    PALETTE = _palette()   # the closed palette follows the brand, or verify() fails 28 slides
+
 # The RAG ramp, in its two jobs. A fill and a text colour are different jobs and the same hex
 # cannot do both: on a light ground the fills measure 1.5–2.6:1, which is why `SEV_TEXT`
 # exists and why nothing on a light slide is allowed to reach for `SEV_FILL`. `verify()`
@@ -73,10 +90,21 @@ SEV_TEXT = {"good": "25764A", "medium": "7A6410", "high": "8F5B06", "critical": 
 # banded figure prints its band word beside the number, in the same colour.
 SEV_WORD = {"good": "Good", "medium": "Medium", "high": "High", "critical": "Critical"}
 
-PALETTE = frozenset(
-    v.upper() for v in
-    [INK, MUTED, LINE, SURFACE, ACCENT, LIMESTONE, LIMESTONE_DIM, PATINA, WORKBENCH,
-     "FFFFFF"] + list(SEV_FILL.values()) + list(SEV_TEXT.values()))
+def _palette() -> frozenset:
+    """The closed set of colours a slide may use, for the brand currently in force.
+
+    Recomputed rather than fixed, because a client override widens it — but only to that
+    client's declared tokens. The property `verify()` enforces is "no hand-picked colour",
+    not "these nine hexes", and a palette frozen at import would have turned every branded
+    deck into 28 spurious failures while a genuinely stray hex slipped through unnoticed.
+    """
+    return frozenset(
+        v.upper() for v in
+        [INK, MUTED, LINE, SURFACE, ACCENT, LIMESTONE, LIMESTONE_DIM, PATINA, WORKBENCH,
+         "FFFFFF"] + list(SEV_FILL.values()) + list(SEV_TEXT.values()))
+
+
+PALETTE = _palette()
 # A fill hex that has no text twin. `critical` is deliberately absent: the same hex is both
 # its fill and its text colour, because it already measures past 4.5:1 on a light ground.
 FILL_ONLY = frozenset(v.upper() for v in SEV_FILL.values()) - frozenset(
@@ -317,7 +345,7 @@ class Deck:
         sid += 1
         shapes.append(_textbox(sid, "Lockup", self.MARGIN + inch(0.32), inch(0.58),
                                inch(6), inch(0.32),
-                               _para("Cyber Aware Creations", 1200, True, LIMESTONE, 0)))
+                               _para(LOCKUP, 1200, True, LIMESTONE, 0)))
         sid += 1
         if eyebrow:
             shapes.append(_textbox(sid, "Eyebrow", self.MARGIN, inch(2.55), self.BODY_W,

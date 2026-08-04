@@ -42,10 +42,17 @@ MUTED = "#4A4F58"
 # Light fill with dark ink, so every chip clears AA against its own background by a wide
 # margin rather than sitting near the line. Colour never carries the meaning alone: the
 # status word is always rendered inside the chip.
+#
+# The banded pairs come from the library rather than being restated here. They were
+# hand-picked before the library carried a `text` variant, and the two had since half
+# converged: the tints matched the library exactly while the text colours did not, so a
+# chip and a mark meaning the same thing drew it in two different reds on one page. Both
+# sets cleared AA, which is why nothing caught it — the defect was consistency, not
+# contrast. Derived, it cannot drift again.
 STATUS_FILL = {
-    "ok":           ("#E3EDE4", "#2F5D3A"),
-    "warn":         ("#F7EBD9", "#7A5218"),
-    "critical":     ("#F6E0DC", "#7C3A32"),
+    "ok":           G.chip("good"),
+    "warn":         G.chip("high"),
+    "critical":     G.chip("critical"),
     "no-threshold": ("#EFEDE7", MUTED),
     "no-reading":   ("#EFEDE7", MUTED),
 }

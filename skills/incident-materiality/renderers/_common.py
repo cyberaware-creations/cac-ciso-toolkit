@@ -48,11 +48,11 @@ BAND_FILL = {
     "no-determination":   ("#EDEAE2", "#4A4F58"),
     "assessing":          ("#E4E9F0", "#2F4A63"),
     "not-yet-determinable": ("#E4E9F0", "#2F4A63"),
-    "not-material":       ("#E3EDE4", "#2F5D3A"),
-    "material":           ("#F7EBD9", "#7A5218"),
-    "disclosure-due":     ("#F7EBD9", "#7A5218"),
-    "disclosure-overdue": ("#F6E0DC", "#7C3A32"),
-    "filed":              ("#E3EDE4", "#2F5D3A"),
+    "not-material":       G.chip("good"),
+    "material":           G.chip("high"),
+    "disclosure-due":     G.chip("high"),
+    "disclosure-overdue": G.chip("critical"),
+    "filed":              G.chip("good"),
     "closed":             ("#EFEDE7", MUTED),
 }
 BAND_LABEL = {
@@ -71,9 +71,9 @@ CLOCK_FILL = {
     "not-applicable": ("#EFEDE7", MUTED),
     "not-started":    ("#EDEAE2", "#4A4F58"),
     "anchor-missing": ("#EDE0EA", "#5E3660"),
-    "due":            ("#F7EBD9", "#7A5218"),
-    "overdue":        ("#F6E0DC", "#7C3A32"),
-    "filed":          ("#E3EDE4", "#2F5D3A"),
+    "due":            G.chip("high"),
+    "overdue":        G.chip("critical"),
+    "filed":          G.chip("good"),
 }
 CLOCK_LABEL = {
     "not-applicable": "not in scope",
@@ -85,8 +85,8 @@ CLOCK_LABEL = {
 }
 
 ASSESSMENT_FILL = {
-    "bearing":    ("#F7EBD9", "#7A5218"),
-    "no-bearing": ("#E3EDE4", "#2F5D3A"),
+    "bearing":    G.chip("high"),
+    "no-bearing": G.chip("good"),
     "unknown":    ("#EDEAE2", "#4A4F58"),
 }
 ASSESSMENT_LABEL = {
