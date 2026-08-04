@@ -23,9 +23,21 @@ _RAG = {
 _MEASURE       = "#2E6FA7"   # data without thresholds
 _MEASURE_TRACK = "#D8E4F1"   # track / background of measure bars
 _PATINA        = "#2FA98C"   # chrome only — never a data mark
-_INK           = "#2C3E50"
-_MUTED         = "#7F8C8D"
-_BG            = "#F8F9FA"
+_INK           = "#14171C"   # brand ink (dark chrome / body text)
+_MUTED         = "#4A4F58"   # brand muted (secondary text)
+_BG            = "#F6F4EE"   # brand workbench
+
+# Font stacks — brand tokens with system fallbacks
+_FONT_DISPLAY = "'Space Grotesk',system-ui,sans-serif"  # numbers, kickers
+_FONT_BODY    = "'Manrope',system-ui,sans-serif"         # labels, axis text
+
+# Gantt phase-status chip vocabulary (spec: executive-indicator-system §2)
+_GANTT_CHIP = {
+    "good":     "ON TRACK",
+    "medium":   "WATCH",
+    "high":     "AT RISK",
+    "critical": "LATE",
+}
 
 
 def _sev_colour(sev):
@@ -86,11 +98,11 @@ def kpi_tile(value, label, delta="", unit="", sev=""):
         f'stroke="#E0E0E0" stroke-width="1"/>'
         f'<rect x="0" y="0" width="4" height="{h}" rx="2" fill="{fill}"/>'
         f'<text x="{w // 2}" y="55" text-anchor="middle" font-size="32" '
-        f'font-family="system-ui,sans-serif" font-weight="700" '
+        f'font-family="{_FONT_DISPLAY}" font-weight="700" '
         f'fill="{_INK}">{vtext}</text>'
         f'{delta_svg}'
         f'<text x="{w // 2}" y="100" text-anchor="middle" font-size="12" '
-        f'font-family="system-ui,sans-serif" fill="{_MUTED}">{_esc(label)}</text>'
+        f'font-family="{_FONT_BODY}" fill="{_MUTED}">{_esc(label)}</text>'
         f'</svg>'
     )
 
@@ -108,7 +120,7 @@ def rag_chip(sev, label):
         f'viewBox="0 0 {ch_w} {h}">'
         f'<rect width="{ch_w}" height="{h}" rx="{h // 2}" fill="{fill}"/>'
         f'<text x="{ch_w // 2}" y="19" text-anchor="middle" '
-        f'font-size="12" font-family="system-ui,sans-serif" '
+        f'font-size="12" font-family="{_FONT_BODY}" '
         f'font-weight="600" fill="{text_col}">{_esc(label)}</text>'
         f'</svg>'
     )
@@ -166,10 +178,10 @@ def bullet(value, target, zones, direction="higher", unit="", labels=True):
     if labels:
         label_svg = (
             f'<text x="20" y="{bar_y + bar_h + 14}" font-size="10" '
-            f'font-family="system-ui,sans-serif" fill="{_MUTED}">0</text>'
+            f'font-family="{_FONT_BODY}" fill="{_MUTED}">0</text>'
             f'<text x="{end_x:.1f}" y="{bar_y + bar_h + 14}" '
             f'text-anchor="end" font-size="10" '
-            f'font-family="system-ui,sans-serif" fill="{_MUTED}">'
+            f'font-family="{_FONT_BODY}" fill="{_MUTED}">'
             f'{_fmt(scale_max)}{_esc(unit)}</text>'
         )
 
@@ -194,7 +206,7 @@ def progress_bar(value, goal, label="", sev=""):
     if label:
         lbl_svg = (
             f'<text x="20" y="44" font-size="11" '
-            f'font-family="system-ui,sans-serif" fill="{_MUTED}">{_esc(label)}</text>'
+            f'font-family="{_FONT_BODY}" fill="{_MUTED}">{_esc(label)}</text>'
         )
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" '
@@ -203,7 +215,7 @@ def progress_bar(value, goal, label="", sev=""):
         f'fill="{_MEASURE_TRACK}"/>'
         f'<rect x="20" y="14" width="{bar_w:.1f}" height="16" rx="8" fill="{fill}"/>'
         f'<text x="{w - 18}" y="26" text-anchor="end" font-size="11" '
-        f'font-family="system-ui,sans-serif" fill="{_INK}">{pct_label}</text>'
+        f'font-family="{_FONT_BODY}" fill="{_INK}">{pct_label}</text>'
         f'{lbl_svg}'
         f'</svg>'
     )
@@ -222,7 +234,7 @@ def fuel_tank(value, goal, label=""):
     if label:
         lbl_svg = (
             f'<text x="{w // 2}" y="{h - 4}" text-anchor="middle" font-size="11" '
-            f'font-family="system-ui,sans-serif" fill="{_MUTED}">{_esc(label)}</text>'
+            f'font-family="{_FONT_BODY}" fill="{_MUTED}">{_esc(label)}</text>'
         )
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" '
@@ -233,7 +245,7 @@ def fuel_tank(value, goal, label=""):
         f'height="{fill_h:.1f}" rx="2" fill="{_MEASURE}"/>'
         f'<text x="{tank_x + tank_w // 2}" y="{tank_y + tank_h // 2 + 5}" '
         f'text-anchor="middle" font-size="14" font-weight="700" '
-        f'font-family="system-ui,sans-serif" fill="{_INK}">{int(pct * 100)}%</text>'
+        f'font-family="{_FONT_BODY}" fill="{_INK}">{int(pct * 100)}%</text>'
         f'{lbl_svg}'
         f'</svg>'
     )
@@ -285,14 +297,14 @@ def radial_gauge(value, min_v, max_v, zones=None, sev=""):
     val_label = (
         f'<text x="{cx}" y="{cy - 8}" text-anchor="middle" '
         f'font-size="24" font-weight="700" '
-        f'font-family="system-ui,sans-serif" fill="{_INK}">'
+        f'font-family="{_FONT_BODY}" fill="{_INK}">'
         f'{_esc(str(value))}</text>'
     )
     range_labels = (
         f'<text x="{sx:.1f}" y="{sy + 16:.1f}" text-anchor="middle" font-size="10" '
-        f'font-family="system-ui,sans-serif" fill="{_MUTED}">{_esc(str(min_v))}</text>'
+        f'font-family="{_FONT_BODY}" fill="{_MUTED}">{_esc(str(min_v))}</text>'
         f'<text x="{bg_ex:.1f}" y="{bg_ey + 16:.1f}" text-anchor="middle" '
-        f'font-size="10" font-family="system-ui,sans-serif" fill="{_MUTED}">'
+        f'font-size="10" font-family="{_FONT_BODY}" fill="{_MUTED}">'
         f'{_esc(str(max_v))}</text>'
     )
     return (
@@ -330,7 +342,7 @@ def sparkline(readings, unit="", sev=""):
         f'stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>'
         f'<circle cx="{lx:.1f}" cy="{ly:.1f}" r="3" fill="{fill}"/>'
         f'<text x="{lx + 4:.1f}" y="{ly + 4:.1f}" font-size="10" '
-        f'font-family="system-ui,sans-serif" fill="{_INK}">{last_val}</text>'
+        f'font-family="{_FONT_BODY}" fill="{_INK}">{last_val}</text>'
         f'</svg>'
     )
 
@@ -362,15 +374,15 @@ def slope(readings, labels=None, unit="", sev=""):
         f'<circle cx="{x0}" cy="{y0:.1f}" r="4" fill="{fill}"/>'
         f'<circle cx="{x1}" cy="{y1:.1f}" r="4" fill="{fill}"/>'
         f'<text x="{x0}" y="{y0 - 6:.1f}" text-anchor="middle" font-size="11" '
-        f'font-family="system-ui,sans-serif" fill="{_INK}">'
+        f'font-family="{_FONT_BODY}" fill="{_INK}">'
         f'{_esc(str(readings[0]))}{_esc(unit)}</text>'
         f'<text x="{x1}" y="{y1 - 6:.1f}" text-anchor="middle" font-size="11" '
-        f'font-family="system-ui,sans-serif" fill="{_INK}">'
+        f'font-family="{_FONT_BODY}" fill="{_INK}">'
         f'{_esc(str(readings[1]))}{_esc(unit)}</text>'
         f'<text x="{x0}" y="{h - 2}" text-anchor="middle" font-size="10" '
-        f'font-family="system-ui,sans-serif" fill="{_MUTED}">{_esc(str(lbl[0]))}</text>'
+        f'font-family="{_FONT_BODY}" fill="{_MUTED}">{_esc(str(lbl[0]))}</text>'
         f'<text x="{x1}" y="{h - 2}" text-anchor="middle" font-size="10" '
-        f'font-family="system-ui,sans-serif" fill="{_MUTED}">{_esc(str(lbl[1]))}</text>'
+        f'font-family="{_FONT_BODY}" fill="{_MUTED}">{_esc(str(lbl[1]))}</text>'
         f'</svg>'
     )
 
@@ -411,7 +423,7 @@ def line_chart(readings, labels=None, unit="", sev=""):
             lbl = labels[i] if i < len(labels) else ""
             x_labels += (
                 f'<text x="{x:.1f}" y="{h - 4}" text-anchor="middle" '
-                f'font-size="9" font-family="system-ui,sans-serif" '
+                f'font-size="9" font-family="{_FONT_BODY}" '
                 f'fill="{_MUTED}">{_esc(str(lbl))}</text>'
             )
 
@@ -454,7 +466,7 @@ def column_trend(readings, labels=None, unit=""):
             cols += (
                 f'<text x="{x + col_w / 2:.1f}" y="{h - 4}" '
                 f'text-anchor="middle" font-size="9" '
-                f'font-family="system-ui,sans-serif" '
+                f'font-family="{_FONT_BODY}" '
                 f'fill="{_MUTED}">{_esc(str(labels[i]))}</text>'
             )
 
@@ -495,11 +507,11 @@ def bar_chart(items):
         bars += (
             f'<text x="{pad_x - 6}" y="{y + row_h // 2 + 4}" '
             f'text-anchor="end" font-size="11" '
-            f'font-family="system-ui,sans-serif" fill="{_INK}">{_esc(str(lbl))}</text>'
+            f'font-family="{_FONT_BODY}" fill="{_INK}">{_esc(str(lbl))}</text>'
             f'<rect x="{pad_x}" y="{y + 4}" width="{bw:.1f}" '
             f'height="{row_h - 8}" rx="2" fill="{fill}"/>'
             f'<text x="{pad_x + bw + 4:.1f}" y="{y + row_h // 2 + 4}" '
-            f'font-size="10" font-family="system-ui,sans-serif" '
+            f'font-size="10" font-family="{_FONT_BODY}" '
             f'fill="{_MUTED}">{_esc(str(val))}</text>'
         )
 
@@ -529,7 +541,7 @@ def heat_matrix(cells, row_labels=None, col_labels=None):
             out += (
                 f'<text x="{lbl_x + j * cell_sz + cell_sz // 2}" y="20" '
                 f'text-anchor="middle" font-size="10" '
-                f'font-family="system-ui,sans-serif" '
+                f'font-family="{_FONT_BODY}" '
                 f'fill="{_MUTED}">{_esc(str(cl))}</text>'
             )
 
@@ -539,7 +551,7 @@ def heat_matrix(cells, row_labels=None, col_labels=None):
                 f'<text x="{lbl_x - 6}" '
                 f'y="{lbl_y + i * cell_sz + cell_sz // 2 + 4}" '
                 f'text-anchor="end" font-size="10" '
-                f'font-family="system-ui,sans-serif" '
+                f'font-family="{_FONT_BODY}" '
                 f'fill="{_MUTED}">{_esc(str(row_labels[i]))}</text>'
             )
         for j, cell in enumerate(row):
@@ -562,7 +574,7 @@ def heat_matrix(cells, row_labels=None, col_labels=None):
                     f'<text x="{x + cell_sz // 2}" '
                     f'y="{y + cell_sz // 2 + 4}" '
                     f'text-anchor="middle" font-size="11" '
-                    f'font-family="system-ui,sans-serif" '
+                    f'font-family="{_FONT_BODY}" '
                     f'fill="#FFFFFF">{_esc(str(txt))}</text>'
                 )
 
@@ -611,7 +623,7 @@ def stacked_bar(periods):
         out += (
             f'<text x="{x + bar_w / 2:.1f}" y="{h - 4}" '
             f'text-anchor="middle" font-size="10" '
-            f'font-family="system-ui,sans-serif" '
+            f'font-family="{_FONT_BODY}" '
             f'fill="{_MUTED}">{_esc(str(lbl))}</text>'
         )
 
@@ -682,13 +694,13 @@ def milestone_timeline(events, today=""):
         out += (
             f'<circle cx="{dot_x}" cy="{cy}" r="7" fill="{fill}"/>'
             f'<text x="{dot_x + 14}" y="{cy + 4}" font-size="12" '
-            f'font-family="system-ui,sans-serif" fill="{_INK}">'
+            f'font-family="{_FONT_BODY}" fill="{_INK}">'
             f'{_esc(ev.get("label", ""))}</text>'
         )
         if ev.get("date"):
             out += (
                 f'<text x="{dot_x - 14}" y="{cy + 4}" text-anchor="end" '
-                f'font-size="10" font-family="system-ui,sans-serif" '
+                f'font-size="10" font-family="{_FONT_BODY}" '
                 f'fill="{_MUTED}">{_esc(str(ev["date"]))}</text>'
             )
         if today and str(ev.get("date", "")) == today:
@@ -709,37 +721,47 @@ def milestone_timeline(events, today=""):
 
 # ── Mark 16: Gantt ────────────────────────────────────────────────────────────
 
-def gantt(phases, today=""):
+def gantt(phases, today="", milestones=None):
     """
-    Gantt chart. bars = MEASURE_TRACK + MEASURE fill (never auto-RAG).
-    Status chip per phase = RAG when sev present.
-    Today line = PATINA dashed.
+    Executive gantt chart.
+
     phases = [{label, start, end, pct=1.0, sev=None}]
+      bars  = MEASURE_TRACK (planned) + MEASURE fill (% complete).
+      chip  = RAG + spec vocabulary: ON TRACK / WATCH / AT RISK / LATE.
+      pct   = float 0..1 shown as muted text in the right column.
+
+    milestones = [{label, date}]  — rendered as INK diamonds on the timeline.
+    today      = ISO date string  — renders as PATINA dashed vertical line.
     """
     if not phases:
         return ""
     lbl_w = 110
     pad_y = 30
     row_h = 36
-    chip_w = 40
-    h = pad_y + len(phases) * row_h + 20
-    w = 500
+    chip_col_w = 64   # wide enough for "ON TRACK"
+    pct_col_w  = 32
+    w = 540
 
-    # Build date index from all start/end strings (lexicographic = chronological for ISO)
+    # Build date index (lexicographic ISO = chronological)
     all_dates = []
     for p in phases:
         if p.get("start"):
             all_dates.append(str(p["start"]))
         if p.get("end"):
             all_dates.append(str(p["end"]))
+    if milestones:
+        for m in milestones:
+            if m.get("date"):
+                all_dates.append(str(m["date"]))
     if not all_dates:
         return ""
     if today:
         all_dates.append(today)
     unique = sorted(set(all_dates))
     n = len(unique)
-    chart_w = w - lbl_w - chip_w - 10
+    chart_w = w - lbl_w - pct_col_w - chip_col_w - 8
     date_pos = {d: i / max(n - 1, 1) for i, d in enumerate(unique)}
+    h = pad_y + len(phases) * row_h + 20
 
     def to_x(d):
         return lbl_w + date_pos.get(str(d), 0) * chart_w
@@ -751,7 +773,7 @@ def gantt(phases, today=""):
 
         out += (
             f'<text x="{lbl_w - 6}" y="{cy + 4}" text-anchor="end" '
-            f'font-size="11" font-family="system-ui,sans-serif" '
+            f'font-size="11" font-family="{_FONT_BODY}" '
             f'fill="{_INK}">{_esc(str(phase.get("label", "")))}</text>'
         )
 
@@ -770,19 +792,56 @@ def gantt(phases, today=""):
                     f'width="{bw * pct:.1f}" height="14" '
                     f'rx="3" fill="{_MEASURE}"/>'
                 )
-
-        sev = phase.get("sev", "")
-        if sev and sev in _RAG:
-            chip_x = lbl_w + chart_w + 4
+            # % complete — muted text in right-hand column
+            pct_x = lbl_w + chart_w + 4
             out += (
-                f'<rect x="{chip_x}" y="{cy - 8}" width="{chip_w - 4}" '
-                f'height="16" rx="8" fill="{_RAG[sev]}"/>'
-                f'<text x="{chip_x + (chip_w - 4) // 2}" y="{cy + 4}" '
-                f'text-anchor="middle" font-size="9" '
-                f'font-family="system-ui,sans-serif" fill="#FFF">'
-                f'{_esc(sev)}</text>'
+                f'<text x="{pct_x}" y="{cy + 4}" font-size="10" '
+                f'font-family="{_FONT_BODY}" fill="{_MUTED}">'
+                f'{int((pct or 0) * 100)}%</text>'
             )
 
+        # RAG chip: spec vocabulary ON TRACK / WATCH / AT RISK / LATE
+        sev = phase.get("sev", "")
+        if sev and sev in _RAG:
+            chip_x = lbl_w + chart_w + pct_col_w + 4
+            chip_label = _GANTT_CHIP.get(sev, sev.upper())
+            chip_fill = _RAG[sev]
+            text_col = "#FFFFFF"
+            # chip pill
+            out += (
+                f'<rect x="{chip_x}" y="{cy - 8}" width="{chip_col_w - 4}" '
+                f'height="16" rx="8" fill="{chip_fill}"/>'
+                f'<text x="{chip_x + (chip_col_w - 4) // 2}" y="{cy + 4}" '
+                f'text-anchor="middle" font-size="8" font-weight="600" '
+                f'font-family="{_FONT_BODY}" fill="{text_col}">'
+                f'{_esc(chip_label)}</text>'
+            )
+
+    # Milestone diamonds — ink coloured
+    if milestones:
+        for ms in milestones:
+            if not ms.get("date"):
+                continue
+            mx_ = to_x(ms["date"])
+            lbl = ms.get("label", "")
+            # Diamond: rotated square
+            d = 6
+            out += (
+                f'<polygon points="{mx_:.1f},{pad_y - d - 2} '
+                f'{mx_ + d:.1f},{pad_y - 2} '
+                f'{mx_:.1f},{pad_y + d - 2} '
+                f'{mx_ - d:.1f},{pad_y - 2}" '
+                f'fill="{_INK}"/>'
+            )
+            if lbl:
+                out += (
+                    f'<text x="{mx_:.1f}" y="{pad_y - d - 6}" '
+                    f'text-anchor="middle" font-size="9" '
+                    f'font-family="{_FONT_BODY}" fill="{_INK}">'
+                    f'{_esc(lbl)}</text>'
+                )
+
+    # Today line
     if today and today in date_pos:
         tx = to_x(today)
         out += (
@@ -947,11 +1006,11 @@ def _self_test():
         gantt([{"label": "Ph1", "start": "2026-01", "end": "2026-06"}]),
         absent=rag_vals)
 
-    # 26. gantt with sev → RAG hex in chip
-    chk("gantt with status → RAG in chip",
+    # 26. gantt with sev → RAG hex in chip + spec vocabulary label
+    chk("gantt with status → RAG chip + ON TRACK label",
         gantt([{"label": "Ph1", "start": "2026-01", "end": "2026-06",
                 "sev": "good"}]),
-        present=["#30915B"])
+        present=["#30915B", "ON TRACK"])
 
     # 27. gantt today → PATINA
     chk("gantt today → patina",
@@ -1076,15 +1135,16 @@ def _gallery(out_path):
              {"label": "Build", "date": "2026-04", "sev": "high"},
              {"label": "Release", "date": "2026-07", "sev": "good"},
          ], today="2026-04")),
-        ("16 · Gantt",
+        ("16 · Gantt (with milestones + chip vocabulary)",
          gantt([
              {"label": "Discovery", "start": "2026-01", "end": "2026-02",
               "pct": 1.0, "sev": "good"},
              {"label": "Build", "start": "2026-02", "end": "2026-05",
               "pct": 0.6, "sev": "medium"},
              {"label": "Launch", "start": "2026-05", "end": "2026-07",
-              "pct": 0.0},
-         ], today="2026-04")),
+              "pct": 0.0, "sev": "high"},
+         ], today="2026-04",
+         milestones=[{"label": "Beta", "date": "2026-04"}])),
     ]
 
     items_html = ""
