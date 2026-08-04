@@ -53,6 +53,55 @@ UNITS = ("percent", "count", "days", "currency", "ratio")
 DIRECTIONS = ("higher-better", "lower-better")
 DEFAULT_CADENCE_DAYS = 90
 
+# --- Which graphic renders this metric ----------------------------------------
+# Resolved here, once, and emitted in `analyze` output so that no renderer decides
+# it again. The same metric must render as the same mark in the operational view,
+# the executive view and the board pack; a renderer that picks its own mark is how
+# one number becomes a bullet on one page and a gauge on the next.
+VIZ_KINDS = ("bullet", "progress", "tank", "gauge", "sparkline", "slope",
+             "line", "column", "bar", "tile")
+
+# Defaults per archetype (graphics standard section 6.2). Override deliberately
+# with an explicit `viz` on the metric.
+VIZ_BY_ARCHETYPE = {
+    "patch-coverage":     "bullet",
+    "phishing-click":     "bullet",
+    "dwell-time":         "line",
+    "third-party":        "bar",
+    "mfa-coverage":       "progress",
+    "framework-maturity": "bar",
+    "backup-recovery":    "bullet",
+    "custom":             "bullet",
+}
+
+# A metric with no agreed limit is not a status. It renders as a bare number in
+# the measure colour -- no gauge, no RAG -- because colouring it would invent a
+# threshold nobody agreed to. This outranks the archetype default: a missing
+# threshold is a statement about the data, while the archetype only describes its
+# shape.
+VIZ_NO_THRESHOLD = "tile"
+
+
+def resolve_viz(metric: dict, has_threshold: bool) -> str:
+    """The mark this metric renders as.
+
+    Explicit `viz` wins, then the no-threshold rule, then the archetype default,
+    then `bullet`.
+
+    An explicit `viz` is honoured even without a threshold: an author who names a
+    mark has said something deliberate, and silently overriding it would make the
+    field a suggestion. The colour contract still holds either way -- a metric
+    with no threshold renders in the measure colour whatever its shape -- so the
+    override changes how it is drawn, never what it claims.
+    """
+    explicit = metric.get("viz")
+    if explicit:
+        return explicit
+    if not has_threshold:
+        return VIZ_NO_THRESHOLD
+    return VIZ_BY_ARCHETYPE.get(metric.get("archetype"), "bullet")
+
+
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 METRIC_ID_RE = re.compile(r"^M-\d{3,}$")
 
@@ -251,7 +300,7 @@ def find_metric(store: dict, metric_id: str) -> dict:
 
 def add_metric(store: dict, name: str, direction: str, archetype: str | None = None,
                unit: str = "percent", owner: str = "", vanity_risk: bool = False,
-               notes: str = "", actor: str = "") -> dict:
+               notes: str = "", actor: str = "", viz: str | None = None) -> dict:
     """Define a metric. Refuses without a direction — see the module docstring."""
     if not (name or "").strip():
         raise Refusal("a metric needs a name")
@@ -267,6 +316,11 @@ def add_metric(store: dict, name: str, direction: str, archetype: str | None = N
         raise Refusal(
             f"archetype must be one of {', '.join(ARCHETYPES)} or omitted; "
             f"got {archetype!r}")
+    if viz is not None and viz not in VIZ_KINDS:
+        raise Refusal(
+            f"viz must be one of {', '.join(VIZ_KINDS)} or omitted; got {viz!r}. "
+            f"An unrecognised mark would fall through to the archetype default, "
+            f"and the metric would render as something nobody chose.")
     metric = {
         "id": next_metric_id(store),
         "name": name.strip(),
@@ -278,6 +332,7 @@ def add_metric(store: dict, name: str, direction: str, archetype: str | None = N
         "csfSubcategoryIds": [],
         "riskIds": [],
         "vanityRisk": bool(vanity_risk),
+        "viz": viz,
         "notes": notes,
     }
     store["metrics"].append(metric)
@@ -447,10 +502,16 @@ def derive_metric(store: dict, metric: dict, today: str) -> dict:
     latest_value = latest["value"] if latest else None
     prior_value = prior["value"] if prior else None
     age = days_between(latest["date"], today) if latest else None
+    thr = metric.get("threshold") or {}
+    # "Has a threshold" means the engine can band it, which needs warn or critical.
+    # A lone `target` is an aim, not a limit: threshold_status ignores it, so a
+    # metric carrying only a target has no status and must not draw a RAG mark.
+    banded = thr.get("warn") is not None or thr.get("critical") is not None
     return {
         "metricId": metric["id"],
         "name": metric["name"],
         "archetype": metric.get("archetype"),
+        "viz": resolve_viz(metric, banded),
         "unit": metric.get("unit"),
         "direction": metric["direction"],
         "owner": metric.get("owner") or "",
@@ -697,6 +758,53 @@ def _cmd_self_test(_args):
         refuses(lambda: add_metric(store, "Bad archetype", "higher-better",
                                    archetype="not-an-archetype"),
                 "an unknown archetype is refused")
+        refuses(lambda: add_metric(store, "Bad viz", "higher-better", viz="pie"),
+                "an unknown viz is refused")
+
+        # --- viz resolution -------------------------------------------------
+        # Every archetype resolves to the mark the graphics standard documents.
+        # Asserted per archetype rather than in bulk: a bulk check over the same
+        # dict that supplies the answer proves only that the dict equals itself.
+        for arch, want in (("patch-coverage", "bullet"),
+                           ("phishing-click", "bullet"),
+                           ("dwell-time", "line"),
+                           ("third-party", "bar"),
+                           ("mfa-coverage", "progress"),
+                           ("framework-maturity", "bar"),
+                           ("backup-recovery", "bullet"),
+                           ("custom", "bullet")):
+            eq(resolve_viz({"archetype": arch}, True), want,
+               f"{arch} resolves to {want}")
+
+        # A metric with no band is not a status: bare number, no gauge, no RAG.
+        # This outranks the archetype default, so it must hold for an archetype
+        # whose default is something else entirely.
+        eq(resolve_viz({"archetype": "patch-coverage"}, False), "tile",
+           "no threshold outranks the archetype default")
+        eq(resolve_viz({"archetype": None}, False), "tile",
+           "no archetype and no threshold resolves to tile")
+        eq(resolve_viz({"archetype": None}, True), "bullet",
+           "a banded metric with no archetype falls back to bullet")
+
+        # An explicit viz is deliberate and wins over both, or the field is only
+        # a suggestion. The colour contract is enforced separately, by the
+        # renderer, so an override changes the shape and never the claim.
+        eq(resolve_viz({"archetype": "dwell-time", "viz": "gauge"}, True), "gauge",
+           "an explicit viz overrides the archetype default")
+        eq(resolve_viz({"archetype": "patch-coverage", "viz": "column"}, False),
+           "column", "an explicit viz is honoured with no threshold too")
+
+        # A lone `target` is an aim, not a limit -- threshold_status ignores it --
+        # so a metric carrying only a target has no status and must not draw RAG.
+        target_only = add_metric(store, "Target only", "higher-better",
+                                 archetype="patch-coverage")
+        set_threshold(store, target_only["id"], target=95.0)
+        record_reading(store, target_only["id"], "2026-Q3", 90.0, "2026-07-01")
+        d_target = derive_metric(store, target_only, "2026-08-04")
+        eq(d_target["status"], STATUS_NO_THRESHOLD,
+           "a target with no warn/critical yields no status")
+        eq(d_target["viz"], "tile",
+           "...and resolves to a tile, not its archetype's bullet")
         refuses(lambda: record_reading(store, "M-001", "2026-Q4", 90, "2026-7-1"),
                 "an unpadded date is refused", "canonical zero-padded")
         refuses(lambda: record_reading(store, "M-001", "2026-Q4", 90, "2026-02-30"),
@@ -789,7 +897,8 @@ def _cmd_init(args):
 def _cmd_add_metric(args):
     store = load_store(args.store)
     m = add_metric(store, args.name, args.direction, args.archetype, args.unit,
-                   args.owner, args.vanity_risk, args.notes, args.actor)
+                   args.owner, args.vanity_risk, args.notes, args.actor,
+                   viz=args.viz)
     save_store(args.store, store)
     print(f"{m['id']}: {m['name']} ({m['direction']}, {m['unit']})")
     return 0
@@ -853,6 +962,9 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--direction", required=True, choices=list(DIRECTIONS),
                     help="higher-better or lower-better; there is no default")
     sp.add_argument("--archetype", default=None, choices=list(ARCHETYPES))
+    sp.add_argument("--viz", default=None, choices=list(VIZ_KINDS),
+                    help="override the mark this metric renders as; omitted "
+                         "resolves from the archetype")
     sp.add_argument("--unit", default="percent", choices=list(UNITS))
     sp.add_argument("--owner", default="")
     sp.add_argument("--vanity-risk", action="store_true",

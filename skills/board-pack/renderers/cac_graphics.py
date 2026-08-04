@@ -142,15 +142,27 @@ def _date_ord(d):
 
 def zones_from_threshold(threshold, direction):
     """
-    Convert engine threshold dict to zones list for bullet().
+    Convert an engine threshold dict to a zones list for bullet().
 
     threshold = {"target": x, "warn": y, "critical": z}
-    direction = "higher-better" | "lower-better" (or without -better suffix)
-    Returns [(threshold_value, sev), ...] suitable for bullet() and _zone_sev().
+    direction = "higher-better" | "lower-better" (or without the -better suffix)
+    Returns [(threshold_value, sev), ...] for bullet() and _zone_sev().
+
+    `target` is deliberately NOT a band boundary. The metrics engine bands on
+    `critical` and `warn` only -- anything past `warn` is `ok` -- so promoting
+    `target` to a boundary invents a fourth band the engine does not have, and a
+    value sitting between warn and target then renders a green status tile beside
+    a yellow bullet band. Same class of contradiction as painting zone bands from
+    the wrong direction: the mark disagrees with the number next to it.
+
+    The target is the mark's *tick*. Pass it as bullet(value, target, ...), where
+    it says "here is what we are aiming at" without claiming the gap is a band.
+
+    A caller whose engine genuinely bands on four levels can build the list by
+    hand; bullet() draws whatever bands it is given.
     """
     direction = _normalize_direction(direction)
     zones = []
-    t = threshold.get("target")
     w = threshold.get("warn")
     c = threshold.get("critical")
     if direction == "higher":
@@ -158,11 +170,7 @@ def zones_from_threshold(threshold, direction):
             zones.append((c, "critical"))
         if w is not None:
             zones.append((w, "high"))
-        if t is not None:
-            zones.append((t, "medium"))
     else:
-        if t is not None:
-            zones.append((t, "medium"))
         if w is not None:
             zones.append((w, "high"))
         if c is not None:
@@ -1643,10 +1651,14 @@ def _self_test():
         bad("progress_bar % label clears the track",
             f"label y={m.group(1) if m else 'not found'}, track starts at 14")
 
-    # 48. A four-band bullet ticks the medium/high boundary — that pair is
-    # ΔE 13.3 apart and cannot be told apart by colour alone.
+    # 48. A four-band bullet ticks its zone boundaries — medium and high are
+    # ΔE 13.3 apart and cannot be told apart by colour alone. Built by hand:
+    # zones_from_threshold deliberately emits three bands (target is the tick,
+    # not a boundary), so only a caller that really bands on four reaches this.
     chk("four-band bullet ticks its zone boundaries",
-        all_marks["bullet_hi"], present=["75"])
+        bullet(72, 88, [(60, "critical"), (75, "high"), (88, "medium")],
+               direction="higher-better", unit="%", axis_max=100),
+        present=[">75%<", ">60%<"])
 
     # 54. A categorical stack emits NO RAG colour. Segments that encode category
     # rather than severity must not borrow the risk palette — that asserts a
@@ -1723,6 +1735,48 @@ def _self_test():
     else:
         bad("heat_matrix intensity is monotonic", f"got {order}")
 
+    # 62. zones_from_threshold must reproduce the metrics engine's own banding.
+    # The engine bands on critical and warn only; `target` is the tick, not a
+    # boundary. Promoting it to a boundary invented a fourth band, so a value
+    # between warn and target drew a yellow band under a green status tile.
+    def _engine_status(v, thr, direction):
+        """Mirror of metrics_analysis.threshold_status."""
+        c, w = thr.get("critical"), thr.get("warn")
+        if direction == "higher-better":
+            if c is not None and v < c:
+                return "critical"
+            if w is not None and v < w:
+                return "warn"
+        else:
+            if c is not None and v > c:
+                return "critical"
+            if w is not None and v > w:
+                return "warn"
+        return "ok"
+
+    STATUS_TO_SEV = {"ok": "good", "warn": "high", "critical": "critical"}
+    agree = True
+    detail = ""
+    for direction, thr, lo, hi in (
+            ("higher-better", {"target": 95.0, "warn": 90.0, "critical": 80.0}, 0, 100),
+            ("lower-better", {"target": 2.0, "warn": 5.0, "critical": 10.0}, 0, 15)):
+        zs = zones_from_threshold(thr, direction)
+        for i in range(60):
+            v = lo + (hi - lo) * (i + 0.5) / 60
+            want = STATUS_TO_SEV[_engine_status(v, thr, direction)]
+            got = _zone_sev(v, zs, direction)
+            if got != want:
+                agree = False
+                detail = (f"{direction} at {v:.2f}: engine says {want}, "
+                          f"zone says {got}")
+                break
+        if not agree:
+            break
+    if agree:
+        ok("zones_from_threshold reproduces the engine's banding (120 samples)")
+    else:
+        bad("zones_from_threshold reproduces the engine's banding", detail)
+
     # ── Design-intent checks (P2) ─────────────────────────────────────────────
 
     # 40. bullet zones use mid tones, not opacity compositing
@@ -1747,8 +1801,8 @@ def _self_test():
         bad("_zone_sev accepts direction='lower-better'", str(e))
 
     print()
-    if checks != 61:
-        print(f"self-test: ran {checks} checks, expected 61")
+    if checks != 62:
+        print(f"self-test: ran {checks} checks, expected 62")
         _sys.exit(1)
     if fails:
         print(f"self-test: {fails} of {checks} checks FAILED")
