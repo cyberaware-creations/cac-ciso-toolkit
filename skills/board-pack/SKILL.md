@@ -127,6 +127,48 @@ leaves `asOf` alone.
 cannot be read costs you the figures and is named on the provenance page; it never stops a pack
 from building.
 
+## Client branding, and the part of the palette it cannot reach
+
+A pack can carry a client's identity. Add a `brand` block to the manifest — inline, or a path
+resolved beside it like every other manifest path — or pass `--brand client.brand.json`, which
+overrides whatever the manifest says.
+
+```json
+{"ink": "#101820", "measure": "#7A3E9D", "measureTrack": "#E6DCEE",
+ "patina": "#C0873A", "patinaText": "#8A5E1E", "bg": "#F7F4F0",
+ "mark": "Northwind Group", "wordmark": "Northwind Group"}
+```
+
+Absent means CAC. Any key you leave out keeps its CAC value, so a block naming only `ink` is a
+complete block.
+
+**RAG is not overridable, and that is the feature.** Those four hexes carry measured contrast
+and colour-vision separation — green↔red is ΔE 6.2 under deuteranopia, and each `text` variant
+was darkened until it cleared 4.5:1. A client palette dropped into those slots would discard
+every one of those measurements and still produce a chart that looked completely fine, which
+is the worst way for this to fail. Status renders in toolkit colours; the client's identity
+lives in the chrome around it. A block that names a RAG band is refused and says why.
+
+What *is* overridable is checked rather than trusted, against the same floors the defaults were
+built to, and refused as a list so you fix every problem in one pass instead of four:
+
+```
+refused: the brand override was refused:
+  - ink: #AAAAAA on #FFFFFF is 2.32:1, needs 4.5:1 (body text on a mark surface)
+  - ink: #AAAAAA on #F6F4EE is 2.11:1, needs 4.5:1 (body text on the workbench ground)
+  - measure: #CCE0F5 on #FFFFFF is 1.35:1, needs 3.0:1 (a data mark against its surface)
+  - measure: #CCE0F5 on #E6DCEE is 1.02:1, needs 3.0:1 (the filled part of a bar against its own track)
+```
+
+It is refused when the **manifest loads**, so `validate` catches it before anything is
+assembled or rendered. A refused block leaves the previous brand exactly as it was — you never
+get a half-applied hybrid.
+
+`"whiteLabel": true` drops the maker's name from the footer and **keeps** `Not affiliated with
+NIST`. Those two clauses sit side by side and are not the same kind of thing: one says who
+built the pack, which a client is entitled to replace, and the other says the pack is not a
+NIST product, which stays true no matter whose logo is on the cover.
+
 ## Audience decides the order, and nothing else
 
 | audience | order |
