@@ -16,7 +16,7 @@ skill="$(cd "$here/.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=18
+EXPECTED_CHECKS=19
 checks=0
 fails=0
 ok()  { checks=$((checks + 1)); printf '  ok    %s\n' "$1"; }
@@ -162,7 +162,44 @@ emit(all(BY_ID[m].get("viz") for m in IDS),
      "every metric carries a resolved viz in the analysis",
      "missing on: %s" % ", ".join(m for m in IDS if not BY_ID[m].get("viz")))
 
-# 12. Both views carry the legend that states what the colours mean.
+# 12. No bullet is drawn on an axis its data never reaches.
+#
+# A lower-better metric banded at 3 / 6 / 10 percent, forced onto a 0-100 axis,
+# put its good zone in 6% of the bar and filled the other 90% with a critical
+# band no reading could land in. The mark then reads as "almost everything is
+# bad" about a metric whose good range is most of what it can actually be.
+#
+# Expressed as a ratio, not a rule about percents: the failure is not about the
+# unit but about a ceiling chosen for tidiness instead of from the data. 2.5x
+# leaves headroom above the top threshold without letting an empty band dominate.
+overscaled = []
+for m in IDS:
+    row = BY_ID[m]
+    if row.get("viz") != "bullet":
+        continue
+    marks = svgs(segment(EX, m))
+    if not marks:
+        continue
+    nums = []
+    for t in re.findall(r">([\d.,]+)\s*(?:%|d)?<", marks[0]):
+        try:
+            nums.append(float(t.replace(",", "")))
+        except ValueError:
+            pass
+    if not nums:
+        continue
+    ceiling = max(nums)
+    thr = row.get("threshold") or {}
+    reach = max([v for v in (row.get("value"), thr.get("target"),
+                             thr.get("warn"), thr.get("critical"))
+                 if v is not None] or [0])
+    if reach and ceiling > reach * 2.5:
+        overscaled.append("%s: axis reaches %g, data only %g"
+                          % (m, ceiling, reach))
+emit(not overscaled, "no bullet is drawn on an axis its data never reaches",
+     "; ".join(overscaled))
+
+# 13. Both views carry the legend that states what the colours mean.
 emit('class="legend"' in EX and 'class="legend"' in OP,
      "both views carry the colour legend")
 
