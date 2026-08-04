@@ -65,6 +65,37 @@ python3 $A assemble examples/pack.manifest.json --out pack.json
 The HTML carries `@page` rules — print it to PDF from any browser and it paginates A4 with a
 break between sections. The `.pptx` opens as an editable deck.
 
+### Two things the assembler will tell you, and neither is its to fix
+
+**Snapshot the producer stores to one date before you assemble.** Each section is analysed
+`--today` the manifest's `asOf`, but the *readings* inside each store are whatever was last
+recorded there. Run every producer's own update to the same date first, or the pack reports a
+risk register current to one week and a metrics register current to another. The assembler
+notices and says so:
+
+```
+note: sections are dated differently (posture=2026-07-26, risk=2026-07-26,
+metrics=2026-07-31, …); a pack that mixes snapshots is sometimes deliberate and
+always worth seeing
+```
+
+It is a note and not a refusal because mixing snapshots is sometimes right — a quarterly
+posture assessment beside monthly metrics is a real pack, not a mistake. What it must never
+be is *accidental*, which is why it is printed rather than assumed.
+
+**A decision flagged as naming the same record twice needs a human, not a merge.** Two
+sections can each ask the board about `A-002` in different words. The assembler consolidates
+decisions on *text* and never on meaning, so it surfaces the pair instead of picking one:
+
+```
+note: 2 separate decisions name A-002 (exceptions, incident). They were not merged —
+the wording differs and this assembler never merges on meaning — but they may be one
+ask arriving twice.
+```
+
+Read both, decide whether they are one ask or two, and edit the sidecars. A board asked the
+same question twice in one pack will answer neither.
+
 ## The manifest
 
 ```json
