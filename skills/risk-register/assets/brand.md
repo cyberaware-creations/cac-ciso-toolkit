@@ -1,9 +1,9 @@
-# Limen Labs Brand Tokens
+# Cyber Aware Creations Brand Tokens
 
-Canonical brand for generated HTML/PDF deliverables. Mirrors `cac-site` `limen` tokens. Use these
+Canonical brand for generated HTML/PDF deliverables. Mirrors `cac-site` `cac` tokens. Use these
 exact values so every artifact reads as one product family.
 
-## Palette (`limen`)
+## Palette (`cac`)
 
 | Token | Hex | Use |
 |---|---|---|
@@ -19,9 +19,51 @@ exact values so every artifact reads as one product family.
 | workbench | `#F6F4EE` | Light working background |
 | workbenchSurface | `#FFFFFF` | Cards, tables |
 | workbenchLine | `#D8D3C6` | Lines on light |
+| measure | `#2E6FA7` | **Measurement** with no threshold — the default data colour |
+| measureTrack | `#D8E4F1` | Track/background behind a `measure` fill |
 
-**Rule:** patina is the brand/action color and is **never** used to signal "safe" or "low risk."
-Risk severity uses the RAG ramp below, which is visually distinct from patina.
+**Rule:** patina is the brand/action colour and is **chrome only** — it marks interactive and brand
+elements and **never encodes a measurement or a risk**. A "today" line or a section rule may be
+patina; a bar, a dot, a cell or a segment may not.
+
+## Measurement colours
+
+Data that carries no agreed threshold is **not** a status, and must not borrow the RAG ramp. It uses
+`measure` on a `measureTrack` ground. Where several *categories* must be told apart — incident
+source, asset class, control family — they separate by lightness along a sequential ramp, never by
+RAG hue:
+
+| Step | Hex |
+|---|---|
+| 1 (darkest) | `#1B4E7A` |
+| 2 | `#2E6FA7` |
+| 3 | `#5B9BD0` |
+| 4 | `#94BEE2` |
+| 5 | `#C4DAEE` |
+| 6 (lightest) | `#E4EEF7` |
+
+Colouring a category red asserts a danger the data never claimed, and a reader who has learnt the
+RAG contract will believe it.
+
+## Three measured findings that constrain every ramp
+
+These are measurements, not preferences. They are why the rules above are shaped as they are, and
+re-deriving them by eye will reproduce the defects they were introduced to fix.
+
+1. **Green↔red is ΔE 6.2 under deuteranopia.** Inherent to any traffic-light ramp; darkening does
+   not help. This is why a RAG mark is *always* paired with a word, and why colour is never the only
+   signal.
+2. **Amber `#e08e0b` is 2.54:1 on white; medium `#e8c547` is 1.64:1.** Both are under the 3:1 relief
+   line, so **white text on either is prohibited** and those fills always carry a visible label. Use
+   the band's dark text colour on a tint or mid ground, or ink on a saturated fill.
+3. **Medium↔high is ΔE 13.3 and cannot be fixed by darkening.** Tested: `#DDB02A` → 8.1,
+   `#D4A017` → 4.6, `#CFA524` → 5.9 — all worse, because darkening moves yellow toward orange. So
+   wherever all four bands can appear adjacently — heat matrix, stacked bar, bullet zones — **every
+   cell or segment carries its label or value**, and the band boundary is tickable. Do not
+   "improve" the brand hexes to try to separate them.
+
+**Never use `opacity` to de-emphasise.** An opacity-composited colour is not the colour any
+contrast check validated, so the contract cannot be enforced on it. Pick a token that measures.
 
 ## Risk-band colors (RAG ramp)
 
@@ -45,7 +87,9 @@ invisible to anything that reads Python.
 
 ### Band colours used *as text*
 
-A fill and a text colour are different jobs; the same hex cannot do both. On the light workbench the
+A fill and a text colour are different jobs; the same hex cannot do both.
+
+Critical is the case that proves it. `#c0392b` *does* clear AA as text — 5.44:1 on white, 4.94:1 on the workbench — so this table once reused the fill and said so. But "passes, so reuse it" left one band with no text variant while the other three had one, and the moment a second deliverable rendered the same band the two drew it in different hexes. `#8B2119` measures 9.02:1 and makes the rule uniform: every band has a fill and a text colour, and they are never the same value. On the light workbench the
 fills run 1.5–2.6:1. Use `BAND_TEXT` for a ⚠ mark, a velocity arrow, or a tag:
 
 | Band | Fill (`BAND`) | As text (`BAND_TEXT`) |
@@ -53,7 +97,7 @@ fills run 1.5–2.6:1. Use `BAND_TEXT` for a ⚠ mark, a velocity arrow, or a ta
 | low | `#30915B` | `#25764A` |
 | medium | `#e8c547` | `#7A6410` |
 | high | `#e08e0b` | `#8F5B06` |
-| critical | `#c0392b` | `#c0392b` (already ≥4.5:1) |
+| critical | `#c0392b` | `#8B2119` |
 
 ### Never use `opacity` to de-emphasise text
 

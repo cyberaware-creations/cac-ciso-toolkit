@@ -24,8 +24,16 @@ import argparse
 import html
 import json
 
+# Vendored alongside this file, for the same reason this file is vendored: a shipped script
+# must run from its own skill directory with no path surgery.
+# tools/check-versions.py fails if this copy drifts from tools/cac_graphics.py.
+import cac_graphics as G
+
 INK = "#14171C"
 LIME = "#EAE7DF"
+# Brand/action accent. Chrome only: it marks the header spark and the today line on the
+# chronology, and it never encodes a measurement or a state.
+PATINA = "#2FA98C"
 SLATE = "#666D7C"
 WB = "#F6F4EE"
 WB_SURF = "#FFFFFF"
@@ -40,11 +48,11 @@ BAND_FILL = {
     "no-determination":   ("#EDEAE2", "#4A4F58"),
     "assessing":          ("#E4E9F0", "#2F4A63"),
     "not-yet-determinable": ("#E4E9F0", "#2F4A63"),
-    "not-material":       ("#E3EDE4", "#2F5D3A"),
-    "material":           ("#F7EBD9", "#7A5218"),
-    "disclosure-due":     ("#F7EBD9", "#7A5218"),
-    "disclosure-overdue": ("#F6E0DC", "#7C3A32"),
-    "filed":              ("#E3EDE4", "#2F5D3A"),
+    "not-material":       G.chip("good"),
+    "material":           G.chip("high"),
+    "disclosure-due":     G.chip("high"),
+    "disclosure-overdue": G.chip("critical"),
+    "filed":              G.chip("good"),
     "closed":             ("#EFEDE7", MUTED),
 }
 BAND_LABEL = {
@@ -63,9 +71,9 @@ CLOCK_FILL = {
     "not-applicable": ("#EFEDE7", MUTED),
     "not-started":    ("#EDEAE2", "#4A4F58"),
     "anchor-missing": ("#EDE0EA", "#5E3660"),
-    "due":            ("#F7EBD9", "#7A5218"),
-    "overdue":        ("#F6E0DC", "#7C3A32"),
-    "filed":          ("#E3EDE4", "#2F5D3A"),
+    "due":            G.chip("high"),
+    "overdue":        G.chip("critical"),
+    "filed":          G.chip("good"),
 }
 CLOCK_LABEL = {
     "not-applicable": "not in scope",
@@ -77,8 +85,8 @@ CLOCK_LABEL = {
 }
 
 ASSESSMENT_FILL = {
-    "bearing":    ("#F7EBD9", "#7A5218"),
-    "no-bearing": ("#E3EDE4", "#2F5D3A"),
+    "bearing":    G.chip("high"),
+    "no-bearing": G.chip("good"),
     "unknown":    ("#EDEAE2", "#4A4F58"),
 }
 ASSESSMENT_LABEL = {
@@ -202,6 +210,149 @@ def hours_phrase(hours) -> str:
     if hours < 48:
         return f"{hours:.0f}h remaining"
     return f"{hours / 24:.0f} days remaining"
+
+
+# --- The disclosure chronology ------------------------------------------------
+#
+# One mark, on both views: discovery, the determination, the Item 1.05 filing and the DORA
+# final report, laid out on a proportional time axis with today drawn through it.
+#
+# Every date on it is carried out of the analysis exactly as the engine produced it. Nothing
+# here computes a deadline, counts a business day, or decides a determination — the renderer
+# positions dates it was handed. The SEC window runs from the determination and an off-by-one
+# is a missed filing, so the only safe amount of date arithmetic in a renderer is none.
+#
+# The spacing is the point. Three days from a determination to an 8-K and a month to the DORA
+# final report are the same two rows in a table and visibly different distances here, which is
+# the question a reader actually has: where does today sit against the next deadline.
+
+# Only two milestones on this mark carry a band, because only two of them are judgements
+# somebody made. Discovery is a fact. A DORA report is a fact. Painting either of them amber
+# would put a verdict on the page that nobody recorded.
+DET_MILESTONE_LABEL = {
+    "material": "determined material",
+    "not-material": "determined not material",
+    "assessing": "under assessment",
+    "not-yet-determinable": "not yet determinable",
+}
+
+# `assessing` and `not-yet-determinable` map to no band on purpose. Neither is a
+# determination of materiality — the same distinction determination_phrase makes in prose —
+# and a coloured dot on either would read as a call that has not been made.
+DET_SEV = {"material": "high", "not-material": "good"}
+
+# The filing's band is the engine's own clock state, not a comparison this renderer makes.
+# It mirrors CLOCK_FILL so the dot and the chip for one window cannot disagree.
+CLOCK_SEV = {"filed": "good", "due": "high", "overdue": "critical"}
+
+# A window's milestone is named for the state the engine put it in. A dot on a deadline that
+# has passed must not be captioned "due", and the label carries that on its own so the
+# colour is never the only thing saying it.
+CLOCK_MILESTONE_LABEL = {
+    "sec-1.05:8-K": {"filed": "8-K filed", "due": "8-K due", "overdue": "8-K overdue"},
+    "dora:final": {"filed": "DORA final report", "due": "DORA final report due",
+                   "overdue": "DORA final report overdue"},
+}
+
+
+def _day(value) -> str:
+    """The date part of a recorded date or timestamp. Truncation, never arithmetic.
+
+    DORA anchors and filings are recorded to the hour; the chronology is a day axis. Slicing
+    the day off a recorded timestamp changes how a date is displayed and never which date it
+    is — unlike a conversion, which is the kind of step that loses a day.
+    """
+    return str(value)[:10] if value else ""
+
+
+def _clock_of(row: dict, regime: str, window: str):
+    for c in row.get("clocks") or []:
+        if c["regime"] == regime and c["window"] == window:
+            return c
+    return None
+
+
+def timeline_events(row: dict) -> list:
+    """The disclosure sequence for one incident, as the record carries it.
+
+    Four milestones at most, and only where the store holds a date for one. An incident with
+    no determination recorded has no determination milestone: that is a legitimate state of
+    the record, not a hole to fill, and the mark shows discovery and today with nothing
+    between them — which is exactly what is true.
+    """
+    events = []
+    if row.get("discoveredAt"):
+        events.append({"label": "discovered", "date": _day(row["discoveredAt"])})
+
+    det = row.get("determination")
+    if det and det.get("determinedAt"):
+        state = det.get("state", "")
+        ev = {"label": DET_MILESTONE_LABEL.get(state, DET_LABEL.get(state, state)),
+              "date": _day(det["determinedAt"])}
+        if state in DET_SEV:
+            ev["sev"] = DET_SEV[state]
+        events.append(ev)
+
+    # The 8-K: the date it was filed on if it was, otherwise the deadline the engine
+    # computed, so the today line has something to sit against. A window that never opened
+    # has neither and plots nothing — an incident under assessment owes no 8-K, and drawing
+    # a deadline for one would be the exact error this skill exists to prevent.
+    events.append(_window_event(row, "sec-1.05", "8-K", banded=True))
+    # The DORA final report, plotted without a band. Its state is in the clock table with
+    # the rule beside it; on this mark it is a date in the sequence.
+    events.append(_window_event(row, "dora", "final", banded=False))
+    return [e for e in events if e]
+
+
+def _window_event(row: dict, regime: str, window: str, banded: bool):
+    """A regulatory window as one milestone: the filing if it happened, else the deadline.
+
+    `banded` says whether this window's ordinary states carry a colour. The 8-K's do; the
+    DORA final report's do not, because on a normal incident it is a date in the sequence
+    rather than a call anyone has made.
+
+    A LAPSED window is coloured either way. `overdue` is not this renderer's opinion — it is
+    a state the engine put the clock in, and it is already shown as a chip in the clock table
+    on the same page. A dot that stayed neutral while the table beside it said "overdue"
+    would be the mark disagreeing with the number next to it, which is the failure every
+    other rule here exists to prevent.
+    """
+    clock = _clock_of(row, regime, window)
+    if not clock:
+        return None
+    state = clock["state"]
+    labels = CLOCK_MILESTONE_LABEL.get(f"{regime}:{window}") or {}
+    if state == "filed" and clock.get("filedAt"):
+        date = clock["filedAt"]
+    elif state in ("due", "overdue") and clock.get("deadline"):
+        date = clock["deadline"]
+    else:
+        return None
+    ev = {"label": labels.get(state, window), "date": _day(date)}
+    if banded or state == "overdue":
+        ev["sev"] = CLOCK_SEV[state]
+    return ev
+
+
+def timeline_block(row: dict, today: str) -> str:
+    """One incident's chronology, or a labelled note where a stored date is malformed.
+
+    milestone_timeline raises on a date it cannot place, deliberately: an empty mark where a
+    chronology should be is the failure nobody notices. A store is normally written through
+    the engine, which refuses a malformed date at the door, so this path means a
+    hand-edited file — and the honest response is to name the bad value and keep rendering
+    the record, not to drop the page.
+    """
+    events = timeline_events(row)
+    if not events:
+        return ""
+    try:
+        svg = G.milestone_timeline(events, today=_day(today))
+    except ValueError as exc:
+        return (f'<p class="muted">No chronology is drawn for this incident: {esc(exc)}. '
+                f'The dates in the record below are unaffected — the mark is a picture of '
+                f'them, never the source.</p>')
+    return f'<div class="mark">{svg}</div>' if svg else ""
 
 
 class Translations:
@@ -376,11 +527,63 @@ th{{color:{MUTED};font-size:13px;font-weight:600;white-space:nowrap}}
 .trail li{{list-style:none;margin:0 0 10px}}
 footer{{color:{MUTED};font-size:12.5px;margin-top:28px;padding-top:14px;
   border-top:1px solid {WB_LINE}}}
+/* CAC chrome. A compact band, not a cover: these are working views, and a
+   full-page cover on a section a reader opens twenty times is furniture. It also
+   stays out of the way of the standing blocks — nothing on this page may push the
+   not-legal-advice statement off the first screen. */
+.band{{background:{INK};color:{LIME};border-radius:10px;padding:14px 18px;
+  margin:0 0 18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}}
+.band .lockup{{font-family:'Space Grotesk',Manrope,sans-serif;font-weight:600;
+  font-size:13px;letter-spacing:.02em}}
+.band .spark{{width:9px;height:9px;border-radius:2px;background:{PATINA};
+  flex:0 0 auto}}
+.band .kicker{{margin-left:auto;color:{PATINA};font-size:11px;font-weight:700;
+  letter-spacing:.12em;text-transform:uppercase}}
+
+/* Marks size to their column and never push the page sideways. */
+.mark{{margin:10px 0 2px}}
+.mark svg{{display:block;max-width:100%;height:auto}}
+.mrow{{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap}}
+.mrow .mcol{{flex:1 1 280px;min-width:0}}
+
+/* The legend states what the colours mean, once per page. Without it a reader
+   has to infer the contract from the marks. */
+.legend{{display:flex;gap:14px;flex-wrap:wrap;color:{MUTED};font-size:12px;
+  margin:6px 0 0}}
+.legend span{{display:flex;align-items:center;gap:6px}}
+.legend i{{width:14px;height:10px;border-radius:2px;display:block;flex:0 0 auto}}
+
 @media (max-width:560px){{body{{padding:14px}} h1{{font-size:22px}}
   .tile .n{{font-size:24px}}}}
 @media print{{body{{background:#fff;padding:0}}
-  .card,.tile,.note,.caveat{{break-inside:avoid}}}}
+  .card,.tile,.note,.caveat{{break-inside:avoid}}
+  .band{{-webkit-print-color-adjust:exact;print-color-adjust:exact}}}}
 """
+
+
+def band(title: str, kicker: str = "") -> str:
+    """The CAC header band: ink ground, patina spark, lockup, optional kicker."""
+    k = f'<span class="kicker">{esc(kicker)}</span>' if kicker else ""
+    return (f'<div class="band"><span class="spark"></span>'
+            f'<span class="lockup">{esc(title)}</span>{k}</div>')
+
+
+def legend() -> str:
+    """What the chronology's colours mean. Ink first: it is the default, not the exception.
+
+    A dot is ink unless a named person made a call or a window has a state, which is the
+    whole contract of this page restated in four swatches. Patina is last and is not in the
+    same list as the others: it is the today line, and it never marks data.
+    """
+    items = [(G._INK, "a recorded event — no judgement attached"),
+             (G._RAG["good"]["fill"], "determined not material, or reported"),
+             (G._RAG["high"]["fill"], "determined material, or a window open"),
+             (G._RAG["critical"]["fill"], "past a reporting deadline")]
+    inner = "".join(f'<span><i style="background:{c}"></i>{esc(t)}</span>'
+                    for c, t in items)
+    inner += (f'<span><i style="background:{PATINA};width:3px;height:14px"></i>'
+              f'today</span>')
+    return f'<div class="legend">{inner}</div>'
 
 
 def page(title: str, body: str, offline: bool = False) -> str:

@@ -37,6 +37,15 @@ import re
 import sys
 from datetime import date
 
+# The graphics library owns the colour contract, including which brand tokens a client may
+# override and the contrast floors an override has to clear. It is imported here — rather
+# than the rules being restated — so a brand block is refused by `validate`, before a pack
+# is assembled and rendered, instead of at render time when the operator has moved on.
+# One copy of the floors, checked at the earliest moment they can be checked.
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                "..", "renderers"))
+import cac_graphics as _G  # noqa: E402
+
 MANIFEST_VERSION = 1
 CONTRACT_VERSION = 1
 
@@ -109,6 +118,36 @@ def _read_json(path: str, what: str) -> dict:
                       f"{exc.msg}")
 
 
+# --- The client brand ---------------------------------------------------------
+
+def resolve_brand(value, base: str) -> dict:
+    """Resolve a manifest `brand` — inline object or path — into a checked brand block.
+
+    A client may re-colour the chrome and the measure bucket. A client may not re-colour
+    RAG: those hexes carry measured contrast and colour-vision separation, and a substituted
+    palette would discard both while still producing a chart that looked fine. The graphics
+    library holds that rule; this function only decides *where the block came from* and
+    refuses early if it fails.
+
+    Returns {} for "no override", which renders CAC. An empty dict and an absent key mean the
+    same thing here, which is why an absent key is not an error.
+    """
+    if value is None:
+        return {}
+    if isinstance(value, str):
+        path = os.path.normpath(os.path.join(base, value))
+        value = _read_json(path, "brand")
+        if not isinstance(value, dict):
+            raise Refusal(f"{path} must contain a JSON object, got {type(value).__name__}")
+    if not isinstance(value, dict):
+        raise Refusal("manifest 'brand' must be an object or a path to one, "
+                      f"got {type(value).__name__}")
+    problems = _G.validate_brand(value)
+    if problems:
+        raise Refusal("the brand override was refused:\n  - " + "\n  - ".join(problems))
+    return value
+
+
 # --- The manifest -------------------------------------------------------------
 
 def load_manifest(path: str) -> dict:
@@ -151,6 +190,7 @@ def load_manifest(path: str) -> dict:
                 entry[key + "Path"] = os.path.normpath(os.path.join(base, entry[key]))
     if raw.get("throughLine"):
         raw["throughLinePath"] = os.path.normpath(os.path.join(base, raw["throughLine"]))
+    raw["brand"] = resolve_brand(raw.get("brand"), base)
     raw["audience"] = audience
     raw["manifestDir"] = base
     raw["manifestPath"] = os.path.abspath(path)
@@ -434,7 +474,55 @@ def possible_duplicate_asks(decisions: list) -> list:
 # READS them. It does not recompute a count, a band or a trend — any temptation to do so
 # belongs back in the producing skill, and a headline the assembler derived would be a second
 # number that could disagree with the section it sits above.
+# --- Carrying severity, not deciding it ---------------------------------------
+#
+# A headline figure may carry a `sev` so the pack can show at a glance which
+# numbers are the bad ones. Every rule below is the same rule the rest of this
+# file follows for figures: the assembler READS what a producer declared and
+# never decides anything itself.
+#
+# Two consequences worth stating, because both are easy to get wrong later:
+#
+#   * A `sev` is the WORST band the producer already declared among the items a
+#     headline counts. It is not derived from the count. "3 risks over appetite"
+#     is critical because one of those three risks is declared critical, not
+#     because three is a lot of risks.
+#   * A count of zero carries no `sev` at all. Nothing over appetite is the good
+#     outcome, and colouring that zero red because it sits in the breach row
+#     would report an alarm the number itself contradicts.
+#
+# Each producer names its bands in its own vocabulary. The translations below are
+# stated once, per producer, and are translations only — never judgements. Where
+# a producer declares nothing for a figure, the figure carries no sev and renders
+# neutral, which is the honest rendering of "this is a population, not a status".
+SEV_ORDER = ("good", "medium", "high", "critical")
+
+# risk-register calls its lowest band `low`; the shared vocabulary calls it
+# `good`. The other three names already agree.
+RISK_BAND_SEV = {"low": "good", "medium": "medium",
+                 "high": "high", "critical": "critical"}
+
+# metrics-register bands on warn and critical only; anything past warn is ok.
+# `warn` maps to `high`, not `medium`, so the pack agrees with the metric's own
+# bullet — see skills/metrics-register/renderers/_common.py STATUS_SEV.
+METRIC_STATUS_SEV = {"ok": "good", "warn": "high", "critical": "critical"}
+
+
+def _worst(sevs):
+    """The most severe band among those declared. None when none were.
+
+    None is a real answer and not a failure: it means the producer declared no
+    band for anything counted here, so the pack has nothing to colour with.
+    """
+    present = [s for s in sevs if s in SEV_ORDER]
+    return max(present, key=SEV_ORDER.index) if present else None
+
+
 def _posture_headline(a):
+    # No sev on either figure. A gap is a distance from a Target, and this skill
+    # is explicit that a low coverage figure may be a deliberately low Target
+    # that is fully met -- so a gap count is not a severity and must not be
+    # coloured as one. See skills/nist-csf/assets/brand.md.
     completeness = (a.get("completeness") or {}).get("overall") or {}
     return [("outcomes short of target", len(a.get("gaps") or [])),
             ("outcomes assessed", completeness.get("assessed"))]
@@ -442,7 +530,11 @@ def _posture_headline(a):
 
 def _risk_headline(a):
     summary = a.get("summary") or {}
-    out = [("risks over appetite", summary.get("overAppetite")),
+    # The band each over-appetite risk already carries. Read, not derived: the
+    # engine writes residualBand and overAppetite onto every risk.
+    over = [RISK_BAND_SEV.get(r.get("residualBand"))
+            for r in (a.get("risks") or []) if r.get("overAppetite")]
+    out = [("risks over appetite", summary.get("overAppetite"), _worst(over)),
            ("risks tracked", summary.get("total"))]
     # Money, at last. The register has always recorded `response.cost`; nothing ever showed
     # it, so a pack could carry eleven risks and not one figure a board could act on.
@@ -462,20 +554,40 @@ def _risk_headline(a):
 
 def _metrics_headline(a):
     att = a.get("attention") or {}
-    return [("metrics past a threshold", len(att.get("breached") or [])),
-            ("metrics moving the wrong way", len(att.get("worsening") or []))]
+    breached = set(att.get("breached") or [])
+    worsening = set(att.get("worsening") or [])
+    by_id = {m.get("metricId"): m for m in (a.get("metrics") or [])}
+
+    def sev_of(ids):
+        return _worst(METRIC_STATUS_SEV.get((by_id.get(i) or {}).get("status"))
+                      for i in ids)
+
+    return [("metrics past a threshold", len(breached), sev_of(breached)),
+            # A trend is not a band, so this figure carries the worst status
+            # among the metrics that are moving the wrong way, not a severity
+            # invented from the direction of travel.
+            ("metrics moving the wrong way", len(worsening), sev_of(worsening))]
 
 
 def _exceptions_headline(a):
     att = a.get("attention") or {}
+    overdue = att.get("overdue") or []
+    # Overdue is a lapsed clock the producer already declared -- a real
+    # threshold, crossed -- so it is legitimately critical. The count of items
+    # carried is a population and takes no sev.
     return [("acceptances and exceptions carried", (a.get("counts") or {}).get("active")),
-            ("overdue for re-validation", len(att.get("overdue") or []))]
+            ("overdue for re-validation", len(overdue),
+             "critical" if overdue else None)]
 
 
 def _incident_headline(a):
     att = a.get("attention") or {}
+    due = att.get("due") or []
+    # An open reporting window is a declared statutory clock, not a judgement
+    # about the incident. It is high rather than critical: the window being open
+    # is the state to act on; missing it would be the breach.
     return [("incidents in the period", (a.get("counts") or {}).get("incidents")),
-            ("reporting windows open", len(att.get("due") or []))]
+            ("reporting windows open", len(due), "high" if due else None)]
 
 
 PRODUCERS = {
@@ -549,9 +661,22 @@ def headline_counts(manifest: dict, sections: list, skills_root: str) -> dict:
         if analysis is None:
             unavailable.append(reason)
             continue
-        for label, value in PRODUCERS[name]["headline"](analysis):
-            if value is not None:
-                figures.append({"section": name, "label": label, "value": value})
+        for row in PRODUCERS[name]["headline"](analysis):
+            # A headline row is (label, value) or (label, value, sev). The third
+            # element is optional so a producer that declares no band for a
+            # figure says so by omission rather than by passing a placeholder
+            # that a renderer would then have to recognise.
+            label, value = row[0], row[1]
+            sev = row[2] if len(row) > 2 else None
+            if value is None:
+                continue
+            figure = {"section": name, "label": label, "value": value}
+            # Absent, not null: a figure with no declared band carries no `sev`
+            # key at all, so `"sev" in figure` is the whole test a renderer needs
+            # and there is no second way to spell "nothing declared".
+            if sev is not None:
+                figure["sev"] = sev
+            figures.append(figure)
     return {"figures": figures, "unavailable": unavailable}
 
 
@@ -590,6 +715,9 @@ def assemble(manifest: dict, skills_root: str = None, with_stores: bool = True) 
         "period": manifest.get("period") or "",
         "audience": manifest["audience"],
         "asOf": manifest["asOf"],
+        # {} means CAC. Carried in the model rather than re-read by the renderers, so the
+        # HTML and the deck cannot end up branded differently from one another.
+        "brand": manifest.get("brand") or {},
         "throughLine": through_line,
         "sections": ordered,
         "decisions": decisions,
@@ -703,8 +831,21 @@ def _cmd_compose_brief(args):
     return 0
 
 
-def _cmd_assemble(args):
+def _load_with_brand(args) -> dict:
+    """The manifest, with `--brand FILE` overriding any block inside it.
+
+    `--brand` resolves against the working directory, not the manifest: it is a flag someone
+    typed just now, and a flag that silently resolved somewhere else would be the surprise.
+    Manifest paths resolve against the manifest for the opposite reason.
+    """
     manifest = load_manifest(args.manifest)
+    if getattr(args, "brand", None):
+        manifest["brand"] = resolve_brand(args.brand, os.getcwd())
+    return manifest
+
+
+def _cmd_assemble(args):
+    manifest = _load_with_brand(args)
     pack = assemble(manifest, with_stores=not args.no_stores)
     text = json.dumps(pack, indent=2, ensure_ascii=False)
     if args.out:
@@ -724,10 +865,12 @@ def _cmd_assemble(args):
 
 
 def _cmd_validate(args):
-    manifest = load_manifest(args.manifest)
+    manifest = _load_with_brand(args)
     result = validate_pack(manifest)
+    brand_note = ("CAC" if not manifest.get("brand")
+                  else "client override (%s)" % ", ".join(sorted(manifest["brand"])))
     print(f"{os.path.basename(args.manifest)}: {len(result['sections'])} sections, "
-          f"audience {manifest['audience']}, as at {manifest['asOf']}")
+          f"audience {manifest['audience']}, as at {manifest['asOf']}, brand {brand_note}")
     for s in result["sections"]:
         print(f"  {s['section']:<11} {s['itemCount']:>3} items · "
               f"{len(s['decisions'])} decisions · "
@@ -744,8 +887,13 @@ def build_parser() -> argparse.ArgumentParser:
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd")
 
+    brand_help = ("a client brand block, overriding any in the manifest. Chrome and the "
+                  "measure colour only — RAG is fixed, and a palette that misses the "
+                  "contrast floors is refused rather than applied")
+
     sp = sub.add_parser("validate", help="check a manifest and its sections against the contract")
     sp.add_argument("manifest")
+    sp.add_argument("--brand", default=None, help=brand_help)
     sp.set_defaults(fn=_cmd_validate)
 
     sp = sub.add_parser("compose-brief",
@@ -761,6 +909,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--no-stores", action="store_true",
                     help="skip the store-backed headline figures; sections and decisions "
                          "still assemble")
+    sp.add_argument("--brand", default=None, help=brand_help)
     sp.set_defaults(fn=_cmd_assemble)
 
     sp = sub.add_parser("self-test")
@@ -933,6 +1082,34 @@ def _cmd_self_test(_args):
                 "the same section declared twice is refused", "twice")
         refuses(lambda: load_manifest(os.path.join(work, "nope.json")),
                 "a manifest that does not exist is refused", "no such manifest")
+
+        # --- the client brand --------------------------------------------------
+        # Absent means CAC, and {} and "absent" have to be the same thing or a manifest
+        # that never heard of branding would start refusing.
+        eq(m["brand"], {}, "a manifest with no brand block renders CAC")
+
+        inline = {"ink": "#101820", "measure": "#7A3E9D", "mark": "Northwind"}
+        eq(load_manifest(write("mb1.json", dict(base, brand=inline)))["brand"], inline,
+           "an inline brand block is carried through")
+
+        write("client.brand.json", inline)
+        eq(load_manifest(write("mb2.json", dict(base, brand="client.brand.json")))["brand"],
+           inline,
+           "a brand given as a path resolves relative to the manifest, like every other path")
+
+        # Refused early — at validate time, not at render time. An operator who learns
+        # their palette is illegal only once the deck is written has already moved on.
+        refuses(lambda: load_manifest(write("mb3.json", dict(base, brand={"ink": "#AAAAAA"}))),
+                "a brand below the contrast floor is refused when the manifest loads",
+                "needs 4.5:1")
+        refuses(lambda: load_manifest(write("mb4.json", dict(base, brand={"critical": "#F00"}))),
+                "a brand that tries to re-colour RAG is refused", "not overridable")
+        refuses(lambda: load_manifest(write("mb5.json", dict(base, brand={"accent": "#123456"}))),
+                "a brand with an unknown key is refused", "unknown brand key")
+        refuses(lambda: load_manifest(write("mb6.json", dict(base, brand="nope.brand.json"))),
+                "a brand path that does not exist is refused", "brand")
+        refuses(lambda: load_manifest(write("mb7.json", dict(base, brand=["#101820"]))),
+                "a brand that is neither an object nor a path is refused", "must be an object")
 
         # --- the whole pack ----------------------------------------------------
         write("posture.board.json", {"section": "posture", "contractVersion": 1,

@@ -18,6 +18,11 @@ import json
 import os
 import sys
 
+# Vendored alongside this file, for the same reason this file is vendored: a
+# shipped script must run from its own skill directory with no path surgery.
+# tools/check-versions.py fails if this copy drifts from tools/cac_graphics.py.
+import cac_graphics as G
+
 # --- Brand tokens (assets/brand.md) ------------------------------------------
 # Patina is the brand/action accent and never encodes a measurement.
 INK = "#14171C"
@@ -37,10 +42,17 @@ MUTED = "#4A4F58"
 # Light fill with dark ink, so every chip clears AA against its own background by a wide
 # margin rather than sitting near the line. Colour never carries the meaning alone: the
 # status word is always rendered inside the chip.
+#
+# The banded pairs come from the library rather than being restated here. They were
+# hand-picked before the library carried a `text` variant, and the two had since half
+# converged: the tints matched the library exactly while the text colours did not, so a
+# chip and a mark meaning the same thing drew it in two different reds on one page. Both
+# sets cleared AA, which is why nothing caught it — the defect was consistency, not
+# contrast. Derived, it cannot drift again.
 STATUS_FILL = {
-    "ok":           ("#E3EDE4", "#2F5D3A"),
-    "warn":         ("#F7EBD9", "#7A5218"),
-    "critical":     ("#F6E0DC", "#7C3A32"),
+    "ok":           G.chip("good"),
+    "warn":         G.chip("high"),
+    "critical":     G.chip("critical"),
     "no-threshold": ("#EFEDE7", MUTED),
     "no-reading":   ("#EFEDE7", MUTED),
 }
@@ -68,6 +80,119 @@ AGE_LABEL = {
     "beyond": "past cadence",
     "wellBeyond": "well past cadence",
 }
+
+# --- Engine status -> the graphics library's RAG band -------------------------
+# One mapping, used by every mark on the page, so the chip, the graphic and the
+# count cannot disagree about the same metric.
+#
+# `warn` maps to `high`, not `medium`. The engine bands on critical and warn only,
+# and cac_graphics.zones_from_threshold mirrors exactly that: below critical is
+# `critical`, below warn is `high`, anything past warn is `good`. Mapping warn to
+# `medium` would put a yellow chip beside an amber bullet band for one value.
+#
+# The statusless states map to None rather than to a band. A metric with no agreed
+# limit is not a status, so it renders in the measure colour -- returning a band
+# here would invent the threshold the engine declined to assert.
+STATUS_SEV = {
+    "ok": "good",
+    "warn": "high",
+    "critical": "critical",
+    "no-threshold": None,
+    "no-reading": None,
+}
+
+
+def sev_for(row: dict):
+    """The RAG band for a metric row, or None when it has no status."""
+    return STATUS_SEV.get(row.get("status"))
+
+
+# A percent bullet uses the full 0-100 axis so that a wall of coverage metrics is
+# comparable at a glance. But that only helps when the metric actually lives on
+# that scale. A phishing click rate banded at 2 / 5 / 10 percent has its entire
+# meaningful range inside the first tenth of the bar: every threshold collapses
+# into the left edge, the labels collide, and the mark stops answering the one
+# question it exists for. Comparability is worth having; it is not worth an
+# unreadable bar.
+#
+# So the shared ceiling applies only when the metric reaches a reasonable part of
+# it. Below that the bullet scales to its own data, which is what the library
+# does when axis_max is omitted.
+AXIS_FULL_SCALE_FLOOR = 0.4
+
+
+def _axis_max(row: dict, thr: dict, unit: str):
+    """100 for a percent metric that uses the scale; None (auto) otherwise."""
+    if unit != "percent":
+        return None
+    reach = max([v for v in (row.get("value"), thr.get("target"), thr.get("warn"),
+                             thr.get("critical")) if v is not None] or [0])
+    return 100 if reach >= 100 * AXIS_FULL_SCALE_FLOOR else None
+
+
+def mark_for(row: dict) -> str:
+    """The SVG mark for one metric, dispatched on the engine's resolved `viz`.
+
+    `viz` is resolved once in metrics_analysis.resolve_viz and travels in the
+    analysis JSON; nothing is re-decided here. That is what keeps one metric
+    rendering as the same mark in the operational view, the executive view and
+    the board pack.
+
+    Every branch passes the engine's own value, threshold, direction and status
+    straight through -- no renderer arithmetic on top of the numbers it was
+    handed.
+    """
+    viz = row.get("viz") or "tile"
+    sev = sev_for(row)
+    value = row.get("value")
+    unit = row.get("unit") or ""
+    if value is None:
+        return ""
+
+    thr = row.get("threshold") or {}
+    direction = row.get("direction") or "higher-better"
+    target = thr.get("target")
+    zones = G.zones_from_threshold(thr, direction) if sev else []
+    # The mark's own numbers carry the unit. Without it a dwell-time slope reads
+    # "11 -> 8" and the reader has to go looking for what the figures are in.
+    # `currency` is deliberately absent: a prefix is not a suffix, and a mark that
+    # rendered "1200$" would be worse than one that rendered nothing.
+    suffix = {"percent": "%", "days": " d", "ratio": "x"}.get(unit, "")
+    readings = row.get("readings") or []
+
+    if viz == "bullet" and zones:
+        return G.bullet(value, target if target is not None else value, zones,
+                        direction=direction, unit=suffix,
+                        axis_max=_axis_max(row, thr, unit))
+    if viz == "progress" and target:
+        return G.progress_bar(value, target, label="", sev=sev or "")
+    if viz == "tank" and target:
+        return G.fuel_tank(value, target, label="")
+    if viz == "gauge" and zones:
+        return G.radial_gauge(value, 0, max(100, value), zones=zones,
+                              direction=direction, target=target, unit=suffix)
+    if viz == "sparkline":
+        # The library suppresses below 4 readings itself, returning a visible
+        # note rather than an empty string.
+        return G.sparkline(readings, unit=suffix, sev=sev or "")
+    # A slope's two ends are periods, not just positions. The engine knows only
+    # the latest period, so the earlier end is labelled "prior" rather than
+    # invented -- naming a quarter the store never recorded would be a fabrication
+    # in the one place a reader is most likely to trust it.
+    slope_labels = ["prior", row.get("period") or "latest"]
+    if viz == "slope" and len(readings) == 2:
+        return G.slope(readings, labels=slope_labels, unit=suffix, sev=sev or "")
+    if viz == "line" and len(readings) >= 4:
+        return G.line_chart(readings, unit=suffix, sev=sev or "")
+    if viz == "line" and len(readings) == 2:
+        # The standard's own fallback: two points are a slope, never a line.
+        return G.slope(readings, labels=slope_labels, unit=suffix, sev=sev or "")
+    if viz == "column" and readings:
+        return G.column_trend(readings, unit=suffix)
+
+    # `tile` and every unsatisfied branch above land here: a bare number, in the
+    # measure colour when the metric has no band -- no gauge, no RAG.
+    return G.kpi_tile(fmt_value(value, unit), "", sev=sev or "")
 
 FONTS = ('<link rel="preconnect" href="https://fonts.googleapis.com">'
          '<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700'
@@ -241,10 +366,59 @@ td.num{{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}}
 .rule{{border:0;border-top:1px solid {WB_LINE};margin:22px 0}}
 footer{{color:{MUTED};font-size:12.5px;margin-top:28px;padding-top:14px;
   border-top:1px solid {WB_LINE}}}
+/* CAC chrome. A compact band, not a cover: these are working views, and a
+   full-page cover on a section a reader opens twenty times is furniture. */
+.band{{background:{INK};color:{LIME};border-radius:10px;padding:14px 18px;
+  margin:0 0 18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}}
+.band .lockup{{font-family:'Space Grotesk',Manrope,sans-serif;font-weight:600;
+  font-size:13px;letter-spacing:.02em}}
+.band .spark{{width:9px;height:9px;border-radius:2px;background:{PATINA};
+  flex:0 0 auto}}
+.band .kicker{{margin-left:auto;color:{PATINA};font-size:11px;font-weight:700;
+  letter-spacing:.12em;text-transform:uppercase}}
+
+/* Marks size to their column and never push the page sideways. */
+.mark{{margin:10px 0 2px}}
+.mark svg{{display:block;max-width:100%;height:auto}}
+.mrow{{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap}}
+.mrow .mcol{{flex:1 1 280px;min-width:0}}
+
+/* The legend states what the colours mean, once per page. Without it a reader
+   has to infer the contract from the marks. */
+.legend{{display:flex;gap:14px;flex-wrap:wrap;color:{MUTED};font-size:12px;
+  margin:6px 0 0}}
+.legend span{{display:flex;align-items:center;gap:6px}}
+.legend i{{width:14px;height:10px;border-radius:2px;display:block;flex:0 0 auto}}
+
 @media (max-width:560px){{body{{padding:14px}} h1{{font-size:22px}}
   .tile .n{{font-size:24px}}}}
-@media print{{body{{background:#fff;padding:0}} .card,.tile{{break-inside:avoid}}}}
+@media print{{body{{background:#fff;padding:0}} .card,.tile{{break-inside:avoid}}
+  .band{{-webkit-print-color-adjust:exact;print-color-adjust:exact}}}}
 """
+
+
+def band(title: str, kicker: str = "") -> str:
+    """The CAC header band: ink ground, patina spark, lockup, optional kicker."""
+    k = f'<span class="kicker">{esc(kicker)}</span>' if kicker else ""
+    return (f'<div class="band"><span class="spark"></span>'
+            f'<span class="lockup">{esc(title)}</span>{k}</div>')
+
+
+def legend() -> str:
+    """What the colours mean. Measure first: it is the default, not the exception."""
+    items = [(G._MEASURE, "no threshold set"),
+             (G._RAG["good"]["fill"], "within threshold"),
+             (G._RAG["high"]["fill"], "past warn"),
+             (G._RAG["critical"]["fill"], "past critical")]
+    inner = "".join(f'<span><i style="background:{c}"></i>{esc(t)}</span>'
+                    for c, t in items)
+    return f'<div class="legend">{inner}</div>'
+
+
+def mark_block(row: dict) -> str:
+    """One metric's mark, wrapped so it scales inside its column."""
+    svg = mark_for(row)
+    return f'<div class="mark">{svg}</div>' if svg else ""
 
 
 def page(title: str, body: str, offline: bool = False) -> str:

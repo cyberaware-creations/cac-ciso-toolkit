@@ -3,7 +3,7 @@
 render_executive.py — the board view of a CSF Organizational Profile.
 
 Reads the JSON emitted by `profile_analysis.py analyze` (stdin or --in) and writes one
-self-contained, Limen-branded HTML file. Content spec: references/dashboards.md.
+self-contained, CAC-branded HTML file. Content spec: references/dashboards.md.
 
 RENDER ONLY, and deterministic. The renderer never writes board *language*: business
 outcome statements come from the `ciso-board-translation` skill via --translations. With
@@ -159,9 +159,15 @@ def rollup(ctx: c.Context) -> str:
             f'<div class="tbig">{c.esc(big)}</div>{sub}'
             f'<div class="tcomp">{c.esc(c.completeness_line(comp))}</div>'
             f'<div class="tmove">{move}</div></div>')
+    # The mark is handed no `sev`, which is what keeps a coverage bar out of the RAG
+    # ramp — see the block comment above c.coverage_bar. It sits above the tiles as
+    # the comparison across Functions; the tiles remain the record, because they are
+    # what carry the completeness line and the "not yet targeted" wording.
     return (f'<section><h2>Where the programme stands</h2>'
             f'<div class="hint">Coverage of the Target this organisation set for itself — '
             f'not a score against an external benchmark. Movement is versus the last review.</div>'
+            f'{c.legend()}'
+            f'{c.coverage_bar(ctx)}'
             f'<div class="tiles">{"".join(tiles)}</div></section>')
 
 
@@ -303,13 +309,23 @@ def decisions(ctx: c.Context) -> str:
         out.append(f'{len(never)} outcome{"s have" if len(never) != 1 else " has"} never been '
                    f'assessed. Coverage figures above exclude them, so the picture is '
                    f'incomplete by that much.')
-    out.extend(ctx.tr.decisions)
+    board_tr = [d for d in ctx.tr.decisions
+                if not (isinstance(d, dict) and d.get("altitude") == "management")]
+    mgmt_tr = [d for d in ctx.tr.decisions
+               if isinstance(d, dict) and d.get("altitude") == "management"]
+    out.extend(board_tr)
 
-    if not out:
+    if not out and not mgmt_tr:
         return ""
-    lis = "".join(f"<li>{c.esc(x)}</li>" for x in out)
-    return (f'<section><h2>Decisions needed</h2>'
-            f'<div class="card"><ul class="decisions">{lis}</ul></div></section>')
+    dtext = lambda d: d.get("text") if isinstance(d, dict) else d  # noqa: E731
+    lis = "".join(f"<li>{c.esc(dtext(x))}</li>" for x in out)
+    result = (f'<section><h2>Decisions needed</h2>'
+              f'<div class="card"><ul class="decisions">{lis}</ul></div></section>')
+    if mgmt_tr:
+        mgmt_lis = "".join(f"<li>{c.esc(dtext(d))}</li>" for d in mgmt_tr)
+        result += (f'<section><h2>Management actions — not for board decision</h2>'
+                   f'<div class="card"><ul class="decisions">{mgmt_lis}</ul></div></section>')
+    return result
 
 
 CSS = f"""
@@ -381,7 +397,13 @@ def main(argv):
                    f'<strong>Executive summary not supplied.</strong> {c.esc(c.PLACEHOLDER)}'
                    f'</div></section>')
 
-    body = (head + "<main>" + summary + headline_or_guard(ctx) + evidence_block(ctx)
+    # The CAC band opens the body proper. It sits inside <main> rather than above the
+    # ink header: this skill's header() already carries the lockup and the AnvilMark,
+    # and stacking a second ink block on top of it would read as a rendering fault
+    # rather than as chrome. Here it works as the artifact kicker the sibling skills
+    # get from the band alone.
+    body = (head + "<main>" + c.band("Cyber Aware Creations", "Board view")
+            + summary + headline_or_guard(ctx) + evidence_block(ctx)
             + rollup(ctx) + tier_block(ctx)
             + top_gaps(ctx) + what_changed(ctx) + decisions(ctx) + "</main>"
             + f'<footer>{c.esc(ctx.footer(ctx.overlay.get("provenance", "")))}</footer>')

@@ -26,7 +26,7 @@ E="$skill/scripts/incident_analysis.py"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=35
+EXPECTED_CHECKS=38
 checks=0
 fails=0
 seen_states=""
@@ -223,6 +223,63 @@ if [ -z "$missing" ]; then
 else
   bad "every clock state this fixture should reach was actually observed" \
       "never reached:$missing"
+fi
+
+# --- The chronology mark agrees with the clock table --------------------------
+#
+# A dot that stays neutral while the chip beside it says "overdue" is the mark
+# disagreeing with the number next to it. The shipped example has no lapsed DORA
+# window, so this case is constructed rather than found: an unexercised branch is
+# an untested one, and this one only fires after a statutory deadline has passed.
+#
+# Both directions are asserted. `due` must stay neutral — the DORA report is a
+# date in the sequence on a normal incident, not a call anyone has made — and
+# only the lapse is coloured. Checking the lapse alone would pass a renderer that
+# painted every DORA dot red.
+mark_probe=$("$PY" - "$skill/renderers" <<'PYEOF'
+import sys
+sys.path.insert(0, sys.argv[1])
+import _common as C
+
+
+def dora_dot(state):
+    row = {"discoveredAt": "2026-07-01",
+           "clocks": [{"regime": "dora", "window": "final", "state": state,
+                       "deadline": "2026-08-23T11:30:00+00:00", "filedAt": None}]}
+    ev = [e for e in C.timeline_events(row) if "DORA" in e["label"]]
+    return ev[0] if ev else None
+
+
+overdue = dora_dot("overdue")
+due = dora_dot("due")
+print("BANDED" if overdue and overdue.get("sev") == "critical" else "PLAIN")
+print("PLAIN" if due and "sev" not in due else "BANDED")
+print("LABELLED" if overdue and "overdue" in overdue["label"] else "UNLABELLED")
+PYEOF
+)
+mp_overdue=$(echo "$mark_probe" | sed -n 1p)
+mp_due=$(echo "$mark_probe" | sed -n 2p)
+mp_label=$(echo "$mark_probe" | sed -n 3p)
+
+if [ "$mp_overdue" = "BANDED" ]; then
+  ok "a lapsed DORA window is coloured on the chronology, as the table shows it"
+else
+  bad "a lapsed DORA window is coloured on the chronology, as the table shows it" \
+      "an overdue DORA dot carried no severity"
+fi
+
+if [ "$mp_due" = "PLAIN" ]; then
+  ok "...and a DORA window merely due stays neutral"
+else
+  bad "...and a DORA window merely due stays neutral" \
+      "a due DORA dot carried a severity it should not"
+fi
+
+if [ "$mp_label" = "LABELLED" ]; then
+  ok "the lapse is in the label too, so colour is never its only carrier"
+else
+  bad "the lapse is in the label too, so colour is never its only carrier" \
+      "the overdue milestone label does not say overdue"
 fi
 
 echo

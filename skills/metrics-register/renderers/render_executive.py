@@ -25,15 +25,27 @@ def summary_block(ctx: C.Context) -> str:
 
 
 def headline(ctx: C.Context) -> str:
+    """Four attention counts.
+
+    A count is coloured only when there is something in it. Zero past a threshold
+    is the good outcome, and painting that zero red because its row is "the breach
+    row" would report an alarm the number contradicts. The first tile counts
+    metrics tracked, which is a population and never a status, so it is never
+    coloured at all.
+    """
     att = ctx.attention
     cells = [
-        (ctx.counts["metrics"], "metrics tracked"),
-        (len(att["breached"]), "past a threshold"),
-        (len(att["worsening"]), "moving the wrong way"),
-        (len(att["stale"]), "past the review cadence"),
+        (ctx.counts["metrics"], "metrics tracked", None),
+        (len(att["breached"]), "past a threshold", "critical"),
+        (len(att["worsening"]), "moving the wrong way", "high"),
+        (len(att["stale"]), "past the review cadence", "high"),
     ]
-    out = "".join(f'<div class="tile"><span class="n">{n}</span>'
-                  f'<span class="l">{C.esc(label)}</span></div>' for n, label in cells)
+    out = ""
+    for n, label, sev in cells:
+        colour = C.G._sev_colour(sev, "text") if (sev and n) else C.INK
+        out += (f'<div class="tile">'
+                f'<span class="n" style="color:{colour}">{n}</span>'
+                f'<span class="l">{C.esc(label)}</span></div>')
     return f'<div class="tiles">{out}</div>'
 
 
@@ -62,24 +74,43 @@ def metric_blocks(ctx: C.Context) -> str:
         age = ("" if r["ageDays"] is None else
                f' · reading {r["ageDays"]} days old '
                f'({C.esc(C.AGE_LABEL.get(r["ageBand"], ""))})')
+        # The mark sits beside the narrative, not above it: the sentence is what a
+        # board reads, and the graphic is the evidence it is standing on.
+        mark = C.mark_block(r)
+        body = (f'<div class="mrow">'
+                f'<div class="mcol">{mark}</div>'
+                f'<div class="mcol">{narrative}</div></div>') if mark else narrative
         out.append(
             f'<div class="card"><h3>{C.esc(r["name"])}</h3>'
             f'<p class="muted">{C.esc(r["metricId"])} · '
             f'{C.fmt_value(r["value"], r["unit"])} this period · '
             f'{C.fmt_delta(r["delta"], r["unit"])} on last · '
             f'{C.trend_cell(r["trend"])} · {C.status_chip(r["status"])}{age}</p>'
-            f'{narrative}</div>')
+            f'{body}</div>')
     return "".join(out)
 
 
+def _dtext(d): return d.get("text") if isinstance(d, dict) else d
+
+
 def decisions_block(ctx: C.Context) -> str:
-    if ctx.tr.decisions:
-        items = "".join(f'<li>{C.esc(d)}</li>' for d in ctx.tr.decisions)
-        return f'<h2>Decisions</h2><div class="card"><ul class="list">{items}</ul></div>'
-    return ('<h2>Decisions</h2><div class="card"><div class="ph">'
-            'No decisions supplied. Each board item should end on something to fund, '
-            'accept, or decide; that language comes from the translation skill.'
-            '</div></div>')
+    board = [d for d in ctx.tr.decisions
+             if not (isinstance(d, dict) and d.get("altitude") == "management")]
+    mgmt = [d for d in ctx.tr.decisions
+            if isinstance(d, dict) and d.get("altitude") == "management"]
+    if board:
+        items = "".join(f'<li>{C.esc(_dtext(d))}</li>' for d in board)
+        out = f'<h2>Decisions</h2><div class="card"><ul class="list">{items}</ul></div>'
+    else:
+        out = ('<h2>Decisions</h2><div class="card"><div class="ph">'
+               'No decisions supplied. Each board item should end on something to fund, '
+               'accept, or decide; that language comes from the translation skill.'
+               '</div></div>')
+    if mgmt:
+        mgmt_items = "".join(f'<li>{C.esc(_dtext(d))}</li>' for d in mgmt)
+        out += (f'<h2>Management actions — not for board decision</h2>'
+                f'<div class="card"><ul class="list">{mgmt_items}</ul></div>')
+    return out
 
 
 def main(argv=None) -> int:
@@ -94,12 +125,13 @@ def main(argv=None) -> int:
         drift = (f'<p class="sub">Note: the board narrative is dated '
                  f'{C.esc(ctx.tr.as_of)} and the figures are as at {C.esc(ctx.today)}.</p>')
     body = (
-        f'<h1>Security metrics — {C.esc(client)}</h1>'
-        f'<p class="sub">Board view · as at {C.esc(as_of)}</p>'
+        C.band("Cyber Aware Creations", "Board view")
+        + f'<h1>Security metrics — {C.esc(client)}</h1>'
+        + f'<p class="sub">Board view · as at {C.esc(as_of)}</p>'
         + drift
         + headline(ctx)
         + '<h2>Where we stand</h2>' + summary_block(ctx)
-        + '<h2>The numbers</h2>' + metric_blocks(ctx)
+        + '<h2>The numbers</h2>' + C.legend() + metric_blocks(ctx)
         + decisions_block(ctx)
         + ctx.footer())
     return C.write(ctx, C.page(f"Security metrics — {client}", body, ctx.offline),

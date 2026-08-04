@@ -52,6 +52,22 @@ MANIFESTS = (
 SHIPPED = ("skills/", "assets/", ".claude-plugin/", ".codex-plugin/", ".agents/",
            "LICENSE", "NOTICE")
 
+# Libraries that live once in tools/ and are copied into each skill that uses them.
+#
+# The copies are not an accident to be cleaned up later. Every shipped script must run
+# standalone -- a skill directory is usable on its own -- so a cross-skill import needs
+# sys.path surgery and breaks the moment someone takes one skill. The same argument is
+# written at the top of every _common.py.
+#
+# What duplication costs is drift: six copies of a file are six chances to fix a bug in
+# one place and ship it in one. This check is the thing that makes the duplication safe,
+# so it is not optional and it is not advisory.
+#
+# (canonical, directory glob, filename)
+VENDORED = (
+    ("tools/cac_graphics.py", "skills/*/renderers", "cac_graphics.py"),
+)
+
 
 def _dig(doc, keypath):
     """Walk a JSON document by a tuple of keys/indices."""
@@ -115,6 +131,73 @@ def check_consistency(root="."):
     print("       `claude plugin update` reads .claude-plugin/marketplace.json.")
     print("       A version that moved only in plugin.json never reaches an install.")
     return False
+
+
+def check_vendored(root="."):
+    """Every vendored copy must be byte-identical to its canonical source in tools/.
+
+    Three ways this can fail, and all three are failures rather than notes:
+
+      * a copy differs      -- a fix landed in one place and ships from another
+      * a copy is missing   -- the skill that needs it renders without it
+      * no copy is found    -- the glob stopped matching
+
+    The third is the one worth spelling out. A check that silently finds nothing to
+    check reports success, and it reports it forever: rename `renderers/` and this
+    turns into a guard that passes because it is no longer looking at anything. That
+    is the same silent no-op the bump check exists to eliminate, so an empty match is
+    an error here, not a quiet pass.
+    """
+    import hashlib
+
+    root = Path(root)
+    ok = True
+    for canonical, dirglob, name in VENDORED:
+        src = root / canonical
+        try:
+            want = hashlib.sha256(src.read_bytes()).hexdigest()
+        except OSError as exc:
+            print("ERROR: canonical {} could not be read: {}".format(canonical, exc))
+            ok = False
+            continue
+
+        # Directories first, then the file inside them: a skill with renderers/ but no
+        # copy is a missing vendor, which globbing for the file itself cannot see.
+        dirs = sorted(p for p in root.glob(dirglob) if p.is_dir())
+        if not dirs:
+            print("ERROR: {!r} matched no directory. This check is not checking "
+                  "anything.".format(dirglob))
+            print("       If the layout moved, move VENDORED with it; a guard that "
+                  "matches nothing passes forever.")
+            ok = False
+            continue
+
+        drifted, missing = [], []
+        for d in dirs:
+            copy = d / name
+            try:
+                got = hashlib.sha256(copy.read_bytes()).hexdigest()
+            except OSError:
+                missing.append(copy.relative_to(root).as_posix())
+                continue
+            if got != want:
+                drifted.append(copy.relative_to(root).as_posix())
+
+        if not drifted and not missing:
+            print("vendored: {} copies of {} match {}.".format(
+                len(dirs), name, canonical))
+            continue
+
+        ok = False
+        print("ERROR: {} of {} vendored copies of {} do not match {}:".format(
+            len(drifted) + len(missing), len(dirs), name, canonical))
+        for f in drifted:
+            print("         {:<52} differs".format(f))
+        for f in missing:
+            print("         {:<52} missing".format(f))
+        print("       Edit {} and copy it out; never edit a copy in place.".format(
+            canonical))
+    return ok
 
 
 def _git(args, root="."):
@@ -356,6 +439,49 @@ def self_test():
         ok(check_consistency(str(odd)) is True,
            "a non-numeric scheme still passes consistency, with a note")
 
+        # -- vendored-copy drift, no git needed --
+        #
+        # Each case isolates one mechanism. Matching-copies-pass on its own would be
+        # satisfied by a function that returns True unconditionally, so the three
+        # failures below are what actually bind it.
+        def _vendor_tree(name, bodies, canonical=b"CANON\n"):
+            """bodies = {skill: content|None}; None means the copy is absent."""
+            r = Path(tmp) / name
+            (r / "tools").mkdir(parents=True, exist_ok=True)
+            (r / "tools" / "cac_graphics.py").write_bytes(canonical)
+            for skill, body in bodies.items():
+                d = r / "skills" / skill / "renderers"
+                d.mkdir(parents=True, exist_ok=True)
+                if body is not None:
+                    (d / "cac_graphics.py").write_bytes(body)
+            return r
+
+        ok(check_vendored(str(_vendor_tree(
+            "vend-match", {"a": b"CANON\n", "b": b"CANON\n"}))) is True,
+           "vendored copies identical to the canonical pass")
+
+        ok(check_vendored(str(_vendor_tree(
+            "vend-drift", {"a": b"CANON\n", "b": b"CANON edited in place\n"}))) is False,
+           "one edited vendored copy fails")
+
+        ok(check_vendored(str(_vendor_tree(
+            "vend-missing", {"a": b"CANON\n", "b": None}))) is False,
+           "a skill with renderers/ but no copy fails")
+
+        # The reviewed hole in this shape: a guard that matches nothing reports success
+        # and keeps reporting it. No skills/ at all must fail, not pass vacuously.
+        empty = Path(tmp) / "vend-empty"
+        (empty / "tools").mkdir(parents=True, exist_ok=True)
+        (empty / "tools" / "cac_graphics.py").write_bytes(b"CANON\n")
+        ok(check_vendored(str(empty)) is False,
+           "a glob that matches no directory fails instead of passing vacuously")
+
+        # A canonical that cannot be read is a failure with a reason, not a traceback.
+        nocanon = Path(tmp) / "vend-nocanon"
+        (nocanon / "skills" / "a" / "renderers").mkdir(parents=True, exist_ok=True)
+        ok(check_vendored(str(nocanon)) is False,
+           "an unreadable canonical fails with a reason")
+
         # -- bump-on-change, needs a real repo --
         repo = Path(tmp) / "repo"
         repo.mkdir()
@@ -560,6 +686,7 @@ def main(argv):
         print("note: not a git repository; checking the current directory instead.")
 
     passed = check_consistency(root)
+    passed = check_vendored(root) and passed
     if base is not None:
         passed = check_bump(base, root) and passed
     return 0 if passed else 1

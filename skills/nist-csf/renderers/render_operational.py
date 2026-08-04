@@ -3,7 +3,7 @@
 render_operational.py — the CISO/team view of a CSF Organizational Profile.
 
 Reads the JSON emitted by `profile_analysis.py analyze` (stdin or --in) and writes one
-self-contained, Limen-branded HTML file. Content spec: references/dashboards.md.
+self-contained, CAC-branded HTML file. Content spec: references/dashboards.md.
 
 RENDER ONLY. Every number here comes straight from the analyze JSON; nothing is
 recomputed. If a figure is missing, add it to `analyze`, not to this file.
@@ -65,9 +65,17 @@ def heatmap(ctx: c.Context) -> str:
             f'<span class="fcomp muted">{c.esc(c.completeness_line(fcomp))}</span>'
             f'</div><div class="cells">{"".join(cells)}</div></div>')
 
+    # Two marks, then the worded grid. Neither mark is handed a `sev` — that is the
+    # single decision keeping a coverage figure off the RAG ramp, and the block
+    # comment above c.coverage_bar in _common.py says why at length. The grid below
+    # stays authoritative: it is what carries every Category's name, its fraction,
+    # and the words "not tracked" / "not yet targeted" that a 44px cell cannot hold.
     return (f'<section><h2>Coverage by Function and Category</h2>'
             f'<div class="hint">Achieved against Target. Hatched cells are '
             f'<strong>not yet targeted</strong> — that is not 0%, and it is not 100%.</div>'
+            f'{c.legend(sequential=True)}'
+            f'<div class="mrow"><div class="mcol">{c.coverage_bar(ctx)}</div>'
+            f'<div class="mcol">{c.coverage_matrix(ctx)}</div></div>'
             f'<div class="toggle"><button id="tg" type="button" data-mode="current">'
             f'Showing: coverage — switch to Target</button></div>'
             f'<div class="heat">{"".join(rows)}</div></section>')
@@ -582,7 +590,10 @@ def main(argv):
                     [c.esc(ctx.as_of_line()),
                      c.esc(" · ".join(scope_bits)) if scope_bits else ""])
 
-    body = (head + "<main>" + overall_block(ctx) + heatmap(ctx) + gap_table(ctx)
+    # Inside <main>, for the reason set out in render_executive.main: header() already
+    # carries the lockup, so a second ink block above it would read as a fault.
+    body = (head + "<main>" + c.band("Cyber Aware Creations", "Working view")
+            + overall_block(ctx) + heatmap(ctx) + gap_table(ctx)
             + evidence_detail(ctx) + by_source(ctx) + attention(ctx)
             + playbook(ctx) + action_plan(ctx) + "</main>"
             + f'<footer>{c.esc(ctx.footer(ctx.overlay.get("provenance", "")))}</footer>'

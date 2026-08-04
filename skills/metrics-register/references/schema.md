@@ -52,6 +52,7 @@ see the derived rule below.
   "csfSubcategoryIds": ["ID.RA-01"],
   "riskIds": ["R-006"],
   "vanityRisk": false,
+  "viz": null,
   "notes": ""
 }
 ```
@@ -69,6 +70,44 @@ see the derived rule below.
 - `vanityRisk` — the author's declaration that this number's shape is a big reassuring figure
   measuring effort rather than risk ("2M attacks blocked"). It is a flag on the *definition*,
   never inferred from a value.
+- `viz` — optional. Which mark renders this metric: `bullet` | `progress` | `tank` | `gauge` |
+  `sparkline` | `slope` | `line` | `column` | `bar` | `tile`. Omitted is the normal case; the
+  resolved value is emitted by `analyze` either way, so a renderer never decides for itself.
+
+### How `viz` resolves
+
+In order — the first rule that applies wins:
+
+| | Condition | Result |
+|---|---|---|
+| 1 | an explicit `viz` is set | that mark |
+| 2 | no `warn` and no `critical` | `tile` |
+| 3 | an archetype is set | its default, below |
+| 4 | otherwise | `bullet` |
+
+| Archetype | Default |
+|---|---|
+| `patch-coverage` | `bullet` |
+| `phishing-click` | `bullet` |
+| `dwell-time` | `line` |
+| `third-party` | `bar` |
+| `mfa-coverage` | `progress` |
+| `framework-maturity` | `bar` |
+| `backup-recovery` | `bullet` |
+| `custom` | `bullet` |
+
+Rule 2 outranks the archetype because a metric with no band is not a status. It renders as a bare
+number in the measure colour — no gauge, no RAG — since colouring it would invent a limit nobody
+agreed. Note that a lone `target` does not count: the engine bands on `warn` and `critical`, so a
+`target` on its own is an aim, not a limit, and leaves the metric statusless.
+
+Rule 1 outranks rule 2 because naming a mark is deliberate, and an override that is silently
+ignored makes the field a suggestion. The colour contract is enforced separately by the renderer,
+so an explicit `viz` changes how a metric is drawn and never what it claims.
+
+**Resolved once, on purpose.** `analyze` emits `viz` on every metric so the operational view, the
+executive view and the board pack all read the same answer. A renderer that picked its own mark is
+how one number becomes a bullet on one page and a gauge on the next.
 
 ## Reading shape
 

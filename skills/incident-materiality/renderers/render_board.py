@@ -70,18 +70,35 @@ def incident_block(ctx: C.Context, row: dict) -> str:
         links.append("accepted risk / exception "
                      + C.esc(", ".join(row["linkedExceptionIds"])))
     link_line = (f'<p class="who">Linked to {" and ".join(links)}.</p>' if links else "")
+    text = f'{narrative}<p class="who">{C.esc(facts_line(row))}</p>{link_line}'
+    # The chronology sits beside the sentence, not above it: the sentence is what the
+    # committee reads, and the mark is the sequence of dates it is standing on.
+    chrono = C.timeline_block(row, ctx.today)
+    body = (f'<div class="mrow"><div class="mcol">{chrono}</div>'
+            f'<div class="mcol">{text}</div></div>') if chrono else text
     return (f'<div class="card"><h3>{C.esc(row["id"])} — {C.esc(row["title"])} '
-            f'{C.band_chip(row["band"])}</h3>'
-            f'{narrative}'
-            f'<p class="who">{C.esc(facts_line(row))}</p>{link_line}</div>')
+            f'{C.band_chip(row["band"])}</h3>{body}</div>')
+
+
+def _dtext(d): return d.get("text") if isinstance(d, dict) else d
 
 
 def decisions_block(ctx: C.Context) -> str:
-    if not ctx.tr.decisions:
-        return ('<div class="ph">No decisions supplied. A board section that asks for nothing '
-                'is a status update; compose the asks with ciso-board-translation.</div>')
-    items = "".join(f"<li>{C.esc(d)}</li>" for d in ctx.tr.decisions)
-    return f'<ul class="list">{items}</ul>'
+    board = [d for d in ctx.tr.decisions
+             if not (isinstance(d, dict) and d.get("altitude") == "management")]
+    mgmt = [d for d in ctx.tr.decisions
+            if isinstance(d, dict) and d.get("altitude") == "management"]
+    if not board:
+        out = ('<div class="ph">No decisions supplied. A board section that asks for nothing '
+               'is a status update; compose the asks with ciso-board-translation.</div>')
+    else:
+        items = "".join(f"<li>{C.esc(_dtext(d))}</li>" for d in board)
+        out = f'<ul class="list">{items}</ul>'
+    if mgmt:
+        mgmt_items = "".join(f"<li>{C.esc(_dtext(d))}</li>" for d in mgmt)
+        out += (f'<h2>Management actions — not for board decision</h2>'
+                f'<ul class="list">{mgmt_items}</ul>')
+    return out
 
 
 def main(argv=None) -> int:
@@ -91,7 +108,8 @@ def main(argv=None) -> int:
     shown = [r for r in ctx.incidents if r["band"] != "closed"] or ctx.incidents
     as_of = ctx.tr.as_of or ctx.today
     body = (
-        f'<h1>Cybersecurity incident update — {C.esc(client)}</h1>'
+        C.band("Cyber Aware Creations", "Audit committee")
+        + f'<h1>Cybersecurity incident update — {C.esc(client)}</h1>'
         f'<p class="sub">{len(shown)} incident{"s" if len(shown) != 1 else ""} '
         f'in this period · as at {C.esc(as_of)}</p>'
         + summary_block(ctx)
@@ -100,7 +118,7 @@ def main(argv=None) -> int:
           f'<p>{C.esc(ALIGNMENT)}</p></div>'
         + ctx.clock_rule_block()
         + (ctx.caveat_block() if ctx.any_linked() else "")
-        + "<h2>Incidents</h2>"
+        + "<h2>Incidents</h2>" + C.legend()
         + ("".join(incident_block(ctx, r) for r in shown)
            or '<p class="muted">No incidents in this period.</p>')
         + "<h2>Decisions for the committee</h2>" + decisions_block(ctx)

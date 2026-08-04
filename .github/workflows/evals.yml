@@ -123,6 +123,44 @@ jobs:
       - name: Board-safety (exceptions), on the floor
         run: PY="$(command -v python3)" ./skills/exceptions-register/evals/board-safety.sh
 
+      # The five decisions-render guards. Each one pins the same shipped P1: the
+      # sidecar carries decisions as {"text":..., "altitude":...} objects, the board
+      # renderers stringified them, and every board pack printed a raw Python dict
+      # where a decision should have been. They were written when that was fixed and
+      # then never listed here, so for four skills the regression guard for a defect
+      # that actually shipped has not run once since.
+      #
+      # Listed individually rather than globbed. A loop over evals/*.sh would go
+      # green the day someone renames a directory, which is the failure mode the
+      # comment above the section-contract entry names.
+      - name: Decisions render (risk), on the floor
+        run: PY="$(command -v python3)" ./skills/risk-register/evals/decisions-render.sh
+
+      - name: Decisions render (nist-csf), on the floor
+        run: PY="$(command -v python3)" ./skills/nist-csf/evals/decisions-render.sh
+
+      - name: Decisions render (metrics), on the floor
+        run: PY="$(command -v python3)" ./skills/metrics-register/evals/decisions-render.sh
+
+      - name: Decisions render (exceptions), on the floor
+        run: PY="$(command -v python3)" ./skills/exceptions-register/evals/decisions-render.sh
+
+      - name: Decisions render (incident), on the floor
+        run: PY="$(command -v python3)" ./skills/incident-materiality/evals/decisions-render.sh
+
+      # The graphics library and the contract it is held to. The self-test proves each
+      # mark in isolation -- including that no mark leaks a dict repr into a colour
+      # attribute, which is the same class of defect as the decisions guards above and
+      # shipped on this very branch. graphics-contract proves the renderer wired them
+      # up: a metric with no threshold stays out of the RAG palette, a banded one's
+      # mark carries its own status colour, and one metric renders as one mark in both
+      # views.
+      - name: Graphics library self-test, on the floor
+        run: python3 ./tools/cac_graphics.py self-test
+
+      - name: Graphics contract (metrics), on the floor
+        run: PY="$(command -v python3)" ./skills/metrics-register/evals/graphics-contract.sh
+
       # Needs no browser, so it belongs here rather than behind the `rendered` job's
       # Chrome/node gate. It builds its register with the real CLI and asserts through the
       # renderers' own Context, so 3.9 is the interpreter that matters: this is the same

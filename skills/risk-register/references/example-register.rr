@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "meta": {
     "clientName": "Acme Manufacturing Co.",
-    "assessor": "Limen Labs — R. Calder",
+    "assessor": "Cyber Aware Creations — R. Calder, CISO",
     "scopeNote": "Enterprise IT, cloud, and OT-adjacent environment. Sample demo data for tool review — not a real assessment."
   },
   "settings": {

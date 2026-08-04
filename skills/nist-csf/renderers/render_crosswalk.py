@@ -443,7 +443,14 @@ def main(argv):
         'text in your own licensed copy.</p>'
         '</div></section>')
 
-    body = (head + "<main>" + intro
+    # The CAC band only — no graphics marks. A crosswalk band is a third measure
+    # again, and cac_graphics has no way to be handed CROSSWALK_BAND_FILL: every
+    # palette it offers is either RAG or the MEASURE ramp, and borrowing either
+    # would assert an equivalence with coverage or with risk severity that a
+    # crosswalk band does not have. Inside <main>, for the reason stated in
+    # render_executive.main.
+    body = (head + "<main>" + c.band("Cyber Aware Creations", "Crosswalk lens")
+            + intro
             + f'<div class="tabs">{inputs}<div class="tablabels">{labels}</div>'
               f'<div class="panels">{panels}</div></div>'
             + lookup_section(ctx.crosswalks)
