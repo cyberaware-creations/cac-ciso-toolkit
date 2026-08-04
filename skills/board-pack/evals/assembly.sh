@@ -211,20 +211,49 @@ import assemble_pack as A
 manifest = A.load_manifest(os.path.join(skill, "examples", "pack.manifest.json"))
 stores = {e["section"]: e.get("storePath") for e in manifest["sections"]}
 problems = []
+compared = 0
 for h in pack["headlines"]:
     analysis, reason = A.run_producer(h["section"], stores[h["section"]], pack["asOf"], root)
     if analysis is None:
         problems.append(f"{h['section']}: {reason}")
         continue
-    values = dict(A.PRODUCERS[h["section"]]["headline"](analysis))
+    # A headline row is (label, value) or (label, value, sev). Unpacking by slice
+    # rather than by dict(): dict() over 3-tuples raises, and this block's stderr
+    # is discarded by the surrounding $( ), so the raise emptied `res` and the
+    # check reported ok having compared nothing. It sat green that way from the
+    # commit that added the sev triples until this one.
+    rows = A.PRODUCERS[h["section"]]["headline"](analysis)
+    values = {r[0]: r[1] for r in rows}
+    sevs = {r[0]: (r[2] if len(r) > 2 else None) for r in rows}
+    compared += 1
     if values.get(h["label"]) != h["value"]:
         problems.append(f"{h['section']}/{h['label']}: pack says {h['value']}, "
                         f"producer says {values.get(h['label'])}")
+    # The band travels the same way the figure does, or the pack is deciding it.
+    if h.get("sev") != sevs.get(h["label"]):
+        problems.append(f"{h['section']}/{h['label']}: pack sev {h.get('sev')!r}, "
+                        f"producer sev {sevs.get(h['label'])!r}")
+if compared == 0:
+    problems.append("compared nothing: no headline reached its producer")
 print("\n".join(problems))
+print(f"COMPARED={compared}", file=sys.stderr)
 PY
 )
-if [ -z "$res" ]; then ok "every headline in the pack matches what its producer computed"
-else bad "every headline in the pack matches what its producer computed" "$res"; fi
+# The count is asserted separately, so this check can never again pass by having
+# done no work. An empty `res` means "no problems" only if something was checked.
+n_compared=$("$PY" - "$skill" "$J" <<'PY'
+import json, sys, os
+skill, packfile = sys.argv[1], sys.argv[2]
+sys.path.insert(0, os.path.join(skill, "scripts"))
+print(len(json.load(open(packfile))["headlines"]))
+PY
+)
+if [ -z "$res" ] && [ "${n_compared:-0}" -ge 10 ]; then
+  ok "every headline in the pack matches what its producer computed ($n_compared)"
+else
+  bad "every headline in the pack matches what its producer computed" \
+      "${res:-only $n_compared headlines present; expected at least 10}"
+fi
 if grep -q "The pack calculates nothing" "$work/full.html"; then
   ok "and the pack says so on the page"
 else

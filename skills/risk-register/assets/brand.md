@@ -87,7 +87,9 @@ invisible to anything that reads Python.
 
 ### Band colours used *as text*
 
-A fill and a text colour are different jobs; the same hex cannot do both. On the light workbench the
+A fill and a text colour are different jobs; the same hex cannot do both.
+
+Critical is the case that proves it. `#c0392b` *does* clear AA as text — 5.44:1 on white, 4.94:1 on the workbench — so this table once reused the fill and said so. But "passes, so reuse it" left one band with no text variant while the other three had one, and the moment a second deliverable rendered the same band the two drew it in different hexes. `#8B2119` measures 9.02:1 and makes the rule uniform: every band has a fill and a text colour, and they are never the same value. On the light workbench the
 fills run 1.5–2.6:1. Use `BAND_TEXT` for a ⚠ mark, a velocity arrow, or a tag:
 
 | Band | Fill (`BAND`) | As text (`BAND_TEXT`) |
@@ -95,7 +97,7 @@ fills run 1.5–2.6:1. Use `BAND_TEXT` for a ⚠ mark, a velocity arrow, or a ta
 | low | `#30915B` | `#25764A` |
 | medium | `#e8c547` | `#7A6410` |
 | high | `#e08e0b` | `#8F5B06` |
-| critical | `#c0392b` | `#c0392b` (already ≥4.5:1) |
+| critical | `#c0392b` | `#8B2119` |
 
 ### Never use `opacity` to de-emphasise text
 
