@@ -100,6 +100,29 @@ def sev_for(row: dict):
     return STATUS_SEV.get(row.get("status"))
 
 
+# A percent bullet uses the full 0-100 axis so that a wall of coverage metrics is
+# comparable at a glance. But that only helps when the metric actually lives on
+# that scale. A phishing click rate banded at 2 / 5 / 10 percent has its entire
+# meaningful range inside the first tenth of the bar: every threshold collapses
+# into the left edge, the labels collide, and the mark stops answering the one
+# question it exists for. Comparability is worth having; it is not worth an
+# unreadable bar.
+#
+# So the shared ceiling applies only when the metric reaches a reasonable part of
+# it. Below that the bullet scales to its own data, which is what the library
+# does when axis_max is omitted.
+AXIS_FULL_SCALE_FLOOR = 0.4
+
+
+def _axis_max(row: dict, thr: dict, unit: str):
+    """100 for a percent metric that uses the scale; None (auto) otherwise."""
+    if unit != "percent":
+        return None
+    reach = max([v for v in (row.get("value"), thr.get("target"), thr.get("warn"),
+                             thr.get("critical")) if v is not None] or [0])
+    return 100 if reach >= 100 * AXIS_FULL_SCALE_FLOOR else None
+
+
 def mark_for(row: dict) -> str:
     """The SVG mark for one metric, dispatched on the engine's resolved `viz`.
 
@@ -123,15 +146,17 @@ def mark_for(row: dict) -> str:
     direction = row.get("direction") or "higher-better"
     target = thr.get("target")
     zones = G.zones_from_threshold(thr, direction) if sev else []
-    suffix = "%" if unit == "percent" else ""
+    # The mark's own numbers carry the unit. Without it a dwell-time slope reads
+    # "11 -> 8" and the reader has to go looking for what the figures are in.
+    # `currency` is deliberately absent: a prefix is not a suffix, and a mark that
+    # rendered "1200$" would be worse than one that rendered nothing.
+    suffix = {"percent": "%", "days": " d", "ratio": "x"}.get(unit, "")
     readings = row.get("readings") or []
 
     if viz == "bullet" and zones:
-        # Percent metrics share a 0-100 ceiling so a wall of them stays
-        # comparable; anything else scales to its own data, having no shared unit.
-        axis_max = 100 if unit == "percent" else None
         return G.bullet(value, target if target is not None else value, zones,
-                        direction=direction, unit=suffix, axis_max=axis_max)
+                        direction=direction, unit=suffix,
+                        axis_max=_axis_max(row, thr, unit))
     if viz == "progress" and target:
         return G.progress_bar(value, target, label="", sev=sev or "")
     if viz == "tank" and target:
@@ -143,13 +168,18 @@ def mark_for(row: dict) -> str:
         # The library suppresses below 4 readings itself, returning a visible
         # note rather than an empty string.
         return G.sparkline(readings, unit=suffix, sev=sev or "")
+    # A slope's two ends are periods, not just positions. The engine knows only
+    # the latest period, so the earlier end is labelled "prior" rather than
+    # invented -- naming a quarter the store never recorded would be a fabrication
+    # in the one place a reader is most likely to trust it.
+    slope_labels = ["prior", row.get("period") or "latest"]
     if viz == "slope" and len(readings) == 2:
-        return G.slope(readings, unit=suffix, sev=sev or "")
+        return G.slope(readings, labels=slope_labels, unit=suffix, sev=sev or "")
     if viz == "line" and len(readings) >= 4:
         return G.line_chart(readings, unit=suffix, sev=sev or "")
     if viz == "line" and len(readings) == 2:
         # The standard's own fallback: two points are a slope, never a line.
-        return G.slope(readings, unit=suffix, sev=sev or "")
+        return G.slope(readings, labels=slope_labels, unit=suffix, sev=sev or "")
     if viz == "column" and readings:
         return G.column_trend(readings, unit=suffix)
 

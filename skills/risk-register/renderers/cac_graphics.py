@@ -217,6 +217,10 @@ def kpi_tile(value, label, delta="", unit="", sev="", delta_sev=None):
     w, h = 200, 110
     fill = _sev_colour(sev) if sev else _MEASURE
     vtext = f"{_esc(str(value))}{_esc(unit)}"
+    # A big reassuring figure is exactly the shape a vanity metric takes, so the
+    # tile has to hold one without spilling. Step the display size down past the
+    # width 32px can carry, rather than letting "2,140,000" run off the card.
+    vsize = 32 if len(vtext) <= 8 else (26 if len(vtext) <= 11 else 21)
     delta_svg = ""
     if delta:
         delta_col = _sev_colour(delta_sev, "text") if delta_sev and delta_sev in _RAG else _MUTED
@@ -230,13 +234,16 @@ def kpi_tile(value, label, delta="", unit="", sev="", delta_sev=None):
         f'<rect width="{w}" height="{h}" rx="6" fill="{_BG}" '
         f'stroke="#E0E0E0" stroke-width="1"/>'
         f'<rect x="0" y="0" width="4" height="{h}" rx="2" fill="{fill}"/>'
-        f'<text x="{w // 2}" y="55" text-anchor="middle" font-size="32" '
+        f'<text x="{w // 2}" y="55" text-anchor="middle" font-size="{vsize}" '
         f'font-family="{_FONT_DISPLAY}" font-weight="700" '
         f'fill="{_INK}">{vtext}</text>'
         f'{delta_svg}'
-        f'<text x="{w // 2}" y="100" text-anchor="middle" font-size="12" '
-        f'font-family="{_FONT_BODY}" fill="{_MUTED}">{_esc(label)}</text>'
-        f'</svg>'
+        # No label, no node. An empty <text> is still walked by a screen reader
+        # and still has to be explained to whoever reads this next.
+        + (f'<text x="{w // 2}" y="100" text-anchor="middle" font-size="12" '
+           f'font-family="{_FONT_BODY}" fill="{_MUTED}">{_esc(label)}</text>'
+           if str(label).strip() else "")
+        + f'</svg>'
     )
 
 
@@ -350,40 +357,49 @@ def bullet(value, target, zones, direction="higher", unit="", labels=True,
     label_svg = ""
     if labels:
         ly = bar_y + bar_h + 14
-        label_svg = (
-            f'<text x="20" y="{ly}" font-size="10" '
-            f'font-family="{_FONT_BODY}" fill="{_MUTED}">0{_esc(unit)}</text>'
-        )
-        # Suppress axis max when target is near the end (would collide)
-        if target / scale_max < 0.88:
-            label_svg += (
-                f'<text x="{end_x:.1f}" y="{ly}" '
-                f'text-anchor="end" font-size="10" '
-                f'font-family="{_FONT_BODY}" fill="{_MUTED}">'
-                f'{_fmt(scale_max)}{_esc(unit)}</text>'
-            )
-        # medium and high are ΔE 13.3 apart — below the 15 floor and unfixable by
-        # darkening. When both bands are drawn, the boundary must be tickable, or
-        # two adjacent bands are separated by a difference nobody can rely on.
-        band_sevs = set()
-        for lo, hi in zip(edges, edges[1:]):
-            if hi > lo:
-                band_sevs.add(_zone_sev((lo + hi) / 2.0, zones, direction))
-        if "medium" in band_sevs and "high" in band_sevs:
-            placed = [20.0, end_x] if target / scale_max < 0.88 else [20.0]
-            for thresh, _s in sorted_z:
-                tx = to_x(thresh)
-                if any(abs(tx - p) < 26 for p in placed):
-                    continue
-                placed.append(tx)
+
+        # The axis carries whichever numbers actually help, in priority order,
+        # and drops any that would collide with one already placed.
+        #
+        # Thresholds outrank the axis ends. A bullet whose axis reads only "0"
+        # and "100" tells a reader the scale and nothing about where the bands
+        # begin -- and the bands are the entire claim the mark is making. The
+        # target outranks both: it is what the tick is pointing at, and an
+        # unlabelled tick is a line the reader has to guess the value of.
+        #
+        # `medium` and `high` sit ΔE 13.3 apart, below the 15 floor and
+        # unfixable by darkening, so a four-band bullet in particular cannot
+        # rely on colour to separate them. Labelling every boundary is what
+        # makes that separable, and it costs nothing on a three-band one.
+        cand = [(to_x(target), f"{_fmt(target)}{unit}", True)]
+        for thresh, _s in sorted_z:
+            cand.append((to_x(thresh), f"{_fmt(thresh)}{unit}", False))
+        cand.append((20.0, f"0{unit}", False))
+        cand.append((end_x, f"{_fmt(scale_max)}{unit}", False))
+
+        placed = []
+        for x, text, is_target in cand:
+            if any(abs(x - px) < 28 for px, _, _ in placed):
+                continue
+            placed.append((x, text, is_target))
+
+        for x, text, is_target in sorted(placed, key=lambda p: p[0]):
+            # Anchor the extremes inward so neither runs off the canvas.
+            anchor = ("start" if x <= 20.5 else
+                      "end" if x >= end_x - 0.5 else "middle")
+            if not is_target and 20.5 < x < end_x - 0.5:
                 label_svg += (
-                    f'<line x1="{tx:.1f}" y1="{bar_y + bar_h}" '
-                    f'x2="{tx:.1f}" y2="{bar_y + bar_h + 3}" '
-                    f'stroke="{_MUTED}" stroke-width="1"/>'
-                    f'<text x="{tx:.1f}" y="{ly}" text-anchor="middle" '
-                    f'font-size="10" font-family="{_FONT_BODY}" '
-                    f'fill="{_MUTED}">{_fmt(thresh)}{_esc(unit)}</text>'
-                )
+                    f'<line x1="{x:.1f}" y1="{bar_y + bar_h}" '
+                    f'x2="{x:.1f}" y2="{bar_y + bar_h + 3}" '
+                    f'stroke="{_MUTED}" stroke-width="1"/>')
+            # The target's number is inked, not muted: it is the one figure on
+            # the axis that is a commitment rather than a gradation.
+            fill = _INK if is_target else _MUTED
+            weight = ' font-weight="600"' if is_target else ""
+            label_svg += (
+                f'<text x="{x:.1f}" y="{ly}" text-anchor="{anchor}" '
+                f'font-size="10" font-family="{_FONT_BODY}"{weight} '
+                f'fill="{fill}">{_esc(text)}</text>')
 
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" '
@@ -619,7 +635,17 @@ def slope(readings, labels=None, unit="", sev=""):
     x0, x1 = pad_x, w - pad_x
     y0, y1 = to_y(readings[0]), to_y(readings[1])
     fill = _sev_colour(sev) if sev else _MEASURE
-    lbl = labels or ["", ""]
+    # Period labels are omitted entirely when absent. Emitting an empty <text>
+    # for each leaves two invisible nodes that a screen reader still walks and a
+    # maintainer still has to explain.
+    lbl = labels or []
+    period_svg = ""
+    for x, text in ((x0, lbl[0] if len(lbl) > 0 else ""),
+                    (x1, lbl[1] if len(lbl) > 1 else "")):
+        if str(text).strip():
+            period_svg += (
+                f'<text x="{x}" y="{h - 2}" text-anchor="middle" font-size="10" '
+                f'font-family="{_FONT_BODY}" fill="{_MUTED}">{_esc(text)}</text>')
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" '
         f'viewBox="0 0 {w} {h}">{_surf()}'
@@ -629,14 +655,11 @@ def slope(readings, labels=None, unit="", sev=""):
         f'<circle cx="{x1}" cy="{y1:.1f}" r="4" fill="{fill}"/>'
         f'<text x="{x0}" y="{y0 - 6:.1f}" text-anchor="middle" font-size="11" '
         f'font-family="{_FONT_BODY}" fill="{_INK}">'
-        f'{_esc(str(readings[0]))}{_esc(unit)}</text>'
+        f'{_esc(_fmt(readings[0]))}{_esc(unit)}</text>'
         f'<text x="{x1}" y="{y1 - 6:.1f}" text-anchor="middle" font-size="11" '
         f'font-family="{_FONT_BODY}" fill="{_INK}">'
-        f'{_esc(str(readings[1]))}{_esc(unit)}</text>'
-        f'<text x="{x0}" y="{h - 2}" text-anchor="middle" font-size="10" '
-        f'font-family="{_FONT_BODY}" fill="{_MUTED}">{_esc(str(lbl[0]))}</text>'
-        f'<text x="{x1}" y="{h - 2}" text-anchor="middle" font-size="10" '
-        f'font-family="{_FONT_BODY}" fill="{_MUTED}">{_esc(str(lbl[1]))}</text>'
+        f'{_esc(_fmt(readings[1]))}{_esc(unit)}</text>'
+        f'{period_svg}'
         f'</svg>'
     )
 
@@ -1777,6 +1800,53 @@ def _self_test():
     else:
         bad("zones_from_threshold reproduces the engine's banding", detail)
 
+    # 63. A bullet labels its target. An unlabelled tick is a line the reader has
+    # to guess the value of, and the target is the one figure on the axis that is
+    # a commitment rather than a gradation.
+    chk("bullet labels its target tick",
+        bullet(88, 95, zones_from_threshold(
+            {"target": 95.0, "warn": 90.0, "critical": 80.0}, "higher-better"),
+            direction="higher-better", unit="%", axis_max=100),
+        present=[">95%<"])
+
+    # 64. Thresholds outrank the axis ends. A bullet whose axis reads only 0 and
+    # 100 states the scale and nothing about where the bands begin -- and the
+    # bands are the whole claim the mark makes.
+    chk("bullet labels a threshold in preference to an axis end",
+        bullet(40, 100, zones_from_threshold(
+            {"target": 100.0, "warn": 75.0, "critical": 50.0}, "higher-better"),
+            direction="higher-better", unit="%", axis_max=100),
+        present=[">50%<", ">75%<"])
+
+    # 65. No mark emits an empty text node. A screen reader still walks one.
+    empties = [n for n, s in all_marks.items() if "></text>" in s]
+    empties += [n for n, s in (("slope_nolabels", slope([11, 8], unit=" d")),
+                               ("tile_nolabel", kpi_tile(42, "")))
+                if "></text>" in s]
+    if empties:
+        bad("no mark emits an empty text node", ", ".join(sorted(set(empties))))
+    else:
+        ok("no mark emits an empty text node")
+
+    # 66. A slope formats its readings rather than stringifying them: a float that
+    # is a whole number reads "11", not "11.0".
+    chk("slope formats whole-number readings without a trailing .0",
+        slope([11.0, 8.0], unit=" d"), present=[">11 d<", ">8 d<"],
+        absent=["11.0", "8.0"])
+
+    # 67. A tile steps its display size down rather than letting a long figure
+    # run off the card -- a vanity metric is a big number by construction.
+    big = kpi_tile("2,140,000", "Attacks blocked")
+    small = kpi_tile("4", "Open P1s")
+    import re as _re2
+    b = int(_re2.search(r'font-size="(\d+)"[^>]*font-weight="700"', big).group(1))
+    s_ = int(_re2.search(r'font-size="(\d+)"[^>]*font-weight="700"', small).group(1))
+    if b < s_:
+        ok("kpi_tile shrinks its display size for a long figure")
+    else:
+        bad("kpi_tile shrinks its display size for a long figure",
+            f"long={b}px, short={s_}px")
+
     # ── Design-intent checks (P2) ─────────────────────────────────────────────
 
     # 40. bullet zones use mid tones, not opacity compositing
@@ -1801,8 +1871,8 @@ def _self_test():
         bad("_zone_sev accepts direction='lower-better'", str(e))
 
     print()
-    if checks != 62:
-        print(f"self-test: ran {checks} checks, expected 62")
+    if checks != 67:
+        print(f"self-test: ran {checks} checks, expected 67")
         _sys.exit(1)
     if fails:
         print(f"self-test: {fails} of {checks} checks FAILED")
