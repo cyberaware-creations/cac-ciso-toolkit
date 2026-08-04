@@ -1,6 +1,6 @@
 {
   "name": "cyber-aware-creations",
-  "version": "0.15.0",
+  "version": "0.16.0",
   "description": "NIST-aligned cybersecurity skills for security leaders. Build, score, and maintain a risk register with change history and board dashboards; assess your program against the NIST CSF 2.0 as a tracked Organizational Profile with gap analysis and coverage reporting; and translate security facts into board-ready language with sourced regulatory receipts.",
   "author": {
     "name": "Cyber Aware Creations, LLC.",
@@ -9,7 +9,30 @@
   "homepage": "https://cyberawarecreations.com",
   "repository": "https://github.com/cyberaware-creations/cac-ciso-toolkit",
   "license": "Apache-2.0",
-  "keywords": ["ciso", "risk-register", "nist", "nist-csf", "csf", "cybersecurity", "board", "grc", "risk-management", "framework", "maturity", "gap-analysis", "assessment"],
+  "keywords": [
+    "ciso",
+    "risk-register",
+    "nist",
+    "nist-csf",
+    "csf",
+    "cybersecurity",
+    "board",
+    "grc",
+    "risk-management",
+    "framework",
+    "maturity",
+    "gap-analysis",
+    "assessment",
+    "board-pack",
+    "board-reporting",
+    "incident-response",
+    "incident-materiality",
+    "materiality",
+    "disclosure",
+    "sec-8k",
+    "pptx",
+    "charts"
+  ],
   "skills": "./skills",
   "interface": {
     "displayName": "Cyber Aware Creations — CISO Toolkit",
@@ -17,7 +40,10 @@
     "longDescription": "Three composable skills for the people accountable for security. Keep a NIST-aligned risk register that persists between sessions, with NISTIR 8286 event statements, deterministic Likelihood × Impact scoring and SP 800-30 banding, risk-appetite flagging, and an append-only change log. Track your programme against NIST CSF 2.0 as an Organizational Profile with computed gap analysis and coverage rollups. Translate any metric, risk, or quarter into board-ready language with sourced regulatory receipts. Everything runs locally against your own files. Not affiliated with or endorsed by NIST.",
     "developerName": "Cyber Aware Creations, LLC.",
     "category": "Security",
-    "capabilities": ["Read", "Write"],
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
     "websiteURL": "https://cyberawarecreations.com",
     "privacyPolicyURL": "https://cyberawarecreations.com/legal/privacy",
     "termsOfServiceURL": "https://cyberawarecreations.com/legal/terms",
