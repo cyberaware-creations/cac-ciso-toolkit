@@ -47,7 +47,7 @@ Impact scoring and banding (SP 800-30), risk-appetite flagging (CSF 2.0 GV.RM), 
 log with rationale, named review snapshots, structured risk acceptance, and reporting — heat matrix,
 themes, trend, and operational, executive, and printable board outputs.
 
-- **Deterministic engine** — `scripts/score_register.py` is ported from the Limen Labs web tool and
+- **Deterministic engine** — `scripts/score_register.py` is ported from the Cyber Aware Creations web tool and
   verified identical to it; `self-test` asserts the parity case by case and prints its own count.
 - **Tooled persistence** — every mutation (`add`, `set-text`, `set-score`, `accept`, `confirm`,
   `set-status`, `add-theme`, `set-theme`, `snapshot`, `export-csv`) appends a history event and writes

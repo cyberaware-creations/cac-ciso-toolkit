@@ -2,7 +2,7 @@
 """
 score_register.py — deterministic NIST-aligned scoring for the risk-register skill.
 
-Ported verbatim from the Limen Labs web engine (lib/risk/scoring.ts, summary.ts,
+Ported verbatim from the Cyber Aware Creations web engine (lib/risk/scoring.ts, summary.ts,
 import.ts) so a skill run bands risks identically to the original tool instead of
 eyeballing thresholds. Standard library only — no dependencies.
 
@@ -958,7 +958,7 @@ def _cmd_self_test(_: list[str]) -> int:
     if failures:
         print(f"{len(failures)} FAILED — engine does NOT match the web tool.", file=sys.stderr)
         return 1
-    print("Parity confirmed: scoring matches the Limen Labs web engine.")
+    print("Parity confirmed: scoring matches the Cyber Aware Creations web engine.")
     return 0
 
 

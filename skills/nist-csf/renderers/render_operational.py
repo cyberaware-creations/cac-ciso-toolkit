@@ -3,7 +3,7 @@
 render_operational.py — the CISO/team view of a CSF Organizational Profile.
 
 Reads the JSON emitted by `profile_analysis.py analyze` (stdin or --in) and writes one
-self-contained, Limen-branded HTML file. Content spec: references/dashboards.md.
+self-contained, CAC-branded HTML file. Content spec: references/dashboards.md.
 
 RENDER ONLY. Every number here comes straight from the analyze JSON; nothing is
 recomputed. If a figure is missing, add it to `analyze`, not to this file.

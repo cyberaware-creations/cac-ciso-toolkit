@@ -3,7 +3,7 @@
 render_executive.py — the board view of a CSF Organizational Profile.
 
 Reads the JSON emitted by `profile_analysis.py analyze` (stdin or --in) and writes one
-self-contained, Limen-branded HTML file. Content spec: references/dashboards.md.
+self-contained, CAC-branded HTML file. Content spec: references/dashboards.md.
 
 RENDER ONLY, and deterministic. The renderer never writes board *language*: business
 outcome statements come from the `ciso-board-translation` skill via --translations. With

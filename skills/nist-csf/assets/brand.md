@@ -1,13 +1,13 @@
-# Limen Labs Brand Tokens
+# Cyber Aware Creations Brand Tokens
 
-Canonical brand for generated HTML/PDF deliverables. Mirrors `cac-site` `limen` tokens and the
+Canonical brand for generated HTML/PDF deliverables. Mirrors `cac-site` `cac` tokens and the
 `risk-register` skill's `assets/brand.md`. Use these exact values so every artifact reads as one
 product family.
 
 > Kept deliberately in sync with `skills/risk-register/assets/brand.md`. Skills are self-contained,
 > so this is a copy, not an import — change one, change the other.
 
-## Palette (`limen`)
+## Palette (`cac`)
 
 | Token | Hex | Use |
 |---|---|---|
@@ -16,15 +16,58 @@ product family.
 | inkLine | `#2A2F36` | Lines on dark |
 | limestone | `#EAE7DF` | Light text on ink |
 | limestoneDim | `#9AA0A6` | Muted text on ink; footer stamp |
-| patina | `#2FA98C` | **Brand/action** accent (active tab, primary button) |
+| patina | `#2FA98C` | **Brand/action** accent (active tab, primary button, appetite chip) |
+| patinaText | `#1C6F5A` | Patina *as text on a light surface* — the fill is 2.66:1 there |
 | patinaHover | `#279884` | Hover state for patina |
 | slate | `#666D7C` | Secondary text (was `#6A7180`: 4.45:1 on workbench, just under AA) |
 | workbench | `#F6F4EE` | Light working background |
 | workbenchSurface | `#FFFFFF` | Cards, tables |
 | workbenchLine | `#D8D3C6` | Lines on light |
+| measure | `#2E6FA7` | **Measurement** with no threshold — the default data colour |
+| measureTrack | `#D8E4F1` | Track/background behind a `measure` fill |
 
-**Rule:** patina is the brand/action color and is **never** used to encode a measurement. It marks
-interactive and brand elements only.
+**Rule:** patina is the brand/action colour and is **chrome only** — it marks interactive and brand
+elements and **never encodes a measurement or a risk**. A "today" line or a section rule may be
+patina; a bar, a dot, a cell or a segment may not.
+
+## Measurement colours
+
+Data that carries no agreed threshold is **not** a status, and must not borrow the RAG ramp. It uses
+`measure` on a `measureTrack` ground. Where several *categories* must be told apart — incident
+source, asset class, control family — they separate by lightness along a sequential ramp, never by
+RAG hue:
+
+| Step | Hex |
+|---|---|
+| 1 (darkest) | `#1B4E7A` |
+| 2 | `#2E6FA7` |
+| 3 | `#5B9BD0` |
+| 4 | `#94BEE2` |
+| 5 | `#C4DAEE` |
+| 6 (lightest) | `#E4EEF7` |
+
+Colouring a category red asserts a danger the data never claimed, and a reader who has learnt the
+RAG contract will believe it.
+
+## Three measured findings that constrain every ramp
+
+These are measurements, not preferences. They are why the rules above are shaped as they are, and
+re-deriving them by eye will reproduce the defects they were introduced to fix.
+
+1. **Green↔red is ΔE 6.2 under deuteranopia.** Inherent to any traffic-light ramp; darkening does
+   not help. This is why a RAG mark is *always* paired with a word, and why colour is never the only
+   signal.
+2. **Amber `#e08e0b` is 2.54:1 on white; medium `#e8c547` is 1.64:1.** Both are under the 3:1 relief
+   line, so **white text on either is prohibited** and those fills always carry a visible label. Use
+   the band's dark text colour on a tint or mid ground, or ink on a saturated fill.
+3. **Medium↔high is ΔE 13.3 and cannot be fixed by darkening.** Tested: `#DDB02A` → 8.1,
+   `#D4A017` → 4.6, `#CFA524` → 5.9 — all worse, because darkening moves yellow toward orange. So
+   wherever all four bands can appear adjacently — heat matrix, stacked bar, bullet zones — **every
+   cell or segment carries its label or value**, and the band boundary is tickable. Do not
+   "improve" the brand hexes to try to separate them.
+
+**Never use `opacity` to de-emphasise.** An opacity-composited colour is not the colour any
+contrast check validated, so the contract cannot be enforced on it. Pick a token that measures.
 
 ## Encoding coverage (this skill)
 
