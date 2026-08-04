@@ -22,7 +22,7 @@ skill="$(cd "$here/.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=36
+EXPECTED_CHECKS=40
 checks=0
 fails=0
 ok()  { checks=$((checks + 1)); printf '  ok    %s\n' "$1"; }
@@ -327,6 +327,68 @@ if grep -q "Management actions" "$work/full.html" \
 else
   bad "the management block reaches the rendered HTML" \
       "the heading or a known management ask did not survive rendering"
+fi
+
+# --- Carried severity on headline figures -------------------------------------
+#
+# The assembler carries the band a producer declared and decides nothing itself.
+# Both halves are asserted: that a breach figure arrives banded, and that a
+# population figure arrives with none. Checking only the first would pass an
+# assembler that painted every figure critical.
+sev_probe=$("$PY" - "$J" <<'PYEOF'
+import json, sys
+figs = json.load(open(sys.argv[1]))["headlines"]
+
+
+def find(frag):
+    return next((f for f in figs if frag in f["label"]), None)
+
+
+over = find("over appetite")
+tracked = find("risks tracked")
+breach = find("past a threshold")
+carried = find("exceptions carried")
+# A zero count must carry no band: nothing over appetite is the good outcome,
+# and colouring that zero would report an alarm the number itself contradicts.
+zeros = [f["label"] for f in figs if f.get("value") == 0 and "sev" in f]
+print("BANDED" if over and over.get("sev") in ("medium", "high", "critical") else "PLAIN")
+print("PLAIN" if tracked and "sev" not in tracked else "BANDED")
+print("BANDED" if breach and breach.get("sev") in ("medium", "high", "critical") else "PLAIN")
+print("PLAIN" if carried and "sev" not in carried else "BANDED")
+print("NONE" if not zeros else ",".join(zeros))
+PYEOF
+)
+sev_over=$(echo "$sev_probe" | sed -n 1p)
+sev_tracked=$(echo "$sev_probe" | sed -n 2p)
+sev_breach=$(echo "$sev_probe" | sed -n 3p)
+sev_carried=$(echo "$sev_probe" | sed -n 4p)
+sev_zeros=$(echo "$sev_probe" | sed -n 5p)
+
+if [ "$sev_over" = "BANDED" ]; then
+  ok "a breach figure carries the band its producer declared"
+else
+  bad "a breach figure carries the band its producer declared" \
+      "'risks over appetite' arrived with no sev"
+fi
+
+if [ "$sev_breach" = "BANDED" ]; then
+  ok "the metrics breach figure carries a band too"
+else
+  bad "the metrics breach figure carries a band too" \
+      "'metrics past a threshold' arrived with no sev"
+fi
+
+if [ "$sev_tracked" = "PLAIN" ] && [ "$sev_carried" = "PLAIN" ]; then
+  ok "a population figure carries no band"
+else
+  bad "a population figure carries no band" \
+      "risks tracked=$sev_tracked, exceptions carried=$sev_carried"
+fi
+
+if [ "$sev_zeros" = "NONE" ]; then
+  ok "a zero count is never banded"
+else
+  bad "a zero count is never banded" "banded zeros: $sev_zeros"
 fi
 
 echo

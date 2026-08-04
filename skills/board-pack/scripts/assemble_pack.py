@@ -434,7 +434,55 @@ def possible_duplicate_asks(decisions: list) -> list:
 # READS them. It does not recompute a count, a band or a trend — any temptation to do so
 # belongs back in the producing skill, and a headline the assembler derived would be a second
 # number that could disagree with the section it sits above.
+# --- Carrying severity, not deciding it ---------------------------------------
+#
+# A headline figure may carry a `sev` so the pack can show at a glance which
+# numbers are the bad ones. Every rule below is the same rule the rest of this
+# file follows for figures: the assembler READS what a producer declared and
+# never decides anything itself.
+#
+# Two consequences worth stating, because both are easy to get wrong later:
+#
+#   * A `sev` is the WORST band the producer already declared among the items a
+#     headline counts. It is not derived from the count. "3 risks over appetite"
+#     is critical because one of those three risks is declared critical, not
+#     because three is a lot of risks.
+#   * A count of zero carries no `sev` at all. Nothing over appetite is the good
+#     outcome, and colouring that zero red because it sits in the breach row
+#     would report an alarm the number itself contradicts.
+#
+# Each producer names its bands in its own vocabulary. The translations below are
+# stated once, per producer, and are translations only — never judgements. Where
+# a producer declares nothing for a figure, the figure carries no sev and renders
+# neutral, which is the honest rendering of "this is a population, not a status".
+SEV_ORDER = ("good", "medium", "high", "critical")
+
+# risk-register calls its lowest band `low`; the shared vocabulary calls it
+# `good`. The other three names already agree.
+RISK_BAND_SEV = {"low": "good", "medium": "medium",
+                 "high": "high", "critical": "critical"}
+
+# metrics-register bands on warn and critical only; anything past warn is ok.
+# `warn` maps to `high`, not `medium`, so the pack agrees with the metric's own
+# bullet — see skills/metrics-register/renderers/_common.py STATUS_SEV.
+METRIC_STATUS_SEV = {"ok": "good", "warn": "high", "critical": "critical"}
+
+
+def _worst(sevs):
+    """The most severe band among those declared. None when none were.
+
+    None is a real answer and not a failure: it means the producer declared no
+    band for anything counted here, so the pack has nothing to colour with.
+    """
+    present = [s for s in sevs if s in SEV_ORDER]
+    return max(present, key=SEV_ORDER.index) if present else None
+
+
 def _posture_headline(a):
+    # No sev on either figure. A gap is a distance from a Target, and this skill
+    # is explicit that a low coverage figure may be a deliberately low Target
+    # that is fully met -- so a gap count is not a severity and must not be
+    # coloured as one. See skills/nist-csf/assets/brand.md.
     completeness = (a.get("completeness") or {}).get("overall") or {}
     return [("outcomes short of target", len(a.get("gaps") or [])),
             ("outcomes assessed", completeness.get("assessed"))]
@@ -442,7 +490,11 @@ def _posture_headline(a):
 
 def _risk_headline(a):
     summary = a.get("summary") or {}
-    out = [("risks over appetite", summary.get("overAppetite")),
+    # The band each over-appetite risk already carries. Read, not derived: the
+    # engine writes residualBand and overAppetite onto every risk.
+    over = [RISK_BAND_SEV.get(r.get("residualBand"))
+            for r in (a.get("risks") or []) if r.get("overAppetite")]
+    out = [("risks over appetite", summary.get("overAppetite"), _worst(over)),
            ("risks tracked", summary.get("total"))]
     # Money, at last. The register has always recorded `response.cost`; nothing ever showed
     # it, so a pack could carry eleven risks and not one figure a board could act on.
@@ -462,20 +514,40 @@ def _risk_headline(a):
 
 def _metrics_headline(a):
     att = a.get("attention") or {}
-    return [("metrics past a threshold", len(att.get("breached") or [])),
-            ("metrics moving the wrong way", len(att.get("worsening") or []))]
+    breached = set(att.get("breached") or [])
+    worsening = set(att.get("worsening") or [])
+    by_id = {m.get("metricId"): m for m in (a.get("metrics") or [])}
+
+    def sev_of(ids):
+        return _worst(METRIC_STATUS_SEV.get((by_id.get(i) or {}).get("status"))
+                      for i in ids)
+
+    return [("metrics past a threshold", len(breached), sev_of(breached)),
+            # A trend is not a band, so this figure carries the worst status
+            # among the metrics that are moving the wrong way, not a severity
+            # invented from the direction of travel.
+            ("metrics moving the wrong way", len(worsening), sev_of(worsening))]
 
 
 def _exceptions_headline(a):
     att = a.get("attention") or {}
+    overdue = att.get("overdue") or []
+    # Overdue is a lapsed clock the producer already declared -- a real
+    # threshold, crossed -- so it is legitimately critical. The count of items
+    # carried is a population and takes no sev.
     return [("acceptances and exceptions carried", (a.get("counts") or {}).get("active")),
-            ("overdue for re-validation", len(att.get("overdue") or []))]
+            ("overdue for re-validation", len(overdue),
+             "critical" if overdue else None)]
 
 
 def _incident_headline(a):
     att = a.get("attention") or {}
+    due = att.get("due") or []
+    # An open reporting window is a declared statutory clock, not a judgement
+    # about the incident. It is high rather than critical: the window being open
+    # is the state to act on; missing it would be the breach.
     return [("incidents in the period", (a.get("counts") or {}).get("incidents")),
-            ("reporting windows open", len(att.get("due") or []))]
+            ("reporting windows open", len(due), "high" if due else None)]
 
 
 PRODUCERS = {
@@ -549,9 +621,22 @@ def headline_counts(manifest: dict, sections: list, skills_root: str) -> dict:
         if analysis is None:
             unavailable.append(reason)
             continue
-        for label, value in PRODUCERS[name]["headline"](analysis):
-            if value is not None:
-                figures.append({"section": name, "label": label, "value": value})
+        for row in PRODUCERS[name]["headline"](analysis):
+            # A headline row is (label, value) or (label, value, sev). The third
+            # element is optional so a producer that declares no band for a
+            # figure says so by omission rather than by passing a placeholder
+            # that a renderer would then have to recognise.
+            label, value = row[0], row[1]
+            sev = row[2] if len(row) > 2 else None
+            if value is None:
+                continue
+            figure = {"section": name, "label": label, "value": value}
+            # Absent, not null: a figure with no declared band carries no `sev`
+            # key at all, so `"sev" in figure` is the whole test a renderer needs
+            # and there is no second way to spell "nothing declared".
+            if sev is not None:
+                figure["sev"] = sev
+            figures.append(figure)
     return {"figures": figures, "unavailable": unavailable}
 
 
