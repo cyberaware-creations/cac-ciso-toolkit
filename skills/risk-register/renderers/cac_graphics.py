@@ -109,6 +109,33 @@ def _surf():
     return f'<rect width="100%" height="100%" fill="{_SURFACE}"/>'
 
 
+# The ground for a cell with nothing behind it. A flat tint cannot do this job:
+# measured against the lightest step of the intensity ramp, the grey it replaces
+# sat at 1.19:1, so "not rated at all" and "rated, and the lowest on the page"
+# were the same cell to a reader. That is the confusion the brand doc names
+# first -- nothing-rated must never read as rated-and-weak, and must never read
+# as fully-covered either.
+#
+# A hatch separates on texture instead of lightness, so it holds at any position
+# on any ramp, in greyscale, and in forced-colours mode. nist-csf's brand.md
+# already specified exactly this treatment for its untargeted and unrated
+# states; the library simply had no way to draw it.
+_HATCH_ID = "cacHatch"
+_HATCH_BG = "#F1EFE9"
+_HATCH_FG = "#C8C3B6"
+
+
+def _hatch_def():
+    """The <defs> block for the empty-cell hatch. Emitted only when one is used."""
+    return (
+        f'<defs><pattern id="{_HATCH_ID}" width="6" height="6" '
+        f'patternUnits="userSpaceOnUse" patternTransform="rotate(45)">'
+        f'<rect width="6" height="6" fill="{_HATCH_BG}"/>'
+        f'<line x1="0" y1="0" x2="0" y2="6" stroke="{_HATCH_FG}" '
+        f'stroke-width="2"/></pattern></defs>'
+    )
+
+
 def _normalize_direction(direction):
     """Accept 'higher'/'higher-better' and 'lower'/'lower-better'."""
     if direction in ("higher", "higher-better"):
@@ -847,6 +874,7 @@ def heat_matrix(cells, row_labels=None, col_labels=None):
         idx = int(round((1 - frac) * (len(_MEASURE_RAMP) - 2)))
         return _MEASURE_RAMP[_clamp(idx, 0, len(_MEASURE_RAMP) - 1)]
 
+    used_hatch = False
     nrows = len(cells)
     ncols = max(len(row) for row in cells)
     cell_sz = 44
@@ -881,7 +909,10 @@ def heat_matrix(cells, row_labels=None, col_labels=None):
             # colour-pair check cannot validate), passes contrast for all four
             # bands, and makes a cell read as the same object as a bullet band.
             if cell is None:
-                fill = "#ECEAE3"
+                # Hatched, not tinted -- see _hatch_def(). A cell with nothing
+                # behind it must be unmistakable at any point on the ramp.
+                fill = f"url(#{_HATCH_ID})"
+                used_hatch = True
                 txt = ""
                 sev = ""
                 txt_col = _MUTED
@@ -913,7 +944,8 @@ def heat_matrix(cells, row_labels=None, col_labels=None):
 
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" '
-        f'viewBox="0 0 {w} {h}">{_surf()}{out}</svg>'
+        f'viewBox="0 0 {w} {h}">{_surf()}'
+        f'{_hatch_def() if used_hatch else ""}{out}</svg>'
     )
 
 
@@ -964,7 +996,9 @@ def stacked_bar(periods):
 
     n = len(periods)
     gap = (w - 2 * pad_x) / n
-    bar_w = gap * 0.6
+    # Narrower than the column, so a segment too short for an inside label has
+    # somewhere to put one without colliding with the next period's bar.
+    bar_w = gap * 0.5
 
     out = ""
     for i, period in enumerate(periods):
@@ -989,16 +1023,37 @@ def stacked_bar(periods):
                 f'<rect x="{x:.1f}" y="{y_cur:.1f}" '
                 f'width="{bar_w:.1f}" height="{seg_h:.1f}" fill="{fill}"/>'
             )
-            # Mandatory label — ΔE 13.3 between medium and high means colour
-            # alone cannot distinguish them; label when the segment is tall enough
-            if seg_h >= 14 and val:
-                out += (
-                    f'<text x="{x + bar_w / 2:.1f}" '
-                    f'y="{y_cur + seg_h / 2 + 4:.1f}" '
-                    f'text-anchor="middle" font-size="9" '
-                    f'font-family="{_FONT_BODY}" fill="{txt_col}">'
-                    f'{_esc(_fmt(val))}</text>'
-                )
+            # Mandatory label. ΔE 13.3 between medium and high means colour alone
+            # cannot separate them, so every segment carries its value -- and
+            # "every" has to mean every.
+            #
+            # This used to skip any segment under 14px, which dropped the label
+            # exactly where it was most needed: a small count is usually the
+            # severe band, so on a real register the two segments losing their
+            # numbers were High and Critical. A rule that lapses on its most
+            # important case is not a rule.
+            #
+            # So a segment too short to hold its label puts it outside, to the
+            # right, in ink on the page ground rather than on the fill.
+            if val:
+                if seg_h >= 14:
+                    out += (
+                        f'<text x="{x + bar_w / 2:.1f}" '
+                        f'y="{y_cur + seg_h / 2 + 4:.1f}" '
+                        f'text-anchor="middle" font-size="9" '
+                        f'font-family="{_FONT_BODY}" fill="{txt_col}">'
+                        f'{_esc(_fmt(val))}</text>'
+                    )
+                else:
+                    out += (
+                        f'<line x1="{x + bar_w:.1f}" y1="{y_cur + seg_h / 2:.1f}" '
+                        f'x2="{x + bar_w + 4:.1f}" y2="{y_cur + seg_h / 2:.1f}" '
+                        f'stroke="{_MUTED}" stroke-width="1"/>'
+                        f'<text x="{x + bar_w + 6:.1f}" '
+                        f'y="{y_cur + seg_h / 2 + 3:.1f}" '
+                        f'font-size="9" font-family="{_FONT_BODY}" '
+                        f'fill="{_INK}">{_esc(_fmt(val))}</text>'
+                    )
         lbl = period.get("label", "")
         out += (
             f'<text x="{x + bar_w / 2:.1f}" y="{h - 4}" '
@@ -1186,14 +1241,24 @@ def gantt(phases, today="", milestones=None):
         return ""
     if today:
         all_dates.append(today)
-    unique = sorted(set(all_dates))
-    n = len(unique)
     chart_w = w - lbl_w - pct_col_w - chip_col_w - 8
-    date_pos = {d: i / max(n - 1, 1) for i, d in enumerate(unique)}
     h = pad_y + len(phases) * row_h + 20
 
+    # x is proportional to DATE, not to position in the sorted list of dates.
+    #
+    # The ordinal version spaced unique dates evenly, which made a bar's LENGTH
+    # mean nothing: a one-day phase and a two-month phase drew identical bars,
+    # and the today line landed wherever the sort happened to put it. A gantt
+    # whose bar length is not its duration is not a gantt.
+    #
+    # Same rule and same helper as milestone_timeline, so a gantt and a timeline
+    # on one page share a time axis instead of quietly disagreeing about it.
+    ords = [_date_ord(d) for d in all_dates]
+    lo, hi = min(ords), max(ords)
+    span = (hi - lo) or 1.0
+
     def to_x(d):
-        return lbl_w + date_pos.get(str(d), 0) * chart_w
+        return lbl_w + (_date_ord(d) - lo) / span * chart_w
 
     out = ""
     for i, phase in enumerate(phases):
@@ -1272,8 +1337,10 @@ def gantt(phases, today="", milestones=None):
                     f'{_esc(lbl)}</text>'
                 )
 
-    # Today line
-    if today and today in date_pos:
+    # Today line. Drawn whenever a today was given: with a proportional axis it
+    # lands at its real position, so it no longer has to coincide with one of the
+    # phase dates to be placeable.
+    if today:
         tx = to_x(today)
         out += (
             f'<line x1="{tx:.1f}" y1="{pad_y - 10}" '
@@ -1847,6 +1914,49 @@ def _self_test():
         bad("kpi_tile shrinks its display size for a long figure",
             f"long={b}px, short={s_}px")
 
+    # 68. A gantt bar's LENGTH is its duration. The ordinal version spaced unique
+    # dates evenly, so a one-day phase and a two-month phase drew identical bars
+    # and the today line landed wherever the sort happened to put it.
+    g_dur = gantt([
+        {"label": "A", "start": "2026-01-01", "end": "2026-01-02", "pct": 1.0},
+        {"label": "B", "start": "2026-01-02", "end": "2026-03-03", "pct": 1.0}])
+    tracks = _re.findall(
+        r'<rect x="[\d.]+" y="\d+" width="([\d.]+)" height="14" rx="3" '
+        r'fill="' + _MEASURE_TRACK + '"', g_dur)
+    if len(tracks) == 2 and float(tracks[1]) > float(tracks[0]) * 20:
+        ok("gantt bar length is proportional to duration")
+    else:
+        bad("gantt bar length is proportional to duration",
+            f"1-day vs 60-day bars measured {tracks}")
+
+    # 69. Every stacked-bar segment carries its value, including one too short to
+    # hold the label inside. The old rule skipped anything under 14px, which
+    # dropped the number exactly where it mattered most: a small count is usually
+    # the severe band, so on a real register High and Critical were the two that
+    # lost theirs. A rule that lapses on its most important case is not a rule.
+    sb = stacked_bar([{"label": "Now", "segments": [
+        {"sev": "good", "value": 9}, {"sev": "medium", "value": 8},
+        {"sev": "high", "value": 2}, {"sev": "critical", "value": 1}]}])
+    printed = _re.findall(r'font-size="9"[^>]*>([^<]+)</text>', sb)
+    if all(v in printed for v in ("9", "8", "2", "1")):
+        ok("every stacked-bar segment carries its value, however short")
+    else:
+        bad("every stacked-bar segment carries its value, however short",
+            f"printed {printed}, expected 9, 8, 2 and 1")
+
+    # 70. An empty heat cell is hatched, not tinted. Against the lightest step of
+    # the intensity ramp the old grey measured 1.19:1, so "not rated" and "lowest
+    # on the page" were the same cell to a reader.
+    hm_empty = heat_matrix([[{"value": 12, "label": "12"}, None]])
+    hm_full = heat_matrix([[{"value": 12, "label": "12"},
+                            {"value": 3, "label": "3"}]])
+    if (f'url(#{_HATCH_ID})' in hm_empty and "<pattern" in hm_empty
+            and "<pattern" not in hm_full):
+        ok("an empty heat cell is hatched, and the defs ship only when used")
+    else:
+        bad("an empty heat cell is hatched, and the defs ship only when used",
+            "hatch missing on the empty case, or emitted on the full one")
+
     # ── Design-intent checks (P2) ─────────────────────────────────────────────
 
     # 40. bullet zones use mid tones, not opacity compositing
@@ -1871,8 +1981,8 @@ def _self_test():
         bad("_zone_sev accepts direction='lower-better'", str(e))
 
     print()
-    if checks != 67:
-        print(f"self-test: ran {checks} checks, expected 67")
+    if checks != 70:
+        print(f"self-test: ran {checks} checks, expected 70")
         _sys.exit(1)
     if fails:
         print(f"self-test: {fails} of {checks} checks FAILED")
