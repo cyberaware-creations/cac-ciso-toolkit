@@ -29,6 +29,11 @@ import json
 import sys
 from pathlib import Path
 
+# Vendored alongside this file, for the same reason this file is vendored: a
+# shipped script must run from its own skill directory with no path surgery.
+# tools/check-versions.py fails if this copy drifts from tools/cac_graphics.py.
+import cac_graphics as G
+
 # --- Brand tokens (assets/brand.md) ------------------------------------------
 # Patina is the brand/action accent and never encodes a measurement.
 INK = "#14171C"; INK_RAISED = "#1C2026"; INK_LINE = "#2A2F36"
@@ -558,8 +563,46 @@ tr:last-child td{{border-bottom:none}}
   {WB} 4px,{WB} 8px);color:{SLATE}}}
 footer{{background:{INK};color:{LIME_DIM};padding:16px 28px;font-size:12px}}
 .scroll{{overflow-x:auto}}
+
+/* CAC chrome. A compact band, not a cover: these are working views, and a
+   full-page cover on a section a reader opens twenty times is furniture.
+
+   Ported from skills/metrics-register/renderers/_common.py base_css(), with two
+   selectors RENAMED because this skill had already taken both names:
+     .band  -> .cacband   render_crosswalk.py styles `.cell .band`, the crosswalk
+                          band WORD on every heatmap cell. A global `.band` with an
+                          ink ground would have repainted every one of them.
+     .mark  -> .gmark     BASE_CSS above already uses `.mark` for the AnvilMark
+                          logo in the header lockup.
+   The rules themselves are unchanged; only the hooks differ. */
+.cacband{{background:{INK};color:{LIME};border-radius:10px;padding:14px 18px;
+  margin:0 0 18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}}
+.cacband .lockup{{font-family:'Space Grotesk',Manrope,sans-serif;font-weight:600;
+  font-size:13px;letter-spacing:.02em}}
+.cacband .spark{{width:9px;height:9px;border-radius:2px;background:{PATINA};
+  flex:0 0 auto}}
+.cacband .kicker{{margin-left:auto;color:{PATINA};font-size:11px;font-weight:700;
+  letter-spacing:.12em;text-transform:uppercase}}
+
+/* Marks size to their column and never push the page sideways. */
+.gmark{{margin:10px 0 2px}}
+.gmark svg{{display:block;max-width:100%;height:auto}}
+.mrow{{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap}}
+.mrow .mcol{{flex:1 1 280px;min-width:0}}
+
+/* The legend states what the colours mean, once per page. Without it a reader
+   has to infer the contract from the marks. */
+.legend{{display:flex;gap:14px;flex-wrap:wrap;color:{SLATE};font-size:12px;
+  margin:6px 0 0}}
+.legend span{{display:flex;align-items:center;gap:6px}}
+.legend i{{width:14px;height:10px;border-radius:2px;display:block;flex:0 0 auto}}
+/* flex-basis:100% so the sentence always takes its own line rather than sitting
+   in the swatch row until it happens to be long enough to wrap. */
+.legend .note{{display:block;flex:0 0 100%;margin-top:2px}}
+
 @media print{{body{{background:#fff}} header,footer{{-webkit-print-color-adjust:exact;
-  print-color-adjust:exact}}}}
+  print-color-adjust:exact}}
+  .cacband{{-webkit-print-color-adjust:exact;print-color-adjust:exact}}}}
 """
 
 
@@ -597,6 +640,174 @@ def page(title: str, head_extra: str, body: str, offline: bool = False) -> str:
             f"<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
             f"<title>{esc(title)}</title>{fonts(offline)}"
             f"<style>{BASE_CSS}{head_extra}</style></head><body>{body}</body></html>")
+
+
+def band(title: str, kicker: str = "") -> str:
+    """The CAC header band: ink ground, patina spark, lockup, optional kicker."""
+    k = f'<span class="kicker">{esc(kicker)}</span>' if kicker else ""
+    return (f'<div class="cacband"><span class="spark"></span>'
+            f'<span class="lockup">{esc(title)}</span>{k}</div>')
+
+
+# --- Graphics marks -----------------------------------------------------------
+#
+# THE ONE RULE THAT GOVERNS EVERY MARK IN THIS FILE: coverage is not severity, so
+# no mark here is ever handed a `sev`. cac_graphics chooses its palette from what
+# it is given -- any `sev` on any item turns bar_chart and heat_matrix into RAG
+# charts -- so withholding it is not an omission, it is the encoding decision.
+# See assets/brand.md, "Encoding coverage (this skill)": a Category at 20% may be a
+# deliberately low Target that is fully met, and a red cell would assert a danger
+# the data never claimed.
+#
+# The library cannot be handed this skill's own COVERAGE_RAMP (the warm five-step
+# ramp the HTML tiles and cells use); heat_matrix shades from its own sequential
+# MEASURE ramp and bar_chart from the single MEASURE blue, and neither takes a
+# palette argument. That is the documented fallback -- the library's sequential
+# ramp in preference to RAG -- and NOT a licence to reach for RAG instead. Editing
+# cac_graphics.py is not an option either: it is a vendored copy and
+# tools/check-versions.py fails the build on drift.
+
+# The ground heat_matrix draws under a `None` cell. Mirrored here so the legend can
+# name it; it is the library's constant, not a colour this skill picked. It is off
+# every step of the MEASURE ramp, which is exactly the property "not yet targeted"
+# needs: nothing targeted must never be confusable with fully covered.
+HEAT_EMPTY_FILL = "#ECEAE3"
+
+
+def mark_block(svg: str) -> str:
+    """One mark, wrapped so it scales inside its column."""
+    return f'<div class="gmark">{svg}</div>' if svg else ""
+
+
+def legend(sequential: bool = False) -> str:
+    """What the colours in the marks mean. Adapted to what THIS skill encodes.
+
+    The sibling skills' legend reads good / past warn / past critical off the RAG
+    ramp. There is no equivalent line here and there must not be one: none of these
+    fills is a status, so the legend says what the scale IS rather than translating
+    it into a verdict the engine never issued.
+
+    `sequential` adds the two ends of the intensity ramp and the ground that sits
+    off it, and is passed only by a page that actually draws the matrix -- a swatch
+    for a mark that is not on the page teaches the reader a contract nothing on it
+    obeys. The board view's bar chart has no blank state to explain, because a
+    Function with nothing targeted is left off it and named in words instead.
+    """
+    items = [(G._MEASURE, "coverage of Target")]
+    if sequential:
+        items += [(G._MEASURE_RAMP[0], "more of Target achieved"),
+                  (G._MEASURE_RAMP[4], "less of Target achieved"),
+                  (HEAT_EMPTY_FILL, "not yet targeted, or not tracked")]
+    inner = "".join(f'<span><i style="background:{c}"></i>{esc(t)}</span>'
+                    for c, t in items)
+    note = ("A sequential scale, not a traffic light. Low coverage is not a red "
+            "flag on its own: it may be a low Target that is fully met, and the "
+            "figure on every cell says which.")
+    return f'<div class="legend">{inner}<span class="note">{esc(note)}</span></div>'
+
+
+def coverage_bar(ctx: "Context") -> str:
+    """Coverage by Function, as one bar chart. Never handed a `sev`.
+
+    Two things this deliberately does not do:
+
+    - It does not draw a Function with nothing targeted at zero. `percent: null` is
+      not 0%, and a zero-length bar is a claim of 0% that the engine refused to
+      make. Those Functions are left off and named beside the chart instead, which
+      is the same discipline the hatched cells apply in the HTML grid.
+    - It does not print a bare percentage. Every row label carries the achieved /
+      targeted fraction the percentage came from, so the mark obeys cov_label's
+      rule rather than quietly exempting itself from it.
+
+    Returns "" when no Function has a coverage figure, so a Profile with nothing
+    targeted renders no mark at all rather than an empty axis.
+    """
+    items, untargeted = [], []
+    for fn in ctx.function_meta():
+        fid = fn["id"]
+        cov = ctx.coverage["byFunction"].get(fid)
+        if cov is None or cov.get("percent") is None:
+            untargeted.append(fid)
+            continue
+        # Formatting, not arithmetic: the same rounding cov_pct() already renders
+        # beside this mark. Nothing is derived here that the engine did not emit.
+        items.append((f'{fid} {cov.get("n", 0)}/{cov.get("d", 0)}',
+                      round(cov["percent"])))
+    if not items:
+        return ""
+    # The library scales bars to the largest value shown, not to 100, and takes no
+    # axis argument. Saying so is the honest fix: the alternative -- padding the
+    # item list with a phantom 100 to force the axis -- would put a row on the chart
+    # that no Function stands behind.
+    note = ("The figure at each bar's tip is the percentage of Target achieved, and "
+            "the fraction it came from is on the row label. Bar length is relative "
+            "to the highest figure here, not to 100%.")
+    if untargeted:
+        note += (" Not on the chart, because nothing in them is targeted yet: "
+                 + ", ".join(untargeted) + ".")
+    return (mark_block(G.bar_chart(items))
+            + f'<div class="hint">{esc(note)}</div>')
+
+
+def coverage_matrix(ctx: "Context") -> str:
+    """Function x Category coverage, as one intensity matrix. Never handed a `sev`.
+
+    With no cell carrying a `sev`, heat_matrix shades by `value` along its own
+    sequential MEASURE ramp -- the branch its docstring describes as the INTENSITY
+    matrix, and the branch that exists precisely so that a count of findings per
+    control family is not painted as a severity.
+
+    That ramp is normalized across the cells drawn, so the darkest cell is the
+    highest coverage ON THIS PAGE and not necessarily 100%. The caption says so,
+    and every cell carries its own percentage, so the ranking is never the only
+    thing a reader has to go on.
+
+    A Category with nothing targeted, and a Category the framework defines that
+    this Profile does not track, are both passed as `None`. heat_matrix draws those
+    on a neutral ground that is off the ramp entirely -- which is the treatment
+    assets/brand.md requires for exactly these two states. The Category names and
+    the words that go with them ("not yet targeted", "not tracked") are on the
+    worded grid this mark sits above; the mark is the overview, never the record.
+
+    ONE MEASURED CAVEAT, recorded here rather than left to be rediscovered. That
+    neutral ground is HEAT_EMPTY_FILL, which the library picks and this skill
+    cannot override without editing a vendored file. Against the ramp steps this
+    mark actually uses it measures 7.22:1 at the dark end and 1.19:1 at the light
+    end. The rule that matters most -- nothing targeted must never look like fully
+    covered -- holds by a wide margin. Separation from the LIGHTEST step is thin,
+    so colour is not left carrying it: every measured cell prints its percentage
+    and a blank cell prints nothing at all, which is the same "never by colour
+    alone" discipline the band words enforce elsewhere. The other candidate is
+    worse, not better -- a cell with a `label` and no `value` takes _MEASURE_TRACK,
+    which is nearer the light end still.
+
+    Rows are ragged -- Functions do not all have the same number of Categories --
+    which heat_matrix tolerates, and short rows simply end.
+    """
+    cells, row_labels = [], []
+    drawn = 0
+    for fn in ctx.function_meta():
+        row = []
+        for cat in fn.get("categories", []):
+            cov = ctx.coverage["byCategory"].get(cat["id"])
+            if cov is None or cov.get("percent") is None:
+                row.append(None)
+                continue
+            row.append({"value": cov["percent"], "label": f'{cov["percent"]:.0f}%'})
+            drawn += 1
+        if not row:
+            continue
+        cells.append(row)
+        row_labels.append(fn["id"])
+    if not drawn:
+        return ""
+    note = ("One cell per Category, in framework order, ranked against the other "
+            "cells here rather than against a fixed scale — the darkest cell is "
+            "the highest coverage on this page, not 100%. Blank cells are not yet "
+            "targeted or not tracked; they are named with their Categories in the "
+            "grid below.")
+    return (mark_block(G.heat_matrix(cells, row_labels=row_labels))
+            + f'<div class="hint">{esc(note)}</div>')
 
 
 # --- Evidence: four-way coverage bar ------------------------------------------

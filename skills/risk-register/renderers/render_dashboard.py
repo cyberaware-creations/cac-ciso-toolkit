@@ -285,6 +285,32 @@ def confirmation_panel(ctx: C.Context) -> str:
             f'<ul class="plain">{rows}</ul></div>')
 
 
+def shape_block(ctx: C.Context) -> str:
+    """Two shared marks the working view had no equivalent of.
+
+    The heat matrix is deliberately NOT repeated here. This page already draws one
+    — the interactive grid above, which toggles inherent/residual and drills into a
+    cell — and a second, static copy of the same matrix on the same page is not a
+    second fact, it is a thing that can disagree with the first one.
+
+    Band mix over review points, because the band pills at the top of this page say
+    where the register is and nothing on it said where it came from. Top residual
+    exposures as bars, because the register table ranks by whatever column was last
+    clicked and a triage reader wants the magnitudes side by side. Both carry the
+    engine's own band per segment and per bar.
+    """
+    return (f'<div class="card"><div class="gfxrow">'
+            f'<div class="gfxcol">{C.gfx(C.band_mix_mark(ctx))}'
+            f'<div class="hint">Residual band mix by review point. Every band '
+            f'states its count — in the segment where it fits, in the key below '
+            f'where it does not — because colour alone does not separate medium '
+            f'from high.</div></div>'
+            f'<div class="gfxcol">{C.gfx(C.top_risks_mark(ctx))}'
+            f'<div class="hint">The five worst live risks by residual exposure, '
+            f'coloured by the band the engine scored each one.</div></div>'
+            f'</div>{C.gfx_legend(ctx.live["byBand"])}</div>')
+
+
 def attention_lists(ctx: C.Context) -> str:
     a = ctx.attention
     groups = [
@@ -485,7 +511,7 @@ footer{{margin-top:32px;color:{C.SLATE};font-size:11px;border-top:1px solid {C.W
   .meta{{text-align:left}}
 }}
 @media (max-width:460px){{.tiles{{grid-template-columns:1fr}}.bandrow{{flex-wrap:wrap}}}}
-"""
+{C.MARK_CSS}"""
 
 SCRIPT = r"""
 const DB=__DATA__;const BAND=__BAND__;const BL=__BANDLABEL__;const BAND_ON=__BANDON__;
@@ -632,6 +658,7 @@ def render(ctx: C.Context) -> str:
 </div></div>
 {prov_banner}
 <div class="wrap">
+  {C.gfx_band("Cyber Aware Creations", "Working view")}
   <div class="section">{tiles(ctx)}</div>
   <div class="section top">
     <div class="card">
@@ -652,6 +679,8 @@ def render(ctx: C.Context) -> str:
         ! acceptance incomplete · ◌ unowned · ↗ scored above the matrix.</div>
     </div>
   </div>
+  <div class="section"><h2>Band mix and the biggest exposures</h2>
+    {shape_block(ctx)}</div>
   <div class="section"><h2>Needs attention</h2>
     <div class="attgrid">{attention_lists(ctx)}</div></div>
   {conf_section}

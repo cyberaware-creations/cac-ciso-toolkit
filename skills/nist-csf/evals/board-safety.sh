@@ -49,7 +49,7 @@ skill="$(cd "$here/.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=16
+EXPECTED_CHECKS=18
 checks=0
 fails=0
 ok()  { checks=$((checks + 1)); printf '  ok    %s\n' "$1"; }
@@ -277,6 +277,31 @@ for page in board op; do
     ok "the $page view carries the non-affiliation footer"
   else
     bad "the $page view carries the non-affiliation footer" "footer absent"
+  fi
+done
+
+
+# --- The --offline guarantee, actually verified --------------------------------
+#
+# Every renderer here takes --offline and this suite has always passed it, but
+# nothing checked that the resulting file makes no outbound request. A flag whose
+# effect is never asserted is a flag that can quietly stop working -- and these
+# artifacts are meant to open on a board member's laptop, in a room, offline.
+#
+# ONE exemption: the SVG namespace declaration each cac_graphics mark opens with.
+# `xmlns="http://www.w3.org/2000/svg"` is an XML name, not a location -- nothing
+# fetches it, and the markup is not SVG without it. Stripped by exact string
+# rather than by pattern, so an xlink:href, a <use href>, a url() inside a style
+# attribute, or any other real URL still fails this check.
+for _f in "$work/board.html" "$work/op.html"; do
+  if [ ! -s "$_f" ]; then
+    bad "--offline emits no external request ($(basename "$_f"))" "file missing or empty"
+  elif sed 's| xmlns="http://www.w3.org/2000/svg"||g' "$_f" | grep -q 'https\?://'; then
+    bad "--offline emits no external request ($(basename "$_f"))" \
+        "found: $(sed 's| xmlns="http://www.w3.org/2000/svg"||g' "$_f" \
+                  | grep -o 'https\?://[^"'"'"' )]*' | sort -u | head -3 | tr '\n' ' ')"
+  else
+    ok "--offline emits no external request ($(basename "$_f"))"
   fi
 done
 

@@ -435,7 +435,7 @@ crosswalks. See `references/framework-abstraction.md`.
 | `references/cyber-ai-overlay.md` | The overlay contract: modes, the Focus Areas, what it deliberately does not touch, and why there is no floor mode |
 | `references/cyber-ai-profile.json` | NIST IR 8596 proposed priorities, 106 Subcategories × 3 Focus Areas — preliminary-draft data, swappable, version-stamped |
 | `references/elicitation.json` | Nine batched cold-start questions covering the ranked 37 — what to ask, and what to listen for |
-| `assets/brand.md` | Limen tokens, the coverage and crosswalk ramps, and the mandatory footer |
+| `assets/brand.md` | CAC tokens, the coverage and crosswalk ramps, and the mandatory footer |
 | `examples/example-profile.csfp` | A small worked Profile, used by `self-test` |
 | `examples/example-profile-v2.csfp` | A Profile exercising every v2 state: intake, attribution, a revisit, an age spread, below-threshold scope |
 | `examples/acme-manufacturing.csfa` | A worked web-tool assessment — the input `csfa_compat.py convert` and `gaps` are tested against |

@@ -65,6 +65,37 @@ python3 $A assemble examples/pack.manifest.json --out pack.json
 The HTML carries `@page` rules — print it to PDF from any browser and it paginates A4 with a
 break between sections. The `.pptx` opens as an editable deck.
 
+### Two things the assembler will tell you, and neither is its to fix
+
+**Snapshot the producer stores to one date before you assemble.** Each section is analysed
+`--today` the manifest's `asOf`, but the *readings* inside each store are whatever was last
+recorded there. Run every producer's own update to the same date first, or the pack reports a
+risk register current to one week and a metrics register current to another. The assembler
+notices and says so:
+
+```
+note: sections are dated differently (posture=2026-07-26, risk=2026-07-26,
+metrics=2026-07-31, …); a pack that mixes snapshots is sometimes deliberate and
+always worth seeing
+```
+
+It is a note and not a refusal because mixing snapshots is sometimes right — a quarterly
+posture assessment beside monthly metrics is a real pack, not a mistake. What it must never
+be is *accidental*, which is why it is printed rather than assumed.
+
+**A decision flagged as naming the same record twice needs a human, not a merge.** Two
+sections can each ask the board about `A-002` in different words. The assembler consolidates
+decisions on *text* and never on meaning, so it surfaces the pair instead of picking one:
+
+```
+note: 2 separate decisions name A-002 (exceptions, incident). They were not merged —
+the wording differs and this assembler never merges on meaning — but they may be one
+ask arriving twice.
+```
+
+Read both, decide whether they are one ask or two, and edit the sidecars. A board asked the
+same question twice in one pack will answer neither.
+
 ## The manifest
 
 ```json
@@ -95,6 +126,48 @@ leaves `asOf` alone.
 `store` is optional and is used only to read that producer's headline figures. A store that
 cannot be read costs you the figures and is named on the provenance page; it never stops a pack
 from building.
+
+## Client branding, and the part of the palette it cannot reach
+
+A pack can carry a client's identity. Add a `brand` block to the manifest — inline, or a path
+resolved beside it like every other manifest path — or pass `--brand client.brand.json`, which
+overrides whatever the manifest says.
+
+```json
+{"ink": "#101820", "measure": "#7A3E9D", "measureTrack": "#E6DCEE",
+ "patina": "#C0873A", "patinaText": "#8A5E1E", "bg": "#F7F4F0",
+ "mark": "Northwind Group", "wordmark": "Northwind Group"}
+```
+
+Absent means CAC. Any key you leave out keeps its CAC value, so a block naming only `ink` is a
+complete block.
+
+**RAG is not overridable, and that is the feature.** Those four hexes carry measured contrast
+and colour-vision separation — green↔red is ΔE 6.2 under deuteranopia, and each `text` variant
+was darkened until it cleared 4.5:1. A client palette dropped into those slots would discard
+every one of those measurements and still produce a chart that looked completely fine, which
+is the worst way for this to fail. Status renders in toolkit colours; the client's identity
+lives in the chrome around it. A block that names a RAG band is refused and says why.
+
+What *is* overridable is checked rather than trusted, against the same floors the defaults were
+built to, and refused as a list so you fix every problem in one pass instead of four:
+
+```
+refused: the brand override was refused:
+  - ink: #AAAAAA on #FFFFFF is 2.32:1, needs 4.5:1 (body text on a mark surface)
+  - ink: #AAAAAA on #F6F4EE is 2.11:1, needs 4.5:1 (body text on the workbench ground)
+  - measure: #CCE0F5 on #FFFFFF is 1.35:1, needs 3.0:1 (a data mark against its surface)
+  - measure: #CCE0F5 on #E6DCEE is 1.02:1, needs 3.0:1 (the filled part of a bar against its own track)
+```
+
+It is refused when the **manifest loads**, so `validate` catches it before anything is
+assembled or rendered. A refused block leaves the previous brand exactly as it was — you never
+get a half-applied hybrid.
+
+`"whiteLabel": true` drops the maker's name from the footer and **keeps** `Not affiliated with
+NIST`. Those two clauses sit side by side and are not the same kind of thing: one says who
+built the pack, which a client is entitled to replace, and the other says the pack is not a
+NIST product, which stays true no matter whose logo is on the cover.
 
 ## Audience decides the order, and nothing else
 

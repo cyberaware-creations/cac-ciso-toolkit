@@ -15,15 +15,25 @@ import _common as C
 
 
 def tiles(ctx: C.Context) -> str:
+    """Same four counts, same colouring rule as the board view.
+
+    A zero stays neutral: no metric past a threshold is the good outcome, and
+    colouring that zero because its row is "the breach row" would report an alarm
+    the number itself contradicts.
+    """
     att = ctx.attention
     cells = [
-        (ctx.counts["metrics"], "metrics tracked"),
-        (len(att["breached"]), "past a threshold"),
-        (len(att["worsening"]), "moving the wrong way"),
-        (len(att["stale"]), "past the review cadence"),
+        (ctx.counts["metrics"], "metrics tracked", None),
+        (len(att["breached"]), "past a threshold", "critical"),
+        (len(att["worsening"]), "moving the wrong way", "high"),
+        (len(att["stale"]), "past the review cadence", "high"),
     ]
-    out = "".join(f'<div class="tile"><span class="n">{n}</span>'
-                  f'<span class="l">{C.esc(label)}</span></div>' for n, label in cells)
+    out = ""
+    for n, label, sev in cells:
+        colour = C.G._sev_colour(sev, "text") if (sev and n) else C.INK
+        out += (f'<div class="tile">'
+                f'<span class="n" style="color:{colour}">{n}</span>'
+                f'<span class="l">{C.esc(label)}</span></div>')
     return f'<div class="tiles">{out}</div>'
 
 
@@ -45,6 +55,10 @@ def table(ctx: C.Context) -> str:
             flags.append("unowned")
         if r["archetype"] is None:
             flags.append("untagged")
+        # The same metric renders as the same mark here as on the board page.
+        # That is the whole point of resolving `viz` in the engine: a reader who
+        # has learnt to read one view can read the other.
+        mark = C.mark_block(r)
         rows.append(
             f'<tr><td><strong>{C.esc(r["metricId"])}</strong><br>{C.esc(r["name"])}'
             f'<br><span class="muted">{C.esc(r["direction"])}'
@@ -52,6 +66,7 @@ def table(ctx: C.Context) -> str:
             + (f'<br>{C.esc(", ".join(flags))}' if flags else "") + "</span></td>"
             f'<td class="num">{C.fmt_value(r["value"], r["unit"])}'
             f'<br><span class="muted">{C.esc(r["period"] or "—")}</span></td>'
+            f'<td>{mark}</td>'
             f'<td class="num">{C.fmt_delta(r["delta"], r["unit"])}</td>'
             f'<td>{C.trend_cell(r["trend"])}</td>'
             f'<td>{C.status_chip(r["status"])}<br>'
@@ -60,7 +75,8 @@ def table(ctx: C.Context) -> str:
             f'<td>{C.esc(r["owner"] or "—")}<br>'
             f'<span class="muted">{C.esc(links)}</span></td></tr>')
     return ('<div class="scroll"><table><thead><tr>'
-            '<th>Metric</th><th>Latest</th><th>Delta</th><th>Movement</th>'
+            '<th>Metric</th><th>Latest</th><th>Against target</th>'
+            '<th>Delta</th><th>Movement</th>'
             '<th>Against threshold</th><th>Reading age</th><th>Owner / links</th>'
             f'</tr></thead><tbody>{"".join(rows)}</tbody></table></div>')
 
@@ -117,12 +133,13 @@ def main(argv=None) -> int:
     client = ctx.meta.get("clientName") or "Metrics register"
     cad = f"{ctx.cadence}-day review cadence" if ctx.cadence else "no cadence set"
     body = (
-        f'<h1>Metrics review — {C.esc(client)}</h1>'
-        f'<p class="sub">{C.esc(ctx.counts["metrics"])} metrics · '
+        C.band("Cyber Aware Creations", "Working view")
+        + f'<h1>Metrics review — {C.esc(client)}</h1>'
+        + f'<p class="sub">{C.esc(ctx.counts["metrics"])} metrics · '
         f'{C.esc(ctx.counts["readings"])} readings · {C.esc(cad)} · '
         f'as at {C.esc(ctx.today)}</p>'
         + tiles(ctx)
-        + '<h2>Every metric</h2>' + table(ctx)
+        + '<h2>Every metric</h2>' + C.legend() + table(ctx)
         + rollup_block(ctx)
         + '<h2>Attention</h2>' + attention_lists(ctx)
         + ctx.footer())

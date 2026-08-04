@@ -203,7 +203,7 @@ declines to make.
 ## Rendering notes
 
 - Output **self-contained HTML** — inline CSS and JS, no build step, no assets on disk — so it opens
-  anywhere and respects the local-only design. Use the Limen tokens in `assets/brand.md`.
+  anywhere and respects the local-only design. Use the CAC tokens in `assets/brand.md`.
 - **One external request, by default:** the brand faces load from Google Fonts, so opening a report
   reaches out to `fonts.googleapis.com`. The register data never leaves the file, but the *fact that
   it was opened* does. Pass `--offline` to drop the links entirely and fall back to the system font

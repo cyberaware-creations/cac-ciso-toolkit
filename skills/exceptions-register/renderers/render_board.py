@@ -19,14 +19,25 @@ import _common as C
 
 
 def headline(ctx: C.Context) -> str:
+    """Four counts.
+
+    A count is coloured only when there is something in it. Zero overdue is the good
+    outcome, and painting that zero red because its row is "the overdue row" would raise
+    an alarm the number itself contradicts. The first two tiles count what is on the
+    books, which is a population and never a status, so they are never coloured at all —
+    a register with more entries is a register doing its job.
+    """
     a = ctx.attention
-    cells = [(ctx.counts["acceptances"], "residual risks formally accepted"),
-             (ctx.counts["exceptions"], "control exceptions in force"),
-             (len(a["overdue"]), "overdue for re-validation"),
-             (len(a["expired"]), "past their expiry date")]
-    return ('<div class="tiles">' + "".join(
-        f'<div class="tile"><span class="n">{n}</span><span class="l">{C.esc(l)}</span></div>'
-        for n, l in cells) + "</div>")
+    cells = [(ctx.counts["acceptances"], "residual risks formally accepted", None),
+             (ctx.counts["exceptions"], "control exceptions in force", None),
+             (len(a["overdue"]), "overdue for re-validation", "critical"),
+             (len(a["expired"]), "past their expiry date", "critical")]
+    out = ""
+    for n, label, sev in cells:
+        colour = C.G._sev_colour(sev, "text") if (sev and n) else C.INK
+        out += (f'<div class="tile"><span class="n" style="color:{colour}">{n}</span>'
+                f'<span class="l">{C.esc(label)}</span></div>')
+    return f'<div class="tiles">{out}</div>'
 
 
 def summary(ctx: C.Context) -> str:
@@ -58,20 +69,33 @@ def blocks(ctx: C.Context) -> str:
             f'<div class="card"><h3>{C.esc(r["title"])}</h3>'
             f'<p class="muted">{C.esc(r["id"])} · '
             f'{C.esc(C.KIND_LABEL.get(r["kind"], r["kind"]))} · '
-            f'approved by {C.esc(r["approver"])} · {C.band_chip(r["band"])} · '
+            f'approved by {C.esc(r["approver"])} · {C.band_chip_mark(r)} · '
             f'{C.esc(C.days_phrase(r["daysToRevalidation"], "re-validation"))}'
             f'{offset}</p>{narrative}</div>')
     return "".join(out) or '<div class="card"><p class="muted">Nothing active.</p></div>'
 
 
+def _dtext(d): return d.get("text") if isinstance(d, dict) else d
+
+
 def decisions(ctx: C.Context) -> str:
-    if ctx.tr.decisions:
-        items = "".join(f'<li>{C.esc(d)}</li>' for d in ctx.tr.decisions)
-        return f'<h2>Decisions</h2><div class="card"><ul class="list">{items}</ul></div>'
-    return ('<h2>Decisions</h2><div class="card"><div class="ph">'
-            'No decisions supplied. Each item should end on something to re-validate, '
-            'withdraw, extend, or fund; that language comes from the translation skill.'
-            '</div></div>')
+    board = [d for d in ctx.tr.decisions
+             if not (isinstance(d, dict) and d.get("altitude") == "management")]
+    mgmt = [d for d in ctx.tr.decisions
+            if isinstance(d, dict) and d.get("altitude") == "management"]
+    if board:
+        items = "".join(f'<li>{C.esc(_dtext(d))}</li>' for d in board)
+        out = f'<h2>Decisions</h2><div class="card"><ul class="list">{items}</ul></div>'
+    else:
+        out = ('<h2>Decisions</h2><div class="card"><div class="ph">'
+               'No decisions supplied. Each item should end on something to re-validate, '
+               'withdraw, extend, or fund; that language comes from the translation skill.'
+               '</div></div>')
+    if mgmt:
+        mgmt_items = "".join(f'<li>{C.esc(_dtext(d))}</li>' for d in mgmt)
+        out += (f'<h2>Management actions — not for board decision</h2>'
+                f'<div class="card"><ul class="list">{mgmt_items}</ul></div>')
+    return out
 
 
 def main(argv=None) -> int:
@@ -83,12 +107,13 @@ def main(argv=None) -> int:
     if ctx.tr.as_of and ctx.today and ctx.tr.as_of != ctx.today:
         drift = (f'<p class="sub">Note: the board narrative is dated {C.esc(ctx.tr.as_of)} '
                  f'and the register is as at {C.esc(ctx.today)}.</p>')
-    body = (f'<h1>Accepted risk and control exceptions — {C.esc(client)}</h1>'
+    body = (C.band("Cyber Aware Creations", "Board view")
+            + f'<h1>Accepted risk and control exceptions — {C.esc(client)}</h1>'
             f'<p class="sub">Board view · as at {C.esc(as_of)}</p>' + drift
             + headline(ctx)
             + '<h2>Where we stand</h2>' + summary(ctx)
             + ctx.caveat_block()
-            + '<h2>What we are carrying</h2>' + blocks(ctx)
+            + '<h2>What we are carrying</h2>' + C.lifecycle_block(ctx) + blocks(ctx)
             + decisions(ctx)
             + ctx.footer())
     return C.write(ctx, C.page(f"Accepted risk and exceptions — {client}", body, ctx.offline),

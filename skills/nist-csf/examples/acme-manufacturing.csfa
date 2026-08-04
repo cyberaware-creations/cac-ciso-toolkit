@@ -4,7 +4,7 @@
   "frameworkVersion": "2.0",
   "meta": {
     "clientName": "Acme Manufacturing Co.",
-    "assessor": "Limen Labs — Cyber Aware Creations",
+    "assessor": "Cyber Aware Creations",
     "scopeNote": "Enterprise IT and plant-floor OT across four North American sites. Twelve months after a supplier-borne compromise; the board mandated Adaptive (Tier 4) maturity for Govern and Protect, with a Repeatable (Tier 3) baseline elsewhere. Two subcategories assessed as out of scope — see notes.",
     "assessedAt": "2026-06-18"
   },

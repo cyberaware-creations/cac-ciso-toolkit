@@ -222,7 +222,7 @@ placeholders — never hand-write board prose into a renderer.** Sidecar shape, 
 surfacing, and a worked example: `references/dashboards.md` and
 `references/example-translations.json`.
 
-Dashboards are self-contained, Limen-branded HTML (tokens in `assets/brand.md`; layouts in
+Dashboards are self-contained, CAC-branded HTML (tokens in `assets/brand.md`; layouts in
 `references/dashboards.md` and `assets/report-layout.md`). Deliver as files; persist board-facing
 ones as artifacts so they survive the conversation. Every deliverable carries the footer *"A Cyber
 Aware Creation · Not affiliated with NIST."*
@@ -262,7 +262,7 @@ tells the board story the same way — and it's the part a blank prompt can't re
 - `references/example-gaps.csv` — sample CSF gap export for testing import.
 - `references/example-translations.json` — worked `ciso-board-translation` sidecar; the `--translations`
   contract for the renderers.
-- `assets/brand.md` — Limen Labs palette, fonts, CVD-safe risk-band colors.
+- `assets/brand.md` — Cyber Aware Creations palette, fonts, CVD-safe risk-band colors.
 - `assets/report-layout.md` — the board PDF report structure.
 - `scripts/score_register.py` — scoring, summary, CSF import, **and persistence** (add / set-text /
   set-score / accept / confirm / set-status / add-theme / set-theme / snapshot / export-csv, all

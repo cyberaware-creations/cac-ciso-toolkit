@@ -1,12 +1,12 @@
 # Board PDF Report — Layout
 
-The point-in-time board report, harvested from the Limen Labs web tool's report layout. A4 portrait.
+The point-in-time board report, harvested from the Cyber Aware Creations web tool's report layout. A4 portrait.
 Every deliverable is traceable and carries the disclaimer.
 
 ## Structure (in order)
 
 1. **Cover band** — full-width ink (`#14171C`) block at the top. Eyebrow in patina (`#2FA98C`):
-   "LIMEN LABS · RISK REGISTER". Client name large in limestone (`#EAE7DF`). Sub-line in limestoneDim
+   "CYBER AWARE CREATIONS · RISK REGISTER". Client name large in limestone (`#EAE7DF`). Sub-line in limestoneDim
    (`#9AA0A6`): `Assessor · Appetite · Matrix NxN`. For a snapshot-based report, add the snapshot
    label and date so the reader knows the "as of" point.
 

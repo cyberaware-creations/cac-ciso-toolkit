@@ -22,7 +22,7 @@ skill="$(cd "$here/.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=36
+EXPECTED_CHECKS=40
 checks=0
 fails=0
 ok()  { checks=$((checks + 1)); printf '  ok    %s\n' "$1"; }
@@ -211,20 +211,49 @@ import assemble_pack as A
 manifest = A.load_manifest(os.path.join(skill, "examples", "pack.manifest.json"))
 stores = {e["section"]: e.get("storePath") for e in manifest["sections"]}
 problems = []
+compared = 0
 for h in pack["headlines"]:
     analysis, reason = A.run_producer(h["section"], stores[h["section"]], pack["asOf"], root)
     if analysis is None:
         problems.append(f"{h['section']}: {reason}")
         continue
-    values = dict(A.PRODUCERS[h["section"]]["headline"](analysis))
+    # A headline row is (label, value) or (label, value, sev). Unpacking by slice
+    # rather than by dict(): dict() over 3-tuples raises, and this block's stderr
+    # is discarded by the surrounding $( ), so the raise emptied `res` and the
+    # check reported ok having compared nothing. It sat green that way from the
+    # commit that added the sev triples until this one.
+    rows = A.PRODUCERS[h["section"]]["headline"](analysis)
+    values = {r[0]: r[1] for r in rows}
+    sevs = {r[0]: (r[2] if len(r) > 2 else None) for r in rows}
+    compared += 1
     if values.get(h["label"]) != h["value"]:
         problems.append(f"{h['section']}/{h['label']}: pack says {h['value']}, "
                         f"producer says {values.get(h['label'])}")
+    # The band travels the same way the figure does, or the pack is deciding it.
+    if h.get("sev") != sevs.get(h["label"]):
+        problems.append(f"{h['section']}/{h['label']}: pack sev {h.get('sev')!r}, "
+                        f"producer sev {sevs.get(h['label'])!r}")
+if compared == 0:
+    problems.append("compared nothing: no headline reached its producer")
 print("\n".join(problems))
+print(f"COMPARED={compared}", file=sys.stderr)
 PY
 )
-if [ -z "$res" ]; then ok "every headline in the pack matches what its producer computed"
-else bad "every headline in the pack matches what its producer computed" "$res"; fi
+# The count is asserted separately, so this check can never again pass by having
+# done no work. An empty `res` means "no problems" only if something was checked.
+n_compared=$("$PY" - "$skill" "$J" <<'PY'
+import json, sys, os
+skill, packfile = sys.argv[1], sys.argv[2]
+sys.path.insert(0, os.path.join(skill, "scripts"))
+print(len(json.load(open(packfile))["headlines"]))
+PY
+)
+if [ -z "$res" ] && [ "${n_compared:-0}" -ge 10 ]; then
+  ok "every headline in the pack matches what its producer computed ($n_compared)"
+else
+  bad "every headline in the pack matches what its producer computed" \
+      "${res:-only $n_compared headlines present; expected at least 10}"
+fi
 if grep -q "The pack calculates nothing" "$work/full.html"; then
   ok "and the pack says so on the page"
 else
@@ -327,6 +356,68 @@ if grep -q "Management actions" "$work/full.html" \
 else
   bad "the management block reaches the rendered HTML" \
       "the heading or a known management ask did not survive rendering"
+fi
+
+# --- Carried severity on headline figures -------------------------------------
+#
+# The assembler carries the band a producer declared and decides nothing itself.
+# Both halves are asserted: that a breach figure arrives banded, and that a
+# population figure arrives with none. Checking only the first would pass an
+# assembler that painted every figure critical.
+sev_probe=$("$PY" - "$J" <<'PYEOF'
+import json, sys
+figs = json.load(open(sys.argv[1]))["headlines"]
+
+
+def find(frag):
+    return next((f for f in figs if frag in f["label"]), None)
+
+
+over = find("over appetite")
+tracked = find("risks tracked")
+breach = find("past a threshold")
+carried = find("exceptions carried")
+# A zero count must carry no band: nothing over appetite is the good outcome,
+# and colouring that zero would report an alarm the number itself contradicts.
+zeros = [f["label"] for f in figs if f.get("value") == 0 and "sev" in f]
+print("BANDED" if over and over.get("sev") in ("medium", "high", "critical") else "PLAIN")
+print("PLAIN" if tracked and "sev" not in tracked else "BANDED")
+print("BANDED" if breach and breach.get("sev") in ("medium", "high", "critical") else "PLAIN")
+print("PLAIN" if carried and "sev" not in carried else "BANDED")
+print("NONE" if not zeros else ",".join(zeros))
+PYEOF
+)
+sev_over=$(echo "$sev_probe" | sed -n 1p)
+sev_tracked=$(echo "$sev_probe" | sed -n 2p)
+sev_breach=$(echo "$sev_probe" | sed -n 3p)
+sev_carried=$(echo "$sev_probe" | sed -n 4p)
+sev_zeros=$(echo "$sev_probe" | sed -n 5p)
+
+if [ "$sev_over" = "BANDED" ]; then
+  ok "a breach figure carries the band its producer declared"
+else
+  bad "a breach figure carries the band its producer declared" \
+      "'risks over appetite' arrived with no sev"
+fi
+
+if [ "$sev_breach" = "BANDED" ]; then
+  ok "the metrics breach figure carries a band too"
+else
+  bad "the metrics breach figure carries a band too" \
+      "'metrics past a threshold' arrived with no sev"
+fi
+
+if [ "$sev_tracked" = "PLAIN" ] && [ "$sev_carried" = "PLAIN" ]; then
+  ok "a population figure carries no band"
+else
+  bad "a population figure carries no band" \
+      "risks tracked=$sev_tracked, exceptions carried=$sev_carried"
+fi
+
+if [ "$sev_zeros" = "NONE" ]; then
+  ok "a zero count is never banded"
+else
+  bad "a zero count is never banded" "banded zeros: $sev_zeros"
 fi
 
 echo
