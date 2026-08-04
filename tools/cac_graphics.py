@@ -51,7 +51,33 @@ def _sev_colour(sev, variant="fill"):
     return _MEASURE
 
 
+# Sequential MEASURE ramp — composition WITHOUT risk semantics.
+# A stack over incident source, asset class or control family is not a stack over
+# severity. Painting those categories red/amber/green asserts a danger the data
+# never claimed, so categorical composition stays inside the MEASURE bucket and
+# separates by lightness instead of by hue.
+_MEASURE_RAMP = ["#1B4E7A", "#2E6FA7", "#5B9BD0", "#94BEE2", "#C4DAEE", "#E4EEF7"]
+_UNASSESSED   = "#D6D2C7"   # a band-less segment in an otherwise-RAG stack
+
 _SURFACE = "#FFFFFF"   # every mark carries its own surface
+
+
+def _relative_luminance(hex_colour):
+    """WCAG relative luminance for a #rrggbb string."""
+    c = hex_colour.lstrip("#")
+    out = []
+    for i in (0, 2, 4):
+        v = int(c[i:i + 2], 16) / 255.0
+        out.append(v / 12.92 if v <= 0.03928 else ((v + 0.055) / 1.055) ** 2.4)
+    return 0.2126 * out[0] + 0.7152 * out[1] + 0.0722 * out[2]
+
+
+def _on(bg):
+    """Ink or white on a given ground, whichever has more contrast."""
+    lum = _relative_luminance(bg)
+    white_ratio = 1.05 / (lum + 0.05)
+    ink_ratio = (lum + 0.05) / (_relative_luminance(_INK) + 0.05)
+    return _SURFACE if white_ratio >= ink_ratio else _INK
 
 
 def _surf():
@@ -789,13 +815,42 @@ def heat_matrix(cells, row_labels=None, col_labels=None):
 # ── Mark 13: Stacked Bar ──────────────────────────────────────────────────────
 
 def stacked_bar(periods):
-    """Stacked bar chart. periods = [{label, segments:[{sev, value}]}]."""
+    """
+    Stacked bar. periods = [{label, segments:[{value, sev?, label?}]}].
+
+    The palette is chosen by what the segments actually encode:
+
+      * any segment carries `sev`  -> RAG stack. Segments are risk bands, so they
+        take the band's `mid` tone. A segment with no `sev` in that stack is
+        genuinely unassessed and takes a neutral grey — not a band colour.
+      * no segment carries `sev`   -> CATEGORICAL stack. Segments are categories
+        (incident source, asset class, control family), which have no severity, so
+        they take the sequential MEASURE ramp. Painting them RAG would assert a
+        danger the data never claimed.
+
+    Segment order is preserved bottom-to-top; ramp steps are assigned in that
+    order and are consistent across periods, so a category keeps its colour.
+    _PATINA is never a segment fill.
+    """
     if not periods:
         return ""
     pad_x, pad_y, pad_b = 20, 10, 24
     w = max(280, len(periods) * 60 + 40)
     h = 140
     chart_h = h - pad_y - pad_b
+
+    # One decision for the whole chart — a mark cannot be half status, half category.
+    is_rag = any(s.get("sev") for p in periods for s in p.get("segments", []))
+
+    # Categorical: a category keeps one ramp step across every period. Key on the
+    # segment label when present, else on stack position.
+    ramp_key = {}
+    if not is_rag:
+        for p in periods:
+            for idx, s in enumerate(p.get("segments", [])):
+                k = s.get("label", idx)
+                if k not in ramp_key:
+                    ramp_key[k] = len(ramp_key)
 
     totals = [sum(s.get("value", 0) for s in p.get("segments", [])) for p in periods]
     mx = max(totals) if totals else 1
@@ -810,14 +865,19 @@ def stacked_bar(periods):
     for i, period in enumerate(periods):
         x = pad_x + i * gap + (gap - bar_w) / 2
         y_cur = pad_y + chart_h
-        for seg in period.get("segments", []):
+        for idx, seg in enumerate(period.get("segments", [])):
             sev = seg.get("sev", "")
             val = seg.get("value", 0)
-            # A segment is a REGION, not a single value — so it takes the mid tone,
-            # same as a bullet zone band and a heat cell. White on good (#30915B)
-            # is 3.9:1, under the floor; the band's text colour on mid passes.
-            # _PATINA is never a segment fill.
-            fill = _sev_colour(sev, "mid") if sev else _MEASURE_TRACK
+            # A segment is a REGION, not a single value — so a RAG segment takes
+            # the mid tone, same as a bullet zone band and a heat cell. White on
+            # good (#30915B) is 3.9:1, under the floor; band text on mid passes.
+            if is_rag:
+                fill = _sev_colour(sev, "mid") if sev else _UNASSESSED
+                txt_col = _sev_colour(sev, "text") if sev else _MUTED
+            else:
+                step = ramp_key.get(seg.get("label", idx), idx)
+                fill = _MEASURE_RAMP[step % len(_MEASURE_RAMP)]
+                txt_col = _on(fill)
             seg_h = val / mx * chart_h
             y_cur -= seg_h
             out += (
@@ -827,7 +887,6 @@ def stacked_bar(periods):
             # Mandatory label — ΔE 13.3 between medium and high means colour
             # alone cannot distinguish them; label when the segment is tall enough
             if seg_h >= 14 and val:
-                txt_col = _sev_colour(sev, "text") if sev else _MUTED
                 out += (
                     f'<text x="{x + bar_w / 2:.1f}" '
                     f'y="{y_cur + seg_h / 2 + 4:.1f}" '
@@ -1501,6 +1560,36 @@ def _self_test():
     chk("four-band bullet ticks its zone boundaries",
         all_marks["bullet_hi"], present=["75"])
 
+    # 54. A categorical stack emits NO RAG colour. Segments that encode category
+    # rather than severity must not borrow the risk palette — that asserts a
+    # danger the data never claimed.
+    cat_stack = stacked_bar([
+        {"label": "Q1", "segments": [{"label": "Phishing", "value": 12},
+                                     {"label": "Web", "value": 7},
+                                     {"label": "Insider", "value": 4}]},
+        {"label": "Q2", "segments": [{"label": "Phishing", "value": 9},
+                                     {"label": "Web", "value": 9},
+                                     {"label": "Insider", "value": 3}]}])
+    rag_any = [v[k] for v in _RAG.values() for k in ("fill", "mid", "tint")]
+    chk("categorical stacked_bar → no RAG colour", cat_stack, absent=rag_any)
+
+    # 55. A category keeps the same ramp step in every period, or the chart is
+    # unreadable across time.
+    seg_fills = _re.findall(
+        r'width="[\d.]+" height="[\d.]+" fill="(#[0-9A-Fa-f]{6})"', cat_stack)
+    if len(seg_fills) == 6 and seg_fills[:3] == seg_fills[3:]:
+        ok("categorical stack keeps each category's colour across periods")
+    else:
+        bad("categorical stack keeps each category's colour across periods",
+            f"got {seg_fills}")
+
+    # 56. A band-less segment inside a RAG stack is unassessed, not a band.
+    chk("band-less segment in a RAG stack → neutral, not a band colour",
+        stacked_bar([{"label": "Q1", "segments": [
+            {"sev": "good", "value": 8}, {"value": 3},
+            {"sev": "critical", "value": 2}]}]),
+        present=[f'fill="{_UNASSESSED}"'])
+
     # ── Design-intent checks (P2) ─────────────────────────────────────────────
 
     # 40. bullet zones use mid tones, not opacity compositing
@@ -1525,8 +1614,8 @@ def _self_test():
         bad("_zone_sev accepts direction='lower-better'", str(e))
 
     print()
-    if checks != 53:
-        print(f"self-test: ran {checks} checks, expected 53")
+    if checks != 56:
+        print(f"self-test: ran {checks} checks, expected 56")
         _sys.exit(1)
     if fails:
         print(f"self-test: {fails} of {checks} checks FAILED")
@@ -1592,7 +1681,25 @@ def _gallery(out_path):
              row_labels=["Infra", "Apps"],
              col_labels=["Confidentiality", "Integrity", "Availability"]
          )),
-        ("13 · Stacked Bar",
+        ("13 · Stacked Bar — categorical (no sev → MEASURE ramp)",
+         stacked_bar([
+             {"label": "Q1",
+              "segments": [{"label": "Phishing", "value": 12},
+                           {"label": "Web", "value": 7},
+                           {"label": "Insider", "value": 4},
+                           {"label": "Supply chain", "value": 2}]},
+             {"label": "Q2",
+              "segments": [{"label": "Phishing", "value": 9},
+                           {"label": "Web", "value": 9},
+                           {"label": "Insider", "value": 3},
+                           {"label": "Supply chain", "value": 5}]},
+             {"label": "Q3",
+              "segments": [{"label": "Phishing", "value": 7},
+                           {"label": "Web", "value": 11},
+                           {"label": "Insider", "value": 2},
+                           {"label": "Supply chain", "value": 6}]},
+         ])),
+        ("13 · Stacked Bar — risk bands (sev → RAG)",
          stacked_bar([
              {"label": "Q1",
               "segments": [{"sev": "good", "value": 8},

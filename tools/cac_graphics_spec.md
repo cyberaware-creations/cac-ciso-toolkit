@@ -13,7 +13,7 @@ Use it to compare any alternative implementation and identify gaps or divergence
 - **Marks**: 16 SVG-returning functions + `zones_from_threshold()` adapter
 - **Surface**: every mark opens with an opaque white rect; the palette is validated light-only
 - **CLI modes**:
-  - ``python3 cac_graphics.py self-test`` — runs 53 assertions, exits 0 on pass
+  - ``python3 cac_graphics.py self-test`` — runs 56 assertions, exits 0 on pass
   - ``python3 cac_graphics.py gallery <output.html>`` — writes a full-page HTML gallery
 
 ---
@@ -34,6 +34,9 @@ _RAG = {
 }
 _MEASURE       = "#2E6FA7"   # data without thresholds
 _MEASURE_TRACK = "#D8E4F1"   # track/background for MEASURE fills
+# Sequential ramp for CATEGORICAL composition — categories are not severities
+_MEASURE_RAMP  = ["#1B4E7A", "#2E6FA7", "#5B9BD0", "#94BEE2", "#C4DAEE", "#E4EEF7"]
+_UNASSESSED    = "#D6D2C7"   # a band-less segment inside an otherwise-RAG stack
 _PATINA        = "#2FA98C"   # chrome only — today lines, brand accent
 _INK           = "#14171C"   # primary text, milestone diamonds
 _MUTED         = "#4A4F58"   # secondary text, axis labels
@@ -68,6 +71,20 @@ A second question decides which *variant* a RAG mark takes:
 - **`mid` (desaturated)** — the mark is a **region**: a bullet zone band, a heat-matrix cell, a stacked-bar segment, a gauge zone arc.
 
 Regions are large areas that carry a text label on top, so they must be light enough for the band's `text` colour to sit on them. That is also why no mark composites `opacity`: an opacity-blended colour is not the colour any contrast check validated.
+
+### Categories are not severities
+
+RAG is reserved for data that carries a band. A composition mark over **categories** — incident source, asset class, control family, business unit — has no severity, so it must not borrow the risk palette: red on "Supply chain" asserts a danger the data never claimed, and a reader who has learnt the RAG contract will believe it.
+
+Categorical composition stays inside the MEASURE bucket and separates by **lightness** rather than hue, using `_MEASURE_RAMP`. `stacked_bar()` decides per chart:
+
+| The stack's segments | Palette |
+|---|---|
+| any segment carries `sev` | RAG — each segment takes its band's `mid` tone |
+| a segment in that stack has no `sev` | `_UNASSESSED` grey — genuinely unassessed, never a band colour |
+| no segment carries `sev` | `_MEASURE_RAMP`, assigned by segment label so a category keeps its step across every period |
+
+A mark is never half status and half category — the decision is made once for the whole chart. Text colour on a ramp step is chosen by measured contrast (`_on()`), not by a hardcoded index.
 
 ### `zones` is direction-dependent
 
@@ -133,6 +150,10 @@ The metrics engine emits `"higher-better"` / `"lower-better"`; both spellings ar
 
 Raises `ValueError` if `d` is not a recognisable ISO date string (`YYYY-MM` or `YYYY-MM-DD`).
 Called at gantt date collection time — malformed dates raise rather than silently producing 0-width bars.
+
+### `_relative_luminance(hex)` / `_on(bg)`
+
+`_on()` returns ink or white for a given ground, whichever measures higher contrast. Used for text on `_MEASURE_RAMP` steps so the choice is derived rather than hardcoded to an index.
 
 ### `zones_from_threshold(threshold, direction)`
 
@@ -241,9 +262,10 @@ def _zone_sev(value, zones, direction="higher"):
 
 ### 13. `stacked_bar(periods)`
 
-- `periods` = `[{label, segments: [{sev, value}]}]`.
-- Fill = `_RAG[sev]["fill"]` if sev, else `_MEASURE`. **`_PATINA` is never a segment fill.**
-- **Mandatory value labels**: printed inside segments when segment height ≥ 14 px. Text colour: white for good/critical, `_RAG[sev]["text"]` for medium/high.
+- `periods` = `[{label, segments: [{value, sev?, label?}]}]`.
+- **Palette chosen per chart** — see "Categories are not severities" above. RAG stacks use `mid` tones; categorical stacks use `_MEASURE_RAMP` keyed on segment label; a band-less segment inside a RAG stack takes `_UNASSESSED`.
+- **Mandatory value labels** — printed inside any segment ≥ 14 px tall. Text colour is the band's `text` on RAG, or `_on(fill)` on a ramp step.
+- **`_PATINA` is never a segment fill.**
 
 ### 14. `small_multiples(metrics, mark_fn, axis_max=None)`
 
@@ -278,7 +300,7 @@ The proportional spacing is the mark's whole value: on an incident timeline, det
 
 ---
 
-## Self-Test (53 checks)
+## Self-Test (56 checks)
 
 Run with `python3 cac_graphics.py self-test`.
 
@@ -337,6 +359,9 @@ Run with `python3 cac_graphics.py self-test`.
 | 51 | `bullet` zones → no `opacity` attribute |
 | 52 | `bullet` accepts `direction="higher-better"` |
 | 53 | `_zone_sev` accepts `direction="lower-better"` |
+| 54 | **Categorical `stacked_bar` emits no RAG colour** |
+| 55 | A category keeps its ramp step across every period |
+| 56 | Band-less segment in a RAG stack → `_UNASSESSED`, not a band |
 
 ---
 
