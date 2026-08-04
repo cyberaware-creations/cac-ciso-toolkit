@@ -143,15 +143,19 @@ def disclosure_block(row: dict) -> str:
             f'<h4>Filings recorded</h4><p class="rec">{filings}</p>{link_line}')
 
 
-def incident_card(row: dict) -> str:
+def incident_card(row: dict, today: str) -> str:
     scope = (f'<p class="rec">{C.esc(row["scopeNote"])}</p>' if row["scopeNote"] else "")
+    # The chronology sits above the trail, because the first question asked of this card is
+    # where today stands against the next date — and the tables below answer it in words.
+    chrono = C.timeline_block(row, today)
+    chrono = f'<h4>Disclosure chronology</h4>{chrono}' if chrono else ""
     return (
         f'<div class="card"><h3>{C.esc(row["id"])} — {C.esc(row["title"])} '
         f'{C.band_chip(row["band"])}</h3>'
         f'<p class="who">discovered {C.esc(row["discoveredAt"])} · '
         f'{row["daysSinceDiscovery"]} days ago · '
         f'{C.esc(", ".join(C.REGIME_LABEL.get(r, r) for r in row["regimes"]) or "no regime tracked")}'
-        f'</p>{scope}'
+        f'</p>{scope}{chrono}'
         f'<h4>Determination trail</h4>{determination_trail(row)}'
         f'<h4>Factors assessed</h4>{factor_table(row)}'
         f'<h4>Regulatory windows</h4>{clock_table(row)}'
@@ -193,7 +197,8 @@ def main(argv=None) -> int:
            else 'no holiday calendar supplied — a deadline falling on a federal holiday will '
                 'be computed one day early')
     body = (
-        f'<h1>Materiality determination worksheet — {C.esc(client)}</h1>'
+        C.band("Cyber Aware Creations", "Determination worksheet")
+        + f'<h1>Materiality determination worksheet — {C.esc(client)}</h1>'
         f'<p class="sub">{len(ctx.incidents)} incident'
         f'{"s" if len(ctx.incidents) != 1 else ""} · as at {C.esc(ctx.today)} · '
         f'{C.esc(hol)}</p>'
@@ -202,8 +207,8 @@ def main(argv=None) -> int:
         + ctx.verdict_block()
         + ctx.clock_rule_block()
         + (ctx.caveat_block() if ctx.any_linked() else "")
-        + "<h2>Incidents</h2>"
-        + ("".join(incident_card(r) for r in ctx.incidents)
+        + "<h2>Incidents</h2>" + C.legend()
+        + ("".join(incident_card(r, ctx.today) for r in ctx.incidents)
            or '<p class="muted">No incidents in this store.</p>')
         + "<h2>Attention</h2>" + attention_lists(ctx)
         + ctx.footer())

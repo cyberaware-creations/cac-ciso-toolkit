@@ -16,15 +16,23 @@ import _common as C
 
 
 def tiles(ctx: C.Context) -> str:
+    """The same four attention counts the board view leads on, plus the due list.
+
+    Coloured on the same rule and from the same mapping as every other mark on the page:
+    only a non-empty count takes a band, and the two population counts never take one.
+    """
     a = ctx.attention
-    cells = [(ctx.counts["acceptances"], "accepted risks"),
-             (ctx.counts["exceptions"], "control exceptions"),
-             (len(a["overdue"]), "overdue for re-validation"),
-             (len(a["due"]), "due for re-validation"),
-             (len(a["expired"]), "past their expiry date")]
-    return ('<div class="tiles">' + "".join(
-        f'<div class="tile"><span class="n">{n}</span><span class="l">{C.esc(l)}</span></div>'
-        for n, l in cells) + "</div>")
+    cells = [(ctx.counts["acceptances"], "accepted risks", None),
+             (ctx.counts["exceptions"], "control exceptions", None),
+             (len(a["overdue"]), "overdue for re-validation", "critical"),
+             (len(a["due"]), "due for re-validation", "high"),
+             (len(a["expired"]), "past their expiry date", "critical")]
+    out = ""
+    for n, label, sev in cells:
+        colour = C.G._sev_colour(sev, "text") if (sev and n) else C.INK
+        out += (f'<div class="tile"><span class="n" style="color:{colour}">{n}</span>'
+                f'<span class="l">{C.esc(label)}</span></div>')
+    return f'<div class="tiles">{out}</div>'
 
 
 def table(ctx: C.Context) -> str:
@@ -95,12 +103,14 @@ def main(argv=None) -> int:
     ctx = C.Context(C.build_parser(__doc__.split("\n")[0], "exceptions-inventory.html")
                     .parse_args(argv))
     client = ctx.meta.get("clientName") or "Exceptions register"
-    body = (f'<h1>Acceptances and exceptions — {C.esc(client)}</h1>'
+    body = (C.band("Cyber Aware Creations", "Operational view")
+            + f'<h1>Acceptances and exceptions — {C.esc(client)}</h1>'
             f'<p class="sub">{ctx.counts["active"]} active · {ctx.counts["closed"]} closed '
             f'· re-validation shows as due {ctx.window} days ahead · '
             f'as at {C.esc(ctx.today)}</p>'
             + tiles(ctx)
             + ctx.caveat_block()
+            + C.section("What we are carrying, and until when", C.lifecycle_block(ctx))
             + '<h2>The inventory</h2>' + table(ctx)
             + '<h2>Attention</h2>' + attention(ctx)
             + ctx.footer())

@@ -14,9 +14,17 @@ from __future__ import annotations
 import argparse
 import html
 import json
+import re
+from datetime import date
+
+# Vendored alongside this file, for the same reason this file is vendored: a shipped
+# script must run from its own skill directory with no path surgery.
+# tools/check-versions.py fails if this copy drifts from tools/cac_graphics.py.
+import cac_graphics as G
 
 INK = "#14171C"
 LIME = "#EAE7DF"
+PATINA = "#2FA98C"
 SLATE = "#666D7C"
 WB = "#F6F4EE"
 WB_SURF = "#FFFFFF"
@@ -42,6 +50,89 @@ BAND_LABEL = {
 }
 KIND_LABEL = {"acceptance": "accepted risk", "exception": "control exception"}
 
+# --- Engine band -> the graphics library's RAG band ----------------------------
+# One mapping, used by every mark and every chip on the page, so the chip, the graphic
+# and the count cannot disagree about the same record.
+#
+# RAG is legitimate here because these bands are declared, not invented. A record carries
+# a re-validation date and a due window the register itself recorded; `overdue` and
+# `expired` mean a stated clock has lapsed, and `current` means it has not. That is the
+# same shape as the metrics sibling's threshold statuses, and the mapping mirrors it:
+# the engine bands on two levels, so `revalidation-due` maps to `high` rather than
+# `medium` — a yellow chip beside an amber bar for one record would be two answers to
+# one question.
+#
+# `expired` and `revalidation-overdue` both map to `critical`: both are a lapsed clock,
+# and neither is worse than the other in a way this palette could carry. The band word
+# is always rendered beside the colour, so the two stay distinguishable — see sev_for.
+#
+# `closed` maps to None. So does a record with no dated clock at all: with nothing
+# declared there is no threshold, and painting it would invent the band the register
+# declined to record.
+BAND_SEV = {
+    "current": "good",
+    "revalidation-due": "high",
+    "revalidation-overdue": "critical",
+    "expired": "critical",
+    "closed": None,
+}
+
+
+def sev_for(row: dict):
+    """The RAG band for a record, or None when nothing was declared to band it against.
+
+    Never computed from dates here. `band` is the engine's, carried straight through:
+    a renderer that decided for itself whether a clock had lapsed could disagree with
+    the inventory an auditor was handed, and the register is the system of record.
+    """
+    if not (row.get("revalidationDate") or row.get("expiryDate")):
+        return None
+    return BAND_SEV.get(row.get("band"))
+
+
+_ISO = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def iso_or_none(value):
+    """A date the graphics library will accept, or None. Never a guess at what was meant.
+
+    `G.gantt` and `G.milestone_timeline` raise ValueError on a malformed date — deliberately,
+    because the alternative was a silent zero-width bar. A register can still hold a date
+    this renderer cannot draw (an import, a hand-edited store), and one bad field must not
+    take the whole report down. So dates are screened here, the record keeps its row, and
+    what could not be drawn is named on the page rather than dropped.
+    """
+    text = "" if value is None else str(value)
+    if not _ISO.match(text):
+        return None
+    try:
+        date.fromisoformat(text)
+    except ValueError:
+        return None
+    return text
+
+
+def window_elapsed(row: dict):
+    """How much of the granted window has already gone, 0..1, or None.
+
+    A duration, never a judgement: this is what the gantt's blue fill encodes, and it has
+    no threshold, so it is never RAG. The arithmetic is over two dates the register
+    recorded and the engine's own `daysToExpiry`; it decides nothing about the band.
+
+    Clamped at 1.0, because a record past its expiry has used all of its window and a bar
+    longer than its track would be a drawing error rather than a fact.
+    """
+    start = iso_or_none(row.get("acceptedDate"))
+    end = iso_or_none(row.get("expiryDate"))
+    remaining = row.get("daysToExpiry")
+    if not (start and end) or remaining is None:
+        return None
+    total = (date.fromisoformat(end) - date.fromisoformat(start)).days
+    if total <= 0:
+        return None
+    return max(0.0, min(1.0, (total - remaining) / total))
+
+
 DISCLAIMER = "A Cyber Aware Creation · Not affiliated with NIST · Not legal advice"
 PLACEHOLDER = ("Board narrative not supplied. Run the ciso-board-translation skill over this "
                "register and pass its output with --translations to replace this block.")
@@ -65,6 +156,22 @@ def band_chip(band: str) -> str:
     bg, fg = BAND_FILL.get(band, BAND_FILL["closed"])
     return (f'<span class="chip" style="background:{bg};color:{fg}">'
             f'{esc(BAND_LABEL.get(band, band))}</span>')
+
+
+def band_chip_mark(row: dict) -> str:
+    """The lifecycle state as the shared library's status chip: dot, tint, and the word.
+
+    Falls back to the HTML chip when the record has no declared clock — `G.rag_chip`
+    returns an empty string for a band-less state, and a record that rendered no state at
+    all would be a record the reader could not see. A lapsed clock surfaces an item; so
+    does a missing one.
+    """
+    sev = sev_for(row)
+    band = row.get("band", "")
+    svg = G.rag_chip(sev, BAND_LABEL.get(band, band)) if sev else ""
+    if not svg:
+        return band_chip(band)
+    return f'<span class="chipmark">{svg}</span>'
 
 
 def days_phrase(days, noun: str) -> str:
@@ -220,10 +327,156 @@ th{{color:{MUTED};font-size:13px;font-weight:600;white-space:nowrap}}
 .caveat p{{margin:0}}
 footer{{color:{MUTED};font-size:12.5px;margin-top:28px;padding-top:14px;
   border-top:1px solid {WB_LINE}}}
+/* CAC chrome. A compact band, not a cover: these are working views, and a
+   full-page cover on a section a reader opens twenty times is furniture. */
+.band{{background:{INK};color:{LIME};border-radius:10px;padding:14px 18px;
+  margin:0 0 18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}}
+.band .lockup{{font-family:'Space Grotesk',Manrope,sans-serif;font-weight:600;
+  font-size:13px;letter-spacing:.02em}}
+.band .spark{{width:9px;height:9px;border-radius:2px;background:{PATINA};
+  flex:0 0 auto}}
+.band .kicker{{margin-left:auto;color:{PATINA};font-size:11px;font-weight:700;
+  letter-spacing:.12em;text-transform:uppercase}}
+
+/* Marks size to their column and never push the page sideways. */
+.mark{{margin:10px 0 2px}}
+.mark svg{{display:block;max-width:100%;height:auto}}
+/* A status chip sits on a line of prose, so it is the one mark that stays inline. */
+.chipmark svg{{display:inline-block;vertical-align:-7px}}
+
+/* The legend states what the colours mean, once per page. Without it a reader
+   has to infer the contract from the marks. */
+.legend{{display:flex;gap:14px;flex-wrap:wrap;color:{MUTED};font-size:12px;
+  margin:6px 0 0}}
+.legend span{{display:flex;align-items:center;gap:6px}}
+.legend i{{width:14px;height:10px;border-radius:2px;display:block;flex:0 0 auto}}
+.legend i.today{{background:none;border-top:2px dashed {PATINA};height:0;border-radius:0}}
+.note{{color:{MUTED};font-size:12.5px;margin:8px 0 0}}
 @media (max-width:560px){{body{{padding:14px}} h1{{font-size:22px}}
   .tile .n{{font-size:24px}}}}
-@media print{{body{{background:#fff;padding:0}} .card,.tile,.caveat{{break-inside:avoid}}}}
+@media print{{body{{background:#fff;padding:0}} .card,.tile,.caveat{{break-inside:avoid}}
+  .band{{-webkit-print-color-adjust:exact;print-color-adjust:exact}}}}
 """
+
+
+def section(heading: str, body: str) -> str:
+    """A heading only where there is something under it. An empty section reads as a bug."""
+    return f'<h2>{esc(heading)}</h2>{body}' if body else ""
+
+
+def band(title: str, kicker: str = "") -> str:
+    """The CAC header band: ink ground, patina spark, lockup, optional kicker."""
+    k = f'<span class="kicker">{esc(kicker)}</span>' if kicker else ""
+    return (f'<div class="band"><span class="spark"></span>'
+            f'<span class="lockup">{esc(title)}</span>{k}</div>')
+
+
+def legend() -> str:
+    """What the colours mean, in this register's own words.
+
+    Measure first: the granted window is a duration and carries no band, which is the
+    default here rather than the exception. Patina is last and is labelled as chrome —
+    it marks today and never says anything about a record.
+    """
+    items = [(G._MEASURE, "granted window elapsed"),
+             (G._RAG["good"]["fill"], "current"),
+             (G._RAG["high"]["fill"], "re-validation due"),
+             (G._RAG["critical"]["fill"], "re-validation overdue or past expiry")]
+    out = [f'<span><i style="background:{c}"></i>{esc(t)}</span>' for c, t in items]
+    out.append('<span><i class="today"></i>today — chrome, never a status</span>')
+    return f'<div class="legend">{"".join(out)}</div>'
+
+
+# The graphics standard puts the gantt's ceiling at eight rows: past that the bars are
+# thinner than their labels and the mark stops answering anything. A register can hold
+# far more than eight live records, so the rows shown are the most urgent ones and the
+# page says how many it is not drawing. Nothing is dropped — every record is in the table
+# or the cards below, which is where a lapsed clock has to keep surfacing.
+GANTT_ROW_LIMIT = 8
+
+# Expired first, then overdue, then due, then the rest, and by id inside a rank. Same
+# order the board view ranks its cards by, so the mark and the page agree, and
+# deterministic so one register always draws the same chart.
+_BAND_ORDER = {"expired": 0, "revalidation-overdue": 1, "revalidation-due": 2}
+
+
+def lifecycle_rows(ctx: "Context") -> list:
+    return sorted(ctx.active(), key=lambda r: (_BAND_ORDER.get(r["band"], 3), r["id"]))
+
+
+def lifecycle_block(ctx: "Context") -> str:
+    """The granted windows, as a gantt, with the re-validation dates on the same axis.
+
+    A gantt rather than a milestone timeline, deliberately. Every record here has a start
+    (the date it was accepted) and, where one was set, an end (the date it expires) — a
+    duration, and the standard's test between the two marks is exactly that. The count
+    settles it the same way: a record contributes both an expiry and a re-validation, so
+    four records are eight events and the standard forbids a timeline past six.
+
+    Bars are MEASURE blue because length is duration and fill is elapsed window, neither
+    of which has a threshold. The lifecycle band is a separate declared judgement, so it
+    gets the chip. That is the library's contract, not a choice made here.
+    """
+    rows = lifecycle_rows(ctx)
+    if not rows:
+        return ""
+    shown = rows[:GANTT_ROW_LIMIT]
+    phases, reval_dates, no_window, unusable = [], set(), [], []
+    for r in shown:
+        start = iso_or_none(r.get("acceptedDate"))
+        end = iso_or_none(r.get("expiryDate"))
+        phase = {"label": r["id"], "sev": sev_for(r) or ""}
+        if start and end and start <= end:
+            phase["start"], phase["end"] = start, end
+            phase["pct"] = window_elapsed(r) or 0.0
+        elif not r.get("expiryDate"):
+            # The row stays, with its label and its state, and the reason it has no bar is
+            # printed under the chart. An expiry date that was never set is a fact about
+            # the record; inferring an end from the re-validation date would be an
+            # invention, and one that would read as an approved end date.
+            no_window.append(r["id"])
+        else:
+            unusable.append(r["id"])
+        phases.append(phase)
+        reval = iso_or_none(r.get("revalidationDate"))
+        if reval:
+            reval_dates.add(reval)
+    # One diamond per distinct date, and no label on it. Registers review on a cycle, so
+    # several records share a date; labelling each one printed four ids on top of each
+    # other and the mark said less than nothing. Which record is due when is in the table
+    # and in the cards, where it can be read. What the diamonds answer here is the
+    # aggregate question the row labels cannot: how many reviews are stacked up, and how
+    # many of them sit behind today.
+    milestones = [{"label": "", "date": d} for d in sorted(reval_dates)]
+    try:
+        svg = G.gantt(phases, today=iso_or_none(ctx.today) or "", milestones=milestones)
+    except ValueError as exc:
+        # Belt and braces: the dates were screened above, so this is a library rule this
+        # renderer has not anticipated. Say so on the page — a missing chart with no
+        # explanation reads as a chart with nothing in it.
+        return (f'<div class="card"><div class="ph">The lifecycle chart could not be '
+                f'drawn: {esc(exc)}. Every record is still listed below.</div></div>')
+    if not svg:
+        return ""
+    notes = ['Each bar runs from the date the record was accepted to the date it expires. '
+             'The blue fill is how much of that granted window has already gone — a '
+             'duration, not a verdict. Each diamond on the top rule is a date somebody '
+             'must look again, one per date; the dashed line is today, so a diamond to '
+             'its left is a review that has already come round.',
+             'Bars are ordered by date rather than scaled to it, so read a fill as a share '
+             'of its own window and the dashed line as where today falls.']
+    if no_window:
+        notes.append("No expiry date is recorded, so there is no window to draw: "
+                     + ", ".join(no_window) + ". The record still stands.")
+    if unusable:
+        notes.append("The accepted and expiry dates could not be drawn as a window — one "
+                     "of them is missing, is not in YYYY-MM-DD form, or the end falls "
+                     "before the start: " + ", ".join(unusable) + ". Fix them in the store.")
+    if len(rows) > len(shown):
+        notes.append(f"Showing the {len(shown)} most pressing of {len(rows)} active "
+                     f"records, expiry and overdue first. The rest are below, in full.")
+    body = "".join(f'<p class="note">{esc(n)}</p>' for n in notes)
+    return (f'<div class="card"><div class="mark">{svg}</div>{legend()}{body}</div>')
 
 
 def page(title: str, body: str, offline: bool = False) -> str:

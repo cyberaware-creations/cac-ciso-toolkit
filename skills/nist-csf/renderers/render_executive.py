@@ -159,9 +159,15 @@ def rollup(ctx: c.Context) -> str:
             f'<div class="tbig">{c.esc(big)}</div>{sub}'
             f'<div class="tcomp">{c.esc(c.completeness_line(comp))}</div>'
             f'<div class="tmove">{move}</div></div>')
+    # The mark is handed no `sev`, which is what keeps a coverage bar out of the RAG
+    # ramp — see the block comment above c.coverage_bar. It sits above the tiles as
+    # the comparison across Functions; the tiles remain the record, because they are
+    # what carry the completeness line and the "not yet targeted" wording.
     return (f'<section><h2>Where the programme stands</h2>'
             f'<div class="hint">Coverage of the Target this organisation set for itself — '
             f'not a score against an external benchmark. Movement is versus the last review.</div>'
+            f'{c.legend()}'
+            f'{c.coverage_bar(ctx)}'
             f'<div class="tiles">{"".join(tiles)}</div></section>')
 
 
@@ -391,7 +397,13 @@ def main(argv):
                    f'<strong>Executive summary not supplied.</strong> {c.esc(c.PLACEHOLDER)}'
                    f'</div></section>')
 
-    body = (head + "<main>" + summary + headline_or_guard(ctx) + evidence_block(ctx)
+    # The CAC band opens the body proper. It sits inside <main> rather than above the
+    # ink header: this skill's header() already carries the lockup and the AnvilMark,
+    # and stacking a second ink block on top of it would read as a rendering fault
+    # rather than as chrome. Here it works as the artifact kicker the sibling skills
+    # get from the band alone.
+    body = (head + "<main>" + c.band("Cyber Aware Creations", "Board view")
+            + summary + headline_or_guard(ctx) + evidence_block(ctx)
             + rollup(ctx) + tier_block(ctx)
             + top_gaps(ctx) + what_changed(ctx) + decisions(ctx) + "</main>"
             + f'<footer>{c.esc(ctx.footer(ctx.overlay.get("provenance", "")))}</footer>')
