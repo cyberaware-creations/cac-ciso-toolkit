@@ -17,7 +17,13 @@
     "third-party": "Vendor exposure is unchanged and remains our single largest residual risk."
   },
   "decisions": [
-    "Fund DMARC enforcement and supplier bank-detail verification to bring payment fraud (R-007) back within appetite, or record the board's acceptance of a Critical residual.",
-    "Fund network segmentation to hold the ransomware improvement (R-006), which is currently within appetite on a patch alone."
+    {
+      "text": "Fund DMARC enforcement and supplier bank-detail verification to bring payment fraud (R-007) back within appetite, or record the board's acceptance of a Critical residual.",
+      "altitude": "board"
+    },
+    {
+      "text": "Fund network segmentation to hold the ransomware improvement (R-006), which is currently within appetite on a patch alone.",
+      "altitude": "board"
+    }
   ]
 }
