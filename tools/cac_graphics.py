@@ -13,12 +13,16 @@ import math as _math
 import sys as _sys
 
 # ── Colour contract ────────────────────────────────────────────────────────────
-# RAG — only where thresholds or declared status exist
+# RAG — four variants per band.
+#   fill  — saturated; use for bars, dots, line strokes where the mark IS status.
+#   text  — dark, accessible; use on tint backgrounds (chips) and as value labels.
+#   tint  — pale; chip/badge backgrounds. Never on data.
+#   mid   — desaturated zone band fill; replaces opacity compositing on bullet zones.
 _RAG = {
-    "good":     "#30915B",
-    "medium":   "#e8c547",
-    "high":     "#e08e0b",
-    "critical": "#c0392b",
+    "good":     {"fill": "#30915B", "text": "#25764A", "tint": "#E3EDE4", "mid": "#86BE9C"},
+    "medium":   {"fill": "#e8c547", "text": "#7A6410", "tint": "#FBF3D6", "mid": "#F0DC92"},
+    "high":     {"fill": "#e08e0b", "text": "#8F5B06", "tint": "#F7EBD9", "mid": "#EEC17E"},
+    "critical": {"fill": "#c0392b", "text": "#8B2119", "tint": "#F6E0DC", "mid": "#DFA096"},
 }
 _MEASURE       = "#2E6FA7"   # data without thresholds
 _MEASURE_TRACK = "#D8E4F1"   # track / background of measure bars
@@ -40,11 +44,60 @@ _GANTT_CHIP = {
 }
 
 
-def _sev_colour(sev):
-    """RAG hex for sev, or MEASURE when absent/empty."""
+def _sev_colour(sev, variant="fill"):
+    """RAG colour for sev. variant = fill | text | tint | mid. MEASURE when absent."""
     if sev and sev in _RAG:
-        return _RAG[sev]
+        return _RAG[sev][variant]
     return _MEASURE
+
+
+def _normalize_direction(direction):
+    """Accept 'higher'/'higher-better' and 'lower'/'lower-better'."""
+    if direction in ("higher", "higher-better"):
+        return "higher"
+    if direction in ("lower", "lower-better"):
+        return "lower"
+    raise ValueError(f"unrecognised direction: {direction!r}")
+
+
+def _validate_iso(d, context=""):
+    """Raise ValueError if d is not a recognisable ISO date string."""
+    parts = str(d).split("-")
+    if len(parts) not in (2, 3) or not all(p.isdigit() for p in parts):
+        raise ValueError(
+            f"malformed date {d!r}" + (f" in {context}" if context else "")
+        )
+    return str(d)
+
+
+def zones_from_threshold(threshold, direction):
+    """
+    Convert engine threshold dict to zones list for bullet().
+
+    threshold = {"target": x, "warn": y, "critical": z}
+    direction = "higher-better" | "lower-better" (or without -better suffix)
+    Returns [(threshold_value, sev), ...] suitable for bullet() and _zone_sev().
+    """
+    direction = _normalize_direction(direction)
+    zones = []
+    t = threshold.get("target")
+    w = threshold.get("warn")
+    c = threshold.get("critical")
+    if direction == "higher":
+        if c is not None:
+            zones.append((c, "critical"))
+        if w is not None:
+            zones.append((w, "high"))
+        if t is not None:
+            zones.append((t, "medium"))
+    else:
+        if t is not None:
+            zones.append((t, "medium"))
+        if w is not None:
+            zones.append((w, "high"))
+        if c is not None:
+            zones.append((c, "critical"))
+    return zones
 
 
 def _esc(s):
@@ -65,6 +118,7 @@ def _fmt(v):
 
 def _zone_sev(value, zones, direction="higher"):
     """Compute RAG severity from zone list [(threshold, sev), ...]."""
+    direction = _normalize_direction(direction)
     sorted_z = sorted(zones, key=lambda z: z[0])
     if direction == "higher":
         for thresh, s in sorted_z:
@@ -80,16 +134,17 @@ def _zone_sev(value, zones, direction="higher"):
 
 # ── Mark 1: KPI Tile ───────────────────────────────────────────────────────────
 
-def kpi_tile(value, label, delta="", unit="", sev=""):
-    """Stat tile. RAG only if sev passed. Delta NEVER coloured by sign."""
+def kpi_tile(value, label, delta="", unit="", sev="", delta_sev=None):
+    """Stat tile. RAG only if sev passed. Delta coloured by delta_sev, never by sign."""
     w, h = 200, 110
     fill = _sev_colour(sev) if sev else _MEASURE
     vtext = f"{_esc(str(value))}{_esc(unit)}"
     delta_svg = ""
     if delta:
+        delta_col = _sev_colour(delta_sev, "text") if delta_sev and delta_sev in _RAG else _MUTED
         delta_svg = (
             f'<text x="{w // 2}" y="82" text-anchor="middle" '
-            f'font-size="13" fill="{_MUTED}">{_esc(str(delta))}</text>'
+            f'font-size="13" fill="{delta_col}">{_esc(str(delta))}</text>'
         )
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" '
@@ -110,16 +165,24 @@ def kpi_tile(value, label, delta="", unit="", sev=""):
 # ── Mark 2: RAG Chip ───────────────────────────────────────────────────────────
 
 def rag_chip(sev, label):
-    """Coloured pill for RAG status."""
-    fill = _RAG.get(sev, _MEASURE)
-    text_col = "#FFFFFF" if sev in ("good", "high", "critical") else _INK
-    ch_w = max(80, len(label) * 8 + 24)
-    h = 28
+    """Status chip: tint background + coloured dot + accessible dark text."""
+    if sev not in _RAG:
+        return ""
+    tint = _RAG[sev]["tint"]
+    dot_fill = _RAG[sev]["fill"]
+    text_col = _RAG[sev]["text"]
+    h = 24
+    dot_r = 4
+    dot_cx = 10 + dot_r
+    text_x = dot_cx + dot_r + 5
+    ch_w = max(70, text_x + len(label) * 7 + 10)
+    cy = h // 2
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{ch_w}" height="{h}" '
         f'viewBox="0 0 {ch_w} {h}">'
-        f'<rect width="{ch_w}" height="{h}" rx="{h // 2}" fill="{fill}"/>'
-        f'<text x="{ch_w // 2}" y="19" text-anchor="middle" '
+        f'<rect width="{ch_w}" height="{h}" rx="{cy}" fill="{tint}"/>'
+        f'<circle cx="{dot_cx}" cy="{cy}" r="{dot_r}" fill="{dot_fill}"/>'
+        f'<text x="{text_x}" y="{cy + 4}" '
         f'font-size="12" font-family="{_FONT_BODY}" '
         f'font-weight="600" fill="{text_col}">{_esc(label)}</text>'
         f'</svg>'
@@ -128,12 +191,19 @@ def rag_chip(sev, label):
 
 # ── Mark 3: Bullet Graph ───────────────────────────────────────────────────────
 
-def bullet(value, target, zones, direction="higher", unit="", labels=True):
-    """Bullet graph. zones=[(threshold, sev), ...]. Bar fill = zone of value."""
-    w, h = 280, 60
-    bar_y, bar_h = 20, 20
+def bullet(value, target, zones, direction="higher", unit="", labels=True,
+           axis_max=None):
+    """
+    Bullet graph. zones=[(threshold, sev), ...]. Bar fill = zone of value.
+
+    axis_max: explicit scale ceiling (use 100 for percent metrics). Defaults to
+    1.1× the largest value/threshold. Set explicitly to make a metric wall
+    comparable — different auto-scales make bars unreadable side by side.
+    """
+    w, h = 280, 72
+    bar_y, bar_h = 26, 24
     all_thresh = [z[0] for z in zones] + [value, target]
-    scale_max = max(all_thresh) * 1.1
+    scale_max = axis_max if axis_max is not None else max(all_thresh) * 1.1
     if scale_max == 0:
         scale_max = 1
     chart_w = w - 40
@@ -146,49 +216,73 @@ def bullet(value, target, zones, direction="higher", unit="", labels=True):
     prev_x = 20.0
     for thresh, s in sorted_z:
         tx = to_x(thresh)
+        mid = _RAG[s]["mid"] if s in _RAG else _MUTED
         zone_rects += (
             f'<rect x="{prev_x:.1f}" y="{bar_y}" '
             f'width="{tx - prev_x:.1f}" height="{bar_h}" '
-            f'fill="{_RAG.get(s, _MUTED)}" opacity="0.20"/>'
+            f'fill="{mid}"/>'
         )
         prev_x = tx
     end_x = to_x(scale_max)
     zone_rects += (
         f'<rect x="{prev_x:.1f}" y="{bar_y}" '
         f'width="{end_x - prev_x:.1f}" height="{bar_h}" '
-        f'fill="{_RAG["good"]}" opacity="0.20"/>'
+        f'fill="{_RAG["good"]["mid"]}"/>'
     )
 
     bar_sev = _zone_sev(value, zones, direction)
-    bar_fill = _RAG.get(bar_sev, _MEASURE)
+    bar_fill = _RAG[bar_sev]["fill"] if bar_sev in _RAG else _MEASURE
+    bar_text = _RAG[bar_sev]["text"] if bar_sev in _RAG else _MUTED
     val_x = to_x(value)
+
+    # White measure lane punches through zone colours so the bar edge stays crisp
+    lane = (
+        f'<rect x="20" y="{bar_y + 7}" width="{end_x - 20:.1f}" '
+        f'height="{bar_h - 14}" fill="#FFFFFF"/>'
+    )
     val_bar = (
-        f'<rect x="20" y="{bar_y + 4}" width="{val_x - 20:.1f}" '
-        f'height="{bar_h - 8}" rx="2" fill="{bar_fill}"/>'
+        f'<rect x="20" y="{bar_y + 7}" width="{val_x - 20:.1f}" '
+        f'height="{bar_h - 14}" rx="2" fill="{bar_fill}"/>'
+    )
+
+    # Value label above the bar tip, in the zone's text colour
+    val_label = (
+        f'<text x="{val_x:.1f}" y="{bar_y - 4}" '
+        f'text-anchor="middle" font-size="10" '
+        f'font-family="{_FONT_BODY}" fill="{bar_text}">'
+        f'{_esc(_fmt(value))}{_esc(unit)}</text>'
     )
 
     tgt_x = to_x(target)
+    # Target tick: white halo first so it reads through the bar when value > target
     target_line = (
-        f'<line x1="{tgt_x:.1f}" y1="{bar_y - 3}" '
-        f'x2="{tgt_x:.1f}" y2="{bar_y + bar_h + 3}" '
-        f'stroke="{_INK}" stroke-width="2.5"/>'
+        f'<line x1="{tgt_x:.1f}" y1="{bar_y - 2}" '
+        f'x2="{tgt_x:.1f}" y2="{bar_y + bar_h + 2}" '
+        f'stroke="#FFFFFF" stroke-width="5"/>'
+        f'<line x1="{tgt_x:.1f}" y1="{bar_y - 2}" '
+        f'x2="{tgt_x:.1f}" y2="{bar_y + bar_h + 2}" '
+        f'stroke="{_INK}" stroke-width="2.4"/>'
     )
 
     label_svg = ""
     if labels:
         label_svg = (
             f'<text x="20" y="{bar_y + bar_h + 14}" font-size="10" '
-            f'font-family="{_FONT_BODY}" fill="{_MUTED}">0</text>'
-            f'<text x="{end_x:.1f}" y="{bar_y + bar_h + 14}" '
-            f'text-anchor="end" font-size="10" '
-            f'font-family="{_FONT_BODY}" fill="{_MUTED}">'
-            f'{_fmt(scale_max)}{_esc(unit)}</text>'
+            f'font-family="{_FONT_BODY}" fill="{_MUTED}">0{_esc(unit)}</text>'
         )
+        # Suppress axis max when target is near the end (would collide)
+        if target / scale_max < 0.88:
+            label_svg += (
+                f'<text x="{end_x:.1f}" y="{bar_y + bar_h + 14}" '
+                f'text-anchor="end" font-size="10" '
+                f'font-family="{_FONT_BODY}" fill="{_MUTED}">'
+                f'{_fmt(scale_max)}{_esc(unit)}</text>'
+            )
 
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" '
         f'viewBox="0 0 {w} {h}">'
-        f'{zone_rects}{val_bar}{target_line}{label_svg}'
+        f'{zone_rects}{lane}{val_bar}{val_label}{target_line}{label_svg}'
         f'</svg>'
     )
 
@@ -318,9 +412,15 @@ def radial_gauge(value, min_v, max_v, zones=None, sev=""):
 # ── Mark 7: Sparkline ─────────────────────────────────────────────────────────
 
 def sparkline(readings, unit="", sev=""):
-    """Returns '' if fewer than 4 readings."""
+    """Returns a note SVG if fewer than 4 readings — never a bare empty string."""
     if len(readings) < 4:
-        return ""
+        return (
+            f'<svg xmlns="http://www.w3.org/2000/svg" width="160" height="20" '
+            f'viewBox="0 0 160 20">'
+            f'<text x="0" y="14" font-size="10" font-family="{_FONT_BODY}" '
+            f'fill="{_MUTED}">≥4 readings needed</text>'
+            f'</svg>'
+        )
     w, h, pad = 160, 50, 6
     mn, mx = min(readings), max(readings)
     rng = mx - mn if mx != mn else 1
@@ -560,9 +660,10 @@ def heat_matrix(cells, row_labels=None, col_labels=None):
             if cell is None:
                 fill = "#F0F0F0"
                 txt = ""
+                sev = ""
             else:
                 sev = cell.get("sev", "")
-                fill = _RAG.get(sev, _MEASURE) if sev else _MEASURE
+                fill = _RAG[sev]["fill"] if sev and sev in _RAG else _MEASURE
                 txt = cell.get("label", "")
             out += (
                 f'<rect x="{x + 1}" y="{y + 1}" '
@@ -570,12 +671,14 @@ def heat_matrix(cells, row_labels=None, col_labels=None):
                 f'rx="3" fill="{fill}" opacity="0.85"/>'
             )
             if txt:
+                # good/critical fills are dark enough for white; amber/yellow need ink
+                txt_col = "#FFFFFF" if sev in ("good", "critical") else _INK
                 out += (
                     f'<text x="{x + cell_sz // 2}" '
                     f'y="{y + cell_sz // 2 + 4}" '
                     f'text-anchor="middle" font-size="11" '
                     f'font-family="{_FONT_BODY}" '
-                    f'fill="#FFFFFF">{_esc(str(txt))}</text>'
+                    f'fill="{txt_col}">{_esc(str(txt))}</text>'
                 )
 
     return (
@@ -612,13 +715,24 @@ def stacked_bar(periods):
             sev = seg.get("sev", "")
             val = seg.get("value", 0)
             # segment fills use RAG or MEASURE; _PATINA is never a segment fill
-            fill = _RAG.get(sev, _MEASURE)
+            fill = _RAG[sev]["fill"] if sev and sev in _RAG else _MEASURE
             seg_h = val / mx * chart_h
             y_cur -= seg_h
             out += (
                 f'<rect x="{x:.1f}" y="{y_cur:.1f}" '
                 f'width="{bar_w:.1f}" height="{seg_h:.1f}" fill="{fill}"/>'
             )
+            # Mandatory label — ΔE 13.3 between medium and high means colour
+            # alone cannot distinguish them; label when the segment is tall enough
+            if seg_h >= 14 and val:
+                txt_col = "#FFFFFF" if sev in ("good", "critical") else _INK
+                out += (
+                    f'<text x="{x + bar_w / 2:.1f}" '
+                    f'y="{y_cur + seg_h / 2 + 4:.1f}" '
+                    f'text-anchor="middle" font-size="9" '
+                    f'font-family="{_FONT_BODY}" fill="{txt_col}">'
+                    f'{_esc(_fmt(val))}</text>'
+                )
         lbl = period.get("label", "")
         out += (
             f'<text x="{x + bar_w / 2:.1f}" y="{h - 4}" '
@@ -738,17 +852,17 @@ def gantt(phases, today="", milestones=None):
     lbl_w = 110
     pad_y = 30
     row_h = 36
-    chip_col_w = 64   # wide enough for "ON TRACK"
+    chip_col_w = 92   # dot + "ON TRACK" at 9px — needs ~88px
     pct_col_w  = 32
-    w = 540
+    w = 568           # 568 = lbl_w + chart_w(326) + pct_col_w + chip_col_w + 8
 
-    # Build date index (lexicographic ISO = chronological)
+    # Build date index (lexicographic ISO = chronological); validate on entry
     all_dates = []
     for p in phases:
         if p.get("start"):
-            all_dates.append(str(p["start"]))
+            all_dates.append(_validate_iso(p["start"], f'phase "{p.get("label","")}" start'))
         if p.get("end"):
-            all_dates.append(str(p["end"]))
+            all_dates.append(_validate_iso(p["end"], f'phase "{p.get("label","")}" end'))
     if milestones:
         for m in milestones:
             if m.get("date"):
@@ -800,20 +914,22 @@ def gantt(phases, today="", milestones=None):
                 f'{int((pct or 0) * 100)}%</text>'
             )
 
-        # RAG chip: spec vocabulary ON TRACK / WATCH / AT RISK / LATE
+        # Status chip: tint bg + coloured dot + accessible dark word
         sev = phase.get("sev", "")
         if sev and sev in _RAG:
             chip_x = lbl_w + chart_w + pct_col_w + 4
             chip_label = _GANTT_CHIP.get(sev, sev.upper())
-            chip_fill = _RAG[sev]
-            text_col = "#FFFFFF"
-            # chip pill
+            chip_tint = _RAG[sev]["tint"]
+            chip_dot  = _RAG[sev]["fill"]
+            chip_txt  = _RAG[sev]["text"]
+            cw = chip_col_w - 4
             out += (
-                f'<rect x="{chip_x}" y="{cy - 8}" width="{chip_col_w - 4}" '
-                f'height="16" rx="8" fill="{chip_fill}"/>'
-                f'<text x="{chip_x + (chip_col_w - 4) // 2}" y="{cy + 4}" '
-                f'text-anchor="middle" font-size="8" font-weight="600" '
-                f'font-family="{_FONT_BODY}" fill="{text_col}">'
+                f'<rect x="{chip_x}" y="{cy - 9}" width="{cw}" '
+                f'height="18" rx="9" fill="{chip_tint}"/>'
+                f'<circle cx="{chip_x + 9}" cy="{cy}" r="4" fill="{chip_dot}"/>'
+                f'<text x="{chip_x + 17}" y="{cy + 4}" '
+                f'font-size="9" font-weight="600" '
+                f'font-family="{_FONT_BODY}" fill="{chip_txt}">'
                 f'{_esc(chip_label)}</text>'
             )
 
@@ -852,7 +968,7 @@ def gantt(phases, today="", milestones=None):
 
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" '
-        f'viewBox="0 0 {w} {h}">{out}</svg>'
+        f'viewBox="0 0 {w} {h}" style="max-width:100%;height:auto">{out}</svg>'
     )
 
 
@@ -884,7 +1000,7 @@ def _self_test():
                 return
         ok(name)
 
-    rag_vals = list(_RAG.values())
+    rag_vals = [v["fill"] for v in _RAG.values()]
 
     # 1. kpi_tile no sev → no RAG hex
     chk("kpi_tile no sev → no RAG colour", kpi_tile(42, "Score"), absent=rag_vals)
@@ -918,12 +1034,12 @@ def _self_test():
     chk("column_trend → MEASURE", column_trend([10, 20, 30, 25]),
         present=[_MEASURE])
 
-    # 10. sparkline 3 readings → empty string
+    # 10. sparkline 3 readings → note SVG (not empty, not a polyline)
     s = sparkline([1, 2, 3])
-    if s == "":
-        ok("sparkline <4 readings → empty string")
+    if s and "polyline" not in s:
+        ok("sparkline <4 readings → note (not empty, not a polyline)")
     else:
-        bad("sparkline <4 readings → empty string", "non-empty returned")
+        bad("sparkline <4 readings → note", "was empty or contained a polyline")
 
     # 11. sparkline 4 readings → non-empty
     s = sparkline([1, 2, 3, 4])
@@ -1056,9 +1172,66 @@ def _self_test():
         line_chart([10, 20, 15, 25, 18], sev="high"),
         present=["#e08e0b"])
 
+    # ── Contrast / accessibility checks (P1) ─────────────────────────────────
+
+    # 35. rag_chip medium → no white text (amber fill; white = 1.64:1, fails WCAG)
+    chk("rag_chip medium → no #FFFFFF text",
+        rag_chip("medium", "Watch"), absent=["#FFFFFF"])
+
+    # 36. rag_chip high → no white text (orange fill; white = 2.54:1, fails WCAG)
+    chk("rag_chip high → no #FFFFFF text",
+        rag_chip("high", "At Risk"), absent=["#FFFFFF"])
+
+    # 37. rag_chip medium → dark text colour (#7A6410)
+    chk("rag_chip medium → dark text #7A6410",
+        rag_chip("medium", "Watch"), present=[_RAG["medium"]["text"]])
+
+    # 38. rag_chip high → dark text colour (#8F5B06)
+    chk("rag_chip high → dark text #8F5B06",
+        rag_chip("high", "At Risk"), present=[_RAG["high"]["text"]])
+
+    # 39. gantt chip with medium sev → no white text
+    chk("gantt chip medium → no #FFFFFF",
+        gantt([{"label": "Ph1", "start": "2026-01", "end": "2026-06",
+                "sev": "medium"}]),
+        absent=["#FFFFFF"])
+
+    # 40. heat_matrix medium cell → ink text, not white (amber fill)
+    chk("heat_matrix medium cell → ink text",
+        heat_matrix([[{"sev": "medium", "label": "M"}]]),
+        present=[f'fill="{_INK}">M'])
+
+    # 41. stacked_bar high segment → ink text, not white (amber fill)
+    chk("stacked_bar high segment → ink label",
+        stacked_bar([{"label": "Q1", "segments": [{"sev": "high", "value": 10}]}]),
+        present=[f'fill="{_INK}">10'])
+
+    # ── Design-intent checks (P2) ─────────────────────────────────────────────
+
+    # 40. bullet zones use mid tones, not opacity compositing
+    chk("bullet zones → no opacity='0.20'",
+        bullet(65, 85, [(50, "critical"), (75, "high"), (85, "medium")]),
+        absent=["opacity"])
+
+    # ── Integration / direction normalisation (P3) ───────────────────────────
+
+    # 41. bullet accepts direction="higher-better" without error
+    try:
+        bullet(65, 85, [(50, "critical"), (75, "high")], direction="higher-better")
+        ok("bullet accepts direction='higher-better'")
+    except ValueError as e:
+        bad("bullet accepts direction='higher-better'", str(e))
+
+    # 42. _zone_sev accepts direction="lower-better" without error
+    try:
+        _zone_sev(30, [(50, "high"), (80, "critical")], direction="lower-better")
+        ok("_zone_sev accepts direction='lower-better'")
+    except ValueError as e:
+        bad("_zone_sev accepts direction='lower-better'", str(e))
+
     print()
-    if checks != 34:
-        print(f"self-test: ran {checks} checks, expected 34")
+    if checks != 44:
+        print(f"self-test: ran {checks} checks, expected 44")
         _sys.exit(1)
     if fails:
         print(f"self-test: {fails} of {checks} checks FAILED")
