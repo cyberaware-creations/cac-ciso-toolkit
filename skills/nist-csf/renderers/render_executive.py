@@ -303,13 +303,23 @@ def decisions(ctx: c.Context) -> str:
         out.append(f'{len(never)} outcome{"s have" if len(never) != 1 else " has"} never been '
                    f'assessed. Coverage figures above exclude them, so the picture is '
                    f'incomplete by that much.')
-    out.extend(ctx.tr.decisions)
+    board_tr = [d for d in ctx.tr.decisions
+                if not (isinstance(d, dict) and d.get("altitude") == "management")]
+    mgmt_tr = [d for d in ctx.tr.decisions
+               if isinstance(d, dict) and d.get("altitude") == "management"]
+    out.extend(board_tr)
 
-    if not out:
+    if not out and not mgmt_tr:
         return ""
-    lis = "".join(f"<li>{c.esc(x)}</li>" for x in out)
-    return (f'<section><h2>Decisions needed</h2>'
-            f'<div class="card"><ul class="decisions">{lis}</ul></div></section>')
+    dtext = lambda d: d.get("text") if isinstance(d, dict) else d  # noqa: E731
+    lis = "".join(f"<li>{c.esc(dtext(x))}</li>" for x in out)
+    result = (f'<section><h2>Decisions needed</h2>'
+              f'<div class="card"><ul class="decisions">{lis}</ul></div></section>')
+    if mgmt_tr:
+        mgmt_lis = "".join(f"<li>{c.esc(dtext(d))}</li>" for d in mgmt_tr)
+        result += (f'<section><h2>Management actions — not for board decision</h2>'
+                   f'<div class="card"><ul class="decisions">{mgmt_lis}</ul></div></section>')
+    return result
 
 
 CSS = f"""

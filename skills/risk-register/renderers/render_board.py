@@ -252,13 +252,25 @@ footer{{margin-top:36px;color:{C.SLATE};font-size:11px;border-top:1px solid {C.W
 """
 
 
+def _dtext(d): return d.get("text") if isinstance(d, dict) else d
+
+
 def render(ctx: C.Context) -> str:
     m, s, sm = ctx.meta, ctx.settings, ctx.live
     n, arrow, col, cmp_txt = posture(ctx)
     due = len(ctx.attention["acceptanceDue"])
     live = sm["total"]
-    decisions = ("".join(f'<div class="decision">{C.esc(d)}</div>' for d in ctx.decisions)
+    board_d = [d for d in ctx.decisions
+               if not (isinstance(d, dict) and d.get("altitude") == "management")]
+    mgmt_d = [d for d in ctx.decisions
+              if isinstance(d, dict) and d.get("altitude") == "management"]
+    decisions = ("".join(f'<div class="decision">{C.esc(_dtext(d))}</div>' for d in board_d)
                  or '<p class="note">No decisions are outstanding from the data.</p>')
+    mgmt_block = ""
+    if mgmt_d:
+        mgmt_items = "".join(f'<div class="decision">{C.esc(_dtext(d))}</div>' for d in mgmt_d)
+        mgmt_block = (f'\n  <div class="section"><h2>Management actions — not for board decision</h2>'
+                      f'{mgmt_items}</div>')
     client = C.esc(m.get("clientName") or "")
     title_tail = " · " + client if client else ""
     expired = ctx.attention["acceptanceExpired"]
@@ -325,7 +337,7 @@ def render(ctx: C.Context) -> str:
     <div><h2>What changed since {since}</h2>
       <div class="card">{changed_block(ctx)}</div></div>
     <div><h2>Decisions for the board</h2>{decisions}</div>
-  </div>
+  </div>{mgmt_block}
 
   <footer>{C.esc(ctx.footer("executive dashboard"))}</footer>
 </div></body></html>"""

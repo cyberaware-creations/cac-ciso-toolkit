@@ -76,12 +76,25 @@ def incident_block(ctx: C.Context, row: dict) -> str:
             f'<p class="who">{C.esc(facts_line(row))}</p>{link_line}</div>')
 
 
+def _dtext(d): return d.get("text") if isinstance(d, dict) else d
+
+
 def decisions_block(ctx: C.Context) -> str:
-    if not ctx.tr.decisions:
-        return ('<div class="ph">No decisions supplied. A board section that asks for nothing '
-                'is a status update; compose the asks with ciso-board-translation.</div>')
-    items = "".join(f"<li>{C.esc(d)}</li>" for d in ctx.tr.decisions)
-    return f'<ul class="list">{items}</ul>'
+    board = [d for d in ctx.tr.decisions
+             if not (isinstance(d, dict) and d.get("altitude") == "management")]
+    mgmt = [d for d in ctx.tr.decisions
+            if isinstance(d, dict) and d.get("altitude") == "management"]
+    if not board:
+        out = ('<div class="ph">No decisions supplied. A board section that asks for nothing '
+               'is a status update; compose the asks with ciso-board-translation.</div>')
+    else:
+        items = "".join(f"<li>{C.esc(_dtext(d))}</li>" for d in board)
+        out = f'<ul class="list">{items}</ul>'
+    if mgmt:
+        mgmt_items = "".join(f"<li>{C.esc(_dtext(d))}</li>" for d in mgmt)
+        out += (f'<h2>Management actions — not for board decision</h2>'
+                f'<ul class="list">{mgmt_items}</ul>')
+    return out
 
 
 def main(argv=None) -> int:

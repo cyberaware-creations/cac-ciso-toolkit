@@ -72,14 +72,27 @@ def metric_blocks(ctx: C.Context) -> str:
     return "".join(out)
 
 
+def _dtext(d): return d.get("text") if isinstance(d, dict) else d
+
+
 def decisions_block(ctx: C.Context) -> str:
-    if ctx.tr.decisions:
-        items = "".join(f'<li>{C.esc(d)}</li>' for d in ctx.tr.decisions)
-        return f'<h2>Decisions</h2><div class="card"><ul class="list">{items}</ul></div>'
-    return ('<h2>Decisions</h2><div class="card"><div class="ph">'
-            'No decisions supplied. Each board item should end on something to fund, '
-            'accept, or decide; that language comes from the translation skill.'
-            '</div></div>')
+    board = [d for d in ctx.tr.decisions
+             if not (isinstance(d, dict) and d.get("altitude") == "management")]
+    mgmt = [d for d in ctx.tr.decisions
+            if isinstance(d, dict) and d.get("altitude") == "management"]
+    if board:
+        items = "".join(f'<li>{C.esc(_dtext(d))}</li>' for d in board)
+        out = f'<h2>Decisions</h2><div class="card"><ul class="list">{items}</ul></div>'
+    else:
+        out = ('<h2>Decisions</h2><div class="card"><div class="ph">'
+               'No decisions supplied. Each board item should end on something to fund, '
+               'accept, or decide; that language comes from the translation skill.'
+               '</div></div>')
+    if mgmt:
+        mgmt_items = "".join(f'<li>{C.esc(_dtext(d))}</li>' for d in mgmt)
+        out += (f'<h2>Management actions — not for board decision</h2>'
+                f'<div class="card"><ul class="list">{mgmt_items}</ul></div>')
+    return out
 
 
 def main(argv=None) -> int:
