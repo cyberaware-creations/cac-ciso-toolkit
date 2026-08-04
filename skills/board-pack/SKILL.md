@@ -128,6 +128,25 @@ What it does instead: **flags** two asks that name the same record, and leaves b
 The shipped example produces one, because the exceptions and incident sections both ask about
 the same overdue acceptance.
 
+## Not every ask is a board decision
+
+A section can mark an ask `"altitude": "management"` — something management should simply do,
+not something a board must decide. Those render in their own block, after the decisions, in
+both the HTML and the deck. The shipped example carries thirteen asks: **ten decisions and
+three management actions** (naming a control owner, approving assessment work, scheduling a
+restore test).
+
+Two rules make this safe:
+
+- **The producer declares it; the assembler never infers it.** Only the skill that raised the
+  ask knows whether it needs a board. Same rule as the vanity flag.
+- **Unmarked stays in front of the board.** Absent is *unclassified*, not `management`. A
+  board reading an ask it did not need costs a minute; a board decision filed away as a
+  management action is a decision nobody takes.
+
+See `references/section-contract.md`. It is not a `contractVersion` bump — the string form
+still means what it always meant.
+
 ## The PPTX, and its honest limit
 
 `scripts/pptx_writer.py` writes a real OOXML package from `zipfile` alone — no dependency,

@@ -119,14 +119,41 @@ def _tiles(headlines: list) -> str:
             f'read here unchanged. The pack calculates nothing.</p>')
 
 
-def _decisions(decisions: list) -> str:
-    if not decisions:
-        return f'<div class="ph">{esc(PLACEHOLDER)}</div>'
-    items = "".join(
+def split_by_altitude(decisions: list) -> tuple:
+    """(what the board decides, what management should just do).
+
+    An ask marked `management` is one the producer said does not need a board. Everything
+    else — `board`, or unmarked — stays in front of the board. Unmarked lands there on
+    purpose: the assembler never infers an altitude, and of the two ways to be wrong, a
+    board reading an ask it did not need costs a minute, while a board decision filed away
+    as a management action is a decision nobody takes.
+    """
+    board = [d for d in decisions if d.get("altitude") != "management"]
+    management = [d for d in decisions if d.get("altitude") == "management"]
+    return board, management
+
+
+def _decision_items(decisions: list) -> str:
+    return "".join(
         f'<li>{esc(d["text"])}'
         f'<span class="from">from: {esc(", ".join(d["sections"]))}</span></li>'
         for d in decisions)
-    return f'<ol class="decisions">{items}</ol>'
+
+
+def _decisions(decisions: list) -> str:
+    board, management = split_by_altitude(decisions)
+    if not decisions:
+        return f'<div class="ph">{esc(PLACEHOLDER)}</div>'
+    out = (f'<ol class="decisions">{_decision_items(board)}</ol>' if board
+           else f'<div class="ph">{esc(PLACEHOLDER)}</div>')
+    if management:
+        out += (f'<h2>Management actions — not for board decision</h2>'
+                f'<p class="sub">Recorded here so the board can see they are owned, and '
+                f'ask about them if it wants to. Each was marked by the section that raised '
+                f'it as something management should do rather than something the board must '
+                f'decide. An ask nobody marked stays in the list above.</p>'
+                f'<ol class="decisions">{_decision_items(management)}</ol>')
+    return out
 
 
 def _section_page(section: dict) -> str:
@@ -216,16 +243,29 @@ def build_pptx(pack: dict, path: str) -> None:
                      False)],
                  eyebrow=eyebrow)
 
-    if pack["decisions"]:
+    board_asks, management_asks = split_by_altitude(pack["decisions"])
+    if board_asks:
         # A board deck that runs a decision onto a second slide loses the second half of it.
-        for i in range(0, len(pack["decisions"]), 5):
-            chunk = pack["decisions"][i:i + 5]
-            more = "" if len(pack["decisions"]) <= 5 else f" ({i // 5 + 1})"
+        for i in range(0, len(board_asks), 5):
+            chunk = board_asks[i:i + 5]
+            more = "" if len(board_asks) <= 5 else f" ({i // 5 + 1})"
             deck.add(f"Decisions{more}",
                      [(d["text"], 1300, False, PX.INK, True) for d in chunk],
                      eyebrow=eyebrow)
     else:
         deck.add("Decisions", [(PLACEHOLDER, 1300, False, PX.MUTED, False)],
+                 eyebrow=eyebrow)
+
+    # Management actions travel with the deck but after the decisions, and never mixed into
+    # them. A board asked to decide something management already owns learns to skim the
+    # decision slide, which is the one slide it must not skim.
+    for i in range(0, len(management_asks), 5):
+        chunk = management_asks[i:i + 5]
+        more = "" if len(management_asks) <= 5 else f" ({i // 5 + 1})"
+        deck.add(f"Management actions — not for board decision{more}",
+                 [(d["text"], 1300, False, PX.INK, True) for d in chunk]
+                 + [("Marked by the section that raised each one. An ask nobody marked "
+                     "stays on the decision slides.", 1000, False, PX.MUTED, False)],
                  eyebrow=eyebrow)
 
     for section in pack["sections"]:

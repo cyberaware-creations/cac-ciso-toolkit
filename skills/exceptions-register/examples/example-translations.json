@@ -14,7 +14,13 @@
     "X-002": "The legacy OT segment runs without endpoint detection because the controller operating system cannot host an agent. It is offset by network segmentation and full flow capture at the boundary, and the replacement sits in the 2027 capital plan."
   },
   "decisions": [
-    "Re-validate the CRM vendor acceptance (A-002) on the record, or withdraw it and fund a change of vendor or of control.",
-    "Decide whether to extend the Finance MFA exception (X-001) past its November expiry or accept the ERP timeline slipping into the risk it creates."
+    {
+      "text": "Re-validate the CRM vendor acceptance (A-002) on the record, or withdraw it and fund a change of vendor or of control.",
+      "altitude": "board"
+    },
+    {
+      "text": "Decide whether to extend the Finance MFA exception (X-001) past its November expiry or accept the ERP timeline slipping into the risk it creates.",
+      "altitude": "board"
+    }
   ]
 }

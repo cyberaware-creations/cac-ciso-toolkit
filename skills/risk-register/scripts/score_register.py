@@ -128,7 +128,47 @@ def over_appetite(residual_exposure: int, size: int, appetite: str) -> bool:
 # --- Summary (summary.ts) ----------------------------------------------------
 
 
-def summarize(risks: list[dict], size: int, appetite: str) -> dict:
+def treatment_cost(risks: list[dict], currency: str = "") -> dict:
+    """What the recorded treatments cost, and how much of the register carries no price.
+
+    Every risk may record `response.cost`. Until this existed the figure was stored,
+    validated, and then shown to nobody — a board pack could carry eleven risks and not one
+    number about money.
+
+    Two decisions worth stating, because both could reasonably have gone the other way:
+
+    **Open risks only.** A closed risk's treatment cost is spent. Rolling it into a figure a
+    board reads as "what this still needs" would overstate the ask.
+
+    **`unpriced` travels with the total, always.** A sum that hides how many risks carry no
+    cost at all is exactly the false precision this toolkit refuses elsewhere: eight of
+    eleven priced reads very differently from eleven of eleven, and a board asked to fund
+    something is entitled to the denominator next to the number. `display` is built here
+    rather than downstream so the currency — which only this register knows — cannot be
+    guessed by a consumer, and so a pack can print the string unchanged.
+    """
+    open_risks = [r for r in risks if r.get("status") != "closed"]
+    priced, total = 0, 0
+    for r in open_risks:
+        cost = (r.get("response") or {}).get("cost")
+        # bool is an int in Python, and `"cost": true` must not score as 1.
+        if isinstance(cost, bool) or not isinstance(cost, (int, float)):
+            continue
+        priced += 1
+        total += cost
+    amount = f"{total:,.0f}"
+    return {
+        "total": total,
+        "currency": currency or None,
+        "priced": priced,
+        "unpriced": len(open_risks) - priced,
+        "of": len(open_risks),
+        "display": f"{currency} {amount}".strip() if currency else amount,
+        "currencyRecorded": bool(currency),
+    }
+
+
+def summarize(risks: list[dict], size: int, appetite: str, currency: str = "") -> dict:
     by_band = {"low": 0, "medium": 0, "high": 0, "critical": 0}
     closed = 0
     over = 0
@@ -163,6 +203,7 @@ def summarize(risks: list[dict], size: int, appetite: str) -> dict:
                            if r.get("provisionalTitle") or r.get("provisionalScore")),
         "provisionalTitle": sum(1 for r in risks if r.get("provisionalTitle")),
         "provisionalScore": sum(1 for r in risks if r.get("provisionalScore")),
+        "treatmentCost": treatment_cost(risks, currency),
     }
 
 
@@ -294,7 +335,11 @@ def load_register(path: str) -> dict:
         raise ValueError(f"Unsupported schema version (supported: {sorted(SUPPORTED_SCHEMA)}).")
     if not isinstance(obj.get("risks"), list):
         raise ValueError("Invalid register: missing risks array.")
-    obj["settings"] = {"matrixSize": 5, "appetite": "medium", **obj.get("settings", {})}
+    # `currency` defaults to empty, and empty means *not recorded* — never a guessed symbol.
+    # A cost total rendered with the wrong currency is worse than one rendered with none,
+    # because only the second is obviously incomplete to the person reading it.
+    obj["settings"] = {"matrixSize": 5, "appetite": "medium", "currency": "",
+                       **obj.get("settings", {})}
     if obj["settings"]["matrixSize"] not in BAND_THRESHOLDS:
         raise ValueError(f"Invalid matrixSize {obj['settings']['matrixSize']!r} (must be 3, 4, or 5).")
     if obj["settings"]["appetite"] not in BAND_ORDER:
@@ -348,7 +393,8 @@ def score_register(reg: dict) -> dict:
         "meta": reg["meta"],
         "settings": reg["settings"],
         "themes": reg.get("themes", []),
-        "summary": summarize(reg["risks"], size, appetite),
+        "summary": summarize(reg["risks"], size, appetite,
+                             reg["settings"].get("currency") or ""),
         "risks": scored_risks,
     }
 
@@ -371,6 +417,14 @@ def _cmd_score(args: list[str]) -> int:
     print(f"Register: {m['clientName'] or '(unnamed)'}   Assessor: {m['assessor'] or '—'}")
     print(f"Matrix: {st['matrixSize']}x{st['matrixSize']}   Appetite: {st['appetite']}")
     print(f"Total: {s['total']}   Closed: {s['closed']}   Over appetite: {s['overAppetite']}")
+    tc = s["treatmentCost"]
+    if tc["priced"]:
+        note = "" if tc["currencyRecorded"] else "   (no currency recorded in this register)"
+        print(f"Recorded treatment cost (open risks): {tc['display']}   "
+              f"priced: {tc['priced']}/{tc['of']}{note}")
+        if tc["unpriced"]:
+            print(f"  {tc['unpriced']} open risk(s) carry no recorded cost — the total above "
+                  f"is a floor, not the bill.")
     print(f"Residual band mix — Low {s['byBand']['low']} · Medium {s['byBand']['medium']} · "
           f"High {s['byBand']['high']} · Critical {s['byBand']['critical']}")
     if s["provisional"]:
@@ -518,6 +572,34 @@ def _cmd_self_test(_: list[str]) -> int:
     eq("summary.overAppetite", s["overAppetite"], 1)
     eq("summary.byBand.critical", s["byBand"]["critical"], 1)
     eq("summary.byBand.low", s["byBand"]["low"], 1)
+
+    # treatmentCost — the figure the register always stored and never showed.
+    def _priced(rid, cost, status="open"):
+        r = {**empty_risk(rid), "residual": {"likelihood": 1, "impact": 1}, "status": status}
+        r["response"] = {**(r.get("response") or {}), "cost": cost}
+        return r
+
+    tc = treatment_cost([_priced("R-001", 90000), _priced("R-002", 25000)], "GBP")
+    eq("treatmentCost.total", tc["total"], 115000)
+    eq("treatmentCost.display", tc["display"], "GBP 115,000")
+    eq("treatmentCost.priced", tc["priced"], 2)
+    eq("treatmentCost.unpriced", tc["unpriced"], 0)
+    # A closed risk's treatment is already paid for; counting it would overstate the ask.
+    tc = treatment_cost([_priced("R-001", 90000), _priced("R-002", 25000, "closed")], "GBP")
+    eq("treatmentCost excludes closed", tc["total"], 90000)
+    eq("treatmentCost.of counts open only", tc["of"], 1)
+    # An unpriced open risk must not vanish into the denominator.
+    tc = treatment_cost([_priced("R-001", 90000), _priced("R-002", None)], "GBP")
+    eq("treatmentCost.unpriced counted", tc["unpriced"], 1)
+    eq("treatmentCost.priced counted", tc["priced"], 1)
+    # No currency means no guessed symbol, and the caller is told which case it is.
+    tc = treatment_cost([_priced("R-001", 1500)], "")
+    eq("treatmentCost.display bare", tc["display"], "1,500")
+    eq("treatmentCost.currencyRecorded", tc["currencyRecorded"], False)
+    eq("treatmentCost.currency", tc["currency"], None)
+    # `"cost": true` is an int in Python and must not score as 1.
+    tc = treatment_cost([_priced("R-001", True)], "GBP")
+    eq("treatmentCost ignores bool", (tc["total"], tc["priced"]), (0, 0))
 
     specs = [("R-001", 1, 4), ("R-002", 5, 5), ("R-003", 3, 3),
              ("R-004", 4, 5), ("R-005", 4, 4), ("R-006", 3, 4)]

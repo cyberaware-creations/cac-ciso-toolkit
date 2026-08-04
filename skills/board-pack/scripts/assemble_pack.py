@@ -244,11 +244,55 @@ def validate_section(name: str, raw: dict, path: str) -> dict:
         "executiveSummary": raw.get("executiveSummary") or None,
         "items": items,
         "itemCount": total,
-        "decisions": list(raw.get("decisions") or []),
+        "decisions": normalise_decisions(raw.get("decisions"), path),
         "asOf": raw.get("asOf") or None,
         "contractVersion": version,
         "warnings": warnings,
     }
+
+
+ALTITUDES = ("board", "management")
+
+
+def normalise_decisions(raw, path: str) -> list:
+    """Every decision as `{"text", "altitude"}`, from either shipped shape.
+
+    A decision may be written as a bare string, or as `{"text": ..., "altitude": ...}`.
+    A string means **unclassified**, not "board" — the difference matters, because guessing
+    the altitude of an ask is exactly the inference this toolkit does not make. An
+    unclassified ask stays in front of the board, which is the safe direction to fail: a
+    management action shown to a board wastes five minutes, and a board decision quietly
+    filed as a management action is a decision nobody took.
+
+    Altitude is **declared by the producer, never inferred here.** Only the skill that
+    raised the ask knows whether it needs a board, and no amount of reading the sentence
+    tells the assembler. This follows the vanity flag: a human sets it, the engine reports
+    it, and nothing pattern-matches its way to a governance judgement.
+    """
+    out = []
+    for entry in raw or []:
+        if isinstance(entry, str):
+            text, altitude = entry, None
+        elif isinstance(entry, dict):
+            text = entry.get("text")
+            altitude = entry.get("altitude")
+            if not isinstance(text, str) or not text.strip():
+                raise Refusal(
+                    f"{path} carries a decision object with no 'text'. A decision the board "
+                    f"cannot read is not a decision — see section-contract.md.")
+            if altitude is not None and altitude not in ALTITUDES:
+                raise Refusal(
+                    f"{path} carries a decision with altitude {altitude!r}. Expected one of "
+                    f"{' or '.join(repr(a) for a in ALTITUDES)}, or the key omitted. An "
+                    f"unrecognised altitude is refused rather than defaulted, because "
+                    f"defaulting it would silently re-file somebody's board decision.")
+        else:
+            raise Refusal(
+                f"{path} carries a decision that is neither a string nor an object "
+                f"({type(entry).__name__}). See section-contract.md.")
+        if str(text or "").strip():
+            out.append({"text": str(text).strip(), "altitude": altitude})
+    return out
 
 
 def validate_pack(manifest: dict) -> dict:
@@ -321,19 +365,30 @@ def consolidate_decisions(ordered: list, through_line: dict = None) -> list:
     sources = list(ordered)
     if through_line and through_line.get("decisions"):
         sources.insert(0, {"section": PACK_SECTION,
-                           "decisions": through_line["decisions"]})
+                           "decisions": normalise_decisions(
+                               through_line["decisions"], "the through-line sidecar")})
     for section in sources:
         for raw in section["decisions"]:
-            if not str(raw or "").strip():
+            text, altitude = raw["text"], raw["altitude"]
+            if not text.strip():
                 continue
-            key = _normalise_decision(raw)
+            key = _normalise_decision(text)
             if key in index:
                 entry = out[index[key]]
                 if section["section"] not in entry["sections"]:
                     entry["sections"].append(section["section"])
+                # Two sections wording one ask identically but filing it at different
+                # altitudes is a disagreement between producers, not a merge conflict to
+                # resolve here. Keep the higher one — the board seeing an ask it did not
+                # need is recoverable; the board never seeing it is not.
+                if entry["altitude"] != altitude and "board" in (entry["altitude"], altitude):
+                    entry["altitude"] = "board"
+                elif entry["altitude"] is None:
+                    entry["altitude"] = altitude
             else:
                 index[key] = len(out)
-                out.append({"text": str(raw).strip(), "sections": [section["section"]]})
+                out.append({"text": text, "sections": [section["section"]],
+                            "altitude": altitude})
     return out
 
 
@@ -387,8 +442,22 @@ def _posture_headline(a):
 
 def _risk_headline(a):
     summary = a.get("summary") or {}
-    return [("risks over appetite", summary.get("overAppetite")),
-            ("risks tracked", summary.get("total"))]
+    out = [("risks over appetite", summary.get("overAppetite")),
+           ("risks tracked", summary.get("total"))]
+    # Money, at last. The register has always recorded `response.cost`; nothing ever showed
+    # it, so a pack could carry eleven risks and not one figure a board could act on.
+    #
+    # The string and the counts both come from the producer — the assembler formats nothing
+    # and sums nothing, which is the same rule every other headline follows. The label
+    # carries `priced/of` because a total without its denominator is the false precision
+    # this pack refuses everywhere else.
+    tc = summary.get("treatmentCost") or {}
+    if tc.get("priced"):
+        label = f"recorded treatment cost, {tc['priced']} of {tc['of']} open risks priced"
+        if not tc.get("currencyRecorded"):
+            label += " (currency not recorded)"
+        out.append((label, tc.get("display")))
+    return out
 
 
 def _metrics_headline(a):
@@ -604,6 +673,11 @@ def compose_brief(pack: dict) -> dict:
             "not compute a new number.",
             "Add cross-cutting asks to `decisions` only if they are not already asked by a "
             "section; per-section asks are consolidated separately.",
+            "Mark each ask's altitude: {\"text\": \"...\", \"altitude\": \"board\"} for "
+            "something a board must decide, \"management\" for something management should "
+            "just do. Omit `altitude` if you genuinely cannot tell — an unmarked ask stays "
+            "in front of the board, which is the safe way to be wrong. Do not guess it from "
+            "the wording.",
             "Return a section-contract document: "
             '{"section": "pack", "contractVersion": 1, "executiveSummary": "...", '
             '"decisions": [...], "asOf": "%s"}' % pack["asOf"],
@@ -749,8 +823,41 @@ def _cmd_self_test(_args):
         # --- the contract, section by section ---------------------------------
         r = validate_section("risk", good_risk, "risk.board.json")
         eq(r["itemCount"], 2, "both risk item maps are counted")
-        eq(r["decisions"], ["Fund the vendor review."], "decisions carry through")
+        eq([d["text"] for d in r["decisions"]], ["Fund the vendor review."],
+           "decisions carry through")
+        eq(r["decisions"][0]["altitude"], None,
+           "a bare string is unclassified, NOT assumed to be a board decision")
         eq(r["warnings"], [], "a complete section warns about nothing")
+
+        # --- decision altitude -------------------------------------------------
+        # Declared by the producer, never inferred. A wrong guess here either wastes a
+        # board's time or quietly buries a decision nobody then takes.
+        d = normalise_decisions(
+            [{"text": "Name a control owner.", "altitude": "management"},
+             {"text": "Fund segmentation.", "altitude": "board"},
+             "Decide the programme's shape."], "s.json")
+        eq([x["altitude"] for x in d], ["management", "board", None],
+           "both shapes read, and an unmarked ask stays unmarked")
+        eq(d[0]["text"], "Name a control owner.", "the object form keeps its text")
+        refuses(lambda: normalise_decisions([{"text": "x", "altitude": "committee"}], "s.json"),
+                "an unrecognised altitude is refused, not defaulted — defaulting it would "
+                "silently re-file somebody's board decision", "altitude")
+        refuses(lambda: normalise_decisions([{"altitude": "board"}], "s.json"),
+                "a decision object with no text is refused", "text")
+        refuses(lambda: normalise_decisions([42], "s.json"),
+                "a decision that is neither shape is refused", "neither a string nor an object")
+        # Producers disagreeing on one identically-worded ask resolves upward.
+        up = consolidate_decisions([
+            {"section": "risk", "itemCount": 0,
+             "decisions": normalise_decisions(
+                 [{"text": "Fund it.", "altitude": "management"}], "a.json")},
+            {"section": "metrics", "itemCount": 0,
+             "decisions": normalise_decisions(
+                 [{"text": "Fund it.", "altitude": "board"}], "b.json")}])
+        eq(len(up), 1, "the identical ask still merges")
+        eq(up[0]["altitude"], "board",
+           "and resolves to the higher altitude — a board never seeing a decision is the "
+           "failure that cannot be recovered from")
 
         # THE dangerous shape. It parses, so without this check the pack assembles and every
         # narrative is silently a placeholder while the deck looks finished.
@@ -888,7 +995,8 @@ def _cmd_self_test(_args):
 
         # --- decision consolidation --------------------------------------------
         def dsec(name, *decisions):
-            return {"section": name, "decisions": list(decisions), "itemCount": 0}
+            return {"section": name, "itemCount": 0,
+                    "decisions": normalise_decisions(list(decisions), f"{name}.json")}
 
         merged = consolidate_decisions([
             dsec("posture", "Fund the vendor review."),

@@ -11,8 +11,17 @@
     "I-004": "A third wave of credential-stuffing against the customer portal is under assessment; because it runs on the same infrastructure against the same unremediated weakness as the March and May waves, the three are being assessed as one series rather than separately, and the determination is deferred until the log review completes on 3 August."
   },
   "decisions": [
-    "Note the Form 8-K filed on 17 July and confirm the committee is content with the process the disclosure committee followed to reach the determination.",
-    "Re-confirm or withdraw acceptance A-002 on the record: it was due for re-confirmation in April, was not re-confirmed, and the exposure it describes has now occurred.",
-    "Fund the work that would close the weakness the three credential-stuffing waves have in common, or decide to carry it into next year with the residual risk recorded and owned."
+    {
+      "text": "Note the Form 8-K filed on 17 July and confirm the committee is content with the process the disclosure committee followed to reach the determination.",
+      "altitude": "board"
+    },
+    {
+      "text": "Re-confirm or withdraw acceptance A-002 on the record: it was due for re-confirmation in April, was not re-confirmed, and the exposure it describes has now occurred.",
+      "altitude": "board"
+    },
+    {
+      "text": "Fund the work that would close the weakness the three credential-stuffing waves have in common, or decide to carry it into next year with the residual risk recorded and owned.",
+      "altitude": "board"
+    }
   ]
 }

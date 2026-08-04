@@ -128,6 +128,22 @@ python3 scripts/score_register.py self-test                    # verify engine p
 `--json` adds `inherentExposure/Band`, `residualExposure/Band`, `overAppetite`, and a `summary`
 block. Feed it to the renderers in step 7.
 
+#### What the treatments cost
+
+`summary.treatmentCost` totals `response.cost` and is what the board pack prints. Three
+things about it are deliberate:
+
+- **Open risks only.** A closed risk's treatment is already paid for; counting it would
+  overstate what is still being asked for.
+- **`unpriced` always travels with the total.** Six of nine risks priced reads very
+  differently from nine of nine, and the figure is a **floor, not the bill**. Both the
+  script's own output and the board pack's label carry the denominator — a total without it
+  is the false precision this toolkit refuses everywhere else.
+- **`settings.currency` is optional and never guessed.** Set it (`"GBP"`, `"USD"`, `"EUR"`)
+  and the total renders with it; leave it and the number renders bare, labelled *currency not
+  recorded*. A total shown in the wrong currency is worse than one shown in none, because
+  only the second is obviously incomplete to whoever reads it.
+
 ### Step 6 — Maintaining the register (the core loop)
 
 Every change follows the same discipline so the file stays canonical and its history stays intact:

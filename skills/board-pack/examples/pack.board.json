@@ -5,6 +5,9 @@
   "generatedBy": "ciso-board-translation",
   "executiveSummary": "One thread runs through every section of this pack, and it is not the one we funded. What we funded improved: risks above appetite fell from three to two, and detection is producing the effect it was paid for. Third-party exposure did not. It appears here four times in four forms — as the framework outcome we have not started, because there is no supply-chain risk management programme and that governs what every other control is worth; as the single largest residual risk on the register; as the one of our four accepted risks and exceptions that passed its review date in April and was never re-confirmed; and, in July, as an incident. The vendor holding the customer records we accepted we do not control was breached, we determined it material on 14 July, and we filed on 17 July. The direction on everything else is right. The direction on this one is that a risk the board accepted became a risk the board disclosed, and the programme that would have managed it still has no owner.",
   "decisions": [
-    "Decide whether third-party risk is a programme with an owner and a budget, or a set of individual acceptances the board re-confirms one at a time. The pack shows it being managed as the second while being described as the first, and this quarter is what that costs."
+    {
+      "text": "Decide whether third-party risk is a programme with an owner and a budget, or a set of individual acceptances the board re-confirms one at a time. The pack shows it being managed as the second while being described as the first, and this quarter is what that costs.",
+      "altitude": "board"
+    }
   ]
 }

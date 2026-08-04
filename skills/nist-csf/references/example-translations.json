@@ -14,8 +14,17 @@
     "GV.OC-01": "Organisational mission is understood and already informs risk decisions. This is the closest to target and needs consolidation rather than investment."
   },
   "decisions": [
-    "Fund the data-at-rest encryption programme to close PR.DS-01, or record the board's acceptance of that exposure for a further two quarters.",
-    "Name an owner for supply-chain risk management (GV.SC-01) — the outcome cannot start without one.",
-    "Approve the assessment work to close ID.RA-01, so the next review reports a finding rather than a blank."
+    {
+      "text": "Fund the data-at-rest encryption programme to close PR.DS-01, or record the board's acceptance of that exposure for a further two quarters.",
+      "altitude": "board"
+    },
+    {
+      "text": "Name an owner for supply-chain risk management (GV.SC-01) — the outcome cannot start without one.",
+      "altitude": "management"
+    },
+    {
+      "text": "Approve the assessment work to close ID.RA-01, so the next review reports a finding rather than a blank.",
+      "altitude": "management"
+    }
   ]
 }

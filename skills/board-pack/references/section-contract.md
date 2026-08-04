@@ -15,7 +15,9 @@ version so producers and the assembler can evolve together.
   "section": "risk" | "posture" | "metrics" | "exceptions" | "incident",
   "executiveSummary": "One paragraph, board language, carrying a trend.",
   "<itemsKey>": { "<id>": "One sentence about this item, in board language." },
-  "decisions": ["Each ends on a decision — fund, accept, or decide."],
+  "decisions": ["Each ends on a decision — fund, accept, or decide.",
+                {"text": "Or this shape, to declare an altitude.",
+                 "altitude": "board" | "management"}],
   "asOf": "YYYY-MM-DD",
   "contractVersion": 1
 }
@@ -55,11 +57,46 @@ not to be extended to other sections. A validator may warn on it. It must not re
 2. **One sentence per key**, in board language, about that item.
 3. **`executiveSummary` is one paragraph** and carries a direction, not just a state.
 4. **Each entry in `decisions[]` ends on a decision** — something to fund, accept, or decide.
+   An entry is **either a string or `{"text", "altitude"}`**; see below.
 5. **Placeholder beats fabrication.** A slot with no translation renders as visibly unfilled. No
    producer or consumer invents a sentence, a number, or a decision to complete a section.
 6. **No confidence vocabulary** reaches a board-facing view. Age is distance from a chosen cadence;
    a decay rate is not derivable and is never named as one. Enforced by
    `risk-register/evals/board-safety.sh` checks 9 and 10, which every board-facing producer inherits.
+
+## Decision altitude
+
+A `decisions[]` entry may be a **bare string**, or an **object**:
+
+```json
+{"text": "Fund network segmentation, or record the board's acceptance.", "altitude": "board"}
+{"text": "Name a control owner for GV.SC-01.", "altitude": "management"}
+```
+
+`altitude` is `"board"`, `"management"`, or **absent**. Anything else is refused rather than
+defaulted — a silent default would re-file somebody's board decision without telling them.
+
+**Absent means unclassified, not `"board"`.** An unclassified ask still renders in front of
+the board, and the difference matters: the assembler is recording that nobody said, rather
+than concluding that somebody did. Of the two ways to be wrong, a board reading an ask it
+did not need costs a minute; a board decision quietly filed as a management action is a
+decision nobody takes.
+
+**The producer declares it. Nothing infers it.** Only the skill that raised the ask knows
+whether it needs a board, and no amount of reading the sentence tells the assembler. This is
+the vanity flag's rule applied to decisions: a human sets it, the engine reports it, and
+nothing pattern-matches its way to a governance judgement.
+
+**Merging.** Two sections wording one ask identically but filing it at different altitudes is
+a disagreement between producers, not a conflict to resolve silently. The merged entry keeps
+`"board"`.
+
+**Why this is not a `contractVersion` bump.** The string form is unchanged and still means
+exactly what it meant; the object form is an addition beside it, and a sidecar of bare
+strings renders today exactly as it did before this existed. Bumping would have made every
+v1 consumer refuse a v2 sidecar outright — a large break in exchange for a purely additive
+capability. Worth knowing: **no producer loader reads `decisions`**, so the object form is
+seen by the assembler alone.
 
 ## `contractVersion`
 
@@ -92,6 +129,7 @@ The contract does not own them. `ciso-board-translation` stamps `generatedBy`; n
 | unknown `contractVersion` | both shipped loaders |
 | `section` mismatch | both shipped loaders |
 | per-section item-key spelling | `board-pack` assembler (Phase D) |
+| decision shape / unknown `altitude` | `board-pack` assembler, at sidecar validation |
 | `asOf` alignment across sections | `board-pack` assembler (Phase D), as a surfaced warning |
 | no confidence vocabulary | `board-safety.sh` checks 9 and 10 |
 

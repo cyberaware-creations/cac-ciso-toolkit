@@ -22,7 +22,7 @@ skill="$(cd "$here/.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=29
+EXPECTED_CHECKS=36
 checks=0
 fails=0
 ok()  { checks=$((checks + 1)); printf '  ok    %s\n' "$1"; }
@@ -76,14 +76,27 @@ eq "the same sections appear in both, only re-ordered" "5" \
    "$("$PY" -c 'import json,sys;print(len(json.load(open(sys.argv[1]))["sections"]))' "$work/ac.json")"
 
 # --- 7-9. headline figures are READ from the producers ------------------------
-eq "ten headline figures, two from each producer" "10" "$(q 'len(p["headlines"])')"
+eq "eleven headline figures, read from five producers" "11" "$(q 'len(p["headlines"])')"
 eq "and each names the section that computed it" "True" \
    "$(q 'all(h["section"] in {s["section"] for s in p["sections"]} for h in p["headlines"])')"
-# The assembler must not invent a figure the producer did not compute. Every value here is
-# an int lifted from an analysis; a string or a float would mean something was formatted or
-# derived on the way through.
-eq "every figure is an integer lifted from an analysis, not a derived or formatted one" "True" \
-   "$(q 'all(isinstance(h["value"], int) for h in p["headlines"])')"
+# The assembler must not invent or format a figure the producer did not compute. Counts stay
+# ints; a float would mean something was derived on the way through.
+#
+# The treatment-cost figure is the one string, because the currency belongs to the register
+# and a consumer that formatted it would be guessing. So the rule is not relaxed, it is made
+# checkable the strong way: the string must appear VERBATIM in the risk producer's own
+# output. An assembler that formatted "340000" into "GBP 340,000" itself would fail this,
+# which is precisely the failure the int rule was written to catch.
+eq "every counted figure is an integer, not a derived or formatted one" "True" \
+   "$(q 'all(isinstance(h["value"], int) for h in p["headlines"] if not isinstance(h["value"], str))')"
+cost_display="$("$PY" "$(cd "$skill/../risk-register" && pwd)/scripts/score_register.py" \
+  score "$(cd "$skill/../risk-register" && pwd)/examples/example-register-v2.rr" --json \
+  | "$PY" -c 'import json,sys; print(json.load(sys.stdin)["summary"]["treatmentCost"]["display"])')"
+eq "the treatment-cost string is the producer's own, lifted unchanged" "True" \
+   "$(q "any(h[\"value\"] == \"$cost_display\" for h in p[\"headlines\"])")"
+# A total without its denominator is the false precision this pack refuses everywhere else.
+eq "and its label carries how many risks were priced" "True" \
+   "$(q 'any(isinstance(h["value"], str) and "priced" in h["label"] for h in p["headlines"])')"
 
 # --- 10-11. decisions consolidate, and duplicates are surfaced not merged ------
 eq "the through-line's cross-cutting ask leads the decision list" "['pack']" \
@@ -273,6 +286,47 @@ if grep -qi "SPECIMEN" "$work/full.html" && grep -qi "fictional" "$work/full.htm
 else
   bad "the shipped example renders as an identified specimen, not as a real pack" \
       "neither marker survived into the HTML cover"
+fi
+
+# --- 32-36. Decision altitude -------------------------------------------------
+# The failure this prevents is a board being asked to decide things management already owns,
+# which teaches a board to skim the one slide it must not skim. The failure it must NOT
+# introduce is the opposite: a real board decision quietly filed away as a management action.
+# So both directions are checked, and the unmarked case is checked explicitly — absent means
+# unclassified, and unclassified stays in front of the board.
+eq "the shipped example separates board decisions from management actions" "10 3" \
+   "$(q 'str(sum(1 for d in p["decisions"] if d["altitude"] != "management")) + " " + str(sum(1 for d in p["decisions"] if d["altitude"] == "management"))')"
+eq "and every decision carries an explicit altitude or an explicit None" "True" \
+   "$(q 'all("altitude" in d for d in p["decisions"])')"
+
+# An unmarked ask must reach the board, not the management block. Built here rather than
+# asserted about the fixture, because the fixture is fully marked and so cannot show it.
+"$PY" - "$skill" "$work" <<'PY'
+import json, sys
+sys.path.insert(0, sys.argv[1] + "/scripts")
+sys.path.insert(0, sys.argv[1] + "/renderers")
+import assemble_pack as A
+from render_pack import split_by_altitude
+mixed = A.consolidate_decisions([
+    {"section": "risk", "itemCount": 0, "decisions": A.normalise_decisions(
+        ["Unmarked ask.", {"text": "Board ask.", "altitude": "board"},
+         {"text": "Management ask.", "altitude": "management"}], "x.json")}])
+board, mgmt = split_by_altitude(mixed)
+json.dump({"board": [d["text"] for d in board], "mgmt": [d["text"] for d in mgmt]},
+          open(sys.argv[2] + "/altitude.json", "w"))
+PY
+eq "an unmarked ask stays in front of the board" "['Unmarked ask.', 'Board ask.']" \
+   "$("$PY" -c 'import json,sys;print(json.load(open(sys.argv[1]))["board"])' "$work/altitude.json")"
+eq "and only an explicitly marked ask leaves it" "['Management ask.']" \
+   "$("$PY" -c 'import json,sys;print(json.load(open(sys.argv[1]))["mgmt"])' "$work/altitude.json")"
+
+# The split must survive into what a reader actually opens, not just the content model.
+if grep -q "Management actions" "$work/full.html" \
+   && grep -q "Name an owner for supply-chain risk management" "$work/full.html"; then
+  ok "the management block reaches the rendered HTML"
+else
+  bad "the management block reaches the rendered HTML" \
+      "the heading or a known management ask did not survive rendering"
 fi
 
 echo
