@@ -51,6 +51,19 @@ def _sev_colour(sev, variant="fill"):
     return _MEASURE
 
 
+_SURFACE = "#FFFFFF"   # every mark carries its own surface
+
+
+def _surf():
+    """
+    Opening surface rect. Marks get embedded into board packs, decks, PDFs and
+    mail clients whose background we do not control; a transparent SVG with
+    hard-coded ink text becomes unreadable the moment it lands on a dark ground.
+    The palette is validated light-only, so the surface is pinned light too.
+    """
+    return f'<rect width="100%" height="100%" fill="{_SURFACE}"/>'
+
+
 def _normalize_direction(direction):
     """Accept 'higher'/'higher-better' and 'lower'/'lower-better'."""
     if direction in ("higher", "higher-better"):
@@ -68,6 +81,18 @@ def _validate_iso(d, context=""):
             f"malformed date {d!r}" + (f" in {context}" if context else "")
         )
     return str(d)
+
+
+def _date_ord(d):
+    """
+    ISO date -> approximate day ordinal, for proportional positioning.
+    Accepts YYYY-MM and YYYY-MM-DD.
+    """
+    parts = [int(p) for p in str(d).split("-")]
+    y = parts[0]
+    m = parts[1] if len(parts) > 1 else 1
+    day = parts[2] if len(parts) > 2 else 1
+    return y * 365.25 + (m - 1) * 30.44 + day
 
 
 def zones_from_threshold(threshold, direction):
@@ -148,7 +173,7 @@ def kpi_tile(value, label, delta="", unit="", sev="", delta_sev=None):
         )
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" '
-        f'viewBox="0 0 {w} {h}">'
+        f'viewBox="0 0 {w} {h}">{_surf()}'
         f'<rect width="{w}" height="{h}" rx="6" fill="{_BG}" '
         f'stroke="#E0E0E0" stroke-width="1"/>'
         f'<rect x="0" y="0" width="4" height="{h}" rx="2" fill="{fill}"/>'
@@ -168,9 +193,9 @@ def rag_chip(sev, label):
     """Status chip: tint background + coloured dot + accessible dark text."""
     if sev not in _RAG:
         return ""
-    tint = _RAG[sev]["tint"]
-    dot_fill = _RAG[sev]["fill"]
-    text_col = _RAG[sev]["text"]
+    tint = _sev_colour(sev, "tint")
+    dot_fill = _sev_colour(sev, "fill")
+    text_col = _sev_colour(sev, "text")
     h = 24
     dot_r = 4
     dot_cx = 10 + dot_r
@@ -212,27 +237,28 @@ def bullet(value, target, zones, direction="higher", unit="", labels=True,
         return _clamp(v / scale_max * chart_w, 0, chart_w) + 20
 
     sorted_z = sorted(zones, key=lambda z: z[0])
-    zone_rects = ""
-    prev_x = 20.0
-    for thresh, s in sorted_z:
-        tx = to_x(thresh)
-        mid = _RAG[s]["mid"] if s in _RAG else _MUTED
-        zone_rects += (
-            f'<rect x="{prev_x:.1f}" y="{bar_y}" '
-            f'width="{tx - prev_x:.1f}" height="{bar_h}" '
-            f'fill="{mid}"/>'
-        )
-        prev_x = tx
     end_x = to_x(scale_max)
-    zone_rects += (
-        f'<rect x="{prev_x:.1f}" y="{bar_y}" '
-        f'width="{end_x - prev_x:.1f}" height="{bar_h}" '
-        f'fill="{_RAG["good"]["mid"]}"/>'
-    )
+
+    # Band colours are DERIVED from _zone_sev, never assumed. The zones list is
+    # direction-dependent: under "higher", (t, s) means values BELOW t are s;
+    # under "lower", it means values AT OR ABOVE t are s. Painting bands from the
+    # "higher" reading silently inverts every lower-better mark. Asking _zone_sev
+    # what a mid-band value scores makes the bands and the bar the same claim.
+    edges = [0.0] + [z[0] for z in sorted_z] + [scale_max]
+    zone_rects = ""
+    for lo, hi in zip(edges, edges[1:]):
+        if hi <= lo:
+            continue
+        band_sev = _zone_sev((lo + hi) / 2.0, zones, direction)
+        zone_rects += (
+            f'<rect x="{to_x(lo):.1f}" y="{bar_y}" '
+            f'width="{to_x(hi) - to_x(lo):.1f}" height="{bar_h}" '
+            f'fill="{_sev_colour(band_sev, "mid")}"/>'
+        )
 
     bar_sev = _zone_sev(value, zones, direction)
-    bar_fill = _RAG[bar_sev]["fill"] if bar_sev in _RAG else _MEASURE
-    bar_text = _RAG[bar_sev]["text"] if bar_sev in _RAG else _MUTED
+    bar_fill = _sev_colour(bar_sev, "fill")
+    bar_text = _sev_colour(bar_sev, "text") if bar_sev in _RAG else _MUTED
     val_x = to_x(value)
 
     # White measure lane punches through zone colours so the bar edge stays crisp
@@ -266,22 +292,45 @@ def bullet(value, target, zones, direction="higher", unit="", labels=True,
 
     label_svg = ""
     if labels:
+        ly = bar_y + bar_h + 14
         label_svg = (
-            f'<text x="20" y="{bar_y + bar_h + 14}" font-size="10" '
+            f'<text x="20" y="{ly}" font-size="10" '
             f'font-family="{_FONT_BODY}" fill="{_MUTED}">0{_esc(unit)}</text>'
         )
         # Suppress axis max when target is near the end (would collide)
         if target / scale_max < 0.88:
             label_svg += (
-                f'<text x="{end_x:.1f}" y="{bar_y + bar_h + 14}" '
+                f'<text x="{end_x:.1f}" y="{ly}" '
                 f'text-anchor="end" font-size="10" '
                 f'font-family="{_FONT_BODY}" fill="{_MUTED}">'
                 f'{_fmt(scale_max)}{_esc(unit)}</text>'
             )
+        # medium and high are ΔE 13.3 apart — below the 15 floor and unfixable by
+        # darkening. When both bands are drawn, the boundary must be tickable, or
+        # two adjacent bands are separated by a difference nobody can rely on.
+        band_sevs = set()
+        for lo, hi in zip(edges, edges[1:]):
+            if hi > lo:
+                band_sevs.add(_zone_sev((lo + hi) / 2.0, zones, direction))
+        if "medium" in band_sevs and "high" in band_sevs:
+            placed = [20.0, end_x] if target / scale_max < 0.88 else [20.0]
+            for thresh, _s in sorted_z:
+                tx = to_x(thresh)
+                if any(abs(tx - p) < 26 for p in placed):
+                    continue
+                placed.append(tx)
+                label_svg += (
+                    f'<line x1="{tx:.1f}" y1="{bar_y + bar_h}" '
+                    f'x2="{tx:.1f}" y2="{bar_y + bar_h + 3}" '
+                    f'stroke="{_MUTED}" stroke-width="1"/>'
+                    f'<text x="{tx:.1f}" y="{ly}" text-anchor="middle" '
+                    f'font-size="10" font-family="{_FONT_BODY}" '
+                    f'fill="{_MUTED}">{_fmt(thresh)}{_esc(unit)}</text>'
+                )
 
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" '
-        f'viewBox="0 0 {w} {h}">'
+        f'viewBox="0 0 {w} {h}">{_surf()}'
         f'{zone_rects}{lane}{val_bar}{val_label}{target_line}{label_svg}'
         f'</svg>'
     )
@@ -304,12 +353,14 @@ def progress_bar(value, goal, label="", sev=""):
         )
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" '
-        f'viewBox="0 0 {w} {h}">'
+        f'viewBox="0 0 {w} {h}">{_surf()}'
+        # Value sits ABOVE the track — inside it, ink on measure blue is ~2.7:1
+        # and at 100% the label lands on the fill entirely.
+        f'<text x="{w - 20}" y="10" text-anchor="end" font-size="11" '
+        f'font-family="{_FONT_BODY}" fill="{_INK}">{pct_label}</text>'
         f'<rect x="20" y="14" width="{w - 40}" height="16" rx="8" '
         f'fill="{_MEASURE_TRACK}"/>'
         f'<rect x="20" y="14" width="{bar_w:.1f}" height="16" rx="8" fill="{fill}"/>'
-        f'<text x="{w - 18}" y="26" text-anchor="end" font-size="11" '
-        f'font-family="{_FONT_BODY}" fill="{_INK}">{pct_label}</text>'
         f'{lbl_svg}'
         f'</svg>'
     )
@@ -332,7 +383,7 @@ def fuel_tank(value, goal, label=""):
         )
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" '
-        f'viewBox="0 0 {w} {h}">'
+        f'viewBox="0 0 {w} {h}">{_surf()}'
         f'<rect x="{tank_x}" y="{tank_y}" width="{tank_w}" height="{tank_h}" '
         f'rx="4" fill="{_MEASURE_TRACK}" stroke="#C0C0C0" stroke-width="1"/>'
         f'<rect x="{tank_x}" y="{fill_y:.1f}" width="{tank_w}" '
@@ -347,64 +398,110 @@ def fuel_tank(value, goal, label=""):
 
 # ── Mark 6: Radial Gauge ───────────────────────────────────────────────────────
 
-def radial_gauge(value, min_v, max_v, zones=None, sev=""):
-    """Half-circle gauge 180°. large-arc-flag is always 0."""
-    w, h = 200, 120
-    cx, cy, r = 100, 100, 75
+def radial_gauge(value, min_v, max_v, zones=None, sev="", direction="higher",
+                 target=None, unit=""):
+    """
+    Dial gauge: mid-tone zone arcs, tapered needle in the band's fill, target
+    tick, value and status word below the hub.
+
+    A plain fill arc is a bent progress bar and duplicates progress_bar(); the
+    needle is what makes this a dial, the target tick is what makes it
+    comparable to a bullet, and the status word is what makes it survive
+    greyscale. large-arc-flag is always 0 — the sweep never exceeds 180°.
+    """
+    direction = _normalize_direction(direction)
+    w, h = 200, 132
+    cx, cy, r = 100, 96, 72
     rng = max_v - min_v if max_v != min_v else 1
     pct = _clamp((value - min_v) / rng, 0, 1)
 
     # Sweep from left (π) towards right (0); counter-clockwise in math, but
     # SVG y-axis is flipped so sweep-flag=1 is visually clockwise (upward arc).
-    start_a = _math.pi
-    end_a = start_a - _math.pi * pct
+    def ang(fraction):
+        return _math.pi - _math.pi * _clamp(fraction, 0, 1)
 
-    def polar(angle, radius=r):
-        return cx + radius * _math.cos(angle), cy - radius * _math.sin(angle)
+    def polar(a, radius=r):
+        return cx + radius * _math.cos(a), cy - radius * _math.sin(a)
 
-    sx, sy = polar(start_a)
-    ex, ey = polar(end_a)
-    bg_ex, bg_ey = polar(0)
+    def arc(f0, f1, colour, width):
+        if f1 - f0 < 0.004:
+            return ""
+        x0, y0 = polar(ang(f0))
+        x1, y1 = polar(ang(f1))
+        # large-arc-flag MUST be 0 (sweep always ≤ 180°)
+        return (f'<path d="M {x0:.2f} {y0:.2f} A {r} {r} 0 0 1 {x1:.2f} {y1:.2f}" '
+                f'fill="none" stroke="{colour}" stroke-width="{width}" '
+                f'stroke-linecap="butt"/>')
 
+    band_sev = None
     if zones:
-        fill = _RAG.get(_zone_sev(value, zones), _MEASURE)
+        band_sev = _zone_sev(value, zones, direction)
     elif sev:
-        fill = _sev_colour(sev)
-    else:
-        fill = _MEASURE
+        band_sev = sev
+    needle_col = _sev_colour(band_sev, "fill") if band_sev else _MEASURE
 
-    # Background track: M left A r r rotation=0 large-arc=0 sweep=1 right
-    track = (
-        f'<path d="M {sx:.2f} {sy:.2f} A {r} {r} 0 0 1 {bg_ex:.2f} {bg_ey:.2f}" '
-        f'fill="none" stroke="{_MEASURE_TRACK}" stroke-width="14" '
-        f'stroke-linecap="round"/>'
+    # Zone arcs in mid tones, derived from _zone_sev exactly as the bullet does
+    if zones:
+        edges = [min_v] + sorted(z[0] for z in zones) + [max_v]
+        track = ""
+        for lo, hi in zip(edges, edges[1:]):
+            if hi <= lo:
+                continue
+            s_ = _zone_sev((lo + hi) / 2.0, zones, direction)
+            track += arc((lo - min_v) / rng, (hi - min_v) / rng,
+                         _sev_colour(s_, "mid"), 13)
+    else:
+        track = arc(0.0, 1.0, _MEASURE_TRACK, 13)
+
+    # Target tick across the band
+    tick = ""
+    if target is not None:
+        ta = ang((target - min_v) / rng)
+        tx0, ty0 = polar(ta, r - 9)
+        tx1, ty1 = polar(ta, r + 9)
+        tick = (f'<line x1="{tx0:.1f}" y1="{ty0:.1f}" x2="{tx1:.1f}" y2="{ty1:.1f}" '
+                f'stroke="{_SURFACE}" stroke-width="5"/>'
+                f'<line x1="{tx0:.1f}" y1="{ty0:.1f}" x2="{tx1:.1f}" y2="{ty1:.1f}" '
+                f'stroke="{_INK}" stroke-width="2.4"/>')
+
+    # Tapered needle: a triangle from the hub shoulders to the tip
+    na = ang(pct)
+    tipx, tipy = polar(na, r - 14)
+    lx, ly = polar(na + _math.pi / 2, 5)
+    rx, ry = polar(na - _math.pi / 2, 5)
+    needle = (
+        f'<polygon points="{tipx:.1f},{tipy:.1f} {lx:.1f},{ly:.1f} '
+        f'{rx:.1f},{ry:.1f}" fill="{needle_col}"/>'
+        f'<circle cx="{cx}" cy="{cy}" r="6" fill="{needle_col}"/>'
+        f'<circle cx="{cx}" cy="{cy}" r="2.5" fill="{_SURFACE}"/>'
     )
 
-    val_arc = ""
-    if pct > 0.005:
-        # large-arc-flag MUST be 0 (arc always < 180°)
-        val_arc = (
-            f'<path d="M {sx:.2f} {sy:.2f} A {r} {r} 0 0 1 {ex:.2f} {ey:.2f}" '
-            f'fill="none" stroke="{fill}" stroke-width="14" stroke-linecap="round"/>'
+    # Value and status word BELOW the hub — inside the arc they collide with it
+    word = _GANTT_CHIP.get(band_sev, "") if band_sev else ""
+    val_label = (
+        f'<text x="{cx}" y="{cy + 22}" text-anchor="middle" '
+        f'font-size="21" font-weight="700" font-family="{_FONT_DISPLAY}" '
+        f'fill="{_INK}">{_esc(str(value))}{_esc(unit)}</text>'
+    )
+    if word:
+        val_label += (
+            f'<text x="{cx}" y="{cy + 34}" text-anchor="middle" font-size="9" '
+            f'font-weight="600" font-family="{_FONT_BODY}" '
+            f'fill="{_sev_colour(band_sev, "text")}">{_esc(word)}</text>'
         )
 
-    val_label = (
-        f'<text x="{cx}" y="{cy - 8}" text-anchor="middle" '
-        f'font-size="24" font-weight="700" '
-        f'font-family="{_FONT_BODY}" fill="{_INK}">'
-        f'{_esc(str(value))}</text>'
-    )
+    lx0, ly0 = polar(ang(0.0))
+    lx1, ly1 = polar(ang(1.0))
     range_labels = (
-        f'<text x="{sx:.1f}" y="{sy + 16:.1f}" text-anchor="middle" font-size="10" '
+        f'<text x="{lx0:.1f}" y="{ly0 + 15:.1f}" text-anchor="middle" font-size="9" '
         f'font-family="{_FONT_BODY}" fill="{_MUTED}">{_esc(str(min_v))}</text>'
-        f'<text x="{bg_ex:.1f}" y="{bg_ey + 16:.1f}" text-anchor="middle" '
-        f'font-size="10" font-family="{_FONT_BODY}" fill="{_MUTED}">'
-        f'{_esc(str(max_v))}</text>'
+        f'<text x="{lx1:.1f}" y="{ly1 + 15:.1f}" text-anchor="middle" font-size="9" '
+        f'font-family="{_FONT_BODY}" fill="{_MUTED}">{_esc(str(max_v))}</text>'
     )
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" '
-        f'viewBox="0 0 {w} {h}">'
-        f'{track}{val_arc}{val_label}{range_labels}'
+        f'viewBox="0 0 {w} {h}">{_surf()}'
+        f'{track}{tick}{needle}{val_label}{range_labels}'
         f'</svg>'
     )
 
@@ -416,7 +513,7 @@ def sparkline(readings, unit="", sev=""):
     if len(readings) < 4:
         return (
             f'<svg xmlns="http://www.w3.org/2000/svg" width="160" height="20" '
-            f'viewBox="0 0 160 20">'
+            f'viewBox="0 0 160 20">{_surf()}'
             f'<text x="0" y="14" font-size="10" font-family="{_FONT_BODY}" '
             f'fill="{_MUTED}">≥4 readings needed</text>'
             f'</svg>'
@@ -437,7 +534,7 @@ def sparkline(readings, unit="", sev=""):
     last_val = f"{_esc(str(readings[-1]))}{_esc(unit)}"
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" '
-        f'viewBox="0 0 {w} {h}">'
+        f'viewBox="0 0 {w} {h}">{_surf()}'
         f'<polyline points="{polyline}" fill="none" stroke="{fill}" '
         f'stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>'
         f'<circle cx="{lx:.1f}" cy="{ly:.1f}" r="3" fill="{fill}"/>'
@@ -468,7 +565,7 @@ def slope(readings, labels=None, unit="", sev=""):
     lbl = labels or ["", ""]
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" '
-        f'viewBox="0 0 {w} {h}">'
+        f'viewBox="0 0 {w} {h}">{_surf()}'
         f'<line x1="{x0}" y1="{y0:.1f}" x2="{x1}" y2="{y1:.1f}" '
         f'stroke="{fill}" stroke-width="2.5" stroke-linecap="round"/>'
         f'<circle cx="{x0}" cy="{y0:.1f}" r="4" fill="{fill}"/>'
@@ -529,7 +626,7 @@ def line_chart(readings, labels=None, unit="", sev=""):
 
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" '
-        f'viewBox="0 0 {w} {h}">'
+        f'viewBox="0 0 {w} {h}">{_surf()}'
         f'{axis}'
         f'<polyline points="{polyline}" fill="none" stroke="{fill}" '
         f'stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>'
@@ -572,7 +669,7 @@ def column_trend(readings, labels=None, unit=""):
 
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" '
-        f'viewBox="0 0 {w} {h}">'
+        f'viewBox="0 0 {w} {h}">{_surf()}'
         f'<line x1="{pad_x}" y1="{pad_y + chart_h}" '
         f'x2="{w - pad_x}" y2="{pad_y + chart_h}" '
         f'stroke="#E0E0E0" stroke-width="1"/>'
@@ -617,7 +714,7 @@ def bar_chart(items):
 
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" '
-        f'viewBox="0 0 {w} {h}">{bars}</svg>'
+        f'viewBox="0 0 {w} {h}">{_surf()}{bars}</svg>'
     )
 
 
@@ -657,33 +754,35 @@ def heat_matrix(cells, row_labels=None, col_labels=None):
         for j, cell in enumerate(row):
             x = lbl_x + j * cell_sz
             y = lbl_y + i * cell_sz
+            # mid tone + the band's dark text: no opacity compositing (which a
+            # colour-pair check cannot validate), passes contrast for all four
+            # bands, and makes a cell read as the same object as a bullet band.
             if cell is None:
-                fill = "#F0F0F0"
+                fill = "#ECEAE3"
                 txt = ""
                 sev = ""
             else:
                 sev = cell.get("sev", "")
-                fill = _RAG[sev]["fill"] if sev and sev in _RAG else _MEASURE
+                fill = _sev_colour(sev, "mid") if sev else _MEASURE_TRACK
                 txt = cell.get("label", "")
             out += (
                 f'<rect x="{x + 1}" y="{y + 1}" '
                 f'width="{cell_sz - 2}" height="{cell_sz - 2}" '
-                f'rx="3" fill="{fill}" opacity="0.85"/>'
+                f'rx="3" fill="{fill}"/>'
             )
             if txt:
-                # good/critical fills are dark enough for white; amber/yellow need ink
-                txt_col = "#FFFFFF" if sev in ("good", "critical") else _INK
+                txt_col = _sev_colour(sev, "text") if sev else _MUTED
                 out += (
                     f'<text x="{x + cell_sz // 2}" '
                     f'y="{y + cell_sz // 2 + 4}" '
                     f'text-anchor="middle" font-size="11" '
-                    f'font-family="{_FONT_BODY}" '
+                    f'font-weight="600" font-family="{_FONT_BODY}" '
                     f'fill="{txt_col}">{_esc(str(txt))}</text>'
                 )
 
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" '
-        f'viewBox="0 0 {w} {h}">{out}</svg>'
+        f'viewBox="0 0 {w} {h}">{_surf()}{out}</svg>'
     )
 
 
@@ -714,8 +813,11 @@ def stacked_bar(periods):
         for seg in period.get("segments", []):
             sev = seg.get("sev", "")
             val = seg.get("value", 0)
-            # segment fills use RAG or MEASURE; _PATINA is never a segment fill
-            fill = _RAG[sev]["fill"] if sev and sev in _RAG else _MEASURE
+            # A segment is a REGION, not a single value — so it takes the mid tone,
+            # same as a bullet zone band and a heat cell. White on good (#30915B)
+            # is 3.9:1, under the floor; the band's text colour on mid passes.
+            # _PATINA is never a segment fill.
+            fill = _sev_colour(sev, "mid") if sev else _MEASURE_TRACK
             seg_h = val / mx * chart_h
             y_cur -= seg_h
             out += (
@@ -725,7 +827,7 @@ def stacked_bar(periods):
             # Mandatory label — ΔE 13.3 between medium and high means colour
             # alone cannot distinguish them; label when the segment is tall enough
             if seg_h >= 14 and val:
-                txt_col = "#FFFFFF" if sev in ("good", "critical") else _INK
+                txt_col = _sev_colour(sev, "text") if sev else _MUTED
                 out += (
                     f'<text x="{x + bar_w / 2:.1f}" '
                     f'y="{y_cur + seg_h / 2 + 4:.1f}" '
@@ -743,7 +845,7 @@ def stacked_bar(periods):
 
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" '
-        f'viewBox="0 0 {w} {h}">'
+        f'viewBox="0 0 {w} {h}">{_surf()}'
         f'<line x1="{pad_x}" y1="{pad_y + chart_h}" '
         f'x2="{w - pad_x}" y2="{pad_y + chart_h}" '
         f'stroke="#E0E0E0" stroke-width="1"/>'
@@ -754,10 +856,18 @@ def stacked_bar(periods):
 
 # ── Mark 14: Small Multiples ──────────────────────────────────────────────────
 
-def small_multiples(metrics, mark_fn):
-    """Grid of same mark. mark_fn(metric) -> SVG string."""
+def small_multiples(metrics, mark_fn, axis_max=None):
+    """
+    Grid of the same mark. mark_fn(metric) -> SVG string.
+
+    axis_max is merged into every metric dict before mark_fn sees it. Without a
+    shared ceiling each bullet auto-scales to its own data and the wall stops
+    being comparable — which is the only reason to build a wall.
+    """
     if not metrics:
         return ""
+    if axis_max is not None:
+        metrics = [dict(m, axis_max=axis_max) for m in metrics]
     cols = min(3, len(metrics))
     rows = (len(metrics) + cols - 1) // cols
     cell_w, cell_h = 220, 130
@@ -775,7 +885,7 @@ def small_multiples(metrics, mark_fn):
         )
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" '
-        f'viewBox="0 0 {w} {h}">{out}</svg>'
+        f'viewBox="0 0 {w} {h}">{_surf()}{out}</svg>'
     )
 
 
@@ -783,53 +893,80 @@ def small_multiples(metrics, mark_fn):
 
 def milestone_timeline(events, today=""):
     """
-    Vertical milestone list. events = [{label, date, sev}].
-    today dashed line = PATINA. Dots: RAG if sev else INK.
+    Horizontal chronology. events = [{label, date, sev}].
+
+    x is proportional to date — that spacing IS the mark's value. Evenly spaced
+    rows would make "3 days" and "a month" look identical, which turns a
+    chronology into a changelog. It also keeps the time axis running the same
+    way as the gantt when both sit on one page.
+
+    Labels alternate above/below so near dates do not collide.
+    Dots: RAG if sev, else INK. Today: vertical PATINA dashed line.
     """
     if not events:
         return ""
-    row_h = 36
-    h = len(events) * row_h + 20
-    w = 400
-    dot_x = 100
+    w = 520
+    pad_x = 46
+    chart_w = w - 2 * pad_x
+    axis_y = 76
+    h = 152
+
+    dated = [e for e in events if e.get("date")]
+    for e in dated:
+        _validate_iso(e["date"], f'milestone "{e.get("label", "")}"')
+    if today:
+        _validate_iso(today, "today")
+    if not dated:
+        return ""
+
+    ords = [_date_ord(e["date"]) for e in dated]
+    if today:
+        ords.append(_date_ord(today))
+    lo, hi = min(ords), max(ords)
+    span = (hi - lo) or 1.0
+
+    def to_x(d):
+        return pad_x + (_date_ord(d) - lo) / span * chart_w
 
     out = (
-        f'<line x1="{dot_x}" y1="10" x2="{dot_x}" y2="{h - 10}" '
-        f'stroke="#C0C0C0" stroke-width="1.5"/>'
+        f'<line x1="{pad_x - 10}" y1="{axis_y}" x2="{w - pad_x + 10}" y2="{axis_y}" '
+        f'stroke="#C8C4BA" stroke-width="1.5"/>'
     )
 
-    today_y = None
-    for i, ev in enumerate(events):
+    for i, ev in enumerate(sorted(dated, key=lambda e: _date_ord(e["date"]))):
         sev = ev.get("sev", "")
-        fill = _RAG.get(sev) if sev else None
-        if fill is None:
-            fill = _INK
-        cy = 10 + i * row_h + row_h // 2
+        fill = _sev_colour(sev, "fill") if sev else _INK
+        cx = to_x(ev["date"])
+        above = (i % 2 == 0)
+        stem_end = axis_y - 20 if above else axis_y + 20
+        lbl_y = axis_y - 26 if above else axis_y + 32
+        date_y = axis_y - 40 if above else axis_y + 46
         out += (
-            f'<circle cx="{dot_x}" cy="{cy}" r="7" fill="{fill}"/>'
-            f'<text x="{dot_x + 14}" y="{cy + 4}" font-size="12" '
+            f'<line x1="{cx:.1f}" y1="{axis_y}" x2="{cx:.1f}" y2="{stem_end}" '
+            f'stroke="#C8C4BA" stroke-width="1"/>'
+            f'<circle cx="{cx:.1f}" cy="{axis_y}" r="6" fill="{fill}" '
+            f'stroke="{_SURFACE}" stroke-width="2"/>'
+            f'<text x="{cx:.1f}" y="{lbl_y}" text-anchor="middle" font-size="11" '
             f'font-family="{_FONT_BODY}" fill="{_INK}">'
             f'{_esc(ev.get("label", ""))}</text>'
+            f'<text x="{cx:.1f}" y="{date_y}" text-anchor="middle" font-size="9" '
+            f'font-family="{_FONT_BODY}" fill="{_MUTED}">'
+            f'{_esc(str(ev["date"]))}</text>'
         )
-        if ev.get("date"):
-            out += (
-                f'<text x="{dot_x - 14}" y="{cy + 4}" text-anchor="end" '
-                f'font-size="10" font-family="{_FONT_BODY}" '
-                f'fill="{_MUTED}">{_esc(str(ev["date"]))}</text>'
-            )
-        if today and str(ev.get("date", "")) == today:
-            today_y = cy
 
     if today:
-        ty = today_y if today_y is not None else h // 2
+        tx = to_x(today)
         out += (
-            f'<line x1="10" y1="{ty}" x2="{w - 10}" y2="{ty}" '
+            f'<line x1="{tx:.1f}" y1="12" x2="{tx:.1f}" y2="{h - 12}" '
             f'stroke="{_PATINA}" stroke-width="1.5" stroke-dasharray="5,3"/>'
+            f'<text x="{tx + 4:.1f}" y="{h - 14}" font-size="9" font-weight="600" '
+            f'font-family="{_FONT_BODY}" fill="{_PATINA}">TODAY</text>'
         )
 
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" '
-        f'viewBox="0 0 {w} {h}">{out}</svg>'
+        f'viewBox="0 0 {w} {h}" style="max-width:100%;height:auto">'
+        f'{_surf()}{out}</svg>'
     )
 
 
@@ -919,9 +1056,9 @@ def gantt(phases, today="", milestones=None):
         if sev and sev in _RAG:
             chip_x = lbl_w + chart_w + pct_col_w + 4
             chip_label = _GANTT_CHIP.get(sev, sev.upper())
-            chip_tint = _RAG[sev]["tint"]
-            chip_dot  = _RAG[sev]["fill"]
-            chip_txt  = _RAG[sev]["text"]
+            chip_tint = _sev_colour(sev, "tint")
+            chip_dot  = _sev_colour(sev, "fill")
+            chip_txt  = _sev_colour(sev, "text")
             cw = chip_col_w - 4
             out += (
                 f'<rect x="{chip_x}" y="{cy - 9}" width="{cw}" '
@@ -968,7 +1105,7 @@ def gantt(phases, today="", milestones=None):
 
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" '
-        f'viewBox="0 0 {w} {h}" style="max-width:100%;height:auto">{out}</svg>'
+        f'viewBox="0 0 {w} {h}" style="max-width:100%;height:auto">{_surf()}{out}</svg>'
     )
 
 
@@ -1007,7 +1144,7 @@ def _self_test():
 
     # 2. kpi_tile sev=critical → #c0392b
     chk("kpi_tile sev=critical → #c0392b", kpi_tile(42, "Score", sev="critical"),
-        present=["#c0392b"])
+        present=['fill="#c0392b"'])
 
     # 3. kpi_tile positive delta → no #30915B (delta not coloured by sign)
     chk("kpi_tile +delta → no green", kpi_tile(42, "Score", delta="+5"),
@@ -1022,7 +1159,7 @@ def _self_test():
 
     # 6. progress_bar sev=critical → #c0392b
     chk("progress_bar sev=critical → #c0392b",
-        progress_bar(50, 100, sev="critical"), present=["#c0392b"])
+        progress_bar(50, 100, sev="critical"), present=['fill="#c0392b"'])
 
     # 7. fuel_tank → no RAG hex
     chk("fuel_tank → no RAG", fuel_tank(60, 100, label="Capacity"), absent=rag_vals)
@@ -1050,42 +1187,42 @@ def _self_test():
 
     # 12. sparkline sev=medium → #e8c547
     chk("sparkline sev=medium → #e8c547",
-        sparkline([1, 2, 3, 4], sev="medium"), present=["#e8c547"])
+        sparkline([1, 2, 3, 4], sev="medium"), present=['stroke="#e8c547"'])
 
     # 13. slope sev=medium → #e8c547 (not coloured by direction of change)
     chk("slope sev=medium → #e8c547 (declining ok)",
-        slope([10, 5], sev="medium"), present=["#e8c547"])
+        slope([10, 5], sev="medium"), present=['stroke="#e8c547"'])
 
     # 14. bullet value in high zone → #e08e0b
     chk("bullet value in high zone → #e08e0b",
         bullet(65, 90, [(50, "critical"), (80, "high"), (100, "medium")]),
-        present=["#e08e0b"])
+        present=['fill="#e08e0b"'])
 
     # 15. bullet value in crit zone → #c0392b
     chk("bullet value in crit zone → #c0392b",
         bullet(30, 90, [(50, "critical"), (80, "high"), (100, "medium")]),
-        present=["#c0392b"])
+        present=['fill="#c0392b"'])
 
     # 16. bullet lower-better high value → crit fill
     chk("bullet lower-better high value → crit",
         bullet(95, 70, [(80, "high"), (90, "critical")], direction="lower"),
-        present=["#c0392b"])
+        present=['fill="#c0392b"'])
 
     # 17. heat_matrix sev=critical → #c0392b
-    chk("heat_matrix sev=critical → #c0392b",
+    chk("heat_matrix sev=critical → critical mid tone",
         heat_matrix([[{"sev": "critical", "label": "H"}]]),
-        present=["#c0392b"])
+        present=[f'fill="{_RAG["critical"]["mid"]}"'])
 
     # 18. heat_matrix no sev → MEASURE
-    chk("heat_matrix no sev → MEASURE",
+    chk("heat_matrix no sev → measure track",
         heat_matrix([[{"label": "X"}]]),
-        present=[_MEASURE])
+        present=[f'fill="{_MEASURE_TRACK}"'])
 
     # 19. stacked_bar critical segment → #c0392b
-    chk("stacked_bar critical segment → #c0392b",
+    chk("stacked_bar critical segment → critical mid tone",
         stacked_bar([{"label": "Q1",
                       "segments": [{"sev": "critical", "value": 5}]}]),
-        present=["#c0392b"])
+        present=[f'fill="{_RAG["critical"]["mid"]}"'])
 
     # 20. stacked_bar → no PATINA in segment fills
     chk("stacked_bar → no patina",
@@ -1103,7 +1240,7 @@ def _self_test():
     chk("milestone sev=high → #e08e0b",
         milestone_timeline([{"label": "Deadline", "date": "2026-06",
                              "sev": "high"}]),
-        present=["#e08e0b"])
+        present=['fill="#e08e0b"'])
 
     # 23. milestone_timeline today → PATINA
     chk("milestone today → patina",
@@ -1126,7 +1263,7 @@ def _self_test():
     chk("gantt with status → RAG chip + ON TRACK label",
         gantt([{"label": "Ph1", "start": "2026-01", "end": "2026-06",
                 "sev": "good"}]),
-        present=["#30915B", "ON TRACK"])
+        present=['fill="#30915B"', "ON TRACK"])
 
     # 27. gantt today → PATINA
     chk("gantt today → patina",
@@ -1136,11 +1273,11 @@ def _self_test():
 
     # 28. rag_chip "good" → #30915B
     chk("rag_chip good → #30915B", rag_chip("good", "On Track"),
-        present=["#30915B"])
+        present=['fill="#30915B"'])
 
     # 29. rag_chip "critical" → #c0392b
     chk("rag_chip critical → #c0392b", rag_chip("critical", "At Risk"),
-        present=["#c0392b"])
+        present=['fill="#c0392b"'])
 
     # 30. column_trend → no PATINA
     chk("column_trend → no patina", column_trend([5, 10, 8, 12]),
@@ -1154,7 +1291,7 @@ def _self_test():
     # 32. bar_chart sev=critical → #c0392b
     chk("bar_chart sev=critical → #c0392b",
         bar_chart([("Item A", 10, "critical")]),
-        present=["#c0392b"])
+        present=['fill="#c0392b"'])
 
     # 33. radial_gauge → large-arc-flag is 0 (not 1)
     # Arc syntax: A rx ry rotation large-arc-flag sweep x y
@@ -1168,19 +1305,19 @@ def _self_test():
         ok("radial_gauge → large-arc-flag is 0")
 
     # 34. line_chart sev=high → #e08e0b
-    chk("line_chart sev=high → #e08e0b",
+    chk("line_chart sev=high → #e08e0b stroke",
         line_chart([10, 20, 15, 25, 18], sev="high"),
-        present=["#e08e0b"])
+        present=['stroke="#e08e0b"'])
 
     # ── Contrast / accessibility checks (P1) ─────────────────────────────────
 
     # 35. rag_chip medium → no white text (amber fill; white = 1.64:1, fails WCAG)
     chk("rag_chip medium → no #FFFFFF text",
-        rag_chip("medium", "Watch"), absent=["#FFFFFF"])
+        rag_chip("medium", "Watch"), absent=['fill="#FFFFFF">'])
 
     # 36. rag_chip high → no white text (orange fill; white = 2.54:1, fails WCAG)
     chk("rag_chip high → no #FFFFFF text",
-        rag_chip("high", "At Risk"), absent=["#FFFFFF"])
+        rag_chip("high", "At Risk"), absent=['fill="#FFFFFF">'])
 
     # 37. rag_chip medium → dark text colour (#7A6410)
     chk("rag_chip medium → dark text #7A6410",
@@ -1194,17 +1331,175 @@ def _self_test():
     chk("gantt chip medium → no #FFFFFF",
         gantt([{"label": "Ph1", "start": "2026-01", "end": "2026-06",
                 "sev": "medium"}]),
-        absent=["#FFFFFF"])
+        absent=['fill="#FFFFFF">'])
 
-    # 40. heat_matrix medium cell → ink text, not white (amber fill)
-    chk("heat_matrix medium cell → ink text",
+    # 49. heat_matrix medium cell → the band's text colour on a mid ground
+    chk("heat_matrix medium cell → band text colour",
         heat_matrix([[{"sev": "medium", "label": "M"}]]),
-        present=[f'fill="{_INK}">M'])
+        present=[f'fill="{_RAG["medium"]["mid"]}"', f'fill="{_RAG["medium"]["text"]}">M'])
 
-    # 41. stacked_bar high segment → ink text, not white (amber fill)
-    chk("stacked_bar high segment → ink label",
+    # 50. stacked_bar high segment → the band's text colour on a mid ground
+    chk("stacked_bar high segment → band text colour",
         stacked_bar([{"label": "Q1", "segments": [{"sev": "high", "value": 10}]}]),
-        present=[f'fill="{_INK}">10'])
+        present=[f'fill="{_RAG["high"]["mid"]}"', f'fill="{_RAG["high"]["text"]}">10'])
+
+    # ── Structural guards ────────────────────────────────────────────────────
+    # These are the checks that would have caught round-2's shipped bugs. They
+    # assert over EVERY mark, not one example, so a new call site cannot slip past.
+
+    def _all_marks():
+        """Every mark, exercising the branches the gallery does not."""
+        z_hi = zones_from_threshold({"target": 90, "warn": 75, "critical": 60},
+                                    "higher-better")
+        z_lo = zones_from_threshold({"target": 5, "warn": 8, "critical": 12},
+                                    "lower-better")
+        return {
+            "kpi_tile": kpi_tile(98, "Cov", delta="+3", sev="high", delta_sev="high"),
+            "rag_chip": rag_chip("medium", "Watch"),
+            "bullet_hi": bullet(72, 90, z_hi, axis_max=100),
+            "bullet_lo": bullet(9, 5, z_lo, direction="lower-better", axis_max=15),
+            "progress_bar": progress_bar(100, 100, label="Done", sev="good"),
+            "fuel_tank": fuel_tank(73, 100, label="Budget"),
+            # zones= branch, NOT sev= — this is the branch every renderer uses
+            "radial_gauge_zones": radial_gauge(68, 0, 100, zones=z_hi),
+            "radial_gauge_sev": radial_gauge(68, 0, 100, sev="medium"),
+            "sparkline": sparkline([1, 2, 3, 4, 5], sev="good"),
+            "sparkline_short": sparkline([1, 2]),
+            "slope": slope([42, 67], labels=["Q3", "Q4"], sev="medium"),
+            "line_chart": line_chart([1, 2, 3, 4, 5], sev="high"),
+            "column_trend": column_trend([5, 10, 8]),
+            "bar_chart": bar_chart([("A", 10, "good"), ("B", 20, "critical")]),
+            # all four bands adjacent
+            "heat_matrix": heat_matrix(
+                [[{"sev": "good", "label": "G"}, {"sev": "medium", "label": "M"}],
+                 [{"sev": "high", "label": "H"}, {"sev": "critical", "label": "C"}]]),
+            "stacked_bar": stacked_bar([{"label": "Q1", "segments": [
+                {"sev": "good", "value": 8}, {"sev": "medium", "value": 6},
+                {"sev": "high", "value": 5}, {"sev": "critical", "value": 4}]}]),
+            "small_multiples": small_multiples(
+                [{"v": 1, "l": "a"}], lambda m: kpi_tile(m["v"], m["l"])),
+            # sev= branch on every event
+            "milestone_timeline": milestone_timeline(
+                [{"label": "A", "date": "2026-02", "sev": "high"},
+                 {"label": "B", "date": "2026-04", "sev": "good"}], today="2026-04"),
+            "gantt": gantt([{"label": "P", "start": "2026-01", "end": "2026-06",
+                             "pct": 0.5, "sev": "medium"}], today="2026-03"),
+        }
+
+    all_marks = _all_marks()
+
+    # 40. No mark leaks a Python repr into an attribute. The token model went
+    # str -> dict and two call sites kept indexing it directly; the resulting
+    # fill="{'fill': '#e08e0b', ...}" is an invalid paint, so the browser drops
+    # back to the initial value and the mark silently loses its colour.
+    leaked = [n for n, s in all_marks.items()
+              if "{'" in s or '{"' in s or ": '#" in s]
+    if leaked:
+        bad("no mark leaks a dict repr into an attribute",
+            f"leaked in: {', '.join(sorted(leaked))}")
+    else:
+        ok("no mark leaks a dict repr into an attribute")
+
+    # 41. No mark composites opacity. An opacity-blended colour is never what a
+    # colour-pair check validated, so the contract cannot be enforced on it.
+    op = [n for n, s in all_marks.items() if "opacity=" in s]
+    if op:
+        bad("no mark emits opacity=", f"found in: {', '.join(sorted(op))}")
+    else:
+        ok("no mark emits opacity=")
+
+    # 42. No white text anywhere on a good/medium/high fill or mid tone. White on
+    # good #30915B is 3.9:1; on amber 2.54:1; on yellow 1.64:1.
+    white_on_light = []
+    for n, s in all_marks.items():
+        if '"#FFFFFF"' not in s:
+            continue
+        for frag in s.split("<text")[1:]:
+            head = frag.split(">")[0]
+            if 'fill="#FFFFFF"' in head:
+                white_on_light.append(n)
+                break
+    if white_on_light:
+        bad("no white text on a light RAG ground",
+            f"found in: {', '.join(sorted(set(white_on_light)))}")
+    else:
+        ok("no white text on a light RAG ground")
+
+    # 43. Every mark carries its own surface, so it stays legible pasted into a
+    # deck, a PDF or a mail client whose ground we do not control.
+    no_surf = []
+    for n, s in all_marks.items():
+        body = s.split(">", 1)[1] if ">" in s else ""
+        if not body.lstrip().startswith("<rect width="):
+            no_surf.append(n)
+    if no_surf:
+        bad("every mark opens with a surface rect",
+            f"missing in: {', '.join(sorted(no_surf))}")
+    else:
+        ok("every mark opens with a surface rect")
+
+    # 44. Bullet bands are DERIVED from _zone_sev, so they can never disagree with
+    # the bar. Property test over 40 samples in both directions — the example-based
+    # version of this check passed for two rounds while every lower-better band
+    # was inverted and an amber bar sat on a red band.
+    import re as _re
+    band_ok = True
+    detail = ""
+    for direction, zt in (("higher-better", {"target": 90, "warn": 75, "critical": 60}),
+                          ("lower-better", {"target": 5, "warn": 8, "critical": 12})):
+        zs = zones_from_threshold(zt, direction)
+        amax = 100 if direction == "higher-better" else 15
+        svg = bullet(zs[0][0], zs[-1][0], zs, direction=direction, axis_max=amax)
+        mid2sev = {_RAG[s]["mid"]: s for s in _RAG}
+        bands = []
+        for mx, mw, mf in _re.findall(
+                r'<rect x="([\d.]+)" y="\d+" width="([\d.]+)" height="\d+" '
+                r'fill="(#[0-9A-Fa-f]{6})"/>', svg):
+            if mf in mid2sev:
+                lo = (float(mx) - 20) / 240 * amax
+                hi = lo + float(mw) / 240 * amax
+                bands.append((lo, hi, mid2sev[mf]))
+        if not bands:
+            band_ok = False
+            detail = f"{direction}: no bands parsed"
+            break
+        for i in range(40):
+            x = amax * (i + 0.5) / 40
+            drawn = next((s for lo, hi, s in bands if lo <= x < hi), None)
+            expect = _zone_sev(x, zs, direction)
+            if drawn != expect:
+                band_ok = False
+                detail = (f"{direction}: at {x:.2f} band is {drawn}, "
+                          f"_zone_sev says {expect}")
+                break
+        if not band_ok:
+            break
+    if band_ok:
+        ok("bullet bands agree with _zone_sev in both directions (40 samples)")
+    else:
+        bad("bullet bands agree with _zone_sev in both directions", detail)
+
+    # 45. The gauge's zones= branch paints a real needle in the band's colour.
+    chk("radial_gauge zones= branch → needle in band colour",
+        all_marks["radial_gauge_zones"], present=['<polygon points=', 'fill="#e08e0b"'])
+
+    # 46. Timeline sev dots paint a real fill.
+    chk("milestone_timeline sev= → real dot fill",
+        all_marks["milestone_timeline"], present=['fill="#e08e0b"'])
+
+    # 47. Progress % label sits above the track, never on the fill.
+    m = _re.search(r'<text x="\d+" y="(\d+)"[^>]*>100%</text>',
+                   all_marks["progress_bar"])
+    if m and int(m.group(1)) < 14:
+        ok("progress_bar % label clears the track")
+    else:
+        bad("progress_bar % label clears the track",
+            f"label y={m.group(1) if m else 'not found'}, track starts at 14")
+
+    # 48. A four-band bullet ticks the medium/high boundary — that pair is
+    # ΔE 13.3 apart and cannot be told apart by colour alone.
+    chk("four-band bullet ticks its zone boundaries",
+        all_marks["bullet_hi"], present=["75"])
 
     # ── Design-intent checks (P2) ─────────────────────────────────────────────
 
@@ -1230,8 +1525,8 @@ def _self_test():
         bad("_zone_sev accepts direction='lower-better'", str(e))
 
     print()
-    if checks != 44:
-        print(f"self-test: ran {checks} checks, expected 44")
+    if checks != 53:
+        print(f"self-test: ran {checks} checks, expected 53")
         _sys.exit(1)
     if fails:
         print(f"self-test: {fails} of {checks} checks FAILED")
@@ -1251,17 +1546,30 @@ def _gallery(out_path):
          rag_chip("good", "On Track")),
         ("2 · RAG Chip — high",
          rag_chip("high", "At Risk")),
-        ("3 · Bullet Graph",
-         bullet(72, 85, [(60, "critical"), (75, "high"), (85, "medium")],
-                unit="%")),
+        ("3 · Bullet — higher-better (via zones_from_threshold)",
+         bullet(72, 90,
+                zones_from_threshold({"target": 90, "warn": 75, "critical": 60},
+                                     "higher-better"),
+                direction="higher-better", unit="%", axis_max=100)),
+        ("3 · Bullet — lower-better (via zones_from_threshold)",
+         bullet(9, 5,
+                zones_from_threshold({"target": 5, "warn": 8, "critical": 12},
+                                     "lower-better"),
+                direction="lower-better", unit="%", axis_max=15)),
         ("4 · Progress Bar",
          progress_bar(65, 100, label="Sprint completion", sev="medium")),
         ("5 · Fuel Tank",
          fuel_tank(73, 100, label="Budget")),
-        ("6 · Radial Gauge",
-         radial_gauge(68, 0, 100, sev="medium")),
+        ("6 · Radial Gauge — zones= branch, needle + target tick",
+         radial_gauge(68, 0, 100,
+                      zones=zones_from_threshold(
+                          {"target": 90, "warn": 75, "critical": 60},
+                          "higher-better"),
+                      direction="higher-better", target=90, unit="%")),
         ("7 · Sparkline",
          sparkline([12, 15, 11, 18, 14, 20, 17], unit="%", sev="good")),
+        ("7 · Sparkline — under 4 readings",
+         sparkline([12, 15, 11])),
         ("8 · Slope",
          slope([42, 67], labels=["Q3", "Q4"], unit="%")),
         ("9 · Line Chart",
@@ -1277,10 +1585,10 @@ def _gallery(out_path):
                     ("SaaS", 31, "good")])),
         ("12 · Heat Matrix",
          heat_matrix(
-             [[{"sev": "good", "label": "L"}, {"sev": "high", "label": "H"},
-               None],
-              [{"sev": "critical", "label": "C"}, {"sev": "medium", "label": "M"},
-               {"label": "?"}]],
+             [[{"sev": "good", "label": "2"}, {"sev": "medium", "label": "5"},
+               {"sev": "high", "label": "9"}],
+              [{"sev": "critical", "label": "3"}, {"sev": "good", "label": "1"},
+               None]],
              row_labels=["Infra", "Apps"],
              col_labels=["Confidentiality", "Integrity", "Availability"]
          )),
@@ -1288,26 +1596,40 @@ def _gallery(out_path):
          stacked_bar([
              {"label": "Q1",
               "segments": [{"sev": "good", "value": 8},
-                           {"sev": "high", "value": 3}]},
+                           {"sev": "medium", "value": 5},
+                           {"sev": "high", "value": 4},
+                           {"sev": "critical", "value": 3}]},
              {"label": "Q2",
-              "segments": [{"sev": "good", "value": 10},
-                           {"sev": "medium", "value": 4}]},
-             {"label": "Q3",
-              "segments": [{"sev": "good", "value": 12},
+              "segments": [{"sev": "good", "value": 11},
+                           {"sev": "medium", "value": 6},
+                           {"sev": "high", "value": 3},
                            {"sev": "critical", "value": 2}]},
+             {"label": "Q3",
+              "segments": [{"sev": "good", "value": 14},
+                           {"sev": "medium", "value": 4},
+                           {"sev": "high", "value": 3},
+                           {"sev": "critical", "value": 1}]},
          ])),
-        ("14 · Small Multiples",
+        ("14 · Small Multiples — shared axis_max keeps the wall comparable",
          small_multiples(
-             [{"v": 98, "l": "Coverage"}, {"v": 4, "l": "Open P1s"},
-              {"v": 14, "l": "Avg Days"}],
-             lambda m: kpi_tile(m["v"], m["l"])
+             [{"value": 72, "target": 90, "label": "Patch"},
+              {"value": 94, "target": 90, "label": "MFA"},
+              {"value": 61, "target": 90, "label": "EDR"}],
+             lambda m: bullet(
+                 m["value"], m["target"],
+                 zones_from_threshold({"target": 90, "warn": 75, "critical": 60},
+                                      "higher-better"),
+                 direction="higher-better", unit="%",
+                 axis_max=m.get("axis_max")),
+             axis_max=100
          )),
         ("15 · Milestone Timeline",
          milestone_timeline([
-             {"label": "Design complete", "date": "2026-02"},
-             {"label": "Build", "date": "2026-04", "sev": "high"},
-             {"label": "Release", "date": "2026-07", "sev": "good"},
-         ], today="2026-04")),
+             {"label": "Detected", "date": "2026-03-02"},
+             {"label": "Determined", "date": "2026-03-05", "sev": "high"},
+             {"label": "Filed", "date": "2026-03-08", "sev": "good"},
+             {"label": "DORA final report", "date": "2026-04-06", "sev": "medium"},
+         ], today="2026-03-14")),
         ("16 · Gantt (with milestones + chip vocabulary)",
          gantt([
              {"label": "Discovery", "start": "2026-01", "end": "2026-02",
@@ -1323,7 +1645,7 @@ def _gallery(out_path):
     items_html = ""
     for title, svg in marks:
         items_html += (
-            '<div style="background:#fff;border:1px solid #e0e0e0;'
+            '<div style="background:#FFFFFF;border:1px solid #DCD7C9;'
             'border-radius:8px;padding:16px;margin-bottom:16px;">'
             f'<p style="font-size:12px;color:#7F8C8D;'
             f'font-family:system-ui,sans-serif;margin:0 0 8px;">'
@@ -1335,7 +1657,9 @@ def _gallery(out_path):
     page = (
         "<!doctype html><html><head><meta charset=utf-8>"
         "<title>CAC Graphics Gallery</title>"
-        "<style>body{background:#F8F9FA;max-width:700px;margin:40px auto;"
+        '<meta name="color-scheme" content="light">'
+        "<style>:root{color-scheme:light}"
+        "body{background:#F6F4EE;color:#14171C;max-width:760px;margin:40px auto;"
         "font-family:system-ui,sans-serif;padding:20px;}</style>"
         "</head><body>"
         "<h1 style='font-size:20px;color:#2C3E50;margin-bottom:24px;'>"

@@ -11,8 +11,9 @@ Use it to compare any alternative implementation and identify gaps or divergence
 - **Language**: Python 3.9+ (no walrus operator ``:=``, no ``X | Y`` union types, no ``match`` statement)
 - **Dependencies**: stdlib only — ``html``, ``math``, ``sys``
 - **Marks**: 16 SVG-returning functions + `zones_from_threshold()` adapter
+- **Surface**: every mark opens with an opaque white rect; the palette is validated light-only
 - **CLI modes**:
-  - ``python3 cac_graphics.py self-test`` — runs 44 assertions, exits 0 on pass
+  - ``python3 cac_graphics.py self-test`` — runs 53 assertions, exits 0 on pass
   - ``python3 cac_graphics.py gallery <output.html>`` — writes a full-page HTML gallery
 
 ---
@@ -59,6 +60,22 @@ Rationale: amber and yellow fills fail WCAG AA at any text size. The tint+dot pa
 >
 > Test: *does the mark's own value determine the status?* Yes → colour the mark. No → give the status a separate indicator and leave the measure blue.
 
+### `fill` vs `mid` — single values vs regions
+
+A second question decides which *variant* a RAG mark takes:
+
+- **`fill` (saturated)** — the mark is a **single value**: a KPI accent stripe, a chip dot, a bullet bar, a bar-chart bar, a line/sparkline stroke, a milestone dot, a gauge needle.
+- **`mid` (desaturated)** — the mark is a **region**: a bullet zone band, a heat-matrix cell, a stacked-bar segment, a gauge zone arc.
+
+Regions are large areas that carry a text label on top, so they must be light enough for the band's `text` colour to sit on them. That is also why no mark composites `opacity`: an opacity-blended colour is not the colour any contrast check validated.
+
+### `zones` is direction-dependent
+
+> Under `higher`, `(t, s)` means *values **below** `t` are `s`*.
+> Under `lower`, `(t, s)` means *values **at or above** `t` are `s`*.
+
+Any code that paints bands must ask `_zone_sev()` what a mid-band value scores rather than reading the list positionally. Painting from the `higher` reading silently inverts every lower-better mark — green lands at the bad end and the bar contradicts its own bands. `bullet()` and `radial_gauge()` both derive bands this way; check 44 asserts it across 40 samples in both directions.
+
 ---
 
 ## Colour Contract (Three-Way Split)
@@ -80,7 +97,12 @@ Rationale: amber and yellow fills fail WCAG AA at any text size. The tint+dot pa
 7. **`radial_gauge()` large-arc-flag is always 0** — a 180° half-gauge arc never exceeds a semicircle.
 8. **`rag_chip()` medium and high bands never use white text** — `text` variant (dark) required; tested at checks 35–38.
 9. **No `opacity` compositing** — bullet zones use `mid` hex fills directly; opacity on colours is not validated by colour-pair checks.
-10. **Text on saturated `fill` uses `_INK`, not the `text` variant** — the `text` variant is tuned for `tint` backgrounds. On amber/yellow *fills* (heat matrix cells, stacked-bar segments) `_INK` gives ~7:1; the `text` variant would give ~2.5:1. Tested at checks 40–41.
+10. **Regions use `mid` + the band's `text` colour** — heat-matrix cells and stacked-bar segments are regions, not single values. White on `good` `#30915B` is 3.9:1, under the floor; `text` on `mid` passes for all four bands. Tested at checks 49–50.
+11. **No mark emits `opacity=`** — asserted across every mark, not one example (check 41).
+12. **No mark leaks a Python repr into an attribute** — asserted across every mark (check 40). The token model went `str` → `dict`; two call sites kept indexing it directly and emitted `fill="{'fill': '#e08e0b', ...}"`, an invalid paint that the browser silently drops. Every RAG lookup goes through `_sev_colour(sev, variant)`.
+13. **No white text on any light RAG ground** — asserted across every mark (check 42).
+14. **Every mark opens with a surface rect** — asserted across every mark (check 43).
+15. **Colour assertions are quote-delimited** — `'fill="#e08e0b"'`, never a bare `"#e08e0b"`. A bare hex substring matched *inside the leaked dict*, so the suite reported 44/44 green on a mark that rendered with no colour at all.
 
 ---
 
@@ -180,10 +202,14 @@ def _zone_sev(value, zones, direction="higher"):
 - **Canvas**: 80 × 140 px.
 - **Fill**: always `_MEASURE`. **No `sev` parameter** — cannot emit RAG by design.
 
-### 6. `radial_gauge(value, min_v, max_v, zones=None, sev="")`
+### 6. `radial_gauge(value, min_v, max_v, zones=None, sev="", direction="higher", target=None, unit="")`
 
-- **Canvas**: 200 × 120 px. 180° half-circle. **large-arc-flag always 0.**
-- Use once per report, reluctantly. Not for comparison across metrics.
+- **Canvas**: 200 × 132 px. Centre (100, 96), r = 72. **large-arc-flag always 0.**
+- **Zone arcs**: `mid` tones, derived from `_zone_sev()` per band — same construction as the bullet. `stroke-linecap="butt"` (round overhangs the track end at 100% and leaves a stub near 0).
+- **Needle**: tapered polygon from the hub shoulders to the tip, in the band's `fill`. Hub disc + surface-coloured centre.
+- **Target tick**: white halo under an ink stroke, crossing the band.
+- **Value + status word**: *below* the hub. Inside the arc they collide with it.
+- Use once per report. Not for comparison across metrics — use a bullet wall.
 
 ### 7. `sparkline(readings, unit="", sev="")`
 
@@ -219,18 +245,21 @@ def _zone_sev(value, zones, direction="higher"):
 - Fill = `_RAG[sev]["fill"]` if sev, else `_MEASURE`. **`_PATINA` is never a segment fill.**
 - **Mandatory value labels**: printed inside segments when segment height ≥ 14 px. Text colour: white for good/critical, `_RAG[sev]["text"]` for medium/high.
 
-### 14. `small_multiples(metrics, mark_fn)`
+### 14. `small_multiples(metrics, mark_fn, axis_max=None)`
 
-- Grid of same mark. `mark_fn(metric)` → SVG string.
-- Canvas: auto-sized, 3 columns max.
+- Grid of the same mark, 3 columns max. `mark_fn(metric)` → SVG string.
+- `axis_max` is merged into every metric dict before `mark_fn` sees it. Without a shared ceiling each bullet auto-scales to its own data and the wall stops being comparable — which is the only reason to build a wall.
 
 ### 15. `milestone_timeline(events, today="")`
 
-- `events` = `[{label, date, sev=""}]`.
-- **Orientation**: vertical spine at `dot_x=100`. Events evenly spaced at 36 px rows.
-- **Note (design decision pending)**: the reference design places events horizontally proportional to date. The current implementation is a vertical changelog, not a chronology. Confirm before reworking — see "Known Gaps."
-- **Today line**: horizontal dashed, `_PATINA`.
-- **Dots**: `_RAG[sev]["fill"]` if sev, else `_INK`.
+- `events` = `[{label, date, sev=""}]`. Dates validated by `_validate_iso()`.
+- **Canvas**: 520 × 152 px, `max-width:100%`.
+- **Orientation**: horizontal, **x proportional to date** via `_date_ord()`.
+- **Labels**: alternate above/below the axis so near dates do not collide.
+- **Dots**: `r=6`, band `fill` if sev else `_INK`, with a surface-coloured stroke so they read against the axis.
+- **Today**: *vertical* `_PATINA` dashed line + "TODAY" caption.
+
+The proportional spacing is the mark's whole value: on an incident timeline, determination → filing at 3 days and the DORA final report a month out must *look* that way. Evenly spaced rows make them identical, which turns a chronology into a changelog — and stops it matching the gantt's time axis when both sit on one page.
 
 ### 16. `gantt(phases, today="", milestones=None)`
 
@@ -249,7 +278,7 @@ def _zone_sev(value, zones, direction="higher"):
 
 ---
 
-## Self-Test (44 checks)
+## Self-Test (53 checks)
 
 Run with `python3 cac_graphics.py self-test`.
 
@@ -294,19 +323,35 @@ Run with `python3 cac_graphics.py self-test`.
 | 37 | `rag_chip` medium → dark text `#7A6410` |
 | 38 | `rag_chip` high → dark text `#8F5B06` |
 | 39 | `gantt` chip medium → no `#FFFFFF` |
-| 40 | `heat_matrix` medium cell → `_INK` text (not white on amber) |
-| 41 | `stacked_bar` high segment → `_INK` label (not white on amber) |
-| 42 | `bullet` zones → no `opacity` attribute |
-| 43 | `bullet` accepts `direction="higher-better"` |
-| 44 | `_zone_sev` accepts `direction="lower-better"` |
+| 40 | **No mark leaks a dict repr into an attribute** (all marks) |
+| 41 | **No mark emits `opacity=`** (all marks) |
+| 42 | **No white text on any light RAG ground** (all marks) |
+| 43 | **Every mark opens with a surface rect** (all marks) |
+| 44 | **Bullet bands agree with `_zone_sev`** — 40 samples, both directions |
+| 45 | `radial_gauge` `zones=` branch paints a needle in the band colour |
+| 46 | `milestone_timeline` `sev=` paints a real dot fill |
+| 47 | `progress_bar` % label clears the track |
+| 48 | Four-band bullet ticks its zone boundaries |
+| 49 | `heat_matrix` medium cell → `mid` ground + band `text` |
+| 50 | `stacked_bar` high segment → `mid` ground + band `text` |
+| 51 | `bullet` zones → no `opacity` attribute |
+| 52 | `bullet` accepts `direction="higher-better"` |
+| 53 | `_zone_sev` accepts `direction="lower-better"` |
 
 ---
 
-## Known Gaps / Design Decisions Pending
+## Decisions Recorded (previously open)
 
-- **P2.5 — Milestone timeline orientation**: current implementation is a vertical changelog (evenly-spaced rows, horizontal today line). The reference places events horizontally proportional to date with a vertical today marker. This changes the information design significantly (you can see that two events are 3 days apart vs a month apart). **Confirm design direction before reworking.**
-- **P2.6 — Radial gauge idiom**: current implementation is a simple fill arc. The reference specifies needle + zone arcs + target tick + status word below the hub. **Confirm before reworking** — the arc version is simpler and may be preferred.
-- **Tooltip / interactivity**: all marks are static SVG; no hover states or data-attributes.
-- **Accessibility**: no `<title>` or `<desc>` elements. Colour is supplemented by text labels, not `aria-*`.
-- **Responsive scaling**: marks have fixed `viewBox`. Wide marks (gantt, small_multiples) carry `style="max-width:100%;height:auto"`. Other marks require the caller to scale via CSS.
-- **`small_multiples` height**: top-aligned, not centred, when marks have different heights.
+- **Milestone timeline** — horizontal and date-proportional. Settled; see Mark 15.
+- **Radial gauge** — needle dial with zone arcs, target tick and status word. A plain fill arc is a bent progress bar and duplicates `progress_bar()`. Settled; see Mark 6.
+
+---
+
+## Known Gaps
+
+- **Light-only palette.** Every mark carries an opaque `#FFFFFF` surface and any page embedding them must declare `<meta name="color-scheme" content="light">`. The `text` variants are dark-on-light by construction. A dark theme needs `validate_palette.js --mode dark` re-run and a separate `text-dark` variant per band before it exists — do not ship one by inverting.
+- **Tooltip / interactivity** — all marks are static SVG; no hover states or data-attributes.
+- **Accessibility** — no `<title>` or `<desc>` elements. Colour is supplemented by text labels, not `aria-*`.
+- **Responsive scaling** — wide marks (gantt, milestone timeline) carry `max-width:100%;height:auto`. Others need the caller to scale via CSS.
+- **`small_multiples` height** — top-aligned, not centred, when marks differ in height.
+- **`_date_ord` is approximate** — 30.44-day months. Fine for positioning at the scale these marks are read; not a calendar.
