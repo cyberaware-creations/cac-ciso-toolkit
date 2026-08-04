@@ -49,7 +49,7 @@ def trend_line(ctx: C.Context) -> str:
         f'<text x="{x:.0f}" y="{y - 10:.0f}" font-size="11.5" fill="{C.INK}" '
         f'text-anchor="middle" font-weight="700">{p["overAppetite"]}</text>'
         f'<text x="{x:.0f}" y="{H - 9}" font-size="9.5" fill="{C.SLATE}" '
-        f'text-anchor="middle">{C.esc(short(p["label"]))}</text>' for x, y, p in xy)
+        f'text-anchor="middle">{C.esc(C.short_label(p["label"]))}</text>' for x, y, p in xy)
     return (f'<svg viewBox="0 0 {W} {H}" width="100%" height="{H}" role="img" '
             f'aria-label="Risks over appetite by review point">'
             f'<polyline points="{poly}" fill="none" stroke="{C.PATINA}" stroke-width="2.5"/>'
@@ -57,35 +57,45 @@ def trend_line(ctx: C.Context) -> str:
 
 
 def trend_bars(ctx: C.Context) -> str:
-    pts = ctx.trend
-    top = max([p["total"] for p in pts] + [1])
-    bw = min(46, (W - 2 * PAD) / max(len(pts), 1) - 12)
-    step = (W - 2 * PAD) / max(len(pts), 1)
-    bars = ""
-    for i, p in enumerate(pts):
-        x = PAD + i * step + (step - bw) / 2
-        y = H - PAD
-        for b in ["critical", "high", "medium", "low"]:
-            n = p["byBand"][b]
-            if not n:
-                continue
-            h = (n / top) * (H - 2 * PAD)
-            y -= h
-            bars += (f'<rect x="{x:.0f}" y="{y:.0f}" width="{bw:.0f}" height="{h:.0f}" '
-                     f'fill="{C.BAND[b]}"><title>{C.BAND_LABEL[b]}: {n}</title></rect>')
-        bars += (f'<text x="{x + bw / 2:.0f}" y="{H - 9}" font-size="9.5" fill="{C.SLATE}" '
-                 f'text-anchor="middle">{C.esc(short(p["label"]))}</text>')
-    legend = "".join(f'<span class="lg"><i style="background:{C.BAND[b]}"></i>'
-                     f'{C.BAND_LABEL[b]}</span>' for b in ["low", "medium", "high", "critical"])
-    return (f'<svg viewBox="0 0 {W} {H}" width="100%" height="{H}" role="img" '
-            f'aria-label="Residual band mix by review point">{bars}</svg>'
-            f'<div class="legend">{legend}</div>')
+    """Residual band mix by review point — now the shared G.stacked_bar.
+
+    What stood here was a hand-rolled stack painted in the saturated BAND fills
+    with no segment labels at all: four bands adjacent in one column, separated by
+    colour alone, and `medium`/`high` sit ΔE 13.3 apart. The library's RAG stack
+    takes the `mid` tones and writes each count into its own segment, which is what
+    makes the two middle bands tellable apart. The `<title>` tooltips it replaces
+    were never reachable in print or on a phone.
+
+    The counted legend below it is not a second copy of the page key. The library
+    will not write a count into a segment too short to hold the text, which on this
+    register is the high and critical segments — exactly the two bands a board is
+    reading the chart for. Those counts have to appear in words somewhere, and this
+    is the nearest place to the mark they belong to.
+    """
+    return C.gfx(C.band_mix_mark(ctx)) + C.gfx_legend(ctx.live["byBand"])
 
 
-def short(label: str) -> str:
-    """Trend axes are labelled by snapshot, not raw date — keep them tick-sized."""
-    parts = label.split()
-    return " ".join(parts[:2]) if len(parts) > 2 else label
+def heat_block(ctx: C.Context) -> str:
+    """The likelihood × impact matrix, beside what it is claiming.
+
+    New to this page. The board was previously asked to reason about band mix and a
+    top five without ever being shown where in the matrix the register actually
+    sits, which is the one picture that says whether the exposure is a few severe
+    risks or a broad middle.
+    """
+    svg, skipped = C.heat_mark(ctx, "residual")
+    note = ""
+    if skipped:
+        many = skipped > 1
+        note = (f'<div class="note">{skipped} risk{"s" if many else ""} scored above the '
+                f'{ctx.size}×{ctx.size} matrix and {"are" if many else "is"} not plotted; '
+                f'{"they remain" if many else "it remains"} counted in every total.</div>')
+    caption = (f'<p class="lead">Likelihood runs across, impact up. Every cell is coloured '
+               f'by the band that cell scores, and every cell holding risks carries how many '
+               f'— the count is on the cell because two of the four bands sit too close '
+               f'in colour to tell apart on their own.</p>')
+    return (f'<div class="gfxrow"><div class="gfxcol">{C.gfx(svg)}{note}</div>'
+            f'<div class="gfxcol">{caption}{C.gfx_legend()}</div></div>')
 
 
 def themes_block(ctx: C.Context) -> str:
@@ -120,11 +130,19 @@ def top_risks_block(ctx: C.Context) -> str:
                f'{C.VELOCITY_MARK[r["velocity"]]}</span>'
                f' {r["priorExposure"]} → {r["residualExposure"]}'
                if r["priorExposure"] is not None else "new since last review")
+        # The bullet sits beside the sentence, not above it, on the reference
+        # layout's reasoning: the sentence is what a board reads and the mark is the
+        # evidence it is standing on. It answers the one question the chip cannot —
+        # not "what band is this" but "how far past the line we set".
+        bullet = C.gfx(C.appetite_bullet(ctx, r))
+        narrative = (f'{title} '
+                     f'<span class="note">({r["id"]} · {C.esc(r["themeName"])} · residual '
+                     f'{r["residualExposure"]}{" — provisional seed" if provisional else ""} · {vel}'
+                     f'{" · over appetite" if r["overAppetite"] else ""})</span><br>{line}')
         rows += (f'<div class="toprisk"><div>{C.chip(r["residualBand"])}</div>'
-                 f'<div class="body">{title} '
-                 f'<span class="note">({r["id"]} · {C.esc(r["themeName"])} · residual '
-                 f'{r["residualExposure"]}{" — provisional seed" if provisional else ""} · {vel}'
-                 f'{" · over appetite" if r["overAppetite"] else ""})</span><br>{line}</div></div>')
+                 f'<div class="body"><div class="gfxrow">'
+                 f'<div class="gfxcol">{narrative}</div>'
+                 f'<div class="gfxcol">{bullet}</div></div></div></div>')
     return rows
 
 
@@ -249,7 +267,7 @@ footer{{margin-top:36px;color:{C.SLATE};font-size:11px;border-top:1px solid {C.W
 /* The column counts live in CSS, never inline on the element: an inline
    grid-template-columns outranks this rule and silently defeats it. */
 @media (max-width:900px){{.exec-top,.themegrid,.grid2{{grid-template-columns:1fr}}}}
-"""
+{C.MARK_CSS}"""
 
 
 def _dtext(d): return d.get("text") if isinstance(d, dict) else d
@@ -309,6 +327,7 @@ def render(ctx: C.Context) -> str:
   ({live} live, {sm['closed']} closed)</div></div>
 {prov_banner}
 <div class="wrap">
+  {C.gfx_band("Cyber Aware Creations", "Board view")}
   <div class="section exec-top">
     <div class="big"><div class="n">{sm['overAppetite']} of {sm['total']}{live_word} risks</div>
       <div class="l">{sit_verb} above the {C.esc(C.BAND_LABEL[ctx.appetite].lower())} risk appetite.
@@ -323,6 +342,9 @@ def render(ctx: C.Context) -> str:
   <div class="section"><h2>Executive summary</h2><div class="card">{summary_block(ctx)}</div></div>
 
   <div class="section"><h2>Risk themes</h2><div class="themegrid">{themes_block(ctx)}</div></div>
+
+  <div class="section"><h2>Where the register sits</h2>
+    <div class="card">{heat_block(ctx)}</div></div>
 
   <div class="section grid2">
     <div><h2>Top risks — what they mean for the business</h2>

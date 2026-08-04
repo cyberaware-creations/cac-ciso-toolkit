@@ -142,7 +142,14 @@ chk 5 "provisional disclosure present in board + report" \
 "$PY" "$RR/renderers/render_board.py" "$work/r.rr" "$work/off.html" --offline >/dev/null || {
   echo "board-safety: FIXTURE FAILED — offline render_board errored"; exit 1; }
 # Passes only when the file contains no absolute URL at all — not merely no font link.
-grep -q 'https\?://' "$work/off.html"
+#
+# ONE exemption, added when this view started drawing cac_graphics marks: the SVG
+# namespace declaration every mark opens with. `xmlns="http://www.w3.org/2000/svg"`
+# is an XML name, not a location — nothing fetches it, and the markup is not SVG
+# without it. It is removed by exact string before the grep rather than excluded by
+# pattern, so an xlink:href, a <use href>, a url() inside a style attribute, or any
+# other real URL — including one on the same <svg> element — still fails this check.
+sed 's| xmlns="http://www.w3.org/2000/svg"||g' "$work/off.html" | grep -q 'https\?://'
 chk 6 "--offline emits no external request" "$([ $? -ne 0 ] && echo PASS || echo FAIL)"
 
 # 7. A closed risk is not counted as over appetite, and is not a top risk.

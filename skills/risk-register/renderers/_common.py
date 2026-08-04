@@ -25,6 +25,14 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import score_register as sr  # noqa: E402
 
+# Vendored alongside this file, for the same reason score_register is reached by
+# path surgery rather than by package import: every shipped script must run from
+# its own skill directory, so a cross-skill import breaks the moment one skill is
+# taken on its own. tools/check-versions.py fails the build if this copy drifts
+# from tools/cac_graphics.py, so it is READ-ONLY from here — a mark that needs a
+# library change is a library change, not a workaround in this file.
+import cac_graphics as G  # noqa: E402
+
 # --- Brand tokens (assets/brand.md) ------------------------------------------
 # Patina is the brand/action accent and never signals "safe"; severity always
 # uses the RAG ramp.
@@ -53,6 +61,43 @@ BAND_LABEL = {"low": "Low", "medium": "Medium", "high": "High", "critical": "Cri
 # tag) on a light surface, where the fill values run 1.5–2.6:1 and are unreadable.
 BAND_TEXT = {"low": "#25764A", "medium": "#7A6410", "high": "#8F5B06",
              "critical": "#c0392b"}
+
+# --- Engine band -> the graphics library's RAG band ---------------------------
+# This skill's lowest band is `low`; cac_graphics calls the same band `good`. The
+# other three names are identical. That single word is the whole translation, and
+# it is written ONCE, here.
+#
+# It is a mapping and not an `if b == "low"` at four call sites for the reason
+# text_on() gives above about the four hand-copied contrast judgements: a rule
+# restated per call site is a rule that will disagree with itself. Every mark on
+# every page reads this dict, so a heat cell, a stack segment, a bar and a bullet
+# cannot paint one risk four different colours.
+#
+# The mapping runs one way only. Nothing converts a library band back into an
+# engine band, because the engine's band is the fact and the library's is the
+# rendering of it — a reverse lookup would be a second place the band is decided.
+RISK_SEV = {"low": "good", "medium": "medium", "high": "high", "critical": "critical"}
+
+
+def sev(band_name: str) -> str:
+    """The graphics-library band for an engine band name.
+
+    Raises rather than defaulting. A band name this skill does not know is a
+    register the engine could not have produced, and quietly painting it `good`
+    would report the safest possible answer for data nobody understands. KeyError
+    at render time is loud, immediate and traceable; a green cell is none of those.
+    """
+    return RISK_SEV[band_name]
+
+
+def sev_of(risk: dict, view: str = "residual") -> str:
+    """The library band for a risk, carried from what the engine already declared.
+
+    `residualBand` / `inherentBand` are written by score_register.band(). This
+    reads them; it never recomputes one. No renderer in this skill decides what
+    band a risk is in — that is the single rule the marks exist to preserve.
+    """
+    return sev(risk[view + "Band"])
 
 # Two font modes. The brand faces come from Google Fonts, which means opening a report
 # makes an outbound request — for a document full of a client's risk data, that is a real
@@ -1210,6 +1255,207 @@ def freshness_line(ctx: Context) -> str:
     return (f'<div class="note freshness">Of {c["live"]} live risk{plural}: '
             + "; ".join(bits) + '. Age is reported so the board can weigh it, and nothing '
             'on this page is rescored or re-ranked because of it.</div>')
+
+
+# --- Shared graphics marks ----------------------------------------------------
+# Every mark is built here rather than in a renderer, for the same reason
+# freshness_line() is: two board-facing surfaces draw the same picture, and a mark
+# whose data rule lives in one of them is a mark the other one will get wrong.
+#
+# None of these functions decides a severity. Each carries a band the engine
+# already wrote — on the risk (`residualBand`), or on the cell via score_register's
+# own band() over the cell's own exposure — through RISK_SEV and nothing else.
+
+
+def short_label(label: str) -> str:
+    """Snapshot labels shrunk to tick size.
+
+    Lived in render_board.py as a module-private `short()` with one caller. It now
+    has two — the executive dashboard's trend axis and the band-mix stack, which
+    render_dashboard.py also draws — so it moves here rather than being copied.
+    """
+    parts = label.split()
+    return " ".join(parts[:2]) if len(parts) > 2 else label
+
+
+def heat_mark(ctx: Context, view: str = "residual"):
+    """The likelihood × impact matrix as G.heat_matrix. Returns (svg, skipped).
+
+    Cell colour is the band that cell scores, asked of the engine's own
+    `sr.band(sr.exposure(l, i), size)` — the identical call that produced every
+    risk's `residualBand`, so a cell and the risks inside it cannot disagree. It is
+    not a banding rule restated here; there is exactly one call site for it.
+
+    EVERY occupied cell carries its count as the cell label, which is not
+    decoration: `medium` and `high` are ΔE 13.3 apart, below the 15 separability
+    floor, and all four bands appear adjacently in a matrix. Colour is not allowed
+    to carry the count on its own.
+
+    Counts come from ctx.heat_counts(), unchanged, so this mark and
+    render_report.py's HTML table plot the same population. That population
+    includes closed risks, which the board's headline figures deliberately exclude
+    (see live_summary) — a real inconsistency, older than this mark, and left
+    alone here rather than fixed in one of the two places that would then disagree.
+    """
+    counts, skipped = ctx.heat_counts(view)
+    cells = []
+    for impact in range(ctx.size, 0, -1):          # highest impact on the top row
+        row = []
+        for lik in range(1, ctx.size + 1):
+            n = counts[impact - 1][lik - 1]
+            cell_band = sr.band(sr.exposure(lik, impact), ctx.size)
+            row.append({"sev": sev(cell_band), "label": str(n) if n else ""})
+        cells.append(row)
+    return (G.heat_matrix(cells,
+                          row_labels=list(range(ctx.size, 0, -1)),
+                          col_labels=list(range(1, ctx.size + 1))),
+            skipped)
+
+
+def band_mix_mark(ctx: Context) -> str:
+    """Residual band mix per review point, as a RAG G.stacked_bar.
+
+    Segments carry `sev`, so the library paints this as a status stack rather than
+    the categorical MEASURE ramp — correct here, because the segments ARE the
+    engine's four bands and not four categories. Each segment tall enough to hold
+    text is labelled with its count by the library, for the ΔE reason above.
+
+    Bottom-to-top is low → critical, matching the band pills and the legend, so
+    the worst band is the one at the top of every bar on every page.
+    """
+    periods = []
+    for p in ctx.trend:
+        segments = [{"value": p["byBand"][b], "sev": sev(b)}
+                    for b in ["low", "medium", "high", "critical"]]
+        periods.append({"label": short_label(p["label"]), "segments": segments})
+    return G.stacked_bar(periods)
+
+
+def top_risks_mark(ctx: Context, n: int = 5) -> str:
+    """The worst live residual exposures, as a per-item RAG G.bar_chart.
+
+    Rows are labelled by risk ID and never by title, on the grounds id_list() gives
+    at length: an imported CSF gap carries raw framework wording as its title until
+    somebody rewords it, and a bar chart is one more surface that wording could
+    reach. Each bar's colour is that risk's own declared band.
+    """
+    items = [(r["id"], r["residualExposure"], sev_of(r)) for r in ctx.top_risks(n)]
+    return G.bar_chart(items)
+
+
+def appetite_ceiling(size: int, appetite: str) -> int:
+    """The worst residual exposure still inside the stated appetite.
+
+    Appetite is declared as a band — "the worst band still acceptable" — and a
+    bullet's target is a number, so the band has to be turned into its top edge.
+    That edge is one below the lower bound of the next band up, read out of
+    score_register's own BAND_THRESHOLDS. A `critical` appetite has no band above
+    it and therefore accepts the whole matrix.
+    """
+    i = sr.BAND_ORDER.index(appetite)
+    if i + 1 >= len(sr.BAND_ORDER):
+        return size * size
+    return sr.BAND_THRESHOLDS[size][sr.BAND_ORDER[i + 1]] - 1
+
+
+def appetite_zones(size: int) -> list:
+    """Bullet zones from the engine's band boundaries, for direction='lower'.
+
+    Under 'lower', (t, s) means values AT OR ABOVE t score s. `low` is deliberately
+    absent: its lower bound is 1 and G._zone_sev already returns `good` for anything
+    below the first threshold it is handed, so listing it would add a boundary the
+    engine does not have — the same mistake zones_from_threshold's docstring
+    describes for `target`.
+    """
+    return [(sr.BAND_THRESHOLDS[size][b], sev(b)) for b in sr.BAND_ORDER[1:]]
+
+
+def appetite_bullet(ctx: Context, risk: dict) -> str:
+    """One risk's residual exposure against the appetite, as G.bullet.
+
+    Value, zones and target are all the engine's: the exposure it scored, the
+    boundaries it bands on, and the ceiling its appetite setting implies. The
+    library derives the bar's colour from those zones, and because the zones ARE
+    BAND_THRESHOLDS it lands on the same band the engine wrote on the risk.
+
+    The axis is the whole matrix (size²) on every risk, so five bullets stacked
+    down a board page are comparable — different auto-scales would make the
+    same exposure a different bar length on adjacent rows.
+    """
+    return G.bullet(risk["residualExposure"],
+                    appetite_ceiling(ctx.size, ctx.appetite),
+                    appetite_zones(ctx.size),
+                    direction="lower", axis_max=ctx.size * ctx.size)
+
+
+def gfx(svg: str) -> str:
+    """A mark, wrapped so it scales inside its column instead of widening it."""
+    return f'<div class="gfx">{svg}</div>' if svg else ""
+
+
+def gfx_band(title: str, kicker: str = "") -> str:
+    """The CAC chrome band: ink ground, patina spark, lockup, optional kicker."""
+    k = f'<span class="kicker">{esc(kicker)}</span>' if kicker else ""
+    return (f'<div class="cacband"><span class="spark"></span>'
+            f'<span class="lockup">{esc(title)}</span>{k}</div>')
+
+
+def gfx_legend(counts: dict = None) -> str:
+    """What the colours on the marks mean.
+
+    Swatches take the band's `mid` tone, which is what the heat cells, the stack
+    segments and the bullet zone bands are actually painted in. The saturated
+    `fill` — used by the bars and the bullet's own value bar — is the same hue a
+    step up, so a reader connects the two; a legend drawn in `fill` beside a page
+    of `mid` would be the pairing that does not connect.
+
+    `counts` is the COUNT CARRIER for the band-mix stack, and it is not optional
+    styling. G.stacked_bar labels a segment only when the segment is tall enough to
+    hold text, so on a register whose worst two bands hold one or two risks each,
+    those two segments render as bare colour — and `medium` and `high` are ΔE 13.3
+    apart, below the separability floor. The library is correct to refuse to draw
+    text it cannot fit, and it is a vendored copy that must not be edited, so the
+    number has to be carried in HTML beside the mark instead. Pass the same byBand
+    dict the stack was built from and every band states its count in words.
+    """
+    items = []
+    for b in ["low", "medium", "high", "critical"]:
+        text = BAND_LABEL[b]
+        if counts is not None:
+            text += f" {counts[b]}"
+        items.append((G._RAG[sev(b)]["mid"], text))
+    inner = "".join(f'<span><i style="background:{c}"></i>{esc(t)}</span>'
+                    for c, t in items)
+    return f'<div class="gfxlegend">{inner}</div>'
+
+
+# Chrome and mark CSS, appended to each renderer's own stylesheet.
+#
+# Every selector carries a `cac`/`gfx` prefix. metrics-register calls these
+# `.band`, `.mark`, `.legend`, `.mrow` and `.mcol`; on these pages `.mark` is
+# already the header lockup and `.legend` is already the trend key, so copying the
+# names verbatim would have silently restyled the chrome of both dashboards. Same
+# rules, same values, names that do not collide.
+MARK_CSS = f"""
+.cacband{{background:{INK};color:{LIME};border-radius:10px;padding:14px 18px;
+  margin:20px 0 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap}}
+.cacband .lockup{{font-family:'Space Grotesk','Manrope',system-ui,sans-serif;
+  font-weight:600;font-size:13px;letter-spacing:.02em}}
+.cacband .spark{{width:9px;height:9px;border-radius:2px;background:{PATINA};
+  flex:0 0 auto}}
+.cacband .kicker{{margin-left:auto;color:{PATINA};font-size:11px;font-weight:700;
+  letter-spacing:.12em;text-transform:uppercase}}
+/* Marks size to their column and never push the page sideways. */
+.gfx{{margin:10px 0 2px}}
+.gfx svg{{display:block;max-width:100%;height:auto}}
+.gfxrow{{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap}}
+.gfxrow>.gfxcol{{flex:1 1 260px;min-width:0}}
+.gfxlegend{{display:flex;gap:14px;flex-wrap:wrap;color:{SLATE};font-size:12px;
+  margin:8px 0 0}}
+.gfxlegend span{{display:flex;align-items:center;gap:6px}}
+.gfxlegend i{{width:14px;height:10px;border-radius:2px;display:block;flex:0 0 auto}}
+@media print{{.cacband{{-webkit-print-color-adjust:exact;print-color-adjust:exact}}}}
+"""
 
 
 def build(argv: list[str], description: str, default_out: str) -> Context:
