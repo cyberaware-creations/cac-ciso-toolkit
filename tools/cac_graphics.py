@@ -62,6 +62,25 @@ _UNASSESSED   = "#D6D2C7"   # a band-less segment in an otherwise-RAG stack
 _SURFACE = "#FFFFFF"   # every mark carries its own surface
 
 
+def _svg_size(svg):
+    """(width, height) declared on an SVG string, or (0, 0)."""
+    if not svg:
+        return (0, 0)
+    head = svg[:400]
+    out = []
+    for attr in ("width", "height"):
+        tag = f'{attr}="'
+        i = head.find(tag)
+        if i < 0:
+            return (0, 0)
+        raw = head[i + len(tag):head.find('"', i + len(tag))]
+        try:
+            out.append(float(raw))
+        except ValueError:
+            return (0, 0)
+    return (out[0], out[1])
+
+
 def _relative_luminance(hex_colour):
     """WCAG relative luminance for a #rrggbb string."""
     c = hex_colour.lstrip("#")
@@ -287,14 +306,18 @@ def bullet(value, target, zones, direction="higher", unit="", labels=True,
     bar_text = _sev_colour(bar_sev, "text") if bar_sev in _RAG else _MUTED
     val_x = to_x(value)
 
-    # White measure lane punches through zone colours so the bar edge stays crisp
+    # White measure lane punches through the zone colours, and the bar carries a
+    # white keyline on top of it. Adjacent bands differ in hue at similar
+    # lightness (critical mid vs high mid vs medium mid), so a bar sitting in its
+    # own band would otherwise dissolve into the ground behind it.
     lane = (
-        f'<rect x="20" y="{bar_y + 7}" width="{end_x - 20:.1f}" '
-        f'height="{bar_h - 14}" fill="#FFFFFF"/>'
+        f'<rect x="20" y="{bar_y + 5}" width="{end_x - 20:.1f}" '
+        f'height="{bar_h - 10}" fill="{_SURFACE}"/>'
     )
     val_bar = (
         f'<rect x="20" y="{bar_y + 7}" width="{val_x - 20:.1f}" '
-        f'height="{bar_h - 14}" rx="2" fill="{bar_fill}"/>'
+        f'height="{bar_h - 14}" rx="2" fill="{bar_fill}" '
+        f'stroke="{_SURFACE}" stroke-width="1.5"/>'
     )
 
     # Value label above the bar tip, in the zone's text colour
@@ -706,8 +729,19 @@ def column_trend(readings, labels=None, unit=""):
 
 # ── Mark 11: Bar Chart ────────────────────────────────────────────────────────
 
-def bar_chart(items):
-    """Horizontal bar chart. items = [(label, value) or (label, value, sev)]."""
+def bar_chart(items, categorical=False):
+    """
+    Horizontal bar chart. items = [(label, value)] or [(label, value, sev)].
+
+    Palette follows the same rule as stacked_bar: any item carrying a `sev`
+    makes this a RAG chart; otherwise the bars are a single MEASURE blue,
+    because a bar chart over unbanded values compares magnitudes and does not
+    need to distinguish the rows by colour — the row labels already do that.
+
+    Pass categorical=True when the rows ARE the categories being compared and
+    should be told apart at a glance (source, asset class, business unit). They
+    then take the sequential MEASURE ramp, never RAG.
+    """
     if not items:
         return ""
     pad_x, pad_y = 90, 10
@@ -719,12 +753,19 @@ def bar_chart(items):
     if mx == 0:
         mx = 1
 
+    is_rag = any(len(item) > 2 and item[2] for item in items)
+
     bars = ""
     for i, item in enumerate(items):
         lbl = item[0]
         val = item[1]
         sev = item[2] if len(item) > 2 else None
-        fill = _sev_colour(sev) if sev else _MEASURE
+        if sev:
+            fill = _sev_colour(sev, "fill")
+        elif categorical and not is_rag:
+            fill = _MEASURE_RAMP[i % len(_MEASURE_RAMP)]
+        else:
+            fill = _MEASURE
         bw = val / mx * chart_w
         y = pad_y + i * row_h
         bars += (
@@ -747,9 +788,34 @@ def bar_chart(items):
 # ── Mark 12: Heat Matrix ──────────────────────────────────────────────────────
 
 def heat_matrix(cells, row_labels=None, col_labels=None):
-    """Heat matrix. cells[i][j] = {sev, label} or None."""
+    """
+    Heat matrix. cells[i][j] = {sev?, value?, label?} or None.
+
+    Same rule as the other composition marks:
+
+      * any cell carries `sev` -> RAG matrix, cells take the band's `mid` tone.
+      * no cell carries `sev`  -> INTENSITY matrix. Cells carrying a numeric
+        `value` are shaded along the sequential MEASURE ramp, darkest = highest.
+        A count of findings per control family is not a severity, and colouring
+        it red would assert one.
+    """
     if not cells:
         return ""
+    is_rag = any(c and c.get("sev") for row in cells for c in row)
+
+    # Intensity scale for the no-sev case, darkest step = highest value
+    vals = [c["value"] for row in cells for c in row
+            if c and isinstance(c.get("value"), (int, float))]
+    vmin = min(vals) if vals else 0
+    vmax = max(vals) if vals else 0
+    vspan = (vmax - vmin) or 1
+
+    def _intensity(v):
+        # ramp runs dark -> light, so invert: high value gets the dark step
+        frac = (v - vmin) / vspan
+        idx = int(round((1 - frac) * (len(_MEASURE_RAMP) - 2)))
+        return _MEASURE_RAMP[_clamp(idx, 0, len(_MEASURE_RAMP) - 1)]
+
     nrows = len(cells)
     ncols = max(len(row) for row in cells)
     cell_sz = 44
@@ -787,17 +853,25 @@ def heat_matrix(cells, row_labels=None, col_labels=None):
                 fill = "#ECEAE3"
                 txt = ""
                 sev = ""
+                txt_col = _MUTED
             else:
                 sev = cell.get("sev", "")
-                fill = _sev_colour(sev, "mid") if sev else _MEASURE_TRACK
                 txt = cell.get("label", "")
+                if sev:
+                    fill = _sev_colour(sev, "mid")
+                    txt_col = _sev_colour(sev, "text")
+                elif not is_rag and isinstance(cell.get("value"), (int, float)):
+                    fill = _intensity(cell["value"])
+                    txt_col = _on(fill)
+                else:
+                    fill = _MEASURE_TRACK
+                    txt_col = _MUTED
             out += (
                 f'<rect x="{x + 1}" y="{y + 1}" '
                 f'width="{cell_sz - 2}" height="{cell_sz - 2}" '
                 f'rx="3" fill="{fill}"/>'
             )
             if txt:
-                txt_col = _sev_colour(sev, "text") if sev else _MUTED
                 out += (
                     f'<text x="{x + cell_sz // 2}" '
                     f'y="{y + cell_sz // 2 + 4}" '
@@ -927,16 +1001,29 @@ def small_multiples(metrics, mark_fn, axis_max=None):
         return ""
     if axis_max is not None:
         metrics = [dict(m, axis_max=axis_max) for m in metrics]
+
+    rendered = [mark_fn(m) for m in metrics]
+
+    # Cell size comes from the marks themselves. A hardcoded cell silently clips
+    # any mark wider than it — the next cell's surface rect paints over the
+    # overflow, so value and axis-max labels vanish with no error anywhere.
+    gap = 20
+    mark_w = int(_math.ceil(max((_svg_size(s)[0] for s in rendered), default=0)))
+    mark_h = int(_math.ceil(max((_svg_size(s)[1] for s in rendered), default=0)))
+    if not mark_w or not mark_h:
+        return ""
+    cell_w = mark_w + gap
+    cell_h = mark_h + gap
+
     cols = min(3, len(metrics))
     rows = (len(metrics) + cols - 1) // cols
-    cell_w, cell_h = 220, 130
-    w = cols * cell_w
-    h = rows * cell_h
+    w = cols * cell_w - gap
+    h = rows * cell_h - gap
+
     out = ""
-    for idx, m in enumerate(metrics):
+    for idx, inner in enumerate(rendered):
         col = idx % cols
         row = idx // cols
-        inner = mark_fn(m)
         out += (
             f'<g transform="translate({col * cell_w},{row * cell_h})">'
             f'{inner}'
@@ -944,7 +1031,8 @@ def small_multiples(metrics, mark_fn, axis_max=None):
         )
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" '
-        f'viewBox="0 0 {w} {h}">{_surf()}{out}</svg>'
+        f'viewBox="0 0 {w} {h}" style="max-width:100%;height:auto">'
+        f'{_surf()}{out}</svg>'
     )
 
 
@@ -1590,6 +1678,51 @@ def _self_test():
             {"sev": "critical", "value": 2}]}]),
         present=[f'fill="{_UNASSESSED}"'])
 
+    # 57. The bullet bar carries a white keyline. Adjacent mid tones differ in hue
+    # at similar lightness, so a bar sitting inside its own band dissolves into it.
+    chk("bullet bar carries a white keyline",
+        all_marks["bullet_hi"],
+        present=[f'fill="{_RAG["high"]["fill"]}" stroke="{_SURFACE}"'])
+
+    # 58. small_multiples sizes its cells from the marks. A hardcoded cell clips
+    # any wider mark — the next cell's surface paints over the overflow, so value
+    # and axis labels vanish with no error raised anywhere.
+    wide = small_multiples(
+        [{"n": 1}, {"n": 2}, {"n": 3}],
+        lambda m: bullet(72, 90,
+                         zones_from_threshold(
+                             {"target": 90, "warn": 75, "critical": 60},
+                             "higher-better"),
+                         direction="higher-better", unit="%", axis_max=100))
+    sm_w = _svg_size(wide)[0]
+    if sm_w >= 3 * 280:
+        ok("small_multiples cell fits the mark it renders")
+    else:
+        bad("small_multiples cell fits the mark it renders",
+            f"3×280px marks laid out in only {sm_w}px")
+
+    # 59. A categorical bar chart uses the ramp, never RAG.
+    chk("categorical bar_chart → ramp, no RAG",
+        bar_chart([("Phishing", 45), ("Web", 72), ("Insider", 31)],
+                  categorical=True),
+        present=[_MEASURE_RAMP[0]], absent=rag_any)
+
+    # 60. An intensity heat matrix uses the ramp, never RAG. A count of findings
+    # per control family is not a severity.
+    chk("intensity heat_matrix → ramp, no RAG",
+        heat_matrix([[{"value": 12, "label": "12"}, {"value": 3, "label": "3"}],
+                     [{"value": 7, "label": "7"}, {"value": 1, "label": "1"}]]),
+        present=[_MEASURE_RAMP[0]], absent=rag_any)
+
+    # 61. Intensity is monotonic: the highest value takes the darkest step.
+    hm = heat_matrix([[{"value": 12, "label": "hi"}, {"value": 1, "label": "lo"}]])
+    order = _re.findall(r'rx="3" fill="(#[0-9A-Fa-f]{6})"', hm)
+    if (len(order) == 2
+            and _relative_luminance(order[0]) < _relative_luminance(order[1])):
+        ok("heat_matrix intensity is monotonic (highest value darkest)")
+    else:
+        bad("heat_matrix intensity is monotonic", f"got {order}")
+
     # ── Design-intent checks (P2) ─────────────────────────────────────────────
 
     # 40. bullet zones use mid tones, not opacity compositing
@@ -1614,8 +1747,8 @@ def _self_test():
         bad("_zone_sev accepts direction='lower-better'", str(e))
 
     print()
-    if checks != 56:
-        print(f"self-test: ran {checks} checks, expected 56")
+    if checks != 61:
+        print(f"self-test: ran {checks} checks, expected 61")
         _sys.exit(1)
     if fails:
         print(f"self-test: {fails} of {checks} checks FAILED")
@@ -1669,10 +1802,22 @@ def _gallery(out_path):
         ("10 · Column Trend",
          column_trend([8, 12, 10, 15, 13, 18],
                       labels=["Jan", "Feb", "Mar", "Apr", "May", "Jun"])),
-        ("11 · Bar Chart",
+        ("11 · Bar Chart — risk bands (sev → RAG)",
          bar_chart([("Cloud", 45, "good"), ("On-Prem", 72, "high"),
                     ("SaaS", 31, "good")])),
-        ("12 · Heat Matrix",
+        ("11 · Bar Chart — categories (categorical=True → ramp)",
+         bar_chart([("Phishing", 45), ("Web app", 72), ("Insider", 31),
+                    ("Supply chain", 18)], categorical=True)),
+        ("12 · Heat Matrix — intensity (no sev → ramp, darkest = highest)",
+         heat_matrix(
+             [[{"value": 12, "label": "12"}, {"value": 8, "label": "8"},
+               {"value": 3, "label": "3"}],
+              [{"value": 7, "label": "7"}, {"value": 1, "label": "1"},
+               {"value": 5, "label": "5"}]],
+             row_labels=["Access", "Config"],
+             col_labels=["Q1", "Q2", "Q3"]
+         )),
+        ("12 · Heat Matrix — risk bands (sev → RAG)",
          heat_matrix(
              [[{"sev": "good", "label": "2"}, {"sev": "medium", "label": "5"},
                {"sev": "high", "label": "9"}],
