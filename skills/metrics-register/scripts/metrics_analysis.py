@@ -520,6 +520,11 @@ def derive_metric(store: dict, metric: dict, today: str) -> dict:
         "csfSubcategoryIds": list(metric.get("csfSubcategoryIds") or []),
         "riskIds": list(metric.get("riskIds") or []),
         "readingCount": len(rows),
+        # The series itself, oldest first, so a renderer can draw a trend without
+        # re-reading the store. Values only: a sparkline plots magnitude over
+        # position, and shipping the full reading objects here would invite a
+        # renderer to start deriving things the engine already decided.
+        "readings": [r["value"] for r in rows],
         "value": latest_value,
         "period": latest["period"] if latest else None,
         "date": latest["date"] if latest else None,
