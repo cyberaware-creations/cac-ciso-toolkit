@@ -34,6 +34,53 @@ disagree with the section printed above it, and the reader would have no way to 
 right. So the headline figures are *read*: each adapter runs the producer's own analysis and
 lifts the number that producer calculated.
 
+## Figures follow the same rule as facts
+
+Each section carries chartable series as well as sentences, in a `charts` block. A figure is
+read exactly the way a headline is: **every value comes from a field the producing skill
+computed.** The assembler chooses which series is worth a board's attention and what kind of
+mark suits it — a presentation judgement — and sums, counts and bands nothing.
+
+Where a producer had no rollup to lift, the rollup was **added to that producer** rather than
+computed here. That is why `exceptions-register` and `incident-materiality` now return
+`counts.byBand`: a count derived in two places is a count that can disagree with itself.
+
+Every figure names the analysis field it came from, and the pack prints it:
+
+```
+Open risks by residual band          summary.byBand
+Subcategory coverage by CSF Function coverage.byFunction
+Backup restores tested               metrics[M-006]
+```
+
+That turns "the pack computes nothing" from a claim in this file into something a reader can
+check against the producer's own output.
+
+Three kinds, and the colour contract decides the palette:
+
+| kind | what it is | colour |
+|---|---|---|
+| `bar` | a categorical measure | MEASURE — never RAG, because no threshold was declared |
+| `band-mix` | a population split by a band the producer declared | RAG, legitimately: the bands are declared, not inferred |
+| `bullet` | one thresholded metric against its target | RAG, from the metric's own zones |
+
+Two rules that stop a figure lying:
+
+**A band-mix is a partition, and it says which population it split.** The exceptions mix sums
+to the *active* records and the incident mix to the *open* incidents, so both name what they
+left out — a chart summing to 3 beside a headline reading 4 makes a reader do arithmetic to
+discover they were never the same population, and some of them will conclude one is wrong.
+
+**Unassessed is not zero.** A CSF Function with nothing assessed reaches the page hatched and
+labelled `not assessed`, never as a zero-length bar. Zero says it was measured and covers
+nothing; a zero bar sitting in a row of long ones reads as the worst score on the chart rather
+than as an absent one.
+
+The document draws all three kinds. **The deck draws the band-mixes** as native shapes — a
+rectangle is a rectangle in PowerPoint, Keynote and Google Slides, where an embedded SVG is
+not — and leaves bullets and bars to the document, because both need an axis this writer would
+only approximate, and half a chart in a deck is worse than a pointer to the page that has it.
+
 ## What it adds
 
 | | |
