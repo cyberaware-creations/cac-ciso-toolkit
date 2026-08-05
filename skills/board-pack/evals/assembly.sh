@@ -22,7 +22,7 @@ skill="$(cd "$here/.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=40
+EXPECTED_CHECKS=45
 checks=0
 fails=0
 ok()  { checks=$((checks + 1)); printf '  ok    %s\n' "$1"; }
@@ -261,6 +261,160 @@ else
 fi
 eq "the asOf drift across sections is surfaced, not smoothed over" "True" \
    "$(q 'any("dated differently" in w for w in p["provenance"]["warnings"])')"
+
+# --- figures: every mark traces to the model, and every chart reaches the page ---
+# Both directions, deliberately. Checking only that each drawn figure exists in the model
+# would pass a renderer that silently dropped half of them — which is how the small-multiples
+# clipping shipped. Checking only the reverse would pass a renderer that invented one.
+fig_res=$("$PY" - "$J" "$work/full.html" <<'PY'
+import html as H, json, re, sys
+pack = json.load(open(sys.argv[1]))
+doc = open(sys.argv[2], encoding="utf-8").read()
+charts = pack.get("charts") or []
+problems = []
+
+drawn = re.findall(r'class="figtitle">(.*?)<span class="figsrc">(.*?)</span>', doc, re.S)
+model = {(c["title"], c["source"]) for c in charts}
+page = {(H.unescape(t), H.unescape(s)) for t, s in drawn}
+
+for missing in sorted(model - page):
+    problems.append("a chart in the model was never drawn: %s" % (missing,))
+for invented in sorted(page - model):
+    problems.append("a figure on the page is in no chart: %s" % (invented,))
+
+for c in charts:
+    # Every chart names the producer field it came from. That is what makes "the pack
+    # computes nothing" checkable rather than merely asserted on the page.
+    if not c.get("source"):
+        problems.append("a chart names no source field: %s" % c.get("title"))
+    if c.get("kind") not in ("bar", "band-mix", "bullet"):
+        problems.append("a chart has an unknown kind: %s" % c.get("kind"))
+    if c.get("kind") == "band-mix" and not all(
+            "label" in s and "value" in s for s in c["series"]):
+        problems.append("a band-mix segment is missing a label or a value: %s" % c["title"])
+
+print("\n".join(problems))
+PY
+)
+n_charts=$(q 'len(p.get("charts") or [])')
+if [ -z "$fig_res" ] && [ "${n_charts:-0}" -ge 5 ]; then
+  ok "every chart in the model is drawn, and every figure drawn is in the model ($n_charts)"
+else
+  bad "every chart in the model is drawn, and every figure drawn is in the model" \
+      "${fig_res:-only $n_charts charts present; expected at least 5}"
+fi
+
+# Every segment the model carries has to survive the trip to the page. Checking the model's
+# own arithmetic is not enough — the model can be perfectly consistent while the renderer
+# drops a segment on the way, which is exactly how the small-multiples clipping shipped: the
+# data was right and the picture was missing a cell. So this reads the values back out of the
+# rendered SVG and compares them to the series they were drawn from.
+seg_res=$("$PY" - "$J" "$work/full.html" <<'PY'
+import html as H, json, re, sys
+pack = json.load(open(sys.argv[1]))
+doc = open(sys.argv[2], encoding="utf-8").read()
+problems, checked = [], 0
+for c in pack.get("charts") or []:
+    if c.get("kind") != "band-mix":
+        continue
+    block = re.search(re.escape(H.escape(c["title"])) + r".*?</figure>", doc, re.S)
+    if not block:
+        problems.append("no rendered figure for %r" % c["title"])
+        continue
+    drawn = sorted(re.findall(r"<text[^>]*>([^<]+)</text>", block.group(0)))
+    # A zero-count band is not drawn — a zero-height segment is invisible anyway — so the
+    # expectation is every NON-zero segment, and nothing else.
+    want = sorted(str(s["value"]) for s in c["series"] if s["value"])
+    checked += 1
+    if drawn != want:
+        problems.append("%s: drew segments %s but the series says %s"
+                        % (c["section"], drawn, want))
+if checked == 0:
+    problems.append("compared nothing: no band-mix was found to read back")
+print("\n".join(problems))
+PY
+)
+if [ -z "$seg_res" ]; then
+  ok "every band-mix segment in the model survives to the rendered mark"
+else
+  bad "every band-mix segment in the model survives to the rendered mark" "$seg_res"
+fi
+
+# A band-mix is a partition, so its segments have to sum to the population it names. This is
+# the property that lets a chart sit beside a headline without contradicting it, and it is
+# checked against the real producer output rather than a fixture.
+mix_res=$("$PY" - "$J" <<'PY'
+import json, sys
+pack = json.load(open(sys.argv[1]))
+totals = {(f["section"], f["label"]): f["value"] for f in pack["headlines"]}
+problems, checked = [], 0
+expect = {"risk": ("risk", "risks tracked"),
+          "exceptions": ("exceptions", "acceptances and exceptions carried")}
+for c in pack.get("charts") or []:
+    if c.get("kind") != "band-mix":
+        continue
+    key = expect.get(c["section"])
+    if key is None or key not in totals:
+        continue
+    checked += 1
+    got = sum(s["value"] for s in c["series"])
+    if got != totals[key]:
+        problems.append("%s: segments sum to %s but the headline %r reads %s"
+                        % (c["section"], got, key[1], totals[key]))
+if checked == 0:
+    problems.append("compared nothing: no band-mix reached a headline to check against")
+print("\n".join(problems))
+PY
+)
+if [ -z "$mix_res" ]; then
+  ok "every band-mix sums to the headline it sits beside"
+else
+  bad "every band-mix sums to the headline it sits beside" "$mix_res"
+fi
+
+# The deck must carry the same compositions as the document. This is the parity rule the
+# whole placeholder pair above exists to enforce for prose, applied to marks: a figure that
+# reaches one deliverable and not the other means two readers of "the same pack" saw
+# different things.
+deck_res=$("$PY" - "$J" "$work/full.pptx" <<'PY'
+import json, re, sys, zipfile
+pack = json.load(open(sys.argv[1]))
+z = zipfile.ZipFile(sys.argv[2])
+xml = "".join(z.read(n).decode("utf-8", "ignore") for n in z.namelist()
+              if re.match(r"ppt/slides/slide\d+\.xml", n))
+problems, checked = [], 0
+for c in pack.get("charts") or []:
+    if c.get("kind") != "band-mix":
+        continue
+    for seg in c["series"]:
+        if not seg["value"]:
+            continue
+        checked += 1
+        # Named shapes, so the assertion is about the segment and not about a number that
+        # might coincide with something else on the slide.
+        if 'name="Segment %s' % seg["label"] not in xml:
+            problems.append("%s: segment %r is in the document but not in the deck"
+                            % (c["section"], seg["label"]))
+if checked == 0:
+    problems.append("compared nothing: no band-mix segment was checked against the deck")
+print("\n".join(problems))
+PY
+)
+if [ -z "$deck_res" ]; then
+  ok "every band-mix segment reaches the deck as well as the document"
+else
+  bad "every band-mix segment reaches the deck as well as the document" "$deck_res"
+fi
+
+# The unassessed case, end to end. A CSF Function with nothing assessed must reach the page
+# as a hatched row and not as a zero-length bar: a zero bar in a row of long ones reads as
+# the worst score on the chart rather than as an absent one.
+if grep -q "not assessed" "$work/full.html" && grep -q "cacHatch" "$work/full.html"; then
+  ok "an unassessed CSF Function reaches the page hatched, not as a zero bar"
+else
+  bad "an unassessed CSF Function reaches the page hatched, not as a zero bar" \
+      "no hatch or no 'not assessed' label in the rendered pack"
+fi
 
 # --- 24-27. refusals ----------------------------------------------------------
 echo '{"R-001": "a flat map, which is the dangerous shape"}' > "$work/flat.board.json"

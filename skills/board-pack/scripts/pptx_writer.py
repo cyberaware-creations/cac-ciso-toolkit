@@ -89,6 +89,16 @@ SEV_TEXT = {"good": "25764A", "medium": "7A6410", "high": "8F5B06", "critical": 
 # Green↔red is ΔE 6.2 under deuteranopia, so a band is never carried by colour alone. Every
 # banded figure prints its band word beside the number, in the same colour.
 SEV_WORD = {"good": "Good", "medium": "Medium", "high": "High", "critical": "Critical"}
+# The third job: a filled *region* — a stacked segment, a zone band — as opposed to a single
+# value. Matching cac_graphics._RAG[*]["mid"] exactly, so a composition drawn on a slide and
+# the same composition drawn as an SVG are the same picture. A region cannot use SEV_FILL,
+# for the reason above; it cannot use SEV_TEXT either, because that is a text colour and a
+# solid block of it would leave nothing readable on top. Hence a third variant rather than
+# one of the first two pressed into a job it was not measured for.
+SEV_MID = {"good": "86BE9C", "medium": "F0DC92", "high": "EEC17E", "critical": "DFA096"}
+# A segment in an otherwise-banded composition that its producer gave no band — `expired`
+# is a lifecycle terminus, not a severity. Neutral, and never one of the four.
+UNASSESSED = "D6D2C7"
 
 def _palette() -> frozenset:
     """The closed set of colours a slide may use, for the brand currently in force.
@@ -101,12 +111,18 @@ def _palette() -> frozenset:
     return frozenset(
         v.upper() for v in
         [INK, MUTED, LINE, SURFACE, ACCENT, LIMESTONE, LIMESTONE_DIM, PATINA, WORKBENCH,
-         "FFFFFF"] + list(SEV_FILL.values()) + list(SEV_TEXT.values()))
+         "FFFFFF"] + list(SEV_FILL.values()) + list(SEV_TEXT.values())
+        + list(SEV_MID.values()) + [UNASSESSED])
 
 
 PALETTE = _palette()
-# A fill hex that has no text twin. `critical` is deliberately absent: the same hex is both
-# its fill and its text colour, because it already measures past 4.5:1 on a light ground.
+# A fill hex that has no text twin, and is therefore barred from any light slide.
+#
+# This used to exclude `critical`, because SEV_TEXT["critical"] was the c0392b fill reused
+# as text — a hex in both sets cancelled out of the difference. Reconciling that to 8B2119
+# put c0392b back in here, so all four fills are now barred rather than three, which is what
+# the rule always meant to say: a fill is for dark grounds and for shapes carrying no text,
+# and `critical` was never an exception to that on the merits.
 FILL_ONLY = frozenset(v.upper() for v in SEV_FILL.values()) - frozenset(
     v.upper() for v in SEV_TEXT.values())
 
@@ -277,6 +293,9 @@ class Deck:
     SPARK = inch(0.13)
     FIG_COLS = 2
     FIG_ROWS = 4
+    # Three stacked bars fill a 16:9 slide without crowding. A fourth fits geometrically and
+    # reads as a table of bars rather than as three things worth comparing.
+    MIX_PER_SLIDE = 3
 
     def __init__(self, footer: str, title: str = "", meta=None, eyebrow: str = ""):
         self.slides = []
@@ -451,6 +470,72 @@ class Deck:
                 sid += 1
             foot, sid = self._footer_shapes(sid)
             self.slides.append(slide_xml("".join(shapes + foot)))
+
+    def mixes(self, title: str, charts: list, eyebrow: str = "") -> None:
+        """Band compositions, as native stacked bars.
+
+        Drawn from rectangles rather than embedded as a picture, deliberately. A raster
+        would be the wrong resolution on somebody's projector and an SVG is not a thing
+        PowerPoint, Keynote and Google Slides agree about; a rectangle is a rectangle in all
+        three. It also means the deck stays diffable and editable, which is the reason this
+        writer exists rather than a screenshot pipeline.
+
+        Segments take `SEV_MID` with the band's `SEV_TEXT` on top — the same pairing the SVG
+        marks use for a region — so the deck and the HTML draw one composition, not two.
+        A segment whose producer declared no band takes the neutral, never a band colour.
+        """
+        if not charts:
+            return
+        shapes, sid = self._head_shapes(2, title, eyebrow)
+        y = inch(1.85)
+        for chart in charts[:self.MIX_PER_SLIDE]:
+            segments = [s for s in (chart.get("series") or []) if s.get("value")]
+            total = sum(s["value"] for s in segments)
+            if not total:
+                continue
+            shapes.append(_textbox(sid, f"Mix title {sid}", self.MARGIN, y,
+                                   self.BODY_W, inch(0.28),
+                                   _para(chart["title"], 1200, True, INK, 0)))
+            sid += 1
+            bar_y = y + inch(0.34)
+            bar_h = inch(0.42)
+            x = self.MARGIN
+            for seg in segments:
+                # Width from the segment's share of the total. The last segment takes
+                # whatever remains rather than its own rounded width, so a rounding
+                # residue cannot leave a hairline of slide showing through the bar.
+                is_last = seg is segments[-1]
+                w = (self.MARGIN + self.BODY_W - x if is_last
+                     else int(self.BODY_W * seg["value"] / total))
+                band = seg.get("sev")
+                shapes.append(_rect(sid, x, bar_y, w, bar_h,
+                                    SEV_MID[band] if band else UNASSESSED,
+                                    name=f"Segment {seg['label']}"
+                                         + (f" [{band}]" if band else "")))
+                sid += 1
+                # The count sits inside its own segment, and the label under the bar. Colour
+                # never carries the band alone — deuteranopia puts green and red 6.2 ΔE
+                # apart — so both the number and the word are always present.
+                shapes.append(_textbox(sid, f"Segment value {sid}", x, bar_y + inch(0.08),
+                                       w, inch(0.26),
+                                       _para(str(seg["value"]), 1100, True,
+                                             SEV_TEXT[band] if band else MUTED, 1)))
+                sid += 1
+                shapes.append(_textbox(sid, f"Segment label {sid}", x,
+                                       bar_y + bar_h + inch(0.03), w, inch(0.24),
+                                       _para(seg["label"], 900, False, MUTED, 1)))
+                sid += 1
+                x += w
+            y = bar_y + bar_h + inch(0.52)
+            if chart.get("note"):
+                shapes.append(_textbox(sid, f"Mix note {sid}", self.MARGIN, y,
+                                       self.BODY_W, inch(0.26),
+                                       _para(chart["note"], 900, False, MUTED, 0)))
+                sid += 1
+                y += inch(0.30)
+            y += inch(0.18)
+        foot, sid = self._footer_shapes(sid)
+        self.slides.append(slide_xml("".join(shapes + foot)))
 
     def add(self, title: str, paragraphs: list, eyebrow: str = "") -> None:
         """paragraphs: list of (text, size, bold, colour, bullet) tuples."""

@@ -485,6 +485,17 @@ def analyze(store: dict, today: str) -> dict:
             "exceptions": len(store["exceptions"]),
             "active": len(active),
             "closed": len(rows) - len(active),
+            # The active inventory split by lifecycle band. Every band appears, including
+            # the ones sitting at zero, because this is what a reader compares between two
+            # quarters and a band that vanished when it emptied would read as a band that
+            # stopped existing. `closed` is excluded: `active` is the population being
+            # split, and a part outside the whole would stop the segments summing to it.
+            #
+            # Computed here rather than by whatever draws it. A count derived downstream is
+            # a second number that can disagree with the one printed above it, and a reader
+            # has no way to tell which of the two is right.
+            "byBand": {b: len([r for r in active if r["band"] == b])
+                       for b in STATUS_BANDS if b != STATUS_CLOSED},
         },
     }
 
@@ -615,8 +626,20 @@ def _cmd_self_test(_args):
         eq(by["X-001"]["band"], STATUS_DUE, "X-001 re-validates in 15 days")
         eq(by["X-001"]["daysToRevalidation"], 15, "days to re-validation is a plain distance")
         eq(by["A-001"]["kind"], "acceptance", "kind travels with the derived row")
-        eq(out["counts"], {"acceptances": 1, "exceptions": 1, "active": 2, "closed": 0},
+        eq({k: v for k, v in out["counts"].items() if k != "byBand"},
+           {"acceptances": 1, "exceptions": 1, "active": 2, "closed": 0},
            "headline counts")
+
+        # The band split is a partition of `active`, and the two must agree. A mix whose
+        # segments do not sum to the total it is drawn beside is a chart that contradicts
+        # the number printed above it.
+        by_band = out["counts"]["byBand"]
+        eq(sum(by_band.values()), out["counts"]["active"],
+           "the band split sums to the active count it partitions")
+        eq(by_band, {STATUS_CURRENT: 1, STATUS_DUE: 1, STATUS_OVERDUE: 0, STATUS_EXPIRED: 0},
+           "every band is present, including the empty ones")
+        ok(STATUS_CLOSED not in by_band,
+           "closed is excluded — it is not part of the population being split")
         eq(out["attention"]["due"], ["X-001"], "the due list")
         eq(out["attention"]["overdue"], [], "nothing overdue yet")
         eq(out["attention"]["unlinked"], [], "both records carry a risk link")
