@@ -183,9 +183,20 @@ footer{{color:{MUTED};font-size:12.5px;margin-top:28px;padding-top:14px;
 .legend span{{display:flex;align-items:center;gap:6px}}
 .legend i{{width:14px;height:10px;border-radius:2px;display:block;flex:0 0 auto}}
 
+/* Figures. `flex-wrap` rather than a fixed column count: the marks are fixed-width SVGs,
+   so a grid would either clip them on a narrow page or strand them on a wide one. */
+.figs{{display:flex;flex-wrap:wrap;gap:18px;margin:18px 0 22px}}
+.fig{{margin:0;background:{WB};border:1px solid {WB_LINE};border-radius:10px;
+  padding:12px 14px 10px}}
+.fig svg{{display:block;max-width:100%}}
+.figtitle{{display:block;font-size:12.5px;font-weight:600;color:{INK};
+  margin:0 0 8px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}}
+.figsrc{{font-size:10.5px;font-weight:400;color:{MUTED};font-family:ui-monospace,monospace}}
+.fignote{{font-size:11px;color:{MUTED};margin:8px 0 0;max-width:34em}}
+
 @media (max-width:560px){{body{{padding:14px}} h1{{font-size:24px}}
   .cover{{padding:28px 22px 26px}} .cover h1{{font-size:28px}}
-  .tile .n{{font-size:24px}}}}
+  .tile .n{{font-size:24px}} .figs{{gap:12px}}}}
 @media print{{
   body{{background:#fff;padding:0;font-size:11pt}}
   .wrap{{max-width:none}}
@@ -311,7 +322,56 @@ def _decisions(decisions: list) -> str:
     return out
 
 
-def _section_page(section: dict) -> str:
+def _figure(fig: dict) -> str:
+    """One chart, drawn from the series the assembler read out of its producer.
+
+    The mark is chosen by `kind` and nothing else. A renderer that inspected the numbers to
+    decide what to draw would be making a judgement about the data — which shape suits it,
+    whether a band is worth colouring — and that judgement belongs to the section that owns
+    the facts, not to the thing painting them.
+    """
+    kind = fig.get("kind")
+    if kind == "bar":
+        items = [(s["label"], s["value"]) for s in fig.get("series") or []]
+        svg = G.bar_chart(items)
+    elif kind == "band-mix":
+        # One period, so a stacked bar reads as a composition rather than a trend. Segments
+        # carrying `sev` make it a RAG stack; a segment without one — `expired`, which is a
+        # lifecycle terminus and not a severity — is drawn unassessed by the library rather
+        # than given a band colour it was never assigned.
+        segments = [{"value": s["value"], "label": s["label"],
+                     **({"sev": s["sev"]} if "sev" in s else {})}
+                    for s in fig.get("series") or [] if s["value"]]
+        svg = G.stacked_bar([{"label": "", "segments": segments}])
+    elif kind == "bullet":
+        thr = fig.get("threshold") or {}
+        direction = fig.get("direction") or "higher-better"
+        svg = G.bullet(fig["value"], thr.get("target"),
+                       G.zones_from_threshold(thr, direction),
+                       direction=direction, unit=fig.get("unit") or "")
+    else:
+        return ""
+    if not svg:
+        return ""
+    note = (f'<figcaption class="fignote">{esc(fig["note"])}</figcaption>'
+            if fig.get("note") else "")
+    # `source` names the producer field every number came from. It is printed, not hidden in
+    # a comment, because "the pack computes nothing" is a claim a reader should be able to
+    # check rather than take on trust.
+    return (f'<figure class="fig"><figcaption class="figtitle">{esc(fig["title"])}'
+            f'<span class="figsrc">{esc(fig["source"])}</span></figcaption>'
+            f'{svg}{note}</figure>')
+
+
+def _figures_for(section_name: str, charts: list) -> str:
+    drawn = [_figure(f) for f in charts if f.get("section") == section_name]
+    drawn = [d for d in drawn if d]
+    if not drawn:
+        return ""
+    return f'<div class="figs">{"".join(drawn)}</div>'
+
+
+def _section_page(section: dict, charts: list = ()) -> str:
     title = SECTION_TITLE.get(section["section"], section["section"])
     summary = (f'<p class="lede">{esc(section["executiveSummary"])}</p>'
                if section["executiveSummary"]
@@ -326,9 +386,13 @@ def _section_page(section: dict) -> str:
     legal = (f'<div class="note"><strong>Not legal advice</strong><p>{esc(NOT_LEGAL)}</p>'
              f'</div>' if section["section"] == "incident" else "")
     as_of = (f' · as at {esc(section["asOf"])}' if section["asOf"] else "")
+    # Figures sit after the summary and before the items: the summary says what happened,
+    # the figures show the shape of it, and the items are the detail a reader drops into
+    # only if the first two raised a question.
+    figs = _figures_for(section["section"], charts)
     return (f'<div class="page">{_band(title)}<h2>{esc(title)}</h2>'
             f'<p class="sub">{esc(section["itemCount"])} items{as_of}</p>'
-            f'{summary}{legal}{body}</div>')
+            f'{summary}{legal}{figs}{body}</div>')
 
 
 def _provenance(pack: dict) -> str:
@@ -356,7 +420,8 @@ def build_html(pack: dict) -> str:
     through = (f'<p class="lede">{esc(tl["executiveSummary"])}</p>' if tl
                else f'<div class="ph">{esc(PLACEHOLDER)}</div>')
     audience = ("Board" if pack["audience"] == "board" else "Audit committee")
-    pages = "".join(_section_page(s) for s in pack["sections"])
+    charts = pack.get("charts") or []
+    pages = "".join(_section_page(s, charts) for s in pack["sections"])
     body = (
         _cover(pack, audience)
         + f'<div class="page">{_band("Executive through-line")}'
@@ -407,6 +472,14 @@ def build_pptx(pack: dict, path: str) -> None:
                      eyebrow=eyebrow,
                      note="Every figure was computed by the skill that owns it and "
                           "read here unchanged. The pack calculates nothing.")
+
+    # The band compositions, as native shapes. Only the mixes: a bullet needs a zone axis and
+    # a bar needs a scale, and both are marks the SVG library draws properly and this writer
+    # would only approximate. Half a chart in a deck is worse than a clear pointer to the
+    # document that has it, so the deck says where the rest are rather than faking them.
+    mixes = [c for c in (pack.get("charts") or []) if c.get("kind") == "band-mix"]
+    if mixes:
+        deck.mixes("How the totals break down", mixes, eyebrow=eyebrow)
 
     board_asks, management_asks = split_by_altitude(pack["decisions"])
     if board_asks:

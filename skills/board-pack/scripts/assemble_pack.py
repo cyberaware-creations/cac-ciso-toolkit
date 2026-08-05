@@ -518,6 +518,148 @@ def _worst(sevs):
     return max(present, key=SEV_ORDER.index) if present else None
 
 
+# --- Figures: the chartable series behind each section ------------------------
+#
+# A headline is one number. A figure is a series a mark can be drawn from, and it obeys
+# exactly the same rule: every value is lifted from a field the producer computed. The
+# assembler picks *which* series is worth a board's attention and what kind of mark suits
+# it — that is a presentation judgement, not a fact — but it never sums, counts or bands
+# anything. Where a producer had no rollup to lift, the rollup was added to that producer
+# (see exceptions-register and incident-materiality `counts.byBand`) rather than computed
+# here, because a count derived in two places is a count that can disagree with itself.
+#
+# Every figure carries `source`, naming the analysis field it came from. That turns "read,
+# not computed" from a claim in a doc into something a reader can check, and it is what the
+# provenance page prints.
+#
+# Three kinds, and the colour contract decides which colour each gets:
+#   bar       a categorical measure. No thresholds, so MEASURE — never RAG.
+#   band-mix  a population split by a band the producer declared. RAG is legitimate here
+#             precisely because the bands are declared rather than inferred.
+#   bullet    one thresholded metric against its target, with its zones.
+
+FIGURE_KINDS = ("bar", "band-mix", "bullet")
+
+# A board pack is a document, not a dashboard. Past this many bullets the metrics page
+# stops being read and starts being flipped past. What is dropped is named on the
+# provenance page — a silent cap reads as "this is all of them".
+MAX_METRIC_BULLETS = 6
+
+
+def _posture_figures(a):
+    by_fn = (a.get("coverage") or {}).get("byFunction") or {}
+    if not by_fn:
+        return []
+    # `percent` is null for a Function with nothing assessed, and it is carried through as
+    # null rather than dropped or zeroed. Both alternatives lie: zero says "assessed, and
+    # covers nothing", and omission says the Function does not exist. Unassessed is its own
+    # state and the mark draws it as one.
+    series = [{"label": fid, "value": v.get("percent")} for fid, v in by_fn.items()]
+    return [{"kind": "bar", "title": "Subcategory coverage by CSF Function",
+             "unit": "percent", "series": series, "source": "coverage.byFunction",
+             # No sev, for the reason the headline gives: a low coverage figure may be a
+             # deliberately low Target that is fully met. Coverage is a measure.
+             "note": "Coverage against Target. A Function with nothing assessed is shown "
+                     "as unassessed, not as zero."}]
+
+
+def _risk_figures(a):
+    by_band = (a.get("summary") or {}).get("byBand") or {}
+    if not by_band:
+        return []
+    series = [{"label": b.capitalize(), "value": by_band.get(b, 0),
+               "sev": RISK_BAND_SEV[b]}
+              for b in ("low", "medium", "high", "critical") if b in by_band]
+    return [{"kind": "band-mix", "title": "Open risks by residual band",
+             "series": series, "source": "summary.byBand"}]
+
+
+def _metrics_figures(a):
+    out = []
+    for m in a.get("metrics") or []:
+        thr = m.get("threshold")
+        # A metric with no threshold has no zones, so it has no bullet to draw. It is not
+        # missing from the pack — it is in the metrics section as a sentence like every
+        # other. It simply has nothing for this kind of mark to say.
+        if not thr or m.get("value") is None:
+            continue
+        fig = {"kind": "bullet", "title": m.get("name"), "unit": m.get("unit"),
+               "value": m.get("value"), "direction": m.get("direction"),
+               "threshold": thr, "source": "metrics[%s]" % m.get("metricId")}
+        sev = METRIC_STATUS_SEV.get(m.get("status"))
+        if sev is not None:
+            fig["sev"] = sev
+        out.append(fig)
+    return out
+
+
+def _exceptions_figures(a):
+    by_band = (a.get("counts") or {}).get("byBand") or {}
+    if not by_band:
+        return []
+    # `expired` and `closed` are lifecycle termini rather than severities, and the register's
+    # own renderers hold them apart from the RAG bands for that reason. `expired` carries no
+    # sev here and takes the unassessed treatment in the mix.
+    sev_by_band = {"current": "good", "revalidation-due": "high",
+                   "revalidation-overdue": "critical"}
+    label = {"current": "Current", "revalidation-due": "Re-validation due",
+             "revalidation-overdue": "Re-validation overdue", "expired": "Expired"}
+    series = []
+    for band, count in by_band.items():
+        item = {"label": label.get(band, band), "value": count}
+        if band in sev_by_band:
+            item["sev"] = sev_by_band[band]
+        series.append(item)
+    fig = {"kind": "band-mix", "title": "Active acceptances and exceptions by band",
+           "series": series, "source": "counts.byBand"}
+    # This mix partitions the *active* records, so it sums to `active` and not to the total
+    # the section may quote elsewhere. Saying which population is being split is not
+    # optional: a chart summing to 4 beside a figure reading 6 makes a reader do arithmetic
+    # to discover it was never the same population, and some of them will conclude one of
+    # the two is wrong. The closed count is read, not subtracted.
+    # Named unconditionally, including when nothing was excluded. "Active records only"
+    # is true whether or not a closed record happens to exist this quarter, and a note that
+    # appeared only when the excluded count was non-zero would make its own absence
+    # meaningful — a reader would have to know the rule to read the silence.
+    closed = (a.get("counts") or {}).get("closed") or 0
+    fig["note"] = ("Active records only. %s not shown."
+                   % ("No closed records" if not closed else
+                      "%d closed record%s" % (closed, "" if closed == 1 else "s")))
+    return [fig]
+
+
+def _incident_figures(a):
+    by_band = (a.get("counts") or {}).get("byBand") or {}
+    # Every band, including the empty ones, is what the producer returns — but a board pack
+    # that drew nine segments of which six were zero would spend a whole mark saying
+    # nothing. The empty ones are dropped from the *drawing* and the total is unchanged,
+    # because the segments that remain still sum to `open`.
+    present = {b: n for b, n in by_band.items() if n}
+    if not present:
+        return []
+    sev_by_band = {"disclosure-overdue": "critical", "disclosure-due": "high",
+                   "material": "high", "not-material": "good", "filed": "good"}
+    label = {"no-determination": "No determination", "assessing": "Under assessment",
+             "not-yet-determinable": "Not yet determinable", "not-material": "Not material",
+             "material": "Material", "disclosure-due": "Reporting window open",
+             "disclosure-overdue": "Past a reporting deadline", "filed": "Reported"}
+    series = []
+    for band, count in present.items():
+        item = {"label": label.get(band, band), "value": count}
+        if band in sev_by_band:
+            item["sev"] = sev_by_band[band]
+        series.append(item)
+    # Same rule as the exceptions mix, and here it matters more: this partitions the *open*
+    # incidents, so it sums to `open` while the headline beside it counts every incident in
+    # the period. Both counts come from the producer; neither is a subtraction.
+    closed = (a.get("counts") or {}).get("closed") or 0
+    note = ("Open incidents only; bands with none are not drawn. %s not shown."
+            % ("No closed incidents" if not closed else
+               "%d closed incident%s" % (closed, "" if closed == 1 else "s")))
+    return [{"kind": "band-mix", "title": "Open incidents by band",
+             "series": series, "source": "counts.byBand", "note": note}]
+
+
 def _posture_headline(a):
     # No sev on either figure. A gap is a distance from a Target, and this skill
     # is explicit that a low coverage figure may be a deliberately low Target
@@ -593,20 +735,20 @@ def _incident_headline(a):
 PRODUCERS = {
     "posture": {"skill": "nist-csf", "script": "scripts/profile_analysis.py",
                 "argv": ["analyze", "{store}", "--today", "{asOf}"],
-                "headline": _posture_headline},
+                "headline": _posture_headline, "figures": _posture_figures},
     "risk": {"skill": "risk-register", "script": "scripts/score_register.py",
              "argv": ["score", "{store}", "--json"],
-             "headline": _risk_headline},
+             "headline": _risk_headline, "figures": _risk_figures},
     "metrics": {"skill": "metrics-register", "script": "scripts/metrics_analysis.py",
                 "argv": ["analyze", "{store}", "--today", "{asOf}"],
-                "headline": _metrics_headline},
+                "headline": _metrics_headline, "figures": _metrics_figures},
     "exceptions": {"skill": "exceptions-register", "script": "scripts/exceptions_register.py",
                    "argv": ["analyze", "{store}", "--today", "{asOf}"],
-                   "headline": _exceptions_headline},
+                   "headline": _exceptions_headline, "figures": _exceptions_figures},
     "incident": {"skill": "incident-materiality", "script": "scripts/incident_analysis.py",
                  "argv": ["analyze", "{store}", "--today", "{asOf}",
                           "--now", "{asOf}T00:00:00+00:00"],
-                 "headline": _incident_headline},
+                 "headline": _incident_headline, "figures": _incident_figures},
 }
 
 
@@ -647,8 +789,14 @@ def run_producer(name: str, store: str, as_of: str, skills_root: str):
 
 
 def headline_counts(manifest: dict, sections: list, skills_root: str) -> dict:
-    """Cross-section headline figures, each read from the producer that computed it."""
-    figures, unavailable = [], []
+    """Cross-section headline figures and chartable series, each read from its producer.
+
+    One pass over the producers, not two. Each analysis is expensive enough — it is a
+    subprocess running another skill's engine — that running it twice to collect two kinds
+    of number from it would double the cost of a pack to no purpose, and would open the
+    possibility of the two passes seeing different output.
+    """
+    figures, charts, unavailable = [], [], []
     stores = {e["section"]: e.get("storePath") for e in manifest["sections"]}
     for section in sections:
         name = section["section"]
@@ -661,6 +809,18 @@ def headline_counts(manifest: dict, sections: list, skills_root: str) -> dict:
         if analysis is None:
             unavailable.append(reason)
             continue
+
+        drawn = PRODUCERS[name].get("figures", lambda _a: [])(analysis)
+        if name == "metrics" and len(drawn) > MAX_METRIC_BULLETS:
+            unavailable.append(
+                f"{len(drawn) - MAX_METRIC_BULLETS} of {len(drawn)} metrics are not drawn "
+                f"on the metrics page; a board pack shows the first {MAX_METRIC_BULLETS}. "
+                f"All of them remain in the metrics section.")
+            drawn = drawn[:MAX_METRIC_BULLETS]
+        for fig in drawn:
+            fig["section"] = name
+            charts.append(fig)
+
         for row in PRODUCERS[name]["headline"](analysis):
             # A headline row is (label, value) or (label, value, sev). The third
             # element is optional so a producer that declares no band for a
@@ -677,7 +837,7 @@ def headline_counts(manifest: dict, sections: list, skills_root: str) -> dict:
             if sev is not None:
                 figure["sev"] = sev
             figures.append(figure)
-    return {"figures": figures, "unavailable": unavailable}
+    return {"figures": figures, "charts": charts, "unavailable": unavailable}
 
 
 def assemble(manifest: dict, skills_root: str = None, with_stores: bool = True) -> dict:
@@ -693,7 +853,8 @@ def assemble(manifest: dict, skills_root: str = None, with_stores: bool = True) 
 
     decisions = consolidate_decisions(ordered, through_line)
 
-    rollup = ({"figures": [], "unavailable": ["store-backed rollups were not requested"]}
+    rollup = ({"figures": [], "charts": [],
+               "unavailable": ["store-backed rollups were not requested"]}
               if not with_stores
               else headline_counts(manifest, ordered, skills_root))
 
@@ -722,6 +883,11 @@ def assemble(manifest: dict, skills_root: str = None, with_stores: bool = True) 
         "sections": ordered,
         "decisions": decisions,
         "headlines": rollup["figures"],
+        # The chartable series behind the sections. Separate from `headlines` because they
+        # answer different questions: a headline is the one number a director remembers,
+        # a chart is the shape behind it. A renderer that has no way to draw marks can
+        # ignore this key entirely and lose nothing it was previously showing.
+        "charts": rollup.get("charts") or [],
         "provenance": {
             "manifest": manifest.get("manifestPath"),
             "sectionOrder": [s["section"] for s in ordered],
@@ -1326,6 +1492,47 @@ def _cmd_self_test(_args):
                    "and reads both figures the producer computed")
         else:
             ok(False, "the nist-csf example profile is missing; the adapter went untested")
+
+        # --- the figures each adapter draws --------------------------------------
+        eq(sorted(k for k, v in PRODUCERS.items() if "figures" in v), sorted(SECTION_KEYS),
+           "every section has a figures adapter too")
+
+        if os.path.exists(csf_store):
+            analysis, _ = run_producer("posture", csf_store, "2026-07-26", root)
+            if analysis is not None:
+                figs = _posture_figures(analysis)
+                eq(len(figs), 1, "posture draws one figure")
+                eq(figs[0]["kind"], "bar", "coverage by Function is a measure, not a band")
+                ok(all("sev" not in s for s in figs[0]["series"]),
+                   "and carries no severity — a low coverage may be a met low Target")
+                # The null case is the one that matters. An unassessed Function must reach
+                # the renderer as null, because zero would claim it was assessed and found
+                # to cover nothing, and dropping it would claim it does not exist.
+                ok(any(s["value"] is None for s in figs[0]["series"]),
+                   "an unassessed Function reaches the model as null, not as zero")
+
+        # A band-mix is a partition, and the segments must sum to the population the
+        # producer says it split. This is the property that makes the chart trustworthy
+        # beside the headline, and it is checked against the real sibling engines.
+        for name, store_rel, total_key in (
+                ("exceptions", ("exceptions-register", "examples", "example.exc"), "active"),
+                ("incident", ("incident-materiality", "examples", "example-incident.inc"),
+                 "open")):
+            store = os.path.join(root, *store_rel)
+            if not os.path.exists(store):
+                ok(False, f"the {name} example store is missing; its mix went untested")
+                continue
+            analysis, reason = run_producer(name, store, "2026-07-31", root)
+            if analysis is None:
+                ok(False, f"the {name} figures adapter could not run its producer ({reason})")
+                continue
+            figs = PRODUCERS[name]["figures"](analysis)
+            eq(len(figs), 1, f"{name} draws one mix")
+            total = (analysis.get("counts") or {}).get(total_key)
+            eq(sum(s["value"] for s in figs[0]["series"]), total,
+               f"the {name} mix sums to the {total_key!r} count it partitions")
+            ok("note" in figs[0] and "not shown" in figs[0]["note"],
+               f"and the {name} mix names the population it leaves out")
 
         missing_store = os.path.join(work, "nope.csfp")
         analysis, reason = run_producer("posture", missing_store, "2026-07-26", root)

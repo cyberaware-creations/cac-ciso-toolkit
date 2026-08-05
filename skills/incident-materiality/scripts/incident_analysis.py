@@ -717,6 +717,17 @@ def analyze(store: dict, today: str, now_iso: str) -> dict:
             "incidents": len(rows),
             "open": len(live),
             "closed": len(rows) - len(live),
+            # Open incidents split by band. Every band appears, including the empty ones,
+            # so the shape can be read against last quarter's — a band that disappeared
+            # when it emptied would look like a band that stopped applying. `closed` is
+            # excluded because `open` is the population being split, and a part outside
+            # the whole would stop the segments summing to the total beside them.
+            #
+            # This belongs here and not in whatever draws it. Three of these bands are
+            # states of a statutory clock, and a count of them recomputed downstream is a
+            # second answer to a regulatory question that must only have one.
+            "byBand": {b: len([r for r in live if r["band"] == b])
+                       for b in INCIDENT_BANDS if b != BAND_CLOSED},
         },
     }
 
@@ -1008,7 +1019,19 @@ def _cmd_self_test(_args):
                        actor="t")
         eq(len(store["incidents"]), 2, "closing does not delete the record")
         out = analyze(store, "2026-07-22", "2026-07-22T00:00:00+00:00")
-        eq(out["counts"], {"incidents": 2, "open": 1, "closed": 1}, "headline counts")
+        eq({k: v for k, v in out["counts"].items() if k != "byBand"},
+           {"incidents": 2, "open": 1, "closed": 1}, "headline counts")
+
+        # The band split partitions the open incidents, and the two have to agree. A mix
+        # whose segments do not sum to the count printed beside it is a chart that
+        # contradicts its own caption.
+        by_band = out["counts"]["byBand"]
+        eq(sum(by_band.values()), out["counts"]["open"],
+           "the band split sums to the open count it partitions")
+        eq(sorted(by_band), sorted(b for b in INCIDENT_BANDS if b != BAND_CLOSED),
+           "every band is present, including the empty ones")
+        ok(BAND_CLOSED not in by_band,
+           "closed is excluded — it is not part of the population being split")
         eq(out["incidents"][1]["band"], BAND_CLOSED, "closed outranks every derivation")
         refuses(lambda: close_incident(store, "I-002", "again"),
                 "closing an already-closed incident is refused")

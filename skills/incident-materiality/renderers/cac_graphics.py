@@ -1057,17 +1057,44 @@ def bar_chart(items, categorical=False):
     h = pad_y * 2 + len(items) * row_h
     w = 300
     chart_w = w - pad_x - 20
-    mx = max((item[1] for item in items), default=1)
+    # A value of None means "not assessed", and it is not the same claim as zero. Zero says
+    # the thing was measured and found to be nothing; None says nobody looked. Drawing the
+    # second as the first is the confusion the hatch exists to prevent, and it is worse on a
+    # bar than on a heat cell: a zero-length bar in a row of long ones reads as the worst
+    # result on the chart rather than as an absent one.
+    #
+    # Unassessed rows are excluded from the scale as well as from the bars. A None in the
+    # max() would raise on Python 3, and silently treating it as zero would let an
+    # unassessed row set the floor of a scale it was never part of.
+    measured = [item[1] for item in items if item[1] is not None]
+    mx = max(measured) if measured else 1
     if mx == 0:
         mx = 1
 
     is_rag = any(len(item) > 2 and item[2] for item in items)
+    needs_hatch = any(item[1] is None for item in items)
 
     bars = ""
     for i, item in enumerate(items):
         lbl = item[0]
         val = item[1]
         sev = item[2] if len(item) > 2 else None
+        y = pad_y + i * row_h
+        if val is None:
+            # Full-width hatch, so the row reads as "this was not measured" rather than as
+            # a measurement near zero, and says so in words as well — the texture carries it
+            # in greyscale and forced-colours, the words carry it for a screen reader.
+            bars += (
+                f'<text x="{pad_x - 6}" y="{y + row_h // 2 + 4}" '
+                f'text-anchor="end" font-size="11" '
+                f'font-family="{_FONT_BODY}" fill="{_INK}">{_esc(str(lbl))}</text>'
+                f'<rect x="{pad_x}" y="{y + 4}" width="{chart_w}" '
+                f'height="{row_h - 8}" rx="2" fill="url(#{_HATCH_ID})"/>'
+                f'<text x="{pad_x + 6}" y="{y + row_h // 2 + 4}" '
+                f'font-size="10" font-family="{_FONT_BODY}" '
+                f'fill="{_MUTED}">not assessed</text>'
+            )
+            continue
         if sev:
             fill = _sev_colour(sev, "fill")
         elif categorical and not is_rag:
@@ -1075,7 +1102,6 @@ def bar_chart(items, categorical=False):
         else:
             fill = _MEASURE
         bw = val / mx * chart_w
-        y = pad_y + i * row_h
         bars += (
             f'<text x="{pad_x - 6}" y="{y + row_h // 2 + 4}" '
             f'text-anchor="end" font-size="11" '
@@ -1089,7 +1115,8 @@ def bar_chart(items, categorical=False):
 
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" '
-        f'viewBox="0 0 {w} {h}">{_surf()}{bars}</svg>'
+        f'viewBox="0 0 {w} {h}">{_surf()}'
+        f'{_hatch_def() if needs_hatch else ""}{bars}</svg>'
     )
 
 
@@ -2326,7 +2353,33 @@ def _self_test():
         bad("RAG survives a brand override", "critical no longer renders in #c0392b")
     set_brand()
 
-    # 56. the default footer carries both clauses
+    # 56-59. bar_chart: an unassessed row is not a zero row.
+    b = bar_chart([("GV", 40), ("ID", 60), ("DE", None)])
+    chk("an unassessed bar row hatches", b,
+        present=[f'url(#{_HATCH_ID})', "not assessed", _HATCH_FG])
+    chk("and a fully-measured chart ships no hatch defs",
+        bar_chart([("GV", 40), ("ID", 60)]), absent=[_HATCH_ID])
+
+    # The row must not appear as a measurement. A zero-width bar would be drawn as
+    # width="0.0" and read as the worst result on the chart rather than an absent one.
+    chk("an unassessed row draws no bar", b, absent=['width="0.0"'])
+
+    # A chart with nothing measured at all still has to render. That case breaks a naive
+    # implementation two ways at once — max() over an empty sequence, and a scale of zero to
+    # divide by — and it is not exotic: it is a framework nobody has begun assessing, which
+    # is precisely when a reader most needs to see the shape of what is missing.
+    try:
+        allnone = bar_chart([("DE", None), ("RS", None), ("RC", None)])
+        if allnone.count("not assessed") == 3 and _HATCH_ID in allnone:
+            ok("a chart with nothing measured renders as unassessed rows")
+        else:
+            bad("a chart with nothing measured renders as unassessed rows",
+                f"{allnone.count('not assessed')} unassessed rows drawn")
+    except Exception as exc:                                   # noqa: BLE001
+        bad("a chart with nothing measured renders as unassessed rows",
+            f"{type(exc).__name__}: {exc}")
+
+    # 60. the default footer carries both clauses
     set_brand()
     if footer() == "A Cyber Aware Creation · Not affiliated with NIST":
         ok("the default footer carries maker and disclaimer")
@@ -2354,8 +2407,8 @@ def _self_test():
             bad("whiteLabel refuses a non-boolean", str(e))
 
     print()
-    if checks != 86:
-        print(f"self-test: ran {checks} checks, expected 86")
+    if checks != 90:
+        print(f"self-test: ran {checks} checks, expected 90")
         _sys.exit(1)
     if fails:
         print(f"self-test: {fails} of {checks} checks FAILED")
