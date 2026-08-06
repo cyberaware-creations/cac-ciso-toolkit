@@ -157,6 +157,36 @@ exactly the third, against an emitted set scraped from the script's own source. 
 therefore fails the suite until somebody places it on one side, rather than defaulting to "does not
 affirm age" by omission.
 
+### Adding an event type: there are TWO partitions, in two files, checked by two suites
+
+This paragraph used to stop at the sentence above, and that omission cost real time when
+`escalation-policy-changed` was added. **The event vocabulary carries two partitions, not one**,
+and satisfying only the documented one leaves the other incomplete:
+
+| partition | lives in | asserted by |
+|---|---|---|
+| `AGE_AFFIRMING` / `NON_AGE_AFFIRMING` | `scripts/score_register.py` | the engine's own `self-test` |
+| `CHANGE_EXPLAINING` / `NOT_CHANGE_EXPLAINING` | `renderers/_common.py` | `evals/confirmation-age.sh` |
+
+Both assert that their union is exactly `KNOWN_EVENT_TYPES`. So:
+
+- **A green `self-test` is not evidence the handshake held.** It only checks the first pair. The
+  second fails in a different suite entirely, and the engine will happily report parity while the
+  renderer layer has an unclassified type. Run `evals/confirmation-age.sh` too.
+- **The second partition answers a different question**, which is why it is not a copy of the
+  first. Age-affirming asks *did a human assert something about this risk's magnitude or its
+  treatment?* Change-explaining asks *may this event's rationale caption a change on a board
+  page?* A type can be one and not the other.
+- The register-wide types — `settings-changed`, `snapshot-created`, `register-created`,
+  `import-merged`, `escalation-policy-changed` — carry no `riskId`, so they sit on the
+  **not**-change-explaining side by construction: there is no risk for their rationale to caption.
+
+Find every partition before adding a type, rather than after:
+
+```bash
+grep -rn "KNOWN_EVENT_TYPES" skills/risk-register/ | grep -v "KNOWN_EVENT_TYPES = "
+```
+
 **Material changes require a `rationale`** (score moves, acceptances, closures, reopenings,
 confirmations). Capture the *why* in-session — it is what powers the board narrative and the audit
 trail. Non-material edits (typo fixes, notes) may omit it.
