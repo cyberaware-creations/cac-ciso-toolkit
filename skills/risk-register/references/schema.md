@@ -9,6 +9,7 @@
 - Confirmation age
 - Date fields are canonical `YYYY-MM-DD`
 - Snapshots
+- Escalation
 - Categories / taxonomy
 - Matrix sizes and rating labels
 - Band thresholds
@@ -22,7 +23,11 @@
 {
   "schemaVersion": 2,
   "meta": { "clientName": "", "assessor": "", "scopeNote": "", "appetiteStatement": "" },
-  "settings": { "matrixSize": 5, "appetite": "medium" },
+  "settings": {
+    "matrixSize": 5, "appetite": "medium", "currency": "",
+    "escalation": { "sustainedWorseningSnapshots": 2, "appetiteDwellDays": 180,
+                    "bandCross": true, "lapsedAcceptance": true }
+  },
   "themes": [ { "id": "identity", "name": "Identity & Access", "description": "" } ],
   "risks": [ /* Risk[] */ ],
   "history": [ /* HistoryEvent[] — append-only */ ],
@@ -137,6 +142,7 @@ Confirmation age below); everything else leaves it exactly where it was.
 | `theme-changed` | `add-theme`, `set-theme` | no |
 | `snapshot-created` | `snapshot` | no |
 | `import-merged` | `import-gaps --write` | no |
+| `escalation-policy-changed` | `set-escalation` | no |
 | `response-changed`, `risk-closed`, `risk-reopened`, `risk-deleted`, `settings-changed` | *nothing writes them yet* | no |
 
 Only an assertion about a risk's **magnitude** or its **treatment decision** affirms age. A
@@ -303,6 +309,97 @@ comparison and "as of" board views:
 Diffing the current register against a snapshot yields the "what changed since Q2" delta. Snapshots
 are created at review checkpoints, not on every edit.
 
+## Escalation
+
+Detection is automatic; action is not. A register surfaces what worsened without anyone
+remembering to look, and then stops — nothing is blocked, nothing is auto-rescored, and no
+determination is made that a human did not make.
+
+### Escalations are derived, and never stored
+
+An escalation is recomputed from the file on every run. It is **never written to a risk,
+never written to the register, and never a history event.** It clears when its underlying
+condition clears, and only then. There is deliberately no acknowledge or mute field: a stored
+acknowledgement is how a live exposure goes quiet without anything about it having improved.
+
+Only the *policy* is stored, in `settings.escalation`, because `snapshot` freezes settings
+wholesale — thresholds kept anywhere else would make a snapshot un-reproducible, since the
+escalations it recorded could not be recomputed from what it saved. Changing the policy is a
+material change and writes an `escalation-policy-changed` event, for the reason `confirm`
+exists: a threshold that quietly rewrites which risks escalate would report a calmer quarter
+without a single risk having improved.
+
+```json
+"escalation": {
+  "sustainedWorseningSnapshots": 2,
+  "appetiteDwellDays": 180,
+  "bandCross": true,
+  "lapsedAcceptance": true
+}
+```
+
+Absent from an existing register, the four defaults are applied on load and merged per key,
+so a register that set one threshold keeps the shipped values for the other three. **Values
+are not validated on load** — `set-escalation` refuses a bad one, and a file already carrying
+one still loads, scores and renders. That is the same write-path-only rule the canonical date
+section gives: refusing at load would make a user's register unopenable over a reporting
+threshold, which is worse than the threshold.
+
+### Triggers
+
+Closed set. Each names the comparison that fired it, because an escalation a reader cannot
+audit is noise, and noise is how escalation gets ignored by the second quarter.
+
+| trigger | fires when | severity |
+|---|---|---|
+| `band-crossed` | residual band is worse than at the baseline snapshot | `critical` if the new band is critical, else `high` |
+| `sustained-drift` | residual exposure worsened across N consecutive snapshots without crossing a band | `medium` |
+| `appetite-dwell` | continuously over appetite for more than `appetiteDwellDays`, from the earliest snapshot in which it was already over | `high` |
+| `acceptance-lapsed` | `acceptance.expiryDate` has been reached or passed | `high` |
+
+- **`band-crossed` suppresses `sustained-drift`** on the same risk. If the band crossed, that
+  is the escalation; drift toward it is the same story told twice.
+- **Closed risks are skipped for every trigger except `acceptance-lapsed`.** A closed risk
+  still carrying a live acceptance is exactly the state worth seeing: the register says the
+  work is finished and the acceptance says somebody is still relying on it.
+- **A `provisionalScore` risk escalates nothing** and is counted in
+  `summary.escalationsSuppressedProvisional` instead. Escalating off an import seed would be
+  escalating off a number nobody assessed; hiding the suppression would be the silence the
+  lapse rule forbids.
+- **A register with no snapshots escalates nothing from scores.** No baseline means no
+  comparison — a first run escalates almost nothing by construction.
+- `acceptance-lapsed` uses **reached or passed**, matching `renderers/_common.py::_overdue`,
+  so this and the dashboards' `acceptanceExpired` flag can never disagree by a day.
+
+### The record
+
+```json
+{
+  "subjectRef": "R-014", "subjectKind": "risk",
+  "trigger": "band-crossed", "severity": "high", "since": "2026-05-31",
+  "evidence": { "from": 9, "to": 15, "baseline": "Q2 2026 Board Review",
+                "detail": "residual band medium -> high since the last snapshot" }
+}
+```
+
+Sorted by severity, then by `subjectRef`, so a rendered list does not reshuffle between runs.
+`score --json` carries the list at the top level and the counts in `summary.escalations`;
+renderers **consume it and never re-derive it**, the same rule that keeps banding out of the
+renderers.
+
+### Lapse semantics — flag only, never block
+
+A dated obligation past its date is *lapsed*. Across this skill, and across the suite:
+
+- A lapsed item is **still exported, still rendered, still counted.** `export-acceptances`
+  emits an expired acceptance and names it on stderr rather than dropping it — a dead
+  acceptance silently missing from the intake is worse than one that arrives flagged.
+- A lapse **never mutates an assessed value.** Residual is an assessment; auto-reverting one
+  on a date would invent an assessment nobody made.
+- A lapse **never gates a command.** Nothing refuses because something else lapsed, and
+  `escalations` exits 0 whether or not anything fired. (Contrast the `provisionalScore`
+  refusals, which guard against affirming an unassessed number — a different concern.)
+
 ## Categories / taxonomy
 
 CSF functions: `GV` Govern · `ID` Identify · `PR` Protect · `DE` Detect · `RS` Respond · `RC` Recover.
@@ -347,6 +444,11 @@ confirmation-age fields and for `reviewOverdue` / `reviewOverdueDays`: `history[
 source of truth for when anything was last affirmed, and a stored age field would be a second one.
 (Snapshots are the one exception: they freeze a *computed* summary on purpose, as a historical
 record.)
+
+Escalations obey the same rule and go further — they are not persisted even on a risk they
+concern. See Escalation above. A snapshot's frozen summary does carry the escalation *counts*,
+and `snapshot` therefore scores with a reference date so those counts are complete rather than
+missing the two date-derived triggers.
 
 ## v1 → v2 migration
 

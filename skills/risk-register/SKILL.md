@@ -35,6 +35,9 @@ A register earns its keep only if these are true, and each is where people usual
    is done by the script, never by eye. See [Scoring](#scoring-always-use-the-script).
 3. **It's a living record, not a snapshot.** The value compounds through change tracking: what moved,
    when, and *why*. Every material change is logged. See [Maintaining the register](#maintaining-the-register-the-core-loop).
+   The same record is what lets the register **raise its own hand**: `escalations` surfaces what
+   worsened since the last review without anyone remembering to look — detection is automatic,
+   action is not.
 4. **The output speaks to its reader.** A technical register bores a board; a board summary
    frustrates an engineer. Generate both. Use `ciso-board-translation` for the executive layer.
 
@@ -166,8 +169,34 @@ python3 scripts/score_register.py set-status <reg.rr> <id> closed --why '...'
 python3 scripts/score_register.py add-theme <reg.rr> --id third-party --name 'Third-Party & Supply Chain'
 python3 scripts/score_register.py set-theme <reg.rr> <id> third-party --why '...'
 python3 scripts/score_register.py snapshot <reg.rr> --label 'Q3 2026 Board Review' --note '...'
+python3 scripts/score_register.py set-escalation <reg.rr> --dwell-days 90 --why '...'
 python3 scripts/score_register.py export-csv <reg.rr> --out register.csv
 ```
+
+### What the register raises on its own
+
+Everything above needs somebody to type it. `escalations` is the one thing that does not:
+
+```bash
+python3 scripts/score_register.py escalations <reg.rr> --today 2026-07-31
+```
+
+Four triggers — a **crossed band**, **sustained drift** without a crossing, a **long dwell over
+appetite**, and a **lapsed acceptance** — each printed with the comparison that fired it. It
+**exits 0 either way**: this flags, it does not gate, and nothing downstream refuses to run
+because something escalated. Nothing is auto-rescored either; a lapsed acceptance does not move
+a residual, because residual is an assessment and reverting one on a date would invent one.
+
+Thresholds are per register and travel inside snapshots. Tune them with `set-escalation`, which
+takes a `--why` and logs the change — a threshold that quietly rewrote which risks escalate
+would report a calmer quarter without a single risk having improved.
+
+**`revalidate` is deliberately not here.** `exceptions-register` owns the acceptance lifecycle:
+re-validation as a recorded act, the DORA inventory, the whole clock. This skill keeps the
+lightweight marker and feeds it one-way through `export-acceptances`, which now names an expired
+acceptance on stderr and **still exports it** — a dead acceptance silently missing from the
+intake is worse than one that arrives flagged. Two homes for one clock is how the two homes come
+to disagree.
 
 **Material changes** (score moves, acceptances, closures, confirmations) require `--why` — the
 rationale is what makes the log an audit trail and a board narrative rather than a bare diff, so

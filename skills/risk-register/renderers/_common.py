@@ -579,12 +579,24 @@ class Context:
         self.register_path = args.register
         self.out_path = args.out
         self.reg = sr.load_register(args.register)
-        self.scored = sr.score_register(self.reg)
+        # `today` is passed through so the two date-derived escalation triggers
+        # (acceptance-lapsed, appetite-dwell) can fire. Without it they are skipped, and a
+        # dashboard would quietly report fewer escalations than `escalations --today` does
+        # for the same register on the same day.
+        self.scored = sr.score_register(self.reg, self.today)
         self.meta = self.reg["meta"]
         self.settings = self.reg["settings"]
         self.size = self.settings["matrixSize"]
         self.appetite = self.settings["appetite"]
         self.summary = self.scored["summary"]
+        # Carried, not computed. Every threshold, comparison and severity was decided in
+        # score_register.py; this layer only hands the list to the templates. A renderer
+        # that re-derived an escalation would be a second opinion able to disagree with the
+        # engine — the same rule that keeps banding out of the renderers.
+        self.escalations = self.scored.get("escalations") or []
+        self.escalations_by_risk: dict[str, list] = {}
+        for _e in self.escalations:
+            self.escalations_by_risk.setdefault(_e["subjectRef"], []).append(_e)
         # The board-facing figures. `summary` stays the parity port; see live_summary().
         self.live = live_summary(self.reg["risks"], self.size, self.appetite)
         self.tr = Translations.load(args.translations)
@@ -784,6 +796,11 @@ class Context:
         "snapshot-created", "register-created", "import-merged",
         # Register-wide, not about any one risk.
         "settings-changed",
+        # Also register-wide, and carries no riskId. It changes what the register reports
+        # rather than what any risk is: captioning "residual Medium → High" with "board
+        # asked for a quieter first quarter" would attribute a risk's movement to a
+        # reporting threshold that moved nothing.
+        "escalation-policy-changed",
     })
 
     def _rationales_since_baseline(self) -> dict[str, str]:
@@ -892,6 +909,11 @@ class Context:
             "acceptanceIncomplete": [r for r in self.risks if r["acceptanceIncomplete"]],
             "unowned": [r for r in open_risks if r["unowned"]],
             "outOfRange": [r for r in self.risks if r.get("outOfRange")],
+            # The risks the engine escalated, in its order (severity, then id). Selected by
+            # membership in that list rather than by any test this module applies — the
+            # predicate is "score_register said so", which is the whole point.
+            "escalated": [r for r in self.risks
+                          if r["id"] in self.escalations_by_risk],
         }
 
     def _owner_load(self) -> list[dict]:
@@ -940,6 +962,19 @@ class Context:
     def _decisions(self) -> list[str]:
         """Structural decisions derived from the data, then anything the sidecar adds."""
         out = []
+        # Leads, because an escalation is the one item here that nobody chose to put on the
+        # agenda: every other line below follows from a date somebody set or a decision
+        # somebody made. The trigger is named rather than summarised — a board asked to act
+        # on "3 escalations" cannot tell a crossed band from a lapsed signature.
+        if self.escalations:
+            by_trigger: dict[str, list] = {}
+            for e in self.escalations:
+                by_trigger.setdefault(e["trigger"], []).append(e["subjectRef"])
+            parts = ", ".join(f'{t} ({", ".join(sorted(set(ids)))})'
+                              for t, ids in sorted(by_trigger.items()))
+            n = len(self.escalations)
+            out.append(f'{n} escalation{"s" if n > 1 else ""} raised by the register itself '
+                       f'since the last review: {parts}.')
         due = self.attention["acceptanceDue"]
         if due:
             out.append(f'Re-validate {len(due)} risk acceptance{"s" if len(due) > 1 else ""} '

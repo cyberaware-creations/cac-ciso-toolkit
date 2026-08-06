@@ -56,7 +56,8 @@ def tiles(ctx: C.Context) -> str:
         sub = f'was {prior} at {ctx.trend[-2]["label"]}'
     att = ctx.attention
     flagged = len({r["id"] for k in ("reviewOverdue", "acceptanceDue", "acceptanceExpired",
-                                     "acceptanceIncomplete", "unowned") for r in att[k]})
+                                     "acceptanceIncomplete", "unowned", "escalated")
+                   for r in att[k]})
     live = s["total"]
     cards = [
         (s["registerTotal"], "Risks tracked", f'{live} live · {s["closed"]} closed', "", C.INK),
@@ -313,7 +314,19 @@ def shape_block(ctx: C.Context) -> str:
 
 def attention_lists(ctx: C.Context) -> str:
     a = ctx.attention
+    # The engine sorts severity-first, so element 0 is the worst thing on the register and
+    # its band colours the card. No new colour is introduced: escalation severity uses the
+    # same critical/high/medium vocabulary as everything else on this page, which keeps the
+    # CVD-safe palette in assets/brand.md the only palette here.
+    esc_worst = ctx.escalations[0]["severity"] if ctx.escalations else "high"
     groups = [
+        # First, deliberately. This is the list that answers "what changed for the worse
+        # without anyone touching it", which is the question the rest of the page cannot.
+        # Each line names its trigger and the comparison behind it — a count alone would be
+        # the muted-by-Q2 failure the contract is written against.
+        ("Escalating", a["escalated"], C.BAND.get(esc_worst, C.BAND["high"]),
+         lambda r: " · ".join(f'{e["trigger"]}: {e["evidence"]["detail"]}'
+                              for e in ctx.escalations_by_risk.get(r["id"], []))),
         ("Over appetite", a["overAppetite"], C.BAND["critical"],
          lambda r: f'residual {r["residualExposure"]} {C.BAND_LABEL[r["residualBand"]]}'),
         ("Review overdue", a["reviewOverdue"], C.BAND["high"],
@@ -350,8 +363,8 @@ def attention_lists(ctx: C.Context) -> str:
                   f'<ul class="plain">{items}</ul></div>')
     if not cards:
         cards = ('<div class="att" style="border-left-color:' + C.BAND["low"] + '">'
-                 '<h3>Nothing flagged</h3><p class="d">No risk is over appetite, past review, '
-                 'unowned, or carrying a stale acceptance.</p></div>')
+                 '<h3>Nothing flagged</h3><p class="d">No risk is escalating, over appetite, '
+                 'past review, unowned, or carrying a stale acceptance.</p></div>')
     return cards
 
 

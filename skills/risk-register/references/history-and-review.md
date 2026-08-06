@@ -68,13 +68,44 @@ Everything else (`add`, `set-theme`) takes an optional `--why` and is logged eit
 
 ## Trend and velocity
 
-Both are derived from the log — never stored on the risk:
+Both are derived — never stored on the risk:
 
-- **Velocity (per risk):** compare a risk's current residual exposure to its value at the last
-  snapshot (or its previous score-changed event). Report direction: worsening ↑, improving ↓,
-  steady →. Direction moves a board more than the absolute number.
-- **Trend (register-wide):** from snapshots, plot over-appetite count and band mix over time. "Nine
-  over-appetite risks last quarter, six now" is the headline a board remembers.
+- **Velocity (per risk):** `score_register.py::velocity(reg)` compares each risk's current
+  residual exposure to its value at the newest snapshot, returning `delta`, `direction`
+  (`worsening` / `improving` / `steady`), `from`, `to` and the baseline label. Higher exposure
+  is worse, so a positive delta is worsening. Direction moves a board more than the absolute
+  number.
+- **Trend (register-wide):** from snapshots, plot over-appetite count and band mix over time.
+  "Nine over-appetite risks last quarter, six now" is the headline a board remembers.
+
+Two details that decide whether either can be trusted:
+
+**A risk the baseline does not contain is `steady`, not worsening.** A new risk has not moved.
+Reporting an addition as a worsening would put every intake on the escalation list and teach
+the reader to ignore it.
+
+**The baseline is the last-appended snapshot, not the latest timestamp.** History is
+append-only, so append order is the truth; sorting by `ts` would silently reorder the baseline
+the moment two machines with skewed clocks wrote to one register.
+
+## Escalation — what surfaces without being asked
+
+Velocity says how a risk moved. **Escalation says which movements are worth interrupting
+someone about**, and it is the part that does not depend on anyone remembering to look:
+
+```bash
+python3 scripts/score_register.py escalations <register.rr> --today 2026-07-31
+python3 scripts/score_register.py escalations <register.rr> --json     # for a pipeline
+```
+
+Four triggers — a crossed band, sustained drift, long dwell over appetite, and a lapsed
+acceptance — each naming the comparison behind it. Thresholds are per register and are tuned
+with `set-escalation`, which requires a `--why` and writes an `escalation-policy-changed`
+event, because a threshold change rewrites what the register reports.
+
+It **flags and never blocks**: the command exits 0 whether or not anything fired, nothing is
+auto-rescored, and nothing downstream refuses to run. Full trigger table, severities and the
+record shape: `references/schema.md` → Escalation.
 
 ## The risk-review workflow
 
@@ -84,6 +115,8 @@ or similar, work this checklist:
 ```
 - [ ] 1. Load the register; report headline stats and trend since the last snapshot
 - [ ] 2. Surface what needs attention:
+        - what the register escalated on its own (`escalations --today <date>`) — start here:
+          it is the only list nobody chose to put on the agenda
         - risks past their reviewDate (stale)
         - risks over appetite (residual band worse than appetite)
         - acceptances past their revalidationDate (stale acceptances)
