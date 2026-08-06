@@ -104,14 +104,67 @@ run and never stored on the entity. Every suite skill that escalates emits this 
 
 ### 1.4 Event taxonomy handshake
 
+> **Amended 2026-08-06, during execution of T2.** The original clause named
+> `AGE_AFFIRMING` / `NON_AGE_AFFIRMING` and stopped there. `risk-register` has a *second*
+> partition over the same vocabulary, and adding one event type to the first left the second
+> incomplete. The suite caught it — loudly, which is the mechanism working — but a skill
+> implementing the clause as written would have registered its type, passed the check the
+> clause named, and still shipped a broken partition. What follows is what the clause should
+> have said. Evidence and the original wording are at the end of this section.
+
 Any new history event type, in any suite skill, must:
 
 1. be registered in that skill's `KNOWN_EVENT_TYPES`, and
-2. land in **exactly one** of `AGE_AFFIRMING` / `NON_AGE_AFFIRMING`, and
-3. pass the skill's self-test partition checks (union equals the known set, intersection empty,
-   every emitted type classified).
+2. land in **exactly one side of every partition defined over that vocabulary** — not only the
+   age-affirming one, and not only the partitions the implementer happens to know about, and
+3. pass the partition checks **in every suite that asserts one** (union equals the known set,
+   intersection empty, every emitted type classified).
+
+**Find the partitions before you add the type, not after.** They are the sets whose union is
+asserted to equal `KNOWN_EVENT_TYPES`:
+
+```bash
+grep -rn "KNOWN_EVENT_TYPES" skills/<skill>/ | grep -v "^.*KNOWN_EVENT_TYPES = "
+```
+
+Two properties of this that are easy to get wrong:
+
+**A partition need not live beside the vocabulary.** In `risk-register` one pair
+(`AGE_AFFIRMING` / `NON_AGE_AFFIRMING`) is in `scripts/score_register.py`, and the other
+(`CHANGE_EXPLAINING` / `NOT_CHANGE_EXPLAINING`) is in `renderers/_common.py` — a different
+layer, and one the engine has no reason to import.
+
+**The checks need not live in the same suite.** The first pair is asserted by the engine's own
+`self-test`; the second by `evals/confirmation-age.sh`. So **a green engine self-test is not
+evidence the handshake held.** Run the skill's eval suites too. That asymmetry is exactly what
+this amendment exists to stop someone rediscovering.
 
 **Escalations emit no events.** They are derived. Only the human decision that answers one does.
+
+#### Scope note, recorded 2026-08-06
+
+`risk-register` is currently the **only** skill in the suite with a history-event vocabulary;
+`exceptions-register`, `incident-materiality` and `metrics-register` carry no `history` array
+and no event types at all. So this clause binds `risk-register` today and binds the others at
+the moment they gain one — which Layer 3 proposes for `exceptions-register`
+(`acceptance-revalidated` as a first-class act). Whoever plans that should build the vocabulary
+**and its partitions and their checks together**, rather than adding a type first and
+discovering the partitions afterwards.
+
+<details>
+<summary>The original clause, for the record</summary>
+
+> 1. be registered in that skill's `KNOWN_EVENT_TYPES`, and
+> 2. land in **exactly one** of `AGE_AFFIRMING` / `NON_AGE_AFFIRMING`, and
+> 3. pass the skill's self-test partition checks (union equals the known set, intersection
+>    empty, every emitted type classified).
+
+Adding `escalation-policy-changed` satisfied all three as written, and
+`evals/confirmation-age.sh` check 49 — *"every known event type is classified either way"* —
+still failed, because `CHANGE_EXPLAINING | NOT_CHANGE_EXPLAINING` no longer equalled
+`KNOWN_EVENT_TYPES`.
+
+</details>
 
 ## Layer 2 — risk-register implementation
 
