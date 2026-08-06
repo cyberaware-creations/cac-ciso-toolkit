@@ -292,8 +292,8 @@
         "approver": "IT Director",
         "justification": "Discovery-only coverage is proportionate for low-sensitivity collaboration tools; no regulated data identified in the CASB inventory",
         "acceptedDate": "2026-01-15",
-        "expiryDate": "2027-01-15",
-        "revalidationDate": "2026-07-15"
+        "expiryDate": "2026-07-15",
+        "revalidationDate": "2026-04-15"
       },
       "reviewDate": "2026-11-30",
       "csfSubcategoryId": "GV.SC-04"
@@ -552,10 +552,10 @@
   ],
   "snapshots": [
     {
-      "id": "q2-2026-board-review",
-      "label": "Q2 2026 Board Review",
-      "ts": "2026-07-26T19:40:54Z",
-      "note": "Presented to audit committee",
+      "id": "q4-2025-board-review",
+      "label": "Q4 2025 Board Review",
+      "ts": "2025-12-31T00:00:00Z",
+      "note": "Year-end review presented to the board",
       "data": {
         "settings": {
           "matrixSize": 5,
@@ -704,14 +704,219 @@
             "R-004",
             "R-002",
             "R-005"
-          ]
+          ],
+          "provisional": 0,
+          "provisionalTitle": 0,
+          "provisionalScore": 0,
+          "treatmentCost": {
+            "total": 180000,
+            "currency": null,
+            "priced": 3,
+            "unpriced": 1,
+            "of": 4,
+            "display": "180,000",
+            "currencyRecorded": false
+          }
+        }
+      }
+    },
+    {
+      "id": "q2-2026-board-review",
+      "label": "Q2 2026 Board Review",
+      "ts": "2026-06-30T00:00:00Z",
+      "note": "Presented to audit committee",
+      "data": {
+        "settings": {
+          "matrixSize": 5,
+          "appetite": "medium"
+        },
+        "risks": [
+          {
+            "id": "R-001",
+            "title": "Stolen admin credentials enable lateral movement",
+            "description": "",
+            "category": "PR",
+            "theme": "identity",
+            "owner": "IAM Lead",
+            "inherent": {
+              "likelihood": 4,
+              "impact": 5
+            },
+            "response": {
+              "type": "mitigate",
+              "description": "PAM, MFA on admin, tiered admin, JIT access",
+              "cost": 90000
+            },
+            "residual": {
+              "likelihood": 2,
+              "impact": 3
+            },
+            "status": "open",
+            "acceptance": null,
+            "reviewDate": "2026-10-01",
+            "csfSubcategoryId": "PR.AA-05"
+          },
+          {
+            "id": "R-002",
+            "title": "Missing MFA on remote access",
+            "description": "",
+            "category": "PR",
+            "theme": "identity",
+            "owner": "IAM Lead",
+            "inherent": {
+              "likelihood": 4,
+              "impact": 4
+            },
+            "response": {
+              "type": "mitigate",
+              "description": "Enforce MFA on VPN/RDP/SSO",
+              "cost": 25000
+            },
+            "residual": {
+              "likelihood": 1,
+              "impact": 4
+            },
+            "status": "closed",
+            "acceptance": null,
+            "csfSubcategoryId": "PR.AA-03"
+          },
+          {
+            "id": "R-003",
+            "title": "Third-party SaaS breach exposes customer PII",
+            "description": "",
+            "category": "GV",
+            "theme": "third-party",
+            "owner": "Vendor Risk Manager",
+            "inherent": {
+              "likelihood": 4,
+              "impact": 4
+            },
+            "response": {
+              "type": "transfer",
+              "description": "Contractual clauses, breach SLAs, cyber insurance rider",
+              "cost": 35000
+            },
+            "residual": {
+              "likelihood": 3,
+              "impact": 5
+            },
+            "status": "open",
+            "acceptance": null,
+            "reviewDate": "2026-11-01",
+            "csfSubcategoryId": "GV.SC-07"
+          },
+          {
+            "id": "R-004",
+            "title": "Weak backup strategy risks unrecoverable data",
+            "description": "",
+            "category": "RC",
+            "theme": "resilience",
+            "owner": "Backup Administrator",
+            "inherent": {
+              "likelihood": 3,
+              "impact": 5
+            },
+            "response": {
+              "type": "mitigate",
+              "description": "Immutable/air-gapped backups, 3-2-1, restore drills",
+              "cost": 55000
+            },
+            "residual": {
+              "likelihood": 1,
+              "impact": 5
+            },
+            "status": "open",
+            "acceptance": null
+          },
+          {
+            "id": "R-005",
+            "title": "No tested incident response plan",
+            "description": "",
+            "category": "RS",
+            "theme": "resilience",
+            "owner": "CISO",
+            "inherent": {
+              "likelihood": 3,
+              "impact": 4
+            },
+            "response": {
+              "type": "accept",
+              "description": "Documented IR plan, on-call, quarterly tabletops"
+            },
+            "residual": {
+              "likelihood": 2,
+              "impact": 2
+            },
+            "status": "open",
+            "acceptance": {
+              "approver": "CISO",
+              "justification": "Residual Low and within appetite; second tabletop scheduled",
+              "acceptedDate": "2026-07-26",
+              "expiryDate": "2027-07-31",
+              "revalidationDate": "2027-01-31"
+            }
+          },
+          {
+            "id": "R-008",
+            "title": "Insider exfiltration of customer data via unmanaged endpoints",
+            "description": "If a departing or disgruntled employee copies customer records to personal storage, then regulated data leaves the estate with no detective control in the path.",
+            "category": "PR",
+            "theme": "data",
+            "owner": "",
+            "inherent": {
+              "likelihood": 4,
+              "impact": 4
+            },
+            "response": {
+              "type": "mitigate",
+              "description": "DLP in monitor mode, leaver checklist; no owner assigned yet"
+            },
+            "residual": {
+              "likelihood": 1,
+              "impact": 5
+            },
+            "status": "open",
+            "acceptance": null,
+            "reviewDate": "2027-01-15",
+            "csfSubcategoryId": "PR.DS-01"
+          }
+        ],
+        "summary": {
+          "total": 6,
+          "closed": 1,
+          "overAppetite": 1,
+          "byBand": {
+            "low": 2,
+            "medium": 3,
+            "high": 0,
+            "critical": 1
+          },
+          "topByResidual": [
+            "R-003",
+            "R-001",
+            "R-004",
+            "R-008",
+            "R-002"
+          ],
+          "provisional": 0,
+          "provisionalTitle": 0,
+          "provisionalScore": 0,
+          "treatmentCost": {
+            "total": 180000,
+            "currency": null,
+            "priced": 3,
+            "unpriced": 2,
+            "of": 5,
+            "display": "180,000",
+            "currencyRecorded": false
+          }
         }
       }
     },
     {
       "id": "q3-2026-board-review",
       "label": "Q3 2026 Board Review",
-      "ts": "2026-07-26T20:00:33Z",
+      "ts": "2026-07-26T00:00:00Z",
       "note": "Presented to the audit committee; six new risks from the Q3 assessment cycle",
       "data": {
         "settings": {
@@ -911,7 +1116,7 @@
             },
             "residual": {
               "likelihood": 2,
-              "impact": 4
+              "impact": 3
             },
             "status": "open",
             "acceptance": null,
@@ -1008,8 +1213,20 @@
             "R-006",
             "R-007",
             "R-009",
-            "R-008"
-          ]
+            "R-001"
+          ],
+          "provisional": 0,
+          "provisionalTitle": 0,
+          "provisionalScore": 0,
+          "treatmentCost": {
+            "total": 395000,
+            "currency": null,
+            "priced": 7,
+            "unpriced": 3,
+            "of": 10,
+            "display": "395,000",
+            "currencyRecorded": false
+          }
         }
       }
     }

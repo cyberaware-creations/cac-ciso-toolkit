@@ -293,6 +293,13 @@ def render(ctx: C.Context) -> str:
     title_tail = " · " + client if client else ""
     expired = ctx.attention["acceptanceExpired"]
     expired_txt = "· %d past expiry" % len(expired) if expired else ""
+    # Read from the engine, counted here and nowhere else. The tile says what fired as well
+    # as how many, because "3 escalating" with no cause is the figure a board stops asking
+    # about by the second quarter.
+    n_esc = ctx.summary["escalations"]["total"]
+    esc_txt = (" · ".join(f'{k} {v}' for k, v in ctx.summary["escalations"].items()
+                          if k != "total" and v)
+               or "nothing worsened since the last snapshot")
     since = (C.esc(ctx.diff["baseline"].get("label", "the last review"))
              if ctx.diff["baseline"] else "the last review")
     # A register that is mostly unrefined import seeds still renders a confident band
@@ -337,6 +344,8 @@ def render(ctx: C.Context) -> str:
     <div class="big"><div class="n">{due}</div>
       <div class="l">Acceptance{"s" if due != 1 else ""} due for re-validation
       {expired_txt}</div></div>
+    <div class="big"><div class="n">{n_esc}</div>
+      <div class="l">Escalating<br>{esc_txt}</div></div>
   </div>
 
   <div class="section"><h2>Executive summary</h2><div class="card">{summary_block(ctx)}</div></div>

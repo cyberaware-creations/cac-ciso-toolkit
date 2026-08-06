@@ -12,7 +12,11 @@ NIST anchors:
   - Appetite = worst band still acceptable  (CSF 2.0 GV.RM)
 
 Subcommands:
-  score        <register.rr> [--json]   Score a register; print summary (+ optional JSON).
+  score        <register.rr> [--json] [--today YYYY-MM-DD]
+                                         Score a register; print summary (+ optional JSON).
+  escalations  <register.rr> [--today YYYY-MM-DD] [--json]
+                                         What this register currently escalates, and why.
+                                         Exits 0 either way — it flags, it does not gate.
   import-gaps  <gaps.csv> [--into r.rr] [--write]   Map a CSF gap CSV to candidate risks.
                                          Previews by default; --write applies the merge.
   self-test                              Assert the engine against the web repo's test cases.
@@ -33,6 +37,10 @@ Mutations (each appends an append-only history event and writes a schema-valid f
   set-status   <register.rr> <id> <open|in-treatment|monitoring|closed> [--why ...]
   add-theme    <register.rr> --id ID --name 'Display Name' [--description ...]
   set-theme    <register.rr> <risk-id> <theme-id|none> [--why ...]
+  set-escalation <register.rr> [--sustained N] [--dwell-days D] [--band-cross on|off]
+                                         [--lapsed-acceptance on|off] --why ...
+                                         Tune when this register escalates. Logged: a
+                                         threshold change rewrites what gets reported.
   snapshot     <register.rr> --label 'Q3 2026 Board Review' [--note ...]
   export-csv   <register.rr> [--out out.csv]
   export-acceptances <register.rr> [--out out.json]   Accepted risks, in the
@@ -90,6 +98,21 @@ RATING_LABELS = {
 
 # Seed inherent likelihood == impact from a CSF gap's priority (import.ts).
 PRIORITY_SEED = {"critical": 5, "high": 4, "medium": 3, "low": 2}
+
+# When a worsening exposure is worth surfacing on its own. Per-register rather than global,
+# and stored in `settings` rather than anywhere else, because `snapshot` freezes settings
+# wholesale — thresholds kept outside it would make a snapshot un-reproducible, since the
+# escalations it recorded could not be recomputed from what it saved.
+#
+# The numbers are chosen to fire on real drift and stay quiet on noise. Two consecutive
+# worsening snapshots is a trend rather than a wobble; 180 days over appetite is two
+# quarterly reviews that both declined to act.
+ESCALATION_DEFAULTS = {
+    "sustainedWorseningSnapshots": 2,   # consecutive worsening snapshots, no band cross
+    "appetiteDwellDays": 180,           # continuously over appetite this long
+    "bandCross": True,                  # any residual band worsening escalates
+    "lapsedAcceptance": True,           # acceptance past expiryDate escalates
+}
 
 # Default themes for CSF-imported risks. Themes are the stated board-rollup axis, and
 # without a mapping every imported risk lands as "Unclassified", which makes the board's
@@ -340,6 +363,16 @@ def load_register(path: str) -> dict:
     # because only the second is obviously incomplete to the person reading it.
     obj["settings"] = {"matrixSize": 5, "appetite": "medium", "currency": "",
                        **obj.get("settings", {})}
+    # Merged per key rather than defaulted wholesale, so a register that set one threshold
+    # keeps the shipped values for the other three instead of losing them to a partial block.
+    #
+    # Deliberately not validated here. The house rule is that validation guards *writes*:
+    # `set-escalation` refuses a bad value, and a file that already carries one still loads,
+    # scores and renders. Refusing at load would make an existing user's register unopenable
+    # over a reporting threshold, which is worse than the bad threshold — the same reasoning
+    # references/schema.md gives for non-canonical dates.
+    obj["settings"]["escalation"] = {**ESCALATION_DEFAULTS,
+                                     **(obj["settings"].get("escalation") or {})}
     if obj["settings"]["matrixSize"] not in BAND_THRESHOLDS:
         raise ValueError(f"Invalid matrixSize {obj['settings']['matrixSize']!r} (must be 3, 4, or 5).")
     if obj["settings"]["appetite"] not in BAND_ORDER:
@@ -368,7 +401,274 @@ def load_register(path: str) -> dict:
     return obj
 
 
-def score_register(reg: dict) -> dict:
+# --- Escalation (contract CAC-EL-1) ------------------------------------------
+#
+# Derived, stateless, and never written to the file. An escalation is recomputed from the
+# register on every run and clears when its condition clears, which is why there is no
+# acknowledge or mute: a stored acknowledgement is how a live exposure goes quiet without
+# anything about it having improved.
+#
+# Nothing here mutates a score. A lapsed acceptance and a drifting exposure are both
+# reported and neither is auto-corrected — residual is an assessed number, and reverting one
+# on a date would be inventing an assessment nobody made.
+
+
+def _snap_exposure(r: dict):
+    """Residual exposure for a risk as frozen in a snapshot, or None if unreadable.
+
+    Recomputed with exposure() rather than read from a stored field, on the same terms as
+    the derived-not-stored rule everywhere else: a snapshot that froze a stale computed
+    number would let it contradict the likelihood and impact sitting beside it.
+    """
+    res = r.get("residual") or {}
+    lik, imp = res.get("likelihood"), res.get("impact")
+    if isinstance(lik, int) and isinstance(imp, int):
+        return exposure(lik, imp)
+    return None
+
+
+def _snapshot_baseline(reg: dict) -> tuple[dict, str]:
+    """({riskId: residualExposure}, snapshotLabel) from the newest snapshot.
+
+    Empty dict and "" when the register has no snapshots — a register with no baseline
+    escalates nothing, rather than escalating everything against zero. A first run against
+    a fresh register is the moment escalation would be least trusted and hardest to undo.
+
+    Newest is the last element, not the latest `ts`. Snapshots are append-only, so insertion
+    order is the truth; sorting by timestamp would silently reorder the baseline if two
+    machines with skewed clocks ever wrote to one register.
+    """
+    snaps = reg.get("snapshots") or []
+    if not snaps:
+        return {}, ""
+    newest = snaps[-1]
+    out = {}
+    for r in (newest.get("data") or {}).get("risks") or []:
+        rid = r.get("id")
+        exp = _snap_exposure(r)
+        if rid and exp is not None:
+            out[rid] = exp
+    return out, str(newest.get("label") or "")
+
+
+def _exposure_series(reg: dict, rid: str) -> list:
+    """[(YYYY-MM-DD, exposure)] for one risk across every snapshot it appears in, oldest first.
+
+    Snapshots the risk is absent from are skipped rather than treated as zero: a risk added
+    in Q3 has no Q2 value, and reading its absence as an exposure of nothing would manufacture
+    the steepest possible worsening on the quarter it was created.
+    """
+    out = []
+    for s in reg.get("snapshots") or []:
+        for sr in (s.get("data") or {}).get("risks") or []:
+            if sr.get("id") == rid:
+                exp = _snap_exposure(sr)
+                if exp is not None:
+                    out.append((str(s.get("ts") or "")[:10], exp))
+                break
+    return out
+
+
+def velocity(reg: dict) -> dict:
+    """Per-risk movement against the newest snapshot.
+
+    {riskId: {"delta": int, "direction": "worsening"|"improving"|"steady",
+              "from": int, "to": int, "baseline": str}}
+
+    Higher exposure is worse, so a positive delta is `worsening`. A risk the baseline does
+    not contain is `steady` with a delta of 0 and no baseline — a new risk has not moved,
+    and reporting it as worsening would put every addition on the escalation list.
+    """
+    base, label = _snapshot_baseline(reg)
+    out = {}
+    for r in reg["risks"]:
+        to = exposure(r["residual"]["likelihood"], r["residual"]["impact"])
+        if r["id"] in base:
+            frm = base[r["id"]]
+            delta = to - frm
+            out[r["id"]] = {
+                "delta": delta,
+                "direction": ("worsening" if delta > 0
+                              else "improving" if delta < 0 else "steady"),
+                "from": frm, "to": to, "baseline": label,
+            }
+        else:
+            out[r["id"]] = {"delta": 0, "direction": "steady",
+                            "from": to, "to": to, "baseline": ""}
+    return out
+
+
+ESCALATION_SEVERITY_ORDER = ["critical", "high", "medium"]
+
+
+def _dwell_days(since: str, today: str):
+    """Whole days between two ISO dates, or None if either will not parse.
+
+    Tolerant for the reason references/_common.py gives about ages: a register carrying a
+    typo'd timestamp must not turn the escalation report into a traceback on the evening a
+    board pack is being produced. A trigger that cannot be measured does not fire.
+    """
+    try:
+        return (date.fromisoformat(today) - date.fromisoformat(since)).days
+    except (ValueError, TypeError):
+        return None
+
+
+def suppressed_provisional(reg: dict) -> int:
+    """Live risks whose score is an unassessed import seed, and so escalate nothing.
+
+    Reported rather than hidden. Escalating off a `provisionalScore` would escalate off a
+    number nobody assessed; suppressing it silently would be the same silence the lapse rule
+    exists to prevent, so the count travels with the escalations in the summary.
+    """
+    return sum(1 for r in reg["risks"]
+               if r.get("provisionalScore") and r.get("status") != "closed")
+
+
+def escalations(reg: dict, today: str = "") -> list[dict]:
+    """Every escalation this register currently warrants, in the CAC-EL-1 §1.3 shape.
+
+    Stateless: recomputed from the file, never stored, never an event. `today` is passed in
+    rather than read from the clock here — the same rule the renderers follow, so a run is
+    reproducible and a test can pin the date. When it is empty the two date-derived triggers
+    are skipped rather than guessed at.
+    """
+    policy = {**ESCALATION_DEFAULTS, **(reg.get("settings", {}).get("escalation") or {})}
+    size = reg["settings"]["matrixSize"]
+    appetite = reg["settings"]["appetite"]
+    snaps = reg.get("snapshots") or []
+    base, base_label = _snapshot_baseline(reg)
+    base_since = str((snaps[-1].get("ts") if snaps else "") or "")[:10]
+    out = []
+
+    for r in reg["risks"]:
+        rid = r["id"]
+        cur = exposure(r["residual"]["likelihood"], r["residual"]["impact"])
+
+        # acceptance-lapsed runs for closed risks too, and deliberately. A closed risk still
+        # carrying a live acceptance is exactly the state worth seeing: the register says the
+        # work is finished and the acceptance says somebody is still relying on it.
+        #
+        # `<=` matches renderers/_common.py::_overdue, which is what computes the
+        # `acceptanceExpired` flag the dashboards already show. A stricter `<` here would
+        # disagree with that flag for one day per acceptance — one concept, two answers.
+        if policy.get("lapsedAcceptance") and today:
+            acc = r.get("acceptance") or {}
+            expiry = acc.get("expiryDate")
+            if expiry and str(expiry)[:10] <= today:
+                out.append({
+                    "subjectRef": rid, "subjectKind": "risk",
+                    "trigger": "acceptance-lapsed", "severity": "high",
+                    "since": str(expiry)[:10],
+                    "evidence": {
+                        "from": str(expiry)[:10], "to": today, "baseline": "",
+                        "detail": (f"acceptance expired {str(expiry)[:10]} and is still on "
+                                   f"the register — not re-validated, not re-scored"),
+                    },
+                })
+
+        if r.get("status") == "closed":
+            continue
+        if r.get("provisionalScore"):
+            # Counted by suppressed_provisional(); no score-derived trigger may fire.
+            continue
+
+        crossed = False
+        if policy.get("bandCross") and rid in base:
+            frm = base[rid]
+            frm_band, to_band = band(frm, size), band(cur, size)
+            if BAND_ORDER.index(to_band) > BAND_ORDER.index(frm_band):
+                crossed = True
+                out.append({
+                    "subjectRef": rid, "subjectKind": "risk",
+                    "trigger": "band-crossed",
+                    "severity": "critical" if to_band == "critical" else "high",
+                    "since": base_since,
+                    "evidence": {
+                        "from": frm, "to": cur, "baseline": base_label,
+                        "detail": (f"residual band {frm_band} -> {to_band} "
+                                   f"since the last snapshot"),
+                    },
+                })
+
+        # A crossed band is the escalation; drift toward it is the same story told twice.
+        if not crossed:
+            series = _exposure_series(reg, rid) + [(today, cur)]
+            vals = [e for _, e in series]
+            run = 0
+            for i in range(len(vals) - 1, 0, -1):
+                if vals[i] > vals[i - 1]:
+                    run += 1
+                else:
+                    break
+            need = policy.get("sustainedWorseningSnapshots", 2)
+            if run >= need >= 1:
+                first = series[len(vals) - 1 - run]
+                out.append({
+                    "subjectRef": rid, "subjectKind": "risk",
+                    "trigger": "sustained-drift", "severity": "medium",
+                    "since": first[0],
+                    "evidence": {
+                        "from": first[1], "to": cur, "baseline": base_label,
+                        "detail": (f"residual exposure worsened across {run} consecutive "
+                                   f"snapshots without crossing a band"),
+                    },
+                })
+
+        if today and over_appetite(cur, size, appetite):
+            # Walk back while it was over appetite at every snapshot, judging each by the
+            # settings that snapshot froze — "it was over appetite then" means by the
+            # appetite in force then, not by one adopted afterwards.
+            earliest = ""
+            for s in reversed(snaps):
+                found = None
+                for sr in (s.get("data") or {}).get("risks") or []:
+                    if sr.get("id") == rid:
+                        found = sr
+                        break
+                exp = _snap_exposure(found) if found else None
+                if exp is None:
+                    break
+                s_set = (s.get("data") or {}).get("settings") or {}
+                if not over_appetite(exp, s_set.get("matrixSize", size),
+                                     s_set.get("appetite", appetite)):
+                    break
+                earliest = str(s.get("ts") or "")[:10]
+            days = _dwell_days(earliest, today) if earliest else None
+            if days is not None and days > policy.get("appetiteDwellDays", 180):
+                out.append({
+                    "subjectRef": rid, "subjectKind": "risk",
+                    "trigger": "appetite-dwell", "severity": "high",
+                    "since": earliest,
+                    "evidence": {
+                        "from": earliest, "to": today, "baseline": base_label,
+                        "detail": (f"over appetite continuously for {days} days, "
+                                   f"since {earliest}"),
+                    },
+                })
+
+    out.sort(key=lambda e: (ESCALATION_SEVERITY_ORDER.index(e["severity"]), e["subjectRef"]))
+    return out
+
+
+def _utc_today() -> str:
+    """Today in UTC, as YYYY-MM-DD.
+
+    UTC and not local, for the reason the renderers give about `--today`: the register's own
+    history timestamps are UTC, and comparing them against a local date gave confirmations a
+    negative age that read as fresh.
+    """
+    return datetime.now(timezone.utc).date().isoformat()
+
+
+def score_register(reg: dict, today: str = "") -> dict:
+    """Score a register, and derive the escalations that follow from it.
+
+    `today` is optional and defaults to empty rather than to the clock. An empty reference
+    date skips the two date-derived triggers instead of guessing at them, so a caller that
+    did not say what day it is gets fewer escalations rather than wrong ones. Every caller
+    that cares — the CLI, the renderers, `snapshot` — passes one.
+    """
     size = reg["settings"]["matrixSize"]
     appetite = reg["settings"]["appetite"]
     scored_risks = []
@@ -389,12 +689,24 @@ def score_register(reg: dict) -> dict:
             "overAppetite": over_appetite(res, size, appetite),
             "outOfRange": out_of_range,
         })
+    esc = escalations(reg, today)
+    summary = summarize(reg["risks"], size, appetite,
+                        reg["settings"].get("currency") or "")
+    # Added to the summary rather than replacing anything in it. `snapshot` freezes this dict
+    # verbatim, so renaming an existing key would silently invalidate every historical
+    # snapshot's comparability — the figures would still be there and would no longer line up.
+    counts = {s: sum(1 for e in esc if e["severity"] == s)
+              for s in ESCALATION_SEVERITY_ORDER}
+    summary["escalations"] = {**counts, "total": len(esc)}
+    summary["escalationsSuppressedProvisional"] = suppressed_provisional(reg)
     return {
         "meta": reg["meta"],
         "settings": reg["settings"],
         "themes": reg.get("themes", []),
-        "summary": summarize(reg["risks"], size, appetite,
-                             reg["settings"].get("currency") or ""),
+        "summary": summary,
+        # Top-level as well as counted in the summary: the renderers consume this list and
+        # must never re-derive it, on the same terms that keep banding out of the renderers.
+        "escalations": esc,
         "risks": scored_risks,
     }
 
@@ -404,11 +716,16 @@ def score_register(reg: dict) -> dict:
 
 def _cmd_score(args: list[str]) -> int:
     as_json = "--json" in args
+    _, opt = parse_flags(args)
     paths = [a for a in args if not a.startswith("--")]
     if not paths:
-        print("usage: score_register.py score <register.rr> [--json]", file=sys.stderr)
+        print("usage: score_register.py score <register.rr> [--json] [--today YYYY-MM-DD]",
+              file=sys.stderr)
         return 2
-    scored = score_register(load_register(paths[0]))
+    # Defaulted at the CLI boundary rather than inside score_register(), so the library
+    # function stays reproducible and only the command reads the clock.
+    today = _iso_date(opt["today"], "--today") if "today" in opt else _utc_today()
+    scored = score_register(load_register(paths[0]), today)
     if as_json:
         print(json.dumps(scored, indent=2))
         return 0
@@ -949,6 +1266,243 @@ def _cmd_self_test(_: list[str]) -> int:
            ("2027-2-01"[:10] <= "2027-11-01", "2027-02-01"[:10] <= "2027-11-01"),
            (False, True))
 
+        # --- set-escalation (T2) ------------------------------------------------
+        eq("set-escalation is reachable from COMMANDS",
+           COMMANDS.get("set-escalation") is _cmd_set_escalation, True)
+        eq("escalation-policy-changed is a known type",
+           "escalation-policy-changed" in KNOWN_EVENT_TYPES, True)
+        eq("escalation-policy-changed is classified exactly once",
+           (("escalation-policy-changed" in AGE_AFFIRMING),
+            ("escalation-policy-changed" in NON_AGE_AFFIRMING)),
+           (False, True))
+        # Refuses without --why, and leaves the file byte-identical when it does.
+        eq("set-escalation refuses without --why",
+           _rejects(_cmd_set_escalation, [_dr, "--sustained", "3"]), (True, True))
+        eq("set-escalation refuses --sustained 0",
+           _rejects(_cmd_set_escalation, [_dr, "--sustained", "0", "--why", "w"]),
+           (True, True))
+        eq("set-escalation refuses a no-op",
+           _rejects(_cmd_set_escalation, [_dr, "--sustained", "2", "--why", "w"]),
+           (True, True))
+        eq("set-escalation refuses a non on/off boolean",
+           _rejects(_cmd_set_escalation, [_dr, "--band-cross", "false", "--why", "w"]),
+           (True, True))
+        # And the accepted path: one threshold moves, the other three hold.
+        _quiet(_cmd_set_escalation, [_dr, "--dwell-days", "90", "--why", "tighter cadence"])
+        eq("set-escalation moves only what was passed",
+           _load(_dr)["settings"]["escalation"],
+           {"sustainedWorseningSnapshots": 2, "appetiteDwellDays": 90,
+            "bandCross": True, "lapsedAcceptance": True})
+        eq("and logs the policy change with its rationale",
+           [(e["type"], e.get("rationale")) for e in _load(_dr)["history"]][-1],
+           ("escalation-policy-changed", "tighter cadence"))
+
+    # --- escalation derivation (T3/T4/T5) -------------------------------------
+    # Built by hand rather than by driving the CLI, so each trigger can be isolated. A
+    # fixture that fires three triggers at once cannot show which one a check is proving.
+
+    def _risk(rid, rl, ri, **kw):
+        r = {"id": rid, "title": rid, "description": "", "category": "PR", "theme": None,
+             "owner": "o", "inherent": {"likelihood": 5, "impact": 5},
+             "response": {"type": "mitigate", "description": ""},
+             "residual": {"likelihood": rl, "impact": ri}, "status": "open",
+             "reviewDate": "", "acceptance": None, "provisionalTitle": False,
+             "provisionalScore": False}
+        r.update(kw)
+        return r
+
+    def _reg(risks, snaps=(), **settings):
+        return {"schemaVersion": 2, "meta": {},
+                "settings": {"matrixSize": 5, "appetite": "medium",
+                             "escalation": {**ESCALATION_DEFAULTS, **settings}},
+                "themes": [], "risks": risks, "history": [], "snapshots": list(snaps)}
+
+    def _snap(ts, label, risks, size=5, appetite="medium"):
+        return {"id": label.lower(), "label": label, "ts": ts, "note": "",
+                "data": {"settings": {"matrixSize": size, "appetite": appetite},
+                         "risks": risks, "summary": {}}}
+
+    # T3 — the baseline helper.
+    eq("no snapshots yields an empty baseline",
+       _snapshot_baseline(_reg([_risk("R-001", 2, 2)])), ({}, ""))
+    _two = _reg([_risk("R-001", 3, 3)],
+                [_snap("2026-01-31T00:00:00Z", "Q1", [_risk("R-001", 1, 2)]),
+                 _snap("2026-06-30T00:00:00Z", "Q2", [_risk("R-001", 2, 2)])])
+    eq("the baseline is the newest snapshot, by insertion order",
+       _snapshot_baseline(_two), ({"R-001": 4}, "Q2"))
+    # Append order is the truth, not the timestamp. Two machines with skewed clocks writing
+    # to one register must not silently reorder what the whole engine compares against, so
+    # the last-appended snapshot wins even when its `ts` is the earlier of the two.
+    eq("a skewed clock does not reorder the baseline",
+       _snapshot_baseline(_reg(
+           [_risk("R-001", 3, 3)],
+           [_snap("2026-06-30T00:00:00Z", "later ts, appended first",
+                  [_risk("R-001", 1, 1)]),
+            _snap("2026-01-31T00:00:00Z", "earlier ts, appended last",
+                  [_risk("R-001", 2, 2)])])),
+       ({"R-001": 4}, "earlier ts, appended last"))
+
+    # T4 — velocity, all four cases.
+    _vel = velocity(_reg(
+        [_risk("R-001", 3, 3), _risk("R-002", 1, 1), _risk("R-003", 2, 2),
+         _risk("R-004", 4, 4)],
+        [_snap("2026-06-30T00:00:00Z", "Q2",
+               [_risk("R-001", 2, 2), _risk("R-002", 3, 3), _risk("R-003", 2, 2)])]))
+    eq("velocity: worsening", (_vel["R-001"]["direction"], _vel["R-001"]["delta"]),
+       ("worsening", 5))
+    eq("velocity: improving", (_vel["R-002"]["direction"], _vel["R-002"]["delta"]),
+       ("improving", -8))
+    eq("velocity: steady", (_vel["R-003"]["direction"], _vel["R-003"]["delta"]),
+       ("steady", 0))
+    eq("velocity: a risk the baseline never had is steady, not worsening",
+       (_vel["R-004"]["direction"], _vel["R-004"]["delta"], _vel["R-004"]["baseline"]),
+       ("steady", 0, ""))
+
+    # T5 — band-crossed.
+    _bc = escalations(_reg(
+        [_risk("R-001", 3, 4)],                                    # 12 -> high
+        [_snap("2026-06-30T00:00:00Z", "Q2", [_risk("R-001", 3, 3)])]),  # 9 -> medium
+        today="2026-07-31")
+    eq("band-crossed fires on medium -> high",
+       [(e["trigger"], e["severity"]) for e in _bc], [("band-crossed", "high")])
+    eq("band-crossed to critical is critical",
+       [e["severity"] for e in escalations(_reg(
+           [_risk("R-001", 5, 5)],
+           [_snap("2026-06-30T00:00:00Z", "Q2", [_risk("R-001", 3, 3)])]),
+           today="2026-07-31") if e["trigger"] == "band-crossed"], ["critical"])
+    eq("band-crossed does NOT fire on high -> medium",
+       [e["trigger"] for e in escalations(_reg(
+           [_risk("R-001", 3, 3)],
+           [_snap("2026-06-30T00:00:00Z", "Q2", [_risk("R-001", 3, 4)])]),
+           today="2026-07-31")], [])
+    eq("bandCross off suppresses it",
+       escalations(_reg([_risk("R-001", 3, 4)],
+                        [_snap("2026-06-30T00:00:00Z", "Q2", [_risk("R-001", 3, 3)])],
+                        bandCross=False), today="2026-07-31"), [])
+
+    # T5 — sustained-drift fires at exactly N, not N-1. Two snapshots plus the current
+    # value is two transitions; one snapshot plus current is one.
+    _drift_snaps = [_snap("2026-01-31T00:00:00Z", "Q1", [_risk("R-001", 1, 5)]),   # 5
+                    _snap("2026-06-30T00:00:00Z", "Q2", [_risk("R-001", 1, 6)])]   # 6
+    eq("sustained-drift fires at exactly N=2",
+       [(e["trigger"], e["severity"]) for e in
+        escalations(_reg([_risk("R-001", 1, 7)], _drift_snaps), today="2026-07-31")],
+       [("sustained-drift", "medium")])
+    eq("sustained-drift does not fire at N-1",
+       [e["trigger"] for e in escalations(
+           _reg([_risk("R-001", 1, 7)], _drift_snaps[1:]), today="2026-07-31")], [])
+    eq("a raised N stops it firing",
+       [e["trigger"] for e in escalations(
+           _reg([_risk("R-001", 1, 7)], _drift_snaps, sustainedWorseningSnapshots=3),
+           today="2026-07-31")], [])
+
+    # T5 — a crossed band suppresses drift on the same risk: one story, told once.
+    _both = escalations(_reg(
+        [_risk("R-001", 2, 5)],                                     # 10 -> high
+        [_snap("2026-01-31T00:00:00Z", "Q1", [_risk("R-001", 1, 6)]),   # 6  medium
+         _snap("2026-06-30T00:00:00Z", "Q2", [_risk("R-001", 1, 8)])]), # 8  medium
+        today="2026-07-31")
+    eq("band-crossed suppresses sustained-drift on the same risk",
+       [e["trigger"] for e in _both], ["band-crossed"])
+
+    # T5 — appetite-dwell, and that the threshold is respected.
+    _dwell_snaps = [_snap("2026-01-01T00:00:00Z", "Q1", [_risk("R-001", 3, 4)]),
+                    _snap("2026-06-30T00:00:00Z", "Q2", [_risk("R-001", 3, 4)])]
+    eq("appetite-dwell fires past the threshold",
+       [(e["trigger"], e["severity"]) for e in escalations(
+           _reg([_risk("R-001", 3, 4)], _dwell_snaps), today="2026-07-31")
+        if e["trigger"] == "appetite-dwell"], [("appetite-dwell", "high")])
+    eq("appetite-dwell respects a raised appetiteDwellDays",
+       [e["trigger"] for e in escalations(
+           _reg([_risk("R-001", 3, 4)], _dwell_snaps, appetiteDwellDays=3650),
+           today="2026-07-31") if e["trigger"] == "appetite-dwell"], [])
+
+    # T5 — acceptance-lapsed fires on a closed risk, which is the point of it.
+    _acc = {"approver": "CFO", "justification": "j", "acceptedDate": "2025-01-01",
+            "revalidationDate": "2025-06-01", "expiryDate": "2026-01-01"}
+    eq("acceptance-lapsed fires on a closed risk",
+       [(e["subjectRef"], e["trigger"]) for e in escalations(
+           _reg([_risk("R-001", 1, 1, status="closed", acceptance=_acc)]),
+           today="2026-07-31")], [("R-001", "acceptance-lapsed")])
+    # The boundary, pinned deliberately. renderers/_common.py::_overdue is `<=`, so an
+    # acceptance expiring *today* already shows as expired on both dashboards. A stricter
+    # `<` here would make the escalation disagree with that flag for exactly one day per
+    # acceptance — one concept answered two ways, which is the divergence this engine
+    # exists to close rather than create.
+    eq("an acceptance expiring today is already lapsed, as the dashboards read it",
+       [e["trigger"] for e in escalations(
+           _reg([_risk("R-001", 1, 1, acceptance={**_acc, "expiryDate": "2026-07-31"})]),
+           today="2026-07-31")], ["acceptance-lapsed"])
+    eq("an unexpired acceptance does not fire",
+       escalations(_reg([_risk("R-001", 1, 1, acceptance={**_acc,
+                                                          "expiryDate": "2027-01-01"})]),
+                   today="2026-07-31"), [])
+    eq("lapsedAcceptance off suppresses it",
+       escalations(_reg([_risk("R-001", 1, 1, acceptance=_acc)], lapsedAcceptance=False),
+                   today="2026-07-31"), [])
+
+    # T5 — a provisional score escalates nothing, and says so rather than going quiet.
+    _prov = _reg([_risk("R-001", 3, 4, provisionalScore=True)],
+                 [_snap("2026-06-30T00:00:00Z", "Q2", [_risk("R-001", 3, 3)])])
+    eq("a provisionalScore risk produces no score-derived escalation",
+       escalations(_prov, today="2026-07-31"), [])
+    eq("and is counted as suppressed instead of vanishing",
+       suppressed_provisional(_prov), 1)
+
+    # T5 — no snapshots, no score-derived escalation. A first run escalates nothing.
+    eq("a register with no snapshots escalates nothing from scores",
+       escalations(_reg([_risk("R-001", 5, 5)]), today="2026-07-31"), [])
+
+    # T5 — the §1.3 shape, on a real record.
+    _shape = escalations(_reg([_risk("R-001", 3, 4)],
+                              [_snap("2026-06-30T00:00:00Z", "Q2", [_risk("R-001", 3, 3)])]),
+                         today="2026-07-31")[0]
+    eq("every escalation carries the six contract keys",
+       sorted(_shape), ["evidence", "severity", "since", "subjectKind", "subjectRef",
+                        "trigger"])
+    eq("and its evidence names the comparison that fired it",
+       sorted(_shape["evidence"]), ["baseline", "detail", "from", "to"])
+    eq("subjectKind is risk", _shape["subjectKind"], "risk")
+
+    # T5 — severity ordering is stable, so a rendered list does not reshuffle between runs.
+    _mixed = escalations(_reg(
+        [_risk("R-003", 3, 4), _risk("R-001", 1, 1, acceptance=_acc),
+         _risk("R-002", 5, 5)],
+        [_snap("2026-06-30T00:00:00Z", "Q2",
+               [_risk("R-003", 3, 3), _risk("R-002", 3, 3)])]), today="2026-07-31")
+    eq("escalations sort by severity, then by subject",
+       [(e["severity"], e["subjectRef"]) for e in _mixed],
+       [("critical", "R-002"), ("high", "R-001"), ("high", "R-003")])
+
+    # T6 — the scored payload carries escalations, and the summary counts agree with the
+    # list they count. Two numbers for one thing is how they come to disagree; asserting
+    # they match is what stops a renderer picking the wrong one.
+    _wired = score_register(_reg(
+        [_risk("R-001", 3, 4), _risk("R-002", 5, 5), _risk("R-003", 1, 1,
+                                                           provisionalScore=True)],
+        [_snap("2026-06-30T00:00:00Z", "Q2",
+               [_risk("R-001", 3, 3), _risk("R-002", 3, 3), _risk("R-003", 1, 1)])]),
+        today="2026-07-31")
+    eq("score_register carries the escalation list", len(_wired["escalations"]), 2)
+    eq("and the summary counts match it exactly",
+       _wired["summary"]["escalations"],
+       {"critical": 1, "high": 1, "medium": 0, "total": 2})
+    eq("and the suppressed count travels with them",
+       _wired["summary"]["escalationsSuppressedProvisional"], 1)
+    eq("every pre-existing summary key survives",
+       all(k in _wired["summary"] for k in
+           ("total", "closed", "overAppetite", "byBand", "topByResidual", "provisional",
+            "provisionalTitle", "provisionalScore", "treatmentCost")), True)
+    eq("scoring without a reference date still returns a list, just a shorter one",
+       isinstance(score_register(_reg([_risk("R-001", 1, 1)]))["escalations"], list), True)
+
+    # T5 — an empty `today` skips the two date-derived triggers rather than guessing.
+    eq("no reference date skips the date-derived triggers",
+       [e["trigger"] for e in escalations(
+           _reg([_risk("R-001", 3, 4, acceptance=_acc)],
+                [_snap("2026-06-30T00:00:00Z", "Q2", [_risk("R-001", 3, 3)])]))],
+       ["band-crossed"])
+
     failures = [(n, g, w) for (n, g, w) in checks if g != w]
     for n, g, w in checks:
         status = "ok " if (g == w) else "FAIL"
@@ -1027,6 +1581,11 @@ NON_AGE_AFFIRMING = frozenset({
     "register-created", "risk-updated", "response-changed", "status-changed",
     "theme-changed", "settings-changed", "snapshot-created", "import-merged",
     "risk-closed", "risk-reopened", "risk-deleted",
+    # Changing when the register escalates asserts nothing about any individual risk's
+    # magnitude or treatment, so it must not reset anything's confirmation age. It is real
+    # history — it changes what the register reports — but it is a statement about the
+    # policy, not about a risk.
+    "escalation-policy-changed",
 })
 
 # Every type this file can write, plus every type references/schema.md documents.
@@ -1048,7 +1607,7 @@ KNOWN_EVENT_TYPES = frozenset({
     "register-created", "risk-added", "risk-updated", "score-changed", "response-changed",
     "status-changed", "risk-accepted", "acceptance-revalidated", "risk-confirmed",
     "risk-closed", "risk-reopened", "risk-deleted", "theme-changed", "settings-changed",
-    "snapshot-created", "import-merged",
+    "snapshot-created", "import-merged", "escalation-policy-changed",
 })
 
 
@@ -1258,7 +1817,11 @@ def _cmd_init(args):
             "appetiteStatement": (_s(opt.get("appetite-statement", ""))
                                   if opt.get("appetite-statement") is not True else ""),
         },
-        "settings": {"matrixSize": size, "appetite": appetite},
+        # Written out rather than left to load_register's default, so a new register is
+        # self-documenting: someone opening the file sees the four thresholds and can change
+        # them, instead of having to know an invisible default existed.
+        "settings": {"matrixSize": size, "appetite": appetite,
+                     "escalation": dict(ESCALATION_DEFAULTS)},
         "themes": [],
         "risks": [],
         "history": [],
@@ -1407,6 +1970,72 @@ def _cmd_set_theme(args):
                   rationale=opt.get("why"))
     save_register(reg, path)
     print(f"{rid}: theme {frm or '—'} → {new or '—'}")
+    return 0
+
+
+def _on_off(opt, key, current):
+    """Read an `on|off` flag, keeping `current` when the flag is absent.
+
+    Strict about the two words rather than accepting anything truthy. `--band-cross false`
+    silently meaning "on" — because a non-empty string is truthy — is the kind of quiet
+    inversion that turns a threshold nobody re-read into a report nobody can trust.
+    """
+    if key not in opt or opt[key] is True:
+        return current
+    raw = str(_s(opt[key])).strip().lower()
+    if raw == "on":
+        return True
+    if raw == "off":
+        return False
+    raise ValueError(f"--{key} must be 'on' or 'off' (got {_s(opt[key])!r}).")
+
+
+def _cmd_set_escalation(args):
+    """Change when this register escalates, and log that the policy moved.
+
+    A threshold quietly rewriting which risks escalate is the same corrosion `confirm`
+    exists to prevent: the register would report a calmer quarter without a single risk
+    having improved. So the policy is a material change with a required rationale, and it
+    lands in history beside the score moves it governs.
+
+    Absent flags keep their current value rather than resetting to the shipped defaults —
+    tuning one threshold must not silently revert the other three.
+    """
+    pos, opt = parse_flags(args)
+    if not pos:
+        raise ValueError("usage: set-escalation <register.rr> [--sustained N] [--dwell-days D] "
+                         "[--band-cross on|off] [--lapsed-acceptance on|off] --why '...'")
+    path = pos[0]
+    reg = load_register(path)
+    if "why" not in opt:
+        raise ValueError("set-escalation: --why is required "
+                         "(material change; the rationale is the audit trail).")
+    cur = dict(reg["settings"]["escalation"])
+    new = dict(cur)
+    new["sustainedWorseningSnapshots"] = _int_opt(opt, "sustained",
+                                                  cur["sustainedWorseningSnapshots"])
+    new["appetiteDwellDays"] = _int_opt(opt, "dwell-days", cur["appetiteDwellDays"])
+    new["bandCross"] = _on_off(opt, "band-cross", cur["bandCross"])
+    new["lapsedAcceptance"] = _on_off(opt, "lapsed-acceptance", cur["lapsedAcceptance"])
+
+    for key, flag in (("sustainedWorseningSnapshots", "--sustained"),
+                      ("appetiteDwellDays", "--dwell-days")):
+        if new[key] < 1:
+            raise ValueError(f"{flag} must be 1 or more (got {new[key]}). "
+                             f"A threshold of zero escalates everything, every run, which is "
+                             f"how escalation gets ignored.")
+    # A no-op write would put "policy changed" in the log where no policy changed — the same
+    # defect `confirm` exists to keep out of `score-changed`.
+    if new == cur:
+        raise ValueError("set-escalation: nothing would change. Pass at least one of "
+                         "--sustained, --dwell-days, --band-cross, --lapsed-acceptance.")
+
+    moved = ", ".join(f"{k} {cur[k]} → {new[k]}" for k in new if new[k] != cur[k])
+    reg["settings"]["escalation"] = new
+    _append_event(reg, "escalation-policy-changed", field="settings.escalation",
+                  frm=cur, to=new, rationale=_s(opt["why"]))
+    save_register(reg, path)
+    print(f"Escalation policy updated — {moved}")
     return 0
 
 
@@ -1613,7 +2242,13 @@ def _cmd_snapshot(args):
     pos, opt = parse_flags(args)
     if not pos or "label" not in opt:
         raise ValueError("usage: snapshot <register.rr> --label 'Q3 2026 Board Review' [--note '...']")
-    reg = load_register(pos[0]); scored = score_register(reg); label = _s(opt["label"])
+    reg = load_register(pos[0])
+    # Snapshotted with a reference date, deliberately. This summary is frozen forever, and
+    # scoring it without one would omit the two date-derived triggers — leaving a stored
+    # escalation count permanently lower than what a live run reports for the same moment.
+    # A snapshot's `ts` is now, so UTC today is exactly the date it was taken on.
+    scored = score_register(reg, _utc_today())
+    label = _s(opt["label"])
     snap = {
         "id": re.sub(r"[^a-z0-9]+", "-", label.lower()).strip("-"), "label": label,
         "ts": _now(), "note": _s(opt.get("note", "")),
@@ -1623,6 +2258,44 @@ def _cmd_snapshot(args):
     _append_event(reg, "snapshot-created", rationale=opt.get("note") or label)
     save_register(reg, pos[0])
     print(f"Snapshot '{label}' saved ({scored['summary']['overAppetite']} over appetite, {scored['summary']['total']} risks).")
+    return 0
+
+
+def _cmd_escalations(args):
+    """List what this register currently escalates.
+
+    Exits 0 whether or not anything escalated. A non-zero exit would turn this into a gate,
+    and the contract is flag-never-block: a lapsed acceptance or a drifting exposure is
+    reported, and nothing downstream refuses to run because of one. Anyone who wants a gate
+    can build it on the JSON; the tool will not impose one.
+    """
+    pos, opt = parse_flags(args)
+    if not pos:
+        raise ValueError("usage: escalations <register.rr> [--today YYYY-MM-DD] [--json]")
+    today = _iso_date(opt["today"], "--today") if "today" in opt else _utc_today()
+    reg = load_register(pos[0])
+    esc = escalations(reg, today)
+    _, base_label = _snapshot_baseline(reg)
+
+    if "json" in opt:
+        print(json.dumps(esc, indent=2, ensure_ascii=False))
+        return 0
+
+    # Naming the baseline is not decoration. "No escalations" against last quarter's review
+    # means the register held steady; "no escalations" against no snapshot at all means
+    # nothing has ever been compared, and the two must not read the same.
+    against = (f"compared against {base_label}" if base_label
+               else "no snapshot to compare against — nothing has a baseline yet")
+    print(f"Escalations as at {today} UTC · {against}")
+    if not esc:
+        print("  none.")
+    for e in esc:
+        print(f"  [{e['severity']:<8}] {e['subjectRef']:<7} {e['trigger']:<17} "
+              f"{e['evidence']['detail']}")
+    suppressed = suppressed_provisional(reg)
+    if suppressed:
+        print(f"\n  {suppressed} risk(s) carry a provisional score and were not assessed "
+              f"for escalation — clear it with set-score.")
     return 0
 
 
@@ -1645,9 +2318,11 @@ def _cmd_export_acceptances(args):
     """
     pos, opt = parse_flags(args)
     if not pos:
-        raise ValueError("usage: export-acceptances <register.rr> [--out out.json]")
+        raise ValueError("usage: export-acceptances <register.rr> [--out out.json] "
+                         "[--today YYYY-MM-DD]")
+    today = _iso_date(opt["today"], "--today") if "today" in opt else _utc_today()
     reg = load_register(pos[0])
-    rows, incomplete = [], []
+    rows, incomplete, lapsed = [], [], []
     for r in reg["risks"]:
         acc = r.get("acceptance")
         if (r.get("response") or {}).get("type") != "accept" or not acc:
@@ -1657,6 +2332,13 @@ def _cmd_export_acceptances(args):
         if missing:
             incomplete.append((r["id"], missing))
             continue
+        # Flagged, never filtered. An expired acceptance is exactly the record the receiving
+        # register most needs to see, and dropping it here would hand exceptions-register a
+        # clean-looking inventory with the dead entry quietly missing. `expiryDate` already
+        # travels in the row below, so the receiver can reach the same verdict independently.
+        expiry = acc.get("expiryDate")
+        if expiry and str(expiry)[:10] <= today:
+            lapsed.append((r["id"], str(expiry)[:10]))
         rows.append({
             "title": r["title"],
             "approver": acc["approver"],
@@ -1675,10 +2357,17 @@ def _cmd_export_acceptances(args):
         with open(out, "w", encoding="utf-8") as fh:
             fh.write(text)
         print(f"Wrote {out} — {len(rows)} acceptance(s) in exceptions-register intake shape")
+        # Only in this branch: stdout is the JSON itself when --out is absent, and a count
+        # line there would corrupt anything piping it.
+        if lapsed:
+            print(f"  {len(lapsed)} of them lapsed — exported as-is, flagged below")
     else:
         sys.stdout.write(text)
     for rid, missing in incomplete:
         print(f"  skipped {rid}: acceptance is missing {', '.join(missing)}", file=sys.stderr)
+    for rid, expiry in lapsed:
+        print(f"  lapsed {rid}: acceptance expired {expiry} — exported as-is.",
+              file=sys.stderr)
     return 0
 
 
@@ -1720,6 +2409,7 @@ COMMANDS = {
     "set-status": _cmd_set_status, "snapshot": _cmd_snapshot, "export-csv": _cmd_export_csv,
     "export-acceptances": _cmd_export_acceptances,
     "add-theme": _cmd_add_theme, "set-theme": _cmd_set_theme,
+    "set-escalation": _cmd_set_escalation, "escalations": _cmd_escalations,
 }
 
 

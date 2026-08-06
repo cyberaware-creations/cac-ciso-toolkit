@@ -21,8 +21,15 @@ The working view — dense, complete, for the people managing the risk:
 - **Heat matrix** (see below), inherent/residual toggle.
 - **Full register table** — RAG-colored, sortable/filterable by status, category, theme, response,
   band. Show inherent + residual exposure and velocity direction.
-- **Attention lists:** over-appetite risks; risks past `reviewDate`; acceptances past
-  `revalidationDate`; unowned risks.
+- **Attention lists:** **escalating** (first — see below); over-appetite risks; risks past
+  `reviewDate`; acceptances past `revalidationDate`; unowned risks.
+- **Escalating** leads the attention grid, because it is the only list on the page nobody chose
+  to put there — everything else follows from a date somebody set or a decision somebody made.
+  Each entry names its **trigger and the evidence behind it**, not just a count: "3 escalating"
+  with no cause is the figure a reader stops asking about by the second quarter. The card takes
+  the band colour of the worst severity present, so no new colour enters the page and the
+  CVD-safe palette in `assets/brand.md` stays the only one. Nothing here is derived in the
+  renderer — the list arrives from `score_register.py` already decided.
 - **"How old these determinations are"** — the confirmation-age distribution, in its own section and
   explicitly *not* an attention list (see below).
 - **Owner load:** count and worst-band of open risk per owner.
@@ -32,7 +39,8 @@ The working view — dense, complete, for the people managing the risk:
 Fewer things, bigger, narrative — for a board that reads themes and direction, not line items:
 
 - **Top strip:** total exposure posture in a sentence, over-appetite count **with trend arrow vs
-  last snapshot**, count of stale acceptances due for re-validation.
+  last snapshot**, count of stale acceptances due for re-validation, and an **escalating** tile
+  carrying the severity split (`critical 1 · high 2`) rather than a bare number.
 - **Themes rollup:** each theme with its risk count, worst residual band, and direction. This is the
   board's mental model — ~6 themes, not 40 rows.
 - **Freshness sentence** in the executive summary: how old the determinations on the page are, in one
@@ -42,7 +50,10 @@ Fewer things, bigger, narrative — for a board that reads themes and direction,
 - **Trend chart:** over-appetite count and band mix across snapshots.
 - **What changed since last review:** the snapshot diff (added, band moves, newly over/within
   appetite, closed) — the continuity spine.
-- **Decisions needed:** acceptances to re-validate, risks needing board awareness or funding.
+- **Decisions needed:** what the register escalated (leading, naming each trigger and the risks
+  it fired on), acceptances to re-validate, risks needing board awareness or funding. The
+  escalation line names triggers and ids rather than summarising — a board asked to act on "3
+  escalations" cannot tell a crossed band from a lapsed signature.
 
 The executive dashboard is where `ciso-board-translation` composes in: pass it the scored summary,
 the theme rollup, the top risks, and the snapshot diff; it returns the board-facing language,
