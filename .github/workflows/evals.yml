@@ -6,7 +6,17 @@ name: evals
 
 on:
   push:
-    branches: [main]
+    # Feature branches are listed because `pull_request` stopped firing this workflow —
+    # repo-wide, not for one branch: a brand-new branch with a fresh PR did not trigger it
+    # either, while CodeQL fired on the same events throughout. Until that is fixed at
+    # source, `push` is the only event that both runs this suite and produces a check suite
+    # GitHub links to a PR. `workflow_dispatch` does not: its runs go green on the commit
+    # while the PR reports the same checks missing, which is a worse failure than not
+    # running at all, because it looks like success.
+    #
+    # This also does something worth keeping regardless — a branch gets validated when it is
+    # pushed rather than when someone opens a PR.
+    branches: [main, 'feat/**', 'fix/**']
   pull_request:
   workflow_dispatch:
 
