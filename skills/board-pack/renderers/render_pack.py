@@ -183,6 +183,20 @@ footer{{color:{MUTED};font-size:12.5px;margin-top:28px;padding-top:14px;
 .legend span{{display:flex;align-items:center;gap:6px}}
 .legend i{{width:14px;height:10px;border-radius:2px;display:block;flex:0 0 auto}}
 
+/* Escalations. A table rather than cards: five short columns that a reader scans down one
+   at a time, and severity is the column they scan. `overflow-x:auto` on the wrapper, so the
+   trigger column can keep its full name at 320px instead of wrapping to three lines. */
+.esc{{width:100%;border-collapse:collapse;font-size:13.5px;margin:6px 0 0;display:block;
+  overflow-x:auto;white-space:nowrap}}
+.esc th{{text-align:left;font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+  color:{MUTED};border-bottom:1px solid {WB_LINE};padding:0 14px 6px 0;font-weight:600}}
+.esc td{{padding:9px 14px 9px 0;border-bottom:1px solid {LIME};vertical-align:top}}
+.esc td:last-child{{white-space:normal;min-width:16em}}
+.esc .mono{{font-family:ui-monospace,monospace;font-size:12.5px}}
+.esc .from{{display:block;color:{MUTED};font-size:11.5px;margin-top:2px}}
+.sevdot{{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;
+  vertical-align:baseline}}
+
 /* Figures. `flex-wrap` rather than a fixed column count: the marks are fixed-width SVGs,
    so a grid would either clip them on a narrow page or strand them on a wide one. */
 .figs{{display:flex;flex-wrap:wrap;gap:18px;margin:18px 0 22px}}
@@ -304,6 +318,41 @@ def _decision_items(decisions: list) -> str:
         f'<li>{esc(d["text"])}'
         f'<span class="from">from: {esc(", ".join(d["sections"]))}</span></li>'
         for d in decisions)
+
+
+def _escalations(escalations: list) -> str:
+    """What the producers raised on their own, across every section.
+
+    Rendered as data and not as prose. Every string on this block — the trigger, the evidence
+    detail, the date — was written by the skill that owns the clock, the same way a headline
+    figure is. That is why it sits in its own block rather than inside `Decisions`: the pack
+    promises every *sentence* on the decisions page came from ciso-board-translation, and
+    dropping a machine-derived line in among them would quietly break that promise.
+
+    A pack with none says so, because an empty escalation list and a pack that could not read
+    one are different states, and only one of them is good news.
+    """
+    if not escalations:
+        return ('<p class="note">Nothing escalated. No section reported a band crossing, a '
+                'sustained drift, a long dwell over appetite, or a lapsed acceptance.</p>')
+    rows = ""
+    for e in escalations:
+        ev = e.get("evidence") or {}
+        colour = G._sev_colour(e["severity"], "text")
+        rows += (
+            f'<tr><td><span class="sevdot" style="background:{colour}"></span>'
+            f'{esc(e["severity"])}</td>'
+            f'<td class="mono">{esc(e["subjectRef"])}</td>'
+            f'<td>{esc(SECTION_TITLE.get(e.get("section"), e.get("section", "")))}</td>'
+            f'<td class="mono">{esc(e["trigger"])}</td>'
+            f'<td>{esc(ev.get("detail") or "")}'
+            f'<span class="from">since {esc(e.get("since") or "—")}</span></td></tr>')
+    return (f'<table class="esc"><thead><tr><th>Severity</th><th>Ref</th><th>Section</th>'
+            f'<th>Trigger</th><th>What fired it</th></tr></thead><tbody>{rows}</tbody></table>'
+            f'<p class="note">Each line was derived by the skill that owns the clock and read '
+            f'here unchanged — the pack raises none of these itself. They are not decisions: '
+            f'nothing above has been translated for a board or asks it to act. They are what '
+            f'changed for the worse without anyone being asked.</p>')
 
 
 def _decisions(decisions: list) -> str:
@@ -429,6 +478,13 @@ def build_html(pack: dict) -> str:
         f'<p class="sub">{esc(pack["period"])} · {esc(audience)} · '
         f'as at {esc(pack["asOf"])}</p>'
         f'{through}{_tiles(pack["headlines"])}</div>'
+        # Before Decisions, deliberately. A board should see what moved on its own before it
+        # sees what it is being asked to do about anything — the escalations are the context
+        # the asks sit in, and several of the asks will be about them.
+        f'<div class="page">{_band("Escalations")}<h2>What escalated</h2>'
+        f'<p class="sub">Raised by the sections themselves, worst first. '
+        f'Derived on every run and never stored — an escalation clears when its cause does.'
+        f'</p>{_escalations(pack.get("escalations") or [])}</div>'
         f'<div class="page">{_band("Decisions")}<h2>Decisions</h2>'
         f'<p class="sub">Consolidated across every section, in reading order. '
         f'Duplicates merged only where the wording matched.</p>'
@@ -480,6 +536,31 @@ def build_pptx(pack: dict, path: str) -> None:
     mixes = [c for c in (pack.get("charts") or []) if c.get("kind") == "band-mix"]
     if mixes:
         deck.mixes("How the totals break down", mixes, eyebrow=eyebrow)
+
+    # Escalations reach the deck as well as the document, and before the decisions for the
+    # same reason they lead in the HTML. A figure that reaches one deliverable and not the
+    # other means two readers of "the same pack" saw different things — the rule the
+    # placeholder pair has enforced for prose since this skill shipped.
+    escalated = pack.get("escalations") or []
+    if escalated:
+        for i in range(0, len(escalated), 5):
+            chunk = escalated[i:i + 5]
+            more = "" if len(escalated) <= 5 else f" ({i // 5 + 1})"
+            paras = []
+            for e in chunk:
+                ev = e.get("evidence") or {}
+                # Severity in the band's TEXT colour, never its fill: this is a light slide,
+                # and the fills measure 1.5-2.6:1 there. verify() enforces it.
+                paras.append((f"{e['severity'].upper()}  {e['subjectRef']}  ·  "
+                              f"{e['trigger']}", 1250, True,
+                              PX.SEV_TEXT.get(e["severity"], PX.INK), False))
+                paras.append((ev.get("detail") or "", 1050, False, PX.MUTED, False))
+            deck.add(f"What escalated{more}", paras, eyebrow=eyebrow)
+    else:
+        deck.add("What escalated",
+                 [("Nothing escalated. No section reported a band crossing, a sustained "
+                   "drift, a long dwell over appetite, or a lapsed acceptance.",
+                   1300, False, PX.MUTED, False)], eyebrow=eyebrow)
 
     board_asks, management_asks = split_by_altitude(pack["decisions"])
     if board_asks:
