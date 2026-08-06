@@ -6,14 +6,7 @@ name: evals
 
 on:
   push:
-    # TEMPORARY: feat/exposure-lifecycle-layer2 is listed so this suite runs at all on that
-    # branch. `pull_request` stopped firing for it — CodeQL fires on the same events, and the
-    # workflow file there is byte-identical to main's, so the cause is outside this file.
-    # `workflow_dispatch` is not a substitute: its check suite is never linked to a PR, so the
-    # runs go green on the commit while the PR still reports them missing.
-    #
-    # Remove this branch once the trigger is fixed at source (repo Actions settings).
-    branches: [main, feat/exposure-lifecycle-layer2]
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
