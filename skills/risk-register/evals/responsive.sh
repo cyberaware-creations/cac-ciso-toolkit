@@ -185,6 +185,28 @@ done
   --html "$work/bp_pack.html" --no-pptx) >/dev/null || {
     echo "responsive: FIXTURE FAILED — render_pack errored"; exit 1; }
 
+# The same pack under an applicability profile that DISAGREES with its own incident records.
+# This page exists only when there is a conflict, which is exactly why it needs its own
+# fixture: the plain pack above never renders it, so a board-facing page carrying a
+# legal-perimeter warning would otherwise ship without a single resolved-layout or contrast
+# measurement. It is also the most severity-coloured page in the suite — the one place a
+# rule and a heading take a critical band on the note ground — so it is where a contrast
+# regression would land first.
+"$PY" "$BP/evals/_ctxmanifest.py" "$BP/examples/pack.manifest.json" \
+  "$work/ctx.manifest.json" "$BC/examples/example-org.biz" || {
+    echo "responsive: FIXTURE FAILED — could not build a context manifest"; exit 1; }
+"$PY" "$BP/scripts/assemble_pack.py" assemble "$work/ctx.manifest.json" \
+  --out "$work/ctxpack.json" >/dev/null 2>&1 || {
+    echo "responsive: FIXTURE FAILED — context pack assemble errored"; exit 1; }
+"$PY" -c 'import json,sys
+d = json.load(open(sys.argv[1]))
+sys.exit(0 if d.get("contextConflicts") else 1)' "$work/ctxpack.json" || {
+    echo "responsive: FIXTURE FAILED — the context pack carries no conflict, so the page"
+    echo "            below would be absent and its checks would pass over nothing"; exit 1; }
+(cd "$BP/renderers" && "$PY" render_pack.py --in "$work/ctxpack.json" \
+  --html "$work/bp_conflict.html" --no-pptx) >/dev/null || {
+    echo "responsive: FIXTURE FAILED — conflict render_pack errored"; exit 1; }
+
 # The crosswalk report. Three lenses of a wide table — the widest tabular page in the
 # suite — and the one shipped renderer this browser suite had never opened. Its own
 # end-to-end eval covers the data and the licensing gate; neither of those is a resolved
@@ -389,7 +411,7 @@ pages=("$work/render_board.html" "$work/render_dashboard.html" "$work/render_rep
        "$work/mx_exec.html" "$work/mx_ops.html"
        "$work/xr_board.html" "$work/xr_inv.html"
        "$work/im_board.html" "$work/im_ws.html"
-       "$work/bp_pack.html"
+       "$work/bp_pack.html" "$work/bp_conflict.html"
        "$work/csf_xw.html" "$work/bc_framing.html"
        "$work/mx_exec_brand.html" "$work/im_ws_brand.html"
        "$work/mx_exec_empty.html" "$work/xr_inv_empty.html"

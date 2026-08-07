@@ -200,7 +200,10 @@ reasoning, the person, and the date, in a local `.inc` file.
 ### `business-context`
 The organisation's own facts, in a local `.biz` file — revenue base, crown jewels, board-voiced
 risk tolerance, segments, strategic goals, contractual obligations — plus the **applicability
-profile** (CAC-AP-1) that lets every other skill ask only the questions that apply.
+profile** (CAC-AP-1) that narrows what a consuming skill asks. The profile is a *contract*
+skills implement one at a time: `incident-materiality` is the first and, today, the only
+consumer. A pack built from a profile names on its provenance page which sections read it and
+which asked their full question set.
 
 - **It fills the one gap the other skills left.** Each of them correctly refuses to invent the
   number it asks for: `risk-register` takes an appetite band, `metrics-register` takes thresholds,

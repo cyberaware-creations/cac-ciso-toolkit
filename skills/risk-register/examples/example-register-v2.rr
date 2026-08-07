@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "meta": {
-    "clientName": "Northwind Traders",
+    "clientName": "Northwind Manufacturing",
     "assessor": "Cyber Aware Creations, LLC.",
     "scopeNote": "Demo v2 register for skill fixtures.",
     "appetiteStatement": "Medium: no residual High/Critical without recorded board sign-off."

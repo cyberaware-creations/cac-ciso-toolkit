@@ -290,6 +290,55 @@ This is what stops the worksheet and the pack disagreeing. Before it, a `.biz` o
 `incident-materiality`'s own worksheet and did nothing to the pack built from the same store,
 so the two showed different clock rows for the same incident.
 
+#### When the profile and the records disagree
+
+A profile can declare a regime out of scope while a section's own records are tracked against
+it anyway — a profile saying the entity is not listed, over incidents with an SEC clock open.
+`incident-materiality` reports that rather than resolving it, and **keeps the clock**: §2.3 says
+a profile narrows the default question set and does not overrule an assessor standing in front
+of the evidence.
+
+The pack carries every one of those reports onto **its own page before the through-line, a slide
+before the through-line, and the provenance page.** It does not refuse and it does not choose a
+side. Choosing would mean the pack overruling either the organisation's declaration or its own
+incident record, and it is entitled to do neither — but a reader must not be able to reach the
+executive summary without meeting the disagreement.
+
+This was a real defect. The pack computed those conflicts, dropped them, printed *"the
+applicability profile narrowed incident"*, showed Form 8-K three times, and never mentioned that
+the profile declared the entity not listed. Every page was true; the document was not.
+
+### `consolidation` — more than one organisation in one pack
+
+```json
+"consolidation": {
+  "declaredBy": "D. Galleyne, CISO",
+  "basis": "Contoso Freight is a wholly owned subsidiary, consolidated for group reporting"
+}
+```
+
+**A pack assembled from stores belonging to different organisations is refused.** Every store in
+this suite records the organisation it describes, and until v0.34.0 nothing compared them — so a
+manifest could name one company on the cover and pull its sections from others. The shipped
+specimen did exactly that across three fictional firms, and each page was correct about its own
+source.
+
+That is refused rather than warned about, which is the opposite of how this pack treats almost
+everything else. The distinction is between a fact that is bad and a document that is not about
+one thing: §1.2 flag-never-block protects *exposures*, and here there is no exposure to hide —
+the pack simply cannot be trusted to be about the entity on its cover.
+
+Names are compared leniently enough that `Acme Manufacturing Co.`, `ACME Manufacturing` and
+`Acme Manufacturing (fictional)` are one company. `Group` and `Holdings` are **not** stripped:
+they distinguish real entities, and this guard errs toward a refusal you can override rather
+than a silent merge nobody sees.
+
+A group pack is legitimate. A group pack assembled by accident is not, and the difference is a
+human saying so by name — the same shape `exceptions-register` demands for an acceptance and
+`business-context` demands for a flag. A consolidation without a `basis` is refused too: that is
+the silent merge with an extra key. When it is accepted, the declaration is printed on the
+provenance page, so a consolidated pack never looks like a single-entity one.
+
 ## Client branding, and the part of the palette it cannot reach
 
 A pack can carry a client's identity. Add a `brand` block to the manifest — inline, or a path
