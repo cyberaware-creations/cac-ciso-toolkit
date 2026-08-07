@@ -101,6 +101,20 @@ Surfaced on the provenance page, never smoothed over:
 
 None of these stop a pack from assembling. All of them appear in the pack.
 
+### The two that are not warnings
+
+- **Different organisations in one pack** — the manifest cover, the applicability profile and
+  each section's store are compared, and a pack whose sources belong to different organisations
+  is **refused**. Override with an attributed `consolidation` block in the manifest; the
+  declaration is then printed on the provenance page. This is the one integrity failure that
+  cannot be a warning: a mixed-entity pack is not a pack with a bad fact in it, it is a document
+  that is not about one company, and no page would show a reader that.
+- **An applicability conflict** — a section whose records are tracked against a regime the
+  profile declares out of scope. **Carried, never resolved**, and given its own page before the
+  through-line and its own slide before the through-line, because a reader must meet it before
+  the sentence they will remember. The pack takes no side: choosing one would mean overruling
+  either the organisation's declaration or its own records.
+
 ## What the assembler will not do
 
 - Compute a count, a band, a trend or a status. Those come from the producers.

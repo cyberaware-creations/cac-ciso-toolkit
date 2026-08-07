@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "family": "incident-materiality",
   "meta": {
-    "clientName": "Northwind Financial",
+    "clientName": "Northwind Manufacturing",
     "owner": "CISO",
     "scopeNote": "US-listed registrant with an in-scope EU payments subsidiary.",
     "asOf": "2026-07-31"

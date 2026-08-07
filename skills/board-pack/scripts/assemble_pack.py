@@ -341,6 +341,139 @@ def normalise_decisions(raw, path: str) -> list:
     return out
 
 
+# --- Whose pack is this? ----------------------------------------------------------
+#
+# Every store in this suite records the organisation it describes, and until now nothing
+# compared them. A manifest could name one company on the cover and assemble sections from
+# four others — and the shipped specimen did exactly that, pulling posture, risk, metrics,
+# exceptions and incident from stores belonging to three different fictional firms. Each page
+# was correct about its own source. The document was a composite of companies that do not
+# exist together, and nothing anywhere said so.
+#
+# That is worse than a wrong number. A board, an audit committee, a regulator or a court
+# reading this pack would have no way to notice, because the cover is the only place the
+# organisation is named and the cover is not evidence.
+#
+# So this REFUSES rather than warns, which is the opposite of how the pack treats almost
+# everything else. The distinction is between a fact that is bad and a document that is not
+# about one thing. §1.2 flag-never-block protects EXPOSURES — a lapsed acceptance must never
+# be silently dropped, because suppressing it hides a risk someone accepted. Here there is no
+# exposure to hide: the pack simply cannot be trusted to be about the entity on its cover, and
+# rendering it anyway produces the authoritative-looking artifact that is the whole problem.
+#
+# The override is a consolidation declaration, attributed, in the manifest — the same shape
+# `exceptions-register` demands for an acceptance and `business-context` demands for a flag.
+# A group pack IS legitimate; a group pack assembled by accident is not, and the difference
+# is a human saying so by name.
+
+ORG_FIELDS = ("clientName", "orgName", "organisationName", "organizationName")
+
+# Legal forms only. `group` and `holdings` are deliberately NOT here: they distinguish real
+# entities, and this guard errs toward a refusal a human can override rather than toward a
+# silent merge nobody sees. A false refusal is visible and cheap; a missed mismatch is the
+# defect this exists for.
+_LEGAL_FORM = re.compile(
+    r"\b(ltd|limited|inc|incorporated|llc|llp|lp|plc|co|corp|corporation|company|"
+    r"gmbh|ag|sa|sarl|nv|bv|ab|as|oy|pty|spa|srl)\b\.?", re.I)
+_PARENTHETICAL = re.compile(r"\([^)]*\)")
+
+
+def normalise_org(name: str) -> str:
+    """A comparison key. `Acme Manufacturing Co.` and `ACME Manufacturing` are one company.
+
+    Never stored and never rendered — the pack always shows what the source actually said,
+    because a normalised name is this function's opinion and the store's name is the record.
+    """
+    text = _PARENTHETICAL.sub(" ", str(name or ""))
+    text = _LEGAL_FORM.sub(" ", text)
+    text = re.sub(r"[^0-9a-z]+", " ", text.lower())
+    return " ".join(text.split())
+
+
+def store_organisation(path: str) -> str:
+    """The organisation a store says it describes, or "" if it does not say.
+
+    An unreadable or nameless store contributes nothing rather than raising. Refusing a pack
+    because one store omits a field it was never required to carry would block the honest
+    case to catch nothing — the guard is about stores that DISAGREE, not stores that are quiet.
+    """
+    try:
+        with open(path, encoding="utf-8") as fh:
+            doc = json.load(fh)
+    except (OSError, ValueError):
+        return ""
+    if not isinstance(doc, dict):
+        return ""
+    for holder in (doc.get("meta") or {}, doc):
+        if isinstance(holder, dict):
+            for field in ORG_FIELDS:
+                value = holder.get(field)
+                if isinstance(value, str) and value.strip():
+                    return value.strip()
+    return ""
+
+
+def organisation_claims(manifest: dict) -> list:
+    """(source, name) for every place this pack states whose it is, in reading order."""
+    claims = []
+    if (manifest.get("client") or "").strip():
+        claims.append(("the manifest cover", manifest["client"].strip()))
+    if manifest.get("contextPath"):
+        name = store_organisation(manifest["contextPath"])
+        if name:
+            claims.append(("the applicability profile", name))
+    for entry in manifest.get("sections") or []:
+        path = entry.get("storePath")
+        if not path:
+            continue
+        name = store_organisation(path)
+        if name:
+            claims.append((f"the {entry['section']!r} store", name))
+    return claims
+
+
+def check_one_organisation(manifest: dict) -> list:
+    """Refuse a pack assembled from stores belonging to different organisations.
+
+    Returns the provenance lines a consolidated pack must carry; raises otherwise.
+    """
+    claims = organisation_claims(manifest)
+    groups = {}
+    for source, name in claims:
+        groups.setdefault(normalise_org(name), []).append((source, name))
+    groups.pop("", None)
+    if len(groups) <= 1:
+        return []
+
+    detail = "\n".join(f"  - {source} says {name!r}"
+                       for members in groups.values() for source, name in members)
+    consolidation = manifest.get("consolidation")
+    if not isinstance(consolidation, dict):
+        raise Refusal(
+            "this pack is assembled from stores belonging to %d different organisations:\n"
+            "%s\n"
+            "Refused rather than rendered. Every page would be correct about its own source "
+            "and the pack as a whole would describe a company that does not exist, with "
+            "nothing on any page for a reader to notice it by.\n"
+            "If these entities genuinely belong in one pack, say so in the manifest and sign "
+            "it:\n"
+            '  "consolidation": {"declaredBy": "Name", "basis": "why these are one pack"}'
+            % (len(groups), detail))
+    missing = [k for k in ("declaredBy", "basis")
+               if not str(consolidation.get(k) or "").strip()]
+    if missing:
+        raise Refusal(
+            "manifest 'consolidation' is missing %s. Consolidating %d organisations into one "
+            "board pack is a judgement someone has to own by name and justify, exactly as an "
+            "accepted risk is — an unsigned consolidation is the silent merge this refusal "
+            "exists to prevent, with an extra key.\nThe organisations are:\n%s"
+            % (", ".join(missing), len(groups), detail))
+    named = sorted({name for members in groups.values() for _s, name in members})
+    return ["this pack consolidates %d organisations (%s) on a declaration by %s: %s"
+            % (len(groups), "; ".join(named), consolidation["declaredBy"],
+               consolidation["basis"])]
+
+
 def validate_pack(manifest: dict) -> dict:
     """Validate every declared section. Collects warnings; raises on the first error."""
     sections, warnings, missing = [], [], []
@@ -790,6 +923,46 @@ def _incident_escalations(a):
     return list(a.get("escalations") or [])
 
 
+# --- Applicability conflicts: the profile and the record disagreeing ---------------
+#
+# CAC-AP-1 §2.3 says a profile keeps the default question set proportionate and does NOT
+# overrule an assessor standing in front of the evidence. `incident-materiality` implements
+# that exactly: where the profile narrowed a battery away but the incident is tracked against
+# that regime anyway, it keeps the clock and emits a conflict record saying so.
+#
+# It emitted them and this pack dropped them. A context-enabled pack therefore printed
+# "the applicability profile narrowed incident", showed three references to Form 8-K, and
+# said nothing at all about the profile declaring the entity not listed. Every page was
+# individually true and the document as a whole was not, which is the failure mode a board
+# paper is least able to defend itself against.
+#
+# Carried, never derived — the same rule as escalations. A conflict is the producer's
+# determination about its own evidence; this assembler collects and orders, and if it ever
+# computed one it would be a second opinion able to contradict the section beside it.
+#
+# These do NOT block. The producer's own comment is the reason: reported, never resolved.
+# Blocking would resolve it — in favour of whichever side the pack happened to prefer — and
+# the whole point is that a human resolves it in one place or the other. What they must be
+# is impossible to hide, which is why they reach the provenance page, the incident section
+# and the deck rather than only the JSON.
+
+CONFLICT_KEYS = ("battery", "flag", "regime", "sentence")
+
+
+def _incident_conflicts(a):
+    """Applicability conflicts incident-materiality reported, per incident.
+
+    Read from the per-incident view rather than the top-level rollup so each one can name
+    the incident it belongs to. A board asked to resolve a legal-perimeter disagreement
+    needs to know which record raised it.
+    """
+    rows = []
+    for inc in a.get("incidents") or []:
+        for conflict in (inc.get("context") or {}).get("conflicts") or []:
+            rows.append(dict(conflict, id=inc.get("id") or ""))
+    return rows
+
+
 def _posture_headline(a):
     # No sev on either figure. A gap is a distance from a Target, and this skill
     # is explicit that a low coverage figure may be a deliberately low Target
@@ -908,7 +1081,8 @@ PRODUCERS = {
                           "--now", "{asOf}T00:00:00+00:00"],
                  "context": True,
                  "headline": _incident_headline, "figures": _incident_figures,
-                 "escalations": _incident_escalations},
+                 "escalations": _incident_escalations,
+                 "conflicts": _incident_conflicts},
 }
 
 
@@ -1007,6 +1181,7 @@ def headline_counts(manifest: dict, sections: list, skills_root: str) -> dict:
     possibility of the two passes seeing different output.
     """
     figures, charts, escalations, unavailable = [], [], [], []
+    conflicts = []
     stores = {e["section"]: e.get("storePath") for e in manifest["sections"]}
 
     # The applicability profile, exported once for the whole pass. Once, because the
@@ -1070,6 +1245,21 @@ def headline_counts(manifest: dict, sections: list, skills_root: str) -> dict:
             row["section"] = name
             escalations.append(row)
 
+        for conflict in PRODUCERS[name].get("conflicts", lambda _a: [])(analysis):
+            # Same rule as an escalation missing a contract key: reported rather than drawn,
+            # because a renderer cannot show a conflict whose sentence is absent without
+            # writing one. The difference is that here the report itself carries the alarm —
+            # a conflict this pack could not render is still a disagreement about a legal
+            # perimeter, so the note says so rather than filing it as a producer defect.
+            missing = [k for k in CONFLICT_KEYS if not conflict.get(k)]
+            if missing:
+                unavailable.append(
+                    f"an applicability conflict from {name!r} is missing "
+                    f"{', '.join(missing)} and could not be rendered; the profile and this "
+                    f"section's records disagree and the disagreement is NOT described below")
+                continue
+            conflicts.append(dict(conflict, section=name))
+
         drawn = PRODUCERS[name].get("figures", lambda _a: [])(analysis)
         if name == "metrics" and len(drawn) > MAX_METRIC_BULLETS:
             unavailable.append(
@@ -1108,18 +1298,39 @@ def headline_counts(manifest: dict, sections: list, skills_root: str) -> dict:
     section_rank = {s["section"]: i for i, s in enumerate(sections)}
     escalations.sort(key=lambda e: (-worst_first.get(e["severity"], -1),
                                     section_rank.get(e["section"], 99), e["subjectRef"]))
+    # The narrowing note above says the profile narrowed a section. On its own that reads as
+    # the profile having done its job, which is exactly wrong when the profile and the
+    # records disagree — so the disagreement is stated in the same place, in the terms a
+    # reader needs to act on it, and it is stated FIRST because it outranks the accounting
+    # of which sections read a profile.
+    if conflicts:
+        regimes = sorted({c["regime"] for c in conflicts})
+        flags = sorted({c["flag"] for c in conflicts})
+        unavailable.insert(0, (
+            "the applicability profile and this pack's own records DISAGREE about %s: %d "
+            "record%s %s tracked against %s while the profile declares %s does not apply. "
+            "The clocks were computed anyway and the sections below still describe them. "
+            "Resolve this in the profile or in the records before this pack is relied on."
+            % (", ".join(regimes), len(conflicts), "" if len(conflicts) == 1 else "s",
+               "is" if len(conflicts) == 1 else "are", ", ".join(regimes),
+               ", ".join(flags))))
     if context_tmp:
         try:
             os.unlink(context_tmp)
         except OSError:
             pass
     return {"figures": figures, "charts": charts, "escalations": escalations,
+            "conflicts": conflicts,
             "unavailable": unavailable, "profileVersion": profile_version}
 
 
 def assemble(manifest: dict, skills_root: str = None, with_stores: bool = True) -> dict:
     """The content model. Everything in it was read; nothing in it was computed."""
     skills_root = skills_root or manifest.get("skillsRoot") or default_skills_root()
+    # Before the producers run. A pack that will be refused for describing four companies
+    # should not first spend four subprocesses computing their figures, and a reader who
+    # made a manifest mistake should hear about it immediately rather than after the slow part.
+    consolidation_notes = check_one_organisation(manifest)
     validated = validate_pack(manifest)
     ordered = order_sections(validated["sections"], manifest["audience"])
 
@@ -1130,7 +1341,7 @@ def assemble(manifest: dict, skills_root: str = None, with_stores: bool = True) 
 
     decisions = consolidate_decisions(ordered, through_line)
 
-    rollup = ({"figures": [], "charts": [], "escalations": [],
+    rollup = ({"figures": [], "charts": [], "escalations": [], "conflicts": [],
                "unavailable": ["store-backed rollups were not requested"],
                "profileVersion": ""}
               if not with_stores
@@ -1138,7 +1349,11 @@ def assemble(manifest: dict, skills_root: str = None, with_stores: bool = True) 
 
     warnings = (list(validated["warnings"]) + possible_duplicate_asks(decisions)
                 + possible_duplicate_escalations(rollup.get("escalations") or []))
-    missing = list(validated["missing"]) + list(rollup["unavailable"])
+    # A consolidated pack must never look like a single-entity one. The declaration that
+    # allowed it through is carried onto the page, so a reader can see that the scope was
+    # widened deliberately and by whom.
+    missing = (list(consolidation_notes) + list(validated["missing"])
+               + list(rollup["unavailable"]))
     if through_line is None:
         missing.append("no through-line sidecar was supplied; the pack opens on a "
                        "placeholder rather than a synthesis")
@@ -1190,6 +1405,12 @@ def assemble(manifest: dict, skills_root: str = None, with_stores: bool = True) 
     # "narrowed by something" without an empty string standing for both.
     if rollup.get("profileVersion"):
         doc["profileVersion"] = rollup["profileVersion"]
+    # Additive on the same rule, and for a sharper reason than symmetry: a pack with no
+    # conflicts must not carry an empty list that a renderer could draw an empty "no
+    # disagreements" panel from. Absent means the question does not arise; present means it
+    # does and here it is. A renderer that ignores the key loses nothing it used to show.
+    if rollup.get("conflicts"):
+        doc["contextConflicts"] = rollup["conflicts"]
     return doc
 
 
