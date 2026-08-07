@@ -307,12 +307,12 @@ engine does not apply the next-working-day allowance.
 **This is a preparedness and defensibility tool, not a scare tactic.** The board-safety eval
 fails the render if any board-facing view reads as fear framing.
 
-**`board-pack` does not yet pass the profile through.** It runs `analyze` itself with a fixed
-argument list, so a pack assembles against the **un-narrowed** analysis even when a `.biz`
-exists. Nothing is wrong in the pack — the un-narrowed run is the full question set, which is
-the safe direction — but the narrowed worksheet and the pack will show different clock rows for
-the same incident, and the pack's provenance page names no profile version. Wiring `--context`
-through the manifest is the obvious next step and is deliberately not done here.
+**`board-pack` passes the profile through.** Name a `.biz` as `context` in the pack manifest
+and the assembler exports the payload and hands it to every producer that reads one — this
+skill today — so the worksheet and the pack narrow identically rather than disagreeing about
+which clocks exist for the same incident. The pack's provenance page names the profile version
+it was assembled against (§2.5), and says which sections read it and which asked their full
+question set.
 
 ## Rendering under a client brand
 

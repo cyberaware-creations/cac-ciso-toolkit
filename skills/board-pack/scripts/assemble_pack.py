@@ -35,6 +35,7 @@ import json
 import os
 import re
 import sys
+import tempfile
 from datetime import date
 
 # The graphics library owns the colour contract, including which brand tokens a client may
@@ -190,6 +191,11 @@ def load_manifest(path: str) -> dict:
                 entry[key + "Path"] = os.path.normpath(os.path.join(base, entry[key]))
     if raw.get("throughLine"):
         raw["throughLinePath"] = os.path.normpath(os.path.join(base, raw["throughLine"]))
+    # CAC-AP-1. Optional, and absent is the normal case: a pack with no profile assembles
+    # exactly as it did before, against every producer's full question set — which is the
+    # safe direction and the one §2.2 requires.
+    if raw.get("context"):
+        raw["contextPath"] = os.path.normpath(os.path.join(base, raw["context"]))
     raw["brand"] = resolve_brand(raw.get("brand"), base)
     raw["audience"] = audience
     raw["manifestDir"] = base
@@ -893,9 +899,14 @@ PRODUCERS = {
                    "argv": ["analyze", "{store}", "--today", "{asOf}"],
                    "headline": _exceptions_headline, "figures": _exceptions_figures,
                    "escalations": _exceptions_escalations},
+    # `context: True` says this producer accepts `--context`. Declared per adapter and
+    # never assumed: passing the flag to a producer that does not take it makes its
+    # analyze exit 2, and the whole section would drop off the pack with a note about an
+    # unrecognised argument — strictly worse than not narrowing at all.
     "incident": {"skill": "incident-materiality", "script": "scripts/incident_analysis.py",
                  "argv": ["analyze", "{store}", "--today", "{asOf}",
                           "--now", "{asOf}T00:00:00+00:00"],
+                 "context": True,
                  "headline": _incident_headline, "figures": _incident_figures,
                  "escalations": _incident_escalations},
 }
@@ -906,7 +917,50 @@ def default_skills_root() -> str:
     return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
-def run_producer(name: str, store: str, as_of: str, skills_root: str):
+def export_context(biz_path: str, skills_root: str):
+    """Turn a `.biz` into the CAC-AP-1 payload its consumers read. Returns (path, reason).
+
+    Run as a subprocess, exactly like every other producer here. `business-context` owns the
+    narrowing decision and this assembler must not re-derive it — §2.6 forbids the import
+    and the contract reference is explicit that §2.2 lives in one place. So the pack asks
+    that skill for its answer rather than reading the flags itself.
+
+    Never fatal, on the same reasoning as `run_producer`: a profile that cannot be exported
+    is reported on the provenance page and the pack assembles un-narrowed, which is the
+    full question set and the safe direction.
+
+    A file already holding a payload is passed through. A pack committed next to an
+    exported payload should not need the producing skill installed to build.
+    """
+    import subprocess
+    try:
+        with open(biz_path, encoding="utf-8") as fh:
+            head = json.load(fh)
+    except (OSError, ValueError) as exc:
+        return None, f"the applicability profile could not be read: {exc}"
+    if head.get("contractVersion") == "CAC-AP-1":
+        return biz_path, None
+
+    script = os.path.join(skills_root, "business-context", "scripts", "business_context.py")
+    if not os.path.exists(script):
+        return None, ("business-context is not present, so the applicability profile was "
+                      "not applied and every producer asked its full question set")
+    try:
+        proc = subprocess.run([sys.executable, script, "export", biz_path],
+                              capture_output=True, text=True, timeout=120)
+    except (OSError, subprocess.SubprocessError) as exc:
+        return None, f"the applicability profile could not be exported: {exc}"
+    if proc.returncode != 0:
+        first = (proc.stderr or proc.stdout or "").strip().splitlines()
+        return None, ("the applicability profile was refused by business-context"
+                      + (f": {first[0]}" if first else ""))
+    fd, tmp = tempfile.mkstemp(suffix=".cac-ap-1.json")
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        fh.write(proc.stdout)
+    return tmp, None
+
+
+def run_producer(name: str, store: str, as_of: str, skills_root: str, context=None):
     """Run one producer's own analysis and return its JSON, or (None, reason).
 
     Never fatal. A store that cannot be read, a producer that errors, a version of a
@@ -923,6 +977,9 @@ def run_producer(name: str, store: str, as_of: str, skills_root: str):
         return None, f"{spec['skill']} is not present at {script}"
     argv = [sys.executable, script] + [
         a.replace("{store}", store).replace("{asOf}", as_of) for a in spec["argv"]]
+    # Only where the adapter declares it. See the note on the incident entry.
+    if context and spec.get("context"):
+        argv += ["--context", context]
     try:
         proc = subprocess.run(argv, capture_output=True, text=True, timeout=120)
     except (OSError, subprocess.SubprocessError) as exc:
@@ -937,6 +994,10 @@ def run_producer(name: str, store: str, as_of: str, skills_root: str):
         return None, f"{spec['skill']} analysis did not return JSON: {exc.msg}"
 
 
+def sections_names(sections) -> list:
+    return [s.get("section") for s in sections]
+
+
 def headline_counts(manifest: dict, sections: list, skills_root: str) -> dict:
     """Cross-section headline figures and chartable series, each read from its producer.
 
@@ -947,6 +1008,40 @@ def headline_counts(manifest: dict, sections: list, skills_root: str) -> dict:
     """
     figures, charts, escalations, unavailable = [], [], [], []
     stores = {e["section"]: e.get("storePath") for e in manifest["sections"]}
+
+    # The applicability profile, exported once for the whole pass. Once, because the
+    # payload is what every consumer reads and two exports of one file could not disagree
+    # about anything worth the second subprocess — the same reasoning as the single pass
+    # over the producers above.
+    context, context_tmp = None, None
+    profile_version = ""
+    if manifest.get("contextPath"):
+        context, reason = export_context(manifest["contextPath"], skills_root)
+        if reason:
+            unavailable.append(reason)
+        elif context:
+            context_tmp = context if context != manifest["contextPath"] else None
+            try:
+                with open(context, encoding="utf-8") as fh:
+                    profile_version = str(json.load(fh).get("profileVersion") or "")
+            except (OSError, ValueError):
+                profile_version = ""
+            # Which producers could actually use it. A profile that narrowed nothing
+            # because no producer reads one yet is a fact about this pack, not a silent
+            # no-op: a reader who supplied a profile is entitled to know it did nothing.
+            takers = sorted(n for n in sections_names(sections)
+                            if (PRODUCERS.get(n) or {}).get("context"))
+            deaf = sorted(n for n in sections_names(sections)
+                          if not (PRODUCERS.get(n) or {}).get("context"))
+            if not takers:
+                unavailable.append(
+                    "an applicability profile was supplied and no section in this pack "
+                    "reads one yet, so nothing was narrowed")
+            elif deaf:
+                unavailable.append(
+                    "the applicability profile narrowed %s; %s do not read one yet and "
+                    "asked their full question set" % (", ".join(takers), ", ".join(deaf)))
+
     for section in sections:
         name = section["section"]
         store = stores.get(name)
@@ -954,7 +1049,8 @@ def headline_counts(manifest: dict, sections: list, skills_root: str) -> dict:
             unavailable.append(f"the {name!r} section declares no store, so its headline "
                                f"figures were not read")
             continue
-        analysis, reason = run_producer(name, store, manifest["asOf"], skills_root)
+        analysis, reason = run_producer(name, store, manifest["asOf"], skills_root,
+                                        context)
         if analysis is None:
             unavailable.append(reason)
             continue
@@ -1012,8 +1108,13 @@ def headline_counts(manifest: dict, sections: list, skills_root: str) -> dict:
     section_rank = {s["section"]: i for i, s in enumerate(sections)}
     escalations.sort(key=lambda e: (-worst_first.get(e["severity"], -1),
                                     section_rank.get(e["section"], 99), e["subjectRef"]))
+    if context_tmp:
+        try:
+            os.unlink(context_tmp)
+        except OSError:
+            pass
     return {"figures": figures, "charts": charts, "escalations": escalations,
-            "unavailable": unavailable}
+            "unavailable": unavailable, "profileVersion": profile_version}
 
 
 def assemble(manifest: dict, skills_root: str = None, with_stores: bool = True) -> dict:
@@ -1030,7 +1131,8 @@ def assemble(manifest: dict, skills_root: str = None, with_stores: bool = True) 
     decisions = consolidate_decisions(ordered, through_line)
 
     rollup = ({"figures": [], "charts": [], "escalations": [],
-               "unavailable": ["store-backed rollups were not requested"]}
+               "unavailable": ["store-backed rollups were not requested"],
+               "profileVersion": ""}
               if not with_stores
               else headline_counts(manifest, ordered, skills_root))
 
@@ -1048,7 +1150,7 @@ def assemble(manifest: dict, skills_root: str = None, with_stores: bool = True) 
         warnings.append("no incident section: none occurred in this period, or none was "
                         "declared. Absence is normal and is recorded rather than left silent.")
 
-    return {
+    doc = {
         "client": manifest.get("client") or "",
         "period": manifest.get("period") or "",
         "audience": manifest["audience"],
@@ -1082,6 +1184,13 @@ def assemble(manifest: dict, skills_root: str = None, with_stores: bool = True) 
             "missing": missing,
         },
     }
+    # CAC-AP-1 §2.5, and additive exactly as `--context` is in every consumer: the key
+    # appears only when a profile was actually applied. A pack built without one produces
+    # the model it always did, which is how a renderer tells "not narrowed" from
+    # "narrowed by something" without an empty string standing for both.
+    if rollup.get("profileVersion"):
+        doc["profileVersion"] = rollup["profileVersion"]
+    return doc
 
 
 def validate_through_line(raw: dict, path: str) -> dict:
