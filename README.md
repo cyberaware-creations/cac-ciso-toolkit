@@ -30,15 +30,20 @@ already have; see [Requirements](#requirements).
 
 ## Skills
 
-Seven skills, in three layers. **Five own data** — each is the system of record for one thing and
+Eight skills, in three layers. **Six own data** — each is the system of record for one thing and
 persists it in a local file: risks, a CSF Profile, metrics, accepted exceptions, incident
-determinations. **One owns language** — `ciso-board-translation` holds the board-facing phrasing the
-others call rather than each inventing its own. **One owns the deliverable** — `board-pack` assembles
-what the producers wrote into a single document, and owns no data at all.
+determinations, and the organisation's own business facts. **One owns language** —
+`ciso-board-translation` holds the board-facing phrasing the others call rather than each inventing
+its own. **One owns the deliverable** — `board-pack` assembles what the producers wrote into a
+single document, and owns no data at all.
 
 The seam is deliberate. A producer decides what is true, the translation skill decides how it is
 said, and the assembler decides what order a board reads it in. No skill does two of those jobs, so
 a fact has exactly one home and changing how something is phrased never edits a store.
+
+`business-context` sits slightly apart from the other five producers: it supplies facts *to* them
+rather than reporting on its own. It takes ownership of nothing that already has an owner —
+`risk-register` still owns the appetite band, this owns the board sentence the band came from.
 
 ### `risk-register`
 Build, score, and maintain a cybersecurity risk register that persists in a local `.rr` file and
@@ -192,6 +197,51 @@ reasoning, the person, and the date, in a local `.inc` file.
   the rule the clock is running under — because these outputs are read under exactly the
   conditions where a caveat gets separated from its number.
 
+### `business-context`
+The organisation's own facts, in a local `.biz` file — revenue base, crown jewels, board-voiced
+risk tolerance, segments, strategic goals, contractual obligations — plus the **applicability
+profile** (CAC-AP-1) that lets every other skill ask only the questions that apply.
+
+- **It fills the one gap the other skills left.** Each of them correctly refuses to invent the
+  number it asks for: `risk-register` takes an appetite band, `metrics-register` takes thresholds,
+  `incident-materiality` walks six factors and emits no verdict. What had nowhere to live was
+  **why the declared number is that number** — an appetite of `medium` traced to nothing, a
+  materiality assessment weighed against a revenue base that lived in someone's head.
+- **Declares, never infers.** Being an EU entity does not set DORA scope; a lawyer decides that
+  and this records what they decided. Every flag carries who declared it, when, and on what
+  basis, and one that cannot say why is refused — because absence asks everything, so the only
+  thing an unjustified flag can do is ask *less*.
+- **Absence is not a negative (§2.2).** A missing profile, a missing flag, or a flag whose value
+  is `null` means *not declared*, never *does not apply*. `None` and `False` are distinguished
+  explicitly and never by truthiness. This is the clause that, got backwards, silently narrows
+  every assessment in the suite while the output still looks complete.
+- **The subject outranks the profile, in both directions (§2.3).** An org that declared no AI
+  still gets the full AI battery on a vendor whose own record says it processes data with a
+  model; a subject may equally remove a battery the profile kept. A subject that declares
+  nothing overrides nothing.
+- **Every skip is visible (§2.4).** A narrowed battery is recorded with its reason and rendered
+  where the question would have been, because an auditor cannot otherwise tell a question that
+  was correctly out of scope from one nobody asked.
+- **Revenue stored exact, rendered as a band.** Exact because a materiality denominator must be
+  honest; banded because the rendered artifact is what circulates. The band is derived at render
+  from a fixed ladder and never stored, so it cannot drift from the figure it describes.
+  `--render-revenue exact` overrides *and writes the override into the provenance line*.
+- **No derived materiality, and it is enforced.** Holding a revenue figure creates an obvious
+  temptation to compute a percent-of-revenue rule. There is none.
+  `evals/no-derived-materiality.sh` walks the AST — following the figure through a local
+  binding, not merely by name — and runs the guard against a deliberately poisoned copy, so it
+  is known to work rather than assumed to.
+- **One escalation, deliberately.** `profile-stale` is unlike every other escalation in the
+  suite: it is not an exposure. A crossed band says something got worse; this says the lens every
+  other skill looks through has not been checked.
+- **`incident-materiality` is the worked consumer.** `--context` there is optional, and an absent
+  one leaves that engine's output byte-identical to what it produced before the contract existed.
+  Item 1.05 is asked only of a listed entity and the DORA windows only of a DORA-scoped one, and
+  a determination made with a profile freezes the version it was made against.
+
+The store is more sensitive than any register it feeds — it names what the business cannot lose
+alongside what the business is worth, and `SKILL.md` opens with a handling note for that reason.
+
 ### `ciso-board-translation`
 The reusable "moat" skill. Turns a raw security fact — a metric, a risk, or a quarter of program
 work — into board-ready language a director acts on, using the four-question method, a curated
@@ -267,7 +317,15 @@ skills/
     renderers/                 render_worksheet / render_board
     references/                schema, materiality factors, disclosure clocks
     examples/                  worked .inc + its board translations
-    evals/                     disclosure-clock, board-safety, trigger-routing suites
+    evals/                     disclosure-clock, applicability, board-safety,
+                               trigger-routing suites
+  business-context/
+    SKILL.md
+    scripts/business_context.py  org facts + the applicability profile (stdlib only)
+    renderers/render_context.py  the framing a board pack opens on
+    references/                schema, the CAC-AP-1 applicability contract
+    examples/                  worked .biz
+    evals/                     no-derived-materiality, board-safety, trigger-routing suites
   ciso-board-translation/
     SKILL.md
     references/                four-questions, board-question bank, receipts, metric archetypes
@@ -314,18 +372,22 @@ python3 skills/nist-csf/evals/score-triggers.py self-test         # routing scor
 python3 skills/metrics-register/scripts/metrics_analysis.py self-test      # trend + threshold math
 python3 skills/exceptions-register/scripts/exceptions_register.py self-test  # lifecycle + refusals
 python3 skills/incident-materiality/scripts/incident_analysis.py self-test   # clocks + banding
+python3 skills/business-context/scripts/business_context.py self-test      # §2.2/§2.3 narrowing
 python3 skills/board-pack/scripts/assemble_pack.py self-test               # contract + assembly
 
 ./skills/metrics-register/evals/metric-trend.sh          # direction-aware trend, end to end
 ./skills/exceptions-register/evals/revalidation-lifecycle.sh  # re-validation as an act, not a reset
 ./skills/incident-materiality/evals/disclosure-clock.sh  # SEC and DORA windows, and the band order
+./skills/incident-materiality/evals/applicability.sh     # CAC-AP-1 across the file boundary
+./skills/business-context/evals/no-derived-materiality.sh  # the guard, seen to fail on a poisoned copy
 ./skills/board-pack/evals/assembly.sh                    # ordering, merge, refusals, a sound .pptx
 ./skills/board-pack/evals/section-contract.sh            # the contract every producer writes to
 
-./skills/nist-csf/evals/board-safety.sh                   # each of these five guards its own views
+./skills/nist-csf/evals/board-safety.sh                   # each of these six guards its own views
 ./skills/metrics-register/evals/board-safety.sh
 ./skills/exceptions-register/evals/board-safety.sh
 ./skills/incident-materiality/evals/board-safety.sh
+./skills/business-context/evals/board-safety.sh
 ./skills/board-pack/evals/board-safety.sh
 
 ./tools/check-versions.py                                # the four plugin version strings agree
@@ -352,9 +414,9 @@ and every test passed because they all ran on 3.14 — on an older interpreter t
 imported at all, so a whole dashboard was missing rather than degraded. Testing on the author's
 interpreter proves nothing about the user's.
 
-**The six `board-safety.sh` suites are not copies of each other.** Each is *inverted*: it passes
+**The seven `board-safety.sh` suites are not copies of each other.** Each is *inverted*: it passes
 only if forbidden language never reaches a rendered artifact, so the claim stays unmade rather than
-merely un-typed. All six reject confidence vocabulary attached to an age band. Four of them add a
+merely un-typed. All seven reject confidence vocabulary attached to an age band. Four of them add a
 catastrophizing guard, written after a shipped metrics example described an untested backup restore
 as the difference between a bad week and "an existential event" — a sentence that was arguably
 right about the stakes and wrong about this toolkit's job. `board-pack` adds the strictest check of

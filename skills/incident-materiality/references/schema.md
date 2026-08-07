@@ -68,6 +68,29 @@ true one. That is the safe direction, and it is still wrong. Supply the calendar
 
 `status` is `open` or `closed` — a fact about what a human did. Every band below is derived.
 
+### `contextDeclares` — the subject's own applicability declaration
+
+Optional, and absent unless `declare-context` was run. An incident that has declared nothing
+carries no key at all, so a store written before this existed is not a store holding an empty
+answer.
+
+```json
+"contextDeclares": {
+  "listedEntity": {"value": true, "declaredBy": "General Counsel", "declaredOn": "2026-07-22",
+                   "basis": "The affected entity is the US subsidiary whose shares are admitted to trading."}
+}
+```
+
+This is CAC-AP-1 §2.3: where it contradicts the organisation profile, **the subject wins**, in
+both directions. `"value": null` is *not* `false` — it records that the question was put to this
+incident and nobody could answer it, which overrides nothing. Provenance is required on write,
+exactly as `business-context` requires it on a profile flag.
+
+It is **not** the same declaration as `disclosure.regimes`. The regime list says which clocks
+this incident is tracked against; `contextDeclares` says which questions apply to it. Where the
+two disagree the disagreement is reported and the clock is still computed — a profile narrows the
+default question set and does not overrule an assessor who opened a clock.
+
 ## Factor assessments
 
 ```json
@@ -114,6 +137,20 @@ clock runs from, so it is not allowed to default to today.
 **The engine never writes a determination by itself.** Nothing in this tool computes, suggests or
 defaults a `state`. The factors are recorded so a human can reason from them; the reasoning and
 the conclusion are the human's, made with counsel.
+
+`contextFrozen` is present only when `determine --context` was used, and is CAC-AP-1 §2.5:
+
+```json
+"contextFrozen": {"contractVersion": "CAC-AP-1", "profileVersion": "FY26 close",
+                  "profileReviewedOn": "2026-08-07", "asked": ["dora-windows"],
+                  "skipped": [ /* battery, flag, declaredBy, declaredOn, basis, sentence */ ]}
+```
+
+A determination made in Q1 was made against Q1's perimeter, and **the questions it did not ask
+are part of what it means**. Without this, a reader a year later finds a determination that never
+considered Item 1.05 and no way to tell whether the organisation was private at the time or
+whether somebody forgot. The flags themselves are not frozen; `profileVersion` names a snapshot
+in the `.biz` a reader can go and read in full.
 
 ## Disclosure: regimes, decision, filings
 
@@ -200,6 +237,10 @@ Computed on demand, never written:
 - the incident band and every clock state
 - the elapsed time since discovery with no determination recorded
 - factor completeness — which of the six keys are assessed, and which are not
+- the narrowed question set, its skips and any conflict with the profile — recomputed from the
+  `--context` payload on every run, so a profile corrected today is not read through a stale
+  copy of yesterday's answer. The one exception is `contextFrozen` on a determination, which is
+  stored precisely because it must *not* move (§2.5)
 
 Stored: what a human did. Derived: where a date sits. The line is the same one the whole toolkit
 draws, and it is why re-running `analyze` with a different `--today` never rewrites anything.

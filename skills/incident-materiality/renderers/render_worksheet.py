@@ -52,7 +52,73 @@ def determination_trail(row: dict) -> str:
     return f'<ul class="trail">{"".join(items)}</ul>{note}'
 
 
-def factor_table(row: dict) -> str:
+def revenue_note(revenue: dict) -> str:
+    """The revenue base, stated under the factor it belongs to.
+
+    Stated, and only stated. The financial factor asks the assessor to weigh an impact
+    against the size of the business, and until now the size of the business lived in
+    somebody's head. What this must never become is a percentage: Item 1.05 sets no
+    threshold, so a computed one would be this tool manufacturing the standard the rule
+    declines to set — and then handing over a dated, discoverable record of the day the
+    organisation's own software disagreed with its own determination.
+    """
+    if not revenue:
+        return ""
+    exact = revenue.get("exact")
+    figure = format(int(exact), ",") if isinstance(exact, (int, float)) else "—"
+    who = C.esc(revenue.get("declaredBy") or "unattributed")
+    when = C.esc(revenue.get("declaredOn") or "")
+    basis = C.esc(revenue.get("basis") or "")
+    attribution = f"{who}{', ' + when if when else ''}"
+    return (f'<p class="muted"><strong>Revenue base for the financial factor:</strong> '
+            f'{C.esc(revenue.get("currency") or "")} {figure} '
+            f'({C.esc(revenue.get("fiscalYear") or "")}) — declared by {attribution}'
+            f'{" — " + basis if basis else ""}. '
+            f'Stated so the impact can be weighed against it. No threshold is derived from '
+            f'it and none exists: Item 1.05 names no percentage, and neither does this '
+            f'tool.</p>')
+
+
+def applicability_block(row: dict) -> str:
+    """CAC-AP-1 §2.4 on the page — the questions that were not asked, and why.
+
+    A disclosure record that silently omits a question is worse than one that asks it: an
+    auditor reading this cannot otherwise tell a battery that was correctly out of scope
+    from one nobody got to. Each sentence is embedded verbatim from the record rather than
+    rebuilt here, so the page and the JSON cannot come to differ.
+    """
+    ctxb = row.get("context")
+    if not ctxb:
+        return ""
+    # A battery in conflict is described in full by its conflict paragraph, which quotes the
+    # declaration back. Listing it here as well printed the same sentence twice, one line
+    # apart. The record keeps both because a conflict read on its own — from the top-level
+    # index — still needs the declaration attached to it.
+    in_conflict = {c["battery"] for c in ctxb["conflicts"]}
+    parts = []
+    for rec in ctxb["skipped"]:
+        if rec["battery"] in in_conflict:
+            continue
+        parts.append(f'<li>{C.esc(rec["sentence"])}</li>')
+    for rec in ctxb["overrides"]:
+        parts.append(f'<li>{C.esc(rec["sentence"])}</li>')
+    conflicts = "".join(
+        f'<p class="rec"><strong>Disagreement:</strong> {C.esc(c["sentence"])}</p>'
+        for c in ctxb["conflicts"])
+    if not parts and not conflicts:
+        return ('<h4>Questions narrowed by the profile</h4>'
+                '<p class="muted">None. Every conditional battery was asked of this '
+                f'incident, against applicability profile '
+                f'{C.esc(ctxb["profileVersion"] or "unreviewed")}.</p>')
+    listing = f'<ul class="list">{"".join(parts)}</ul>' if parts else ""
+    return (f'<h4>Questions narrowed by the profile</h4>{listing}{conflicts}'
+            f'<p class="muted">Applicability profile '
+            f'{C.esc(ctxb["profileVersion"] or "unreviewed")}. A narrowed question set is '
+            f'the profile keeping this worksheet proportionate; it is not an answer to any '
+            f'of the questions above.</p>')
+
+
+def factor_table(row: dict, revenue: dict = None) -> str:
     latest = row["factorsLatest"]
     history = row["factorHistory"]
     rows = []
@@ -92,7 +158,8 @@ def factor_table(row: dict) -> str:
             + '. A factor nobody looked at is the usual way a determination goes wrong.</p>')
     return ('<div class="scroll"><table><thead><tr><th>Factor</th><th>Assessment</th>'
             '<th>Recorded reasoning</th><th>By / on</th></tr></thead>'
-            f'<tbody>{"".join(rows)}</tbody></table></div>{tail}')
+            f'<tbody>{"".join(rows)}</tbody></table></div>{tail}'
+            f'{revenue_note(revenue)}')
 
 
 def clock_table(row: dict) -> str:
@@ -116,9 +183,15 @@ def clock_table(row: dict) -> str:
             f'<span class="muted">{C.esc(c["anchorKind"] or "")}</span></td>'
             f'<td class="muted">{C.esc(c["note"])}</td></tr>')
     if not rows:
+        # When a profile narrowed a battery away, its windows are absent rather than
+        # `not-applicable`, and saying only "not tracked" would credit the omission to
+        # nobody. The reason itself is one block down, so this points at it.
+        narrowed = ((row.get("context") or {}).get("skipped") or [])
+        pointer = (' The questions the applicability profile narrowed away are listed '
+                   'below, with who declared them and when.' if narrowed else "")
         return ('<p class="muted">This incident is not tracked against SEC Item 1.05 or '
                 'DORA. No window is computed — see the regulatory factor for anything else '
-                'that may be triggered.</p>')
+                f'that may be triggered.{pointer}</p>')
     return ('<div class="scroll"><table><thead><tr><th>Window</th><th>State</th>'
             '<th>Deadline</th><th>Anchored on</th><th>Rule</th></tr></thead>'
             f'<tbody>{"".join(rows)}</tbody></table></div>')
@@ -143,7 +216,7 @@ def disclosure_block(row: dict) -> str:
             f'<h4>Filings recorded</h4><p class="rec">{filings}</p>{link_line}')
 
 
-def incident_card(row: dict, today: str) -> str:
+def incident_card(row: dict, today: str, revenue: dict = None) -> str:
     scope = (f'<p class="rec">{C.esc(row["scopeNote"])}</p>' if row["scopeNote"] else "")
     # The chronology sits above the trail, because the first question asked of this card is
     # where today stands against the next date — and the tables below answer it in words.
@@ -157,8 +230,9 @@ def incident_card(row: dict, today: str) -> str:
         f'{C.esc(", ".join(C.REGIME_LABEL.get(r, r) for r in row["regimes"]) or "no regime tracked")}'
         f'</p>{scope}{chrono}'
         f'<h4>Determination trail</h4>{determination_trail(row)}'
-        f'<h4>Factors assessed</h4>{factor_table(row)}'
+        f'<h4>Factors assessed</h4>{factor_table(row, revenue)}'
         f'<h4>Regulatory windows</h4>{clock_table(row)}'
+        f'{applicability_block(row)}'
         f'{disclosure_block(row)}</div>')
 
 
@@ -196,19 +270,27 @@ def main(argv=None) -> int:
     hol = (f'{len(ctx.holidays)} holidays supplied' if ctx.holidays
            else 'no holiday calendar supplied — a deadline falling on a federal holiday will '
                 'be computed one day early')
+    # CAC-AP-1 §2.5. Named on the page, not just in the JSON: a worksheet read a year later
+    # has to say which perimeter its question set was narrowed by, or the questions it did
+    # not ask are indistinguishable from questions nobody thought of.
+    apc = ctx.a.get("context") or {}
+    revenue = apc.get("revenueBase")
+    prov = (f' · applicability profile {C.esc(apc["profileVersion"] or "unreviewed")}'
+            f'{", reviewed " + C.esc(apc["profileReviewedOn"]) if apc.get("profileReviewedOn") else ""}'
+            if apc else "")
     body = (
         C.band("Cyber Aware Creations", "Determination worksheet")
         + f'<h1>Materiality determination worksheet — {C.esc(client)}</h1>'
         f'<p class="sub">{len(ctx.incidents)} incident'
         f'{"s" if len(ctx.incidents) != 1 else ""} · as at {C.esc(ctx.today)} · '
-        f'{C.esc(hol)}</p>'
+        f'{C.esc(hol)}{prov}</p>'
         + tiles(ctx)
         + ctx.legal_block()
         + ctx.verdict_block()
         + ctx.clock_rule_block()
         + (ctx.caveat_block() if ctx.any_linked() else "")
         + "<h2>Incidents</h2>" + C.legend()
-        + ("".join(incident_card(r, ctx.today) for r in ctx.incidents)
+        + ("".join(incident_card(r, ctx.today, revenue) for r in ctx.incidents)
            or '<p class="muted">No incidents in this store.</p>')
         + "<h2>Attention</h2>" + attention_lists(ctx)
         + ctx.footer())

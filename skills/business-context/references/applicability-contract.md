@@ -1,0 +1,175 @@
+# CAC-AP-1 — the applicability contract
+
+**Normative.** Written for **consumers**: a skill author implementing `--context` should need
+only this file.
+
+`business-context` owns the applicability profile. Every other skill reads it and narrows its
+question set accordingly. This document is the whole of what a consumer must implement.
+
+---
+
+## §2.1 One profile, one owner
+
+`business-context` owns the applicability profile. **No other skill writes it.** Every skill
+may read it and **must operate without it** — the profile is an optimisation on the question
+set, never a prerequisite.
+
+## §2.2 Absence is not a negative
+
+A missing profile, or a missing flag within one, means **not declared**. It never means *does
+not apply*. A skill with no profile asks its full question set.
+
+This clause exists because the inverse is the dangerous default: silently narrowing scope on
+absent data produces an assessment that looks complete and isn't — the same failure class as a
+flat translations map rendering a finished-looking deck full of placeholders.
+
+**In code, this means `None` and `False` are distinguished explicitly and never by
+truthiness:**
+
+| Profile state | Meaning | Behaviour |
+|---|---|---|
+| flag absent | not declared | **ask** |
+| `{"value": null}` | not declared | **ask** |
+| `{"value": false}` | declared, does not apply | **skip**, with a reason |
+| `{"value": true}` | declared, applies | **ask** |
+
+`if not declared:` passes every other test you will write and fails only this one. It is the
+single change that silently narrows every assessment in the suite, with nothing on any
+rendered page to show it happened.
+
+## §2.3 A skill may narrow, never answer — and the subject outranks the profile
+
+The profile removes questions that cannot apply. **It never supplies an answer** on the
+subject's behalf.
+
+Where a subject-level declaration contradicts the org-level profile, **the subject wins.** An
+org that has declared no AI in use still gets the full AI battery on a vendor whose record says
+it processes data with a model.
+
+The override runs in **both directions**: a subject declaration may re-add a battery the
+profile removed *and* remove one the profile kept. A subject that declares nothing (`null`)
+does not override — the profile still decides.
+
+The profile's job is to keep the default question set proportionate, not to overrule the
+assessor standing in front of the evidence.
+
+## §2.4 Every conditional is declared and visible
+
+When a skill omits a battery because the profile said it did not apply, it **records that it
+skipped it, and why** — carried into the artifact, not swallowed.
+
+> *SEC Item 1.05 disclosure window — not assessed. Organisation profile: `listedEntity: false`,
+> declared 2026-03-02 by General Counsel — Privately held; no securities admitted to trading.*
+
+An auditor cannot otherwise distinguish a question that was correctly out of scope from one
+nobody asked, and those are very different findings. This mirrors the provenance page
+`board-pack` already writes for missing sections.
+
+The skip record carries everything the sentence needs:
+
+```json
+{"battery": "sec-item-105", "label": "SEC Item 1.05 disclosure window",
+ "flag": "listedEntity", "source": "profile",
+ "declaredBy": "General Counsel", "declaredOn": "2026-03-02", "basis": "..."}
+```
+
+`source` is `profile` or `subject`. A skip attributed to the wrong one tells an auditor the
+subject declined a question the subject never mentioned.
+
+## §2.5 The profile is frozen by snapshot
+
+A determination made in Q1 was made against Q1's profile. Skills that snapshot must **freeze
+the profile values they used**, exactly as `risk-register` freezes `settings` per snapshot and
+judges "it was over appetite then" by the appetite in force then.
+
+The payload carries `profileVersion` for this purpose. It is always present — `unreviewed` when
+the store has no snapshot — because a consumer freezing what it used needs something to name,
+and "absent" is not a version a determination can cite a year later.
+
+## §2.6 Transport is data, not imports
+
+The suite forbids cross-skill imports; every shipped script runs standalone. The profile
+therefore travels the way translations already do — an optional `--context <file.biz>` flag on
+each consuming skill, read as data. **No skill imports another.**
+
+---
+
+## The payload
+
+`business_context.py export <file.biz>` emits:
+
+```json
+{
+  "contractVersion": "CAC-AP-1",
+  "schemaVersion": 1,
+  "orgName": "Northwind Manufacturing",
+  "profileVersion": "FY26 close",
+  "profileReviewedOn": "2026-08-07",
+  "profile": { "listedEntity": {"value": false, "declaredBy": "...", "declaredOn": "...", "basis": "..."} },
+  "applicability": {
+    "incident": {
+      "ask": ["dora-windows"],
+      "skipped": [{"battery": "sec-item-105", "label": "SEC Item 1.05 disclosure window",
+                   "flag": "listedEntity", "source": "profile",
+                   "declaredBy": "General Counsel", "declaredOn": "2026-03-02",
+                   "basis": "Privately held; no securities admitted to trading.",
+                   "sentence": "SEC Item 1.05 disclosure window — not assessed. ..."}]
+    }
+  },
+  "revenue": {"exact": 412000000.0, "currency": "EUR", "fiscalYear": "FY26", "...": "..."},
+  "crownJewels": [{"system": "...", "enables": "...", "atStake": "..."}]
+}
+```
+
+**`applicability` carries the decision, not the raw material.** §2.2 is decided here, once, and
+shipped — a consumer reads its own entry rather than re-deriving `None`-versus-`False` from
+`profile`. That clause is the one where `if not declared:` reads correctly, passes every other
+test anyone writes, and silently narrows every assessment in the suite; it exists in one place.
+`profile` travels alongside it because a reader of the finished artifact needs to see what was
+declared, not only what it implied.
+
+Every skip record carries its own rendered **`sentence`** — the §2.4 text a consumer embeds
+verbatim. A consumer that reassembles the sentence from the parts becomes a second author of it,
+and the two versions drift the first time either changes.
+
+**Revenue travels exact.** The consumer that needs it is a materiality financial factor, and a
+banded denominator is not an honest one. Rendering it as a band is the renderer's job — see
+`references/schema.md`.
+
+**And it must never become a threshold.** Supplying the denominator must not smuggle a computed
+verdict in through the back door: `incident-materiality` emits no verdict by design, precisely
+because a generated number is discoverable alongside the determination it disagreed with. This
+is enforced, not requested — see `evals/no-derived-materiality.sh`.
+
+## Implementing `--context` in a consumer
+
+1. Accept `--context <file>` as **optional**. Absent → your existing behaviour, unchanged. Make
+   this structural: add your context keys only when a payload was supplied, so an un-narrowed
+   run produces the same bytes it always did rather than the same bytes plus an empty field.
+2. Read it as JSON. Do not import `business_context.py`. Refuse a payload whose
+   `contractVersion` you do not read, and one carrying no `applicability` — a `--context` that
+   cannot be honoured must say so, because a silent full question set looks exactly like a
+   profile that decided nothing applied.
+3. Read `applicability["<your skill>"]` for the profile's decision. **Do not re-derive it from
+   `profile`** — §2.2 is decided upstream.
+4. Apply §2.3 yourself, because only you hold the subject: a subject declaration overrides in
+   both directions, and a subject declaring `null` overrides nothing.
+5. Record every skip in your own artifact, per §2.4, embedding the record's `sentence` verbatim.
+   A battery you do not implement is named rather than dropped, so a reader can tell a question
+   belonging to another skill from one you forgot.
+6. If you freeze anything — a snapshot, a determination — freeze `profileVersion` alongside your
+   own frozen values, per §2.5.
+
+Steps 3 and 4 are the whole split, and it is deliberate. §2.2 lives in exactly one place,
+`business_context.applies()`, whose self-test is where it is pinned; a consumer re-implementing
+it is a second source of truth and the two will disagree the first time either changes. §2.3
+cannot live there, because the subject in front of the consumer has never been seen by the
+profile.
+
+The worked implementation is `incident-materiality` — `--context` on `analyze` and `determine`,
+`declare-context` for the subject layer, and `evals/applicability.sh` for what a consumer's own
+suite should assert.
+
+---
+
+*A Cyber Aware Creation · Not affiliated with NIST.*
