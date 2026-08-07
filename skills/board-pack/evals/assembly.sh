@@ -22,7 +22,7 @@ skill="$(cd "$here/.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=50
+EXPECTED_CHECKS=52
 checks=0
 fails=0
 ok()  { checks=$((checks + 1)); printf '  ok    %s\n' "$1"; }
@@ -76,7 +76,10 @@ eq "the same sections appear in both, only re-ordered" "5" \
    "$("$PY" -c 'import json,sys;print(len(json.load(open(sys.argv[1]))["sections"]))' "$work/ac.json")"
 
 # --- 7-9. headline figures are READ from the producers ------------------------
-eq "eleven headline figures, read from five producers" "11" "$(q 'len(p["headlines"])')"
+# Twelve, not eleven: metrics gained the population figure it was the only producer
+# not to supply. Pinned by number on purpose — a headline appearing or vanishing is
+# a change to what a board reads, and it should have to be typed here first.
+eq "twelve headline figures, read from five producers" "12" "$(q 'len(p["headlines"])')"
 eq "and each names the section that computed it" "True" \
    "$(q 'all(h["section"] in {s["section"] for s in p["sections"]} for h in p["headlines"])')"
 # The assembler must not invent or format a figure the producer did not compute. Counts stay
@@ -813,6 +816,33 @@ if [ "$sev_zeros" = "NONE" ]; then
   ok "a zero count is never banded"
 else
   bad "a zero count is never banded" "banded zeros: $sev_zeros"
+fi
+
+# --- every producer states the denominator its counts are drawn from -----------
+#
+# `_risk_headline` writes the rule down: "a total without its denominator is the false
+# precision this pack refuses everywhere else". Four of the five producers followed it.
+# Metrics did not, so a pack printed "3 metrics past a threshold" with nothing saying
+# whether that was three of four or three of forty — and on an empty register, two
+# reassuring zeros and no population at all.
+#
+# It survived because every fixture in this suite is populated, which is the same shape as
+# a fixture agreeing with its own code. Checked per SECTION, so a producer added later
+# cannot ship a bare count either. See _popcheck.py for what counts as a population.
+missing_pop="$("$PY" "$here/_popcheck.py" "$J")"
+if [ -z "$missing_pop" ]; then
+  ok "every producer's headline set states the population its counts are drawn from"
+else
+  bad "every producer's headline set states its population" \
+      "no denominator from: $missing_pop"
+fi
+
+# ...and that check read real sections rather than an empty map.
+pop_sections="$("$PY" "$here/_popcheck.py" "$J" --sections)"
+if [ "$pop_sections" -ge 4 ]; then
+  ok "...across all $pop_sections sections that supplied headline figures"
+else
+  bad "the denominator check saw a plausible number of sections" "only $pop_sections"
 fi
 
 echo
