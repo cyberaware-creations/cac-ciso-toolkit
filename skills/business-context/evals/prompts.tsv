@@ -1,0 +1,15 @@
+B1	business-context	Record that we're privately held, so nobody keeps asking me about the 8-K clock.
+B2	business-context	Our Dublin subsidiary got authorised in November - that puts us in scope for DORA. Note it.
+B3	business-context	The CRM holds the client data about 60% of our revenue renews through. Write that down somewhere the risk work can use.
+B4	business-context	What did the board actually say about outage tolerance? I want the exact words on file.
+B5	business-context	Set our revenue base for FY26 so the materiality work has a denominator.
+B6	business-context	Which questions actually apply to us for an incident? We're not listed.
+B7	business-context	I'm assessing a vendor that uses an AI model, but we've declared no AI internally. Does the AI battery still apply?
+B8	business-context	Has anyone reviewed our regulatory scope this year?
+B9	risk-register	Score and band our top risks.
+B10	incident-materiality	Is the vendor payroll breach material?
+B11	ciso-board-translation	How do I say 87% patch coverage to the board?
+B12	exceptions-register	Log an exception for finance running without phishing-resistant MFA.
+B13	metrics-register	Add this quarter's numbers for critical patch SLA.
+B14	nist-csf	How complete are we against CSF?
+B15	business-context	What's our crown-jewel list and what does each one actually put at risk?
