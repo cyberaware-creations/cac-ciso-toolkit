@@ -230,6 +230,48 @@ BRANDJSON
   --out "$work/im_ws_brand.html" --brand "$work/brand.json" --offline) >/dev/null || {
     echo "responsive: FIXTURE FAILED — branded incident render_worksheet errored"; exit 1; }
 
+# EMPTY STORES. Every fixture above is populated, and that is how a headline figure with
+# no denominator survived: "3 metrics past a threshold" looks fine beside a populated
+# register, and on an empty one it becomes "0 past a threshold" with no population at all
+# — a healthy-looking metrics programme that has never been measured. The suite's own note
+# further up says a state it cannot reach is a state it does not cover; these are the
+# states the newer skills could not reach.
+#
+# They are also the layouts most likely to break quietly: a table with no rows, a chart
+# with nothing to plot, a tile whose value is absent rather than zero.
+"$PY" "$MX/scripts/metrics_analysis.py" init "$work/empty.mtr" --client "Empty Co" \
+  >/dev/null 2>&1
+"$PY" "$MX/scripts/metrics_analysis.py" analyze "$work/empty.mtr" --today 2026-07-31 \
+  --out "$work/mx_empty.json" >/dev/null || {
+    echo "responsive: FIXTURE FAILED — empty metrics analyze errored"; exit 1; }
+(cd "$MX/renderers" && "$PY" render_executive.py --in "$work/mx_empty.json" \
+  --out "$work/mx_exec_empty.html" --offline) >/dev/null || {
+    echo "responsive: FIXTURE FAILED — empty metrics render_executive errored"; exit 1; }
+
+"$PY" "$XR/scripts/exceptions_register.py" init "$work/empty.exc" --client "Empty Co" \
+  >/dev/null 2>&1
+"$PY" "$XR/scripts/exceptions_register.py" analyze "$work/empty.exc" --today 2026-07-31 \
+  --out "$work/xr_empty.json" >/dev/null || {
+    echo "responsive: FIXTURE FAILED — empty exceptions analyze errored"; exit 1; }
+(cd "$XR/renderers" && "$PY" render_inventory.py --in "$work/xr_empty.json" \
+  --out "$work/xr_inv_empty.html" --offline) >/dev/null || {
+    echo "responsive: FIXTURE FAILED — empty exceptions render_inventory errored"; exit 1; }
+
+"$PY" "$IM/scripts/incident_analysis.py" init "$work/empty.inc" --client "Empty Co" \
+  >/dev/null 2>&1
+"$PY" "$IM/scripts/incident_analysis.py" analyze "$work/empty.inc" --today 2026-07-31 \
+  --out "$work/im_empty.json" >/dev/null || {
+    echo "responsive: FIXTURE FAILED — empty incident analyze errored"; exit 1; }
+(cd "$IM/renderers" && "$PY" render_worksheet.py --in "$work/im_empty.json" \
+  --out "$work/im_ws_empty.html" --offline) >/dev/null || {
+    echo "responsive: FIXTURE FAILED — empty incident render_worksheet errored"; exit 1; }
+
+"$PY" "$BC/scripts/business_context.py" init "$work/empty.biz" --org "Empty Co" \
+  >/dev/null 2>&1
+(cd "$BC/renderers" && "$PY" render_context.py --in "$work/empty.biz" \
+  --out "$work/bc_empty.html" --offline) >/dev/null || {
+    echo "responsive: FIXTURE FAILED — empty render_context errored"; exit 1; }
+
 # A second CSF pair, deliberately below the scope threshold. The first fixture seeds
 # ratings across every Function, so it renders the headline path only — the scope
 # guard, the four-way evidence bar and the by-source cards would never be drawn.
@@ -349,7 +391,9 @@ pages=("$work/render_board.html" "$work/render_dashboard.html" "$work/render_rep
        "$work/im_board.html" "$work/im_ws.html"
        "$work/bp_pack.html"
        "$work/csf_xw.html" "$work/bc_framing.html"
-       "$work/mx_exec_brand.html" "$work/im_ws_brand.html")
+       "$work/mx_exec_brand.html" "$work/im_ws_brand.html"
+       "$work/mx_exec_empty.html" "$work/xr_inv_empty.html"
+       "$work/im_ws_empty.html" "$work/bc_empty.html")
 
 # Every shipped renderer must have produced one of the pages above.
 #
