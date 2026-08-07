@@ -90,6 +90,49 @@ const AUDIT = `(() => {
     return { surface: base, gradient };
   };
 
+  // SVG text has no CSS background, and its visual background is not an ancestor.
+  //
+  // This is the hole that let every chart label in the suite go unmeasured. surfaceOf
+  // walks parentElement looking for background-color; an <svg><text> sits over a SIBLING
+  // a sibling rect, which that walk never reaches, so it resolved to the page ground.
+  // Every label came back measured against white — and every one of them passes against
+  // white, which is exactly why the palette was built that way. Eight pairings were under
+  // AA on the shipped pack, the worst at 1.41:1, and this suite called it clean.
+  //
+  // Painted SVG geometry is resolved the way a viewer sees it instead: the last painted
+  // shape, in document order, whose box contains the text's box. Document order IS paint
+  // order in SVG, and every mark in this library paints its ground before the label on it.
+  // Partially-overlapping shapes would need real hit-testing; nothing here draws that, and
+  // a mark that started to would deserve to be told rather than quietly mis-measured.
+  const SVG_SHAPES = 'rect, circle, ellipse, path, polygon';
+  const svgSurfaceOf = (el) => {
+    const owner = el.ownerSVGElement;
+    if (!owner) return null;
+    const box = el.getBoundingClientRect();
+    if (box.width < 1 || box.height < 1) return null;
+    let found = null;
+    for (const shape of owner.querySelectorAll(SVG_SHAPES)) {
+      // Only shapes painted BEFORE this text. compareDocumentPosition is the reliable
+      // reading of "earlier in the tree" without assuming a flat structure.
+      const pos = shape.compareDocumentPosition(el);
+      if (!(pos & Node.DOCUMENT_POSITION_FOLLOWING)) continue;
+      const cs = getComputedStyle(shape);
+      const fill = parse(cs.fill);
+      if (!fill || fill.a === 0) continue;
+      if (cs.fill.includes('url(')) continue;      // a pattern or gradient — do not guess
+      const b = shape.getBoundingClientRect();
+      if (b.left <= box.left && b.top <= box.top &&
+          b.right >= box.right && b.bottom >= box.bottom) {
+        found = fill;
+      }
+    }
+    if (!found) return null;
+    // Composite the found fill over whatever the page puts behind the <svg> itself, so a
+    // semi-transparent mark is not read as though it sat on white.
+    const under = surfaceOf(owner);
+    return { surface: over(found, under.surface), gradient: under.gradient };
+  };
+
   const out = [], seen = new Map();
   for (const el of document.querySelectorAll('body *')) {
     // Only elements that directly render text.
@@ -103,9 +146,16 @@ const AUDIT = `(() => {
     const r = el.getBoundingClientRect();
     if (r.width < 1 || r.height < 1) continue;
 
-    const fg0 = parse(cs.color);
+    // SVG text is painted with fill, not color. getComputedStyle still reports a
+    // color for it — the inherited CSS one — so reading color here does not fail over
+    // to fill, it silently returns the page ink for every label in every chart. Written
+    // as a fallback first, and it reported #14171C for marks that paint nothing of the
+    // sort; the fix is precedence, not a fallback.
+    const inSvg = !!el.ownerSVGElement;
+    const fg0 = inSvg ? parse(cs.fill) : parse(cs.color);
     if (!fg0) continue;
-    const { surface, gradient } = surfaceOf(el);
+    if (inSvg && cs.fill.includes('url(')) continue;   // pattern fill — do not guess
+    const { surface, gradient } = svgSurfaceOf(el) || surfaceOf(el);
     // Fold element opacity into the foreground. Opacity does not change the
     // computed colour, so a naive colour-pair check cannot see it — but it fades
     // the text toward its backdrop exactly as an alpha channel would, and it was

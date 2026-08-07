@@ -1446,7 +1446,13 @@ def heat_matrix(cells, row_labels=None, col_labels=None):
                 txt = cell.get("label", "")
                 if sev:
                     fill = _sev_colour(sev, "mid")
-                    txt_col = _sev_colour(sev, "text")
+                    # `_on`, not the band's `text` variant. The `text` colours are tuned
+                    # to sit on WHITE — that is the whole reason they exist beside `fill`
+                    # — and painting one onto the mid tone of its own band put the good
+                    # band at 2.62:1. Same helper the intensity branch below already uses,
+                    # so a label on a mark now takes its colour from the mark under it
+                    # wherever it appears.
+                    txt_col = _on(fill)
                 elif not is_rag and isinstance(cell.get("value"), (int, float)):
                     fill = _intensity(cell["value"])
                     txt_col = _on(fill)
@@ -1533,11 +1539,19 @@ def stacked_bar(periods):
             sev = seg.get("sev", "")
             val = seg.get("value", 0)
             # A segment is a REGION, not a single value — so a RAG segment takes
-            # the mid tone, same as a bullet zone band and a heat cell. White on
-            # good (#30915B) is 3.9:1, under the floor; band text on mid passes.
+            # the mid tone, same as a bullet zone band and a heat cell. That part was
+            # right and is unchanged.
+            #
+            # The line under it read "band text on mid passes" and it does not: good is
+            # 2.62:1, high 3.43, critical 4.12, medium 4.20 — all four under AA, and the
+            # claim sat in the source as a settled fact for four releases. Nothing could
+            # contradict it, because the browser contrast suite resolved SVG text against
+            # the page ground rather than the rect painted behind it, so every chart label
+            # in the suite was measured against white, which is precisely the ground the
+            # `text` variants are built for.
             if is_rag:
                 fill = _sev_colour(sev, "mid") if sev else _UNASSESSED
-                txt_col = _sev_colour(sev, "text") if sev else _MUTED
+                txt_col = _on(fill) if sev else _MUTED
             else:
                 step = ramp_key.get(seg.get("label", idx), idx)
                 fill = _MEASURE_RAMP[step % len(_MEASURE_RAMP)]
@@ -2104,15 +2118,30 @@ def _self_test():
                 "sev": "medium"}]),
         absent=['fill="#FFFFFF">'])
 
-    # 49. heat_matrix medium cell → the band's text colour on a mid ground
-    chk("heat_matrix medium cell → band text colour",
-        heat_matrix([[{"sev": "medium", "label": "M"}]]),
-        present=[f'fill="{_RAG["medium"]["mid"]}"', f'fill="{_RAG["medium"]["text"]}">M'])
-
-    # 50. stacked_bar high segment → the band's text colour on a mid ground
-    chk("stacked_bar high segment → band text colour",
+    # 49-50. A label drawn INSIDE a mark clears AA against that mark.
+    #
+    # These two used to pin the band's `text` variant by name, and that is how the defect
+    # they now guard survived four releases: the assertion said "the medium cell is
+    # #7A6410 on #F0DC92" and the code agreed with it exactly. Both were describing the
+    # same wrong decision, so the check could only ever pass.
+    #
+    # Asserted as a RATIO now, against every band rather than one. A hex-by-name check
+    # re-pins whatever colour is there; a ratio cannot be satisfied by an unreadable one.
+    for _sev in _RAG:
+        _mid = _RAG[_sev]["mid"]
+        _lbl = _on(_mid)
+        chk(f"heat_matrix {_sev} cell → its label clears AA on the cell",
+            heat_matrix([[{"sev": _sev, "label": "M"}]]),
+            present=[f'fill="{_mid}"', f'fill="{_lbl}">M'])
+        if contrast(_lbl, _mid) >= 4.5:
+            ok(f"...and that pairing measures {contrast(_lbl, _mid):.2f}:1")
+        else:
+            bad(f"heat_matrix {_sev} label clears AA on its cell",
+                f"{_lbl} on {_mid} is {contrast(_lbl, _mid):.2f}:1")
+    _hi_lbl = _on(_RAG["high"]["mid"])
+    chk("stacked_bar high segment → its value clears AA on the segment",
         stacked_bar([{"label": "Q1", "segments": [{"sev": "high", "value": 10}]}]),
-        present=[f'fill="{_RAG["high"]["mid"]}"', f'fill="{_RAG["high"]["text"]}">10'])
+        present=[f'fill="{_RAG["high"]["mid"]}"', f'fill="{_hi_lbl}">10'])
 
     # ── Structural guards ────────────────────────────────────────────────────
     # These are the checks that would have caught round-2's shipped bugs. They
@@ -2920,8 +2949,8 @@ def _self_test():
             bad("whiteLabel refuses a non-boolean", str(e))
 
     print()
-    if checks != 121:
-        print(f"self-test: ran {checks} checks, expected 121")
+    if checks != 128:
+        print(f"self-test: ran {checks} checks, expected 128")
         _sys.exit(1)
     if fails:
         print(f"self-test: {fails} of {checks} checks FAILED")
