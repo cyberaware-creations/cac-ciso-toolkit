@@ -16,7 +16,7 @@ skill="$(cd "$here/.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=20
+EXPECTED_CHECKS=21
 checks=0
 fails=0
 ok()  { checks=$((checks + 1)); printf '  ok    %s\n' "$1"; }
@@ -250,6 +250,23 @@ if [ "$spark" = "suppressed drawn" ]; then
 else
   bad "sparkline is suppressed at 3 readings and drawn at 4" "got: $spark"
 fi
+
+# --- a top-banded metric stays readable ----------------------------------------
+#
+# Coverage banded 85/90/95 on a shared 0-100 axis put 204 of 240 pixels into the
+# critical band, left warn 12, and pushed every threshold past x=224 where the
+# label placer dropped two of them for collision. The bands were unreadable and
+# their numbers unrecoverable at the same time.
+#
+# Asserted through the RENDERER, not the library: the library has taken an
+# axis_min since this went in, and what matters is whether metrics-register asks
+# for one on the metrics that need it. A library that can zoom and a renderer that
+# never does is the same unreadable bar.
+axis_res="$("$PY" "$here/_axisroom.py" 2>&1)"
+case "$axis_res" in
+  PASS*) ok "a metric banded near its ceiling gets a readable axis (${axis_res#PASS })" ;;
+  *)     bad "a metric banded near its ceiling gets a readable axis" "$axis_res" ;;
+esac
 
 # --- the library's banding against the REAL engine -----------------------------
 #
