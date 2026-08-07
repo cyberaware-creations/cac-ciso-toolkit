@@ -179,6 +179,19 @@ jobs:
       - name: Board-safety (business-context), on the floor
         run: PY="$(command -v python3)" ./skills/business-context/evals/board-safety.sh
 
+      # Every consumer of CAC-AP-1, held to the contract from the side that DEFINES it.
+      # Each consumer's own suite pins that consumer; none of them can see four engines
+      # implementing the same six clauses and drifting apart one release at a time, each
+      # suite still green because each is only ever asked about itself. It caught exactly
+      # that on its first run: `incident-materiality` reported its decision per record and
+      # the other three at the top level, so nothing could read all four the same way.
+      #
+      # The load-bearing case is behavioural — an undeclared profile must ask STRICTLY MORE
+      # than one declaring the same flags false. That is §2.2, the clause whose failure
+      # looks like a clean result, and no constant shared between suite and engine can fake it.
+      - name: CAC-AP-1 consumers, on the floor
+        run: PY="$(command -v python3)" ./skills/business-context/evals/consumers.sh
+
       # CAC-AP-1 across the file boundary — a profile decided in one skill and honoured by
       # another that must not import it. It also pins the additive guarantee: a profile that
       # narrows nothing leaves the analysis byte-identical, so `--context` cannot become a
