@@ -142,6 +142,56 @@ def sev_for(row: dict):
 AXIS_FULL_SCALE_FLOOR = 0.4
 
 
+# The mirror of AXIS_FULL_SCALE_FLOOR, and the case most CISO metrics actually
+# live in. That floor protects a metric banded near ZERO — a 2/5/10 click rate
+# whose whole meaningful range is the first tenth of the bar. Nothing protected
+# the opposite end, and it is the more common one: patch coverage banded 85/90/95,
+# MFA enrolment banded 90/95/99, backup success banded 95/98/99. On a 0-100 axis
+# those spend 204 of 240 pixels on the critical band, squeeze warn into 12, and
+# push all three thresholds past x=224 where the label placer drops two of them
+# for collision — so the bands are unreadable AND their numbers unrecoverable.
+#
+# So when the banded region uses less than this share of the axis, the axis floor
+# rises to give it room. The bottom band keeps the same width as the banded region
+# above it, which leaves the "you are far below the line" case visibly far below
+# without spending the whole bar on it.
+AXIS_BAND_SPAN_FLOOR = 0.4
+
+
+def _axis_min(row: dict, thr: dict, axis_max):
+    """The axis floor for a metric whose bands all crowd the ceiling, else None.
+
+    Returns None whenever the mark is already legible: no shared ceiling (the
+    library is auto-scaling to the metric's own data), no thresholds, or bands
+    that already use enough of the axis.
+
+    The reading itself is considered. A floor above the value would make the
+    library abandon the zoom anyway — see bullet() — so it is not requested; the
+    reader gets the un-zoomed bar that actually shows how far below the bands the
+    metric is sitting.
+    """
+    if axis_max is None:
+        return None
+    edges = [thr.get("warn"), thr.get("critical")]
+    edges = [e for e in edges if e is not None]
+    if not edges:
+        return None
+    lowest = min(edges)
+    span = axis_max - lowest
+    if span <= 0 or span >= axis_max * AXIS_BAND_SPAN_FLOOR:
+        return None
+    floor = lowest - span
+    step = 5 if axis_max <= 100 else 10
+    floor = max(0.0, (floor // step) * step)
+    value = row.get("value")
+    if value is not None and value < floor:
+        return None
+    target = thr.get("target")
+    if target is not None and target < floor:
+        return None
+    return floor or None
+
+
 def _axis_max(row: dict, thr: dict, unit: str):
     """100 for a percent metric that uses the scale; None (auto) otherwise."""
     if unit != "percent":
@@ -182,16 +232,21 @@ def mark_for(row: dict) -> str:
     readings = row.get("readings") or []
 
     if viz == "bullet" and zones:
+        amax = _axis_max(row, thr, unit)
         return G.bullet(value, target if target is not None else value, zones,
                         direction=direction, unit=suffix,
-                        axis_max=_axis_max(row, thr, unit))
+                        axis_max=amax, axis_min=_axis_min(row, thr, amax))
     if viz == "progress" and target:
         return G.progress_bar(value, target, label="", sev=sev or "")
     if viz == "tank" and target:
         return G.fuel_tank(value, target, label="")
     if viz == "gauge" and zones:
-        return G.radial_gauge(value, 0, max(100, value), zones=zones,
-                              direction=direction, target=target, unit=suffix)
+        # The dial compresses the same way the bullet does, and takes its floor
+        # as min_v rather than a separate flag.
+        gmax = max(100, value)
+        return G.radial_gauge(value, _axis_min(row, thr, gmax) or 0, gmax,
+                              zones=zones, direction=direction, target=target,
+                              unit=suffix)
     if viz == "sparkline":
         # The library suppresses below 4 readings itself, returning a visible
         # note rather than an empty string.
