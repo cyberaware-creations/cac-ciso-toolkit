@@ -229,6 +229,30 @@ with what is disclosed, and involve counsel on anything touching disclosure.
 **This is not legal advice.** The register structures and records a decision; it does not
 make it.
 
+## Rendering under a client brand
+
+Every renderer takes `--brand FILE`:
+
+```bash
+python3 renderers/render_board.py analysis.json report.html --brand northwind.json
+```
+
+```json
+{"ink": "#101820", "muted": "#5A4436", "patina": "#B5651D", "bg": "#FAF7F2",
+ "measure": "#8A4B12", "measureTrack": "#EFE0D2", "patinaText": "#8A4B12",
+ "wordmark": "Northwind Group", "mark": "Northwind", "whiteLabel": true}
+```
+
+**It is refused rather than approximated.** A palette that leaves body text on the dark band
+below 4.5:1, or the patina rule below 3:1, is rejected with every failing pairing named — not
+the first, and not silently nudged into range. `whiteLabel` drops the maker's name and keeps
+the "Not affiliated with NIST" line, because one says who built the document and the other is
+a statement about the world.
+
+**What does not follow the brand, deliberately:** the RAG status ramp. Red/amber/green is a
+contract with the reader about severity, not styling the client is buying. Only the shell —
+ink, muted, background, patina, and the steps derived from them — moves.
+
 ## Reference
 
 | File | What it covers |

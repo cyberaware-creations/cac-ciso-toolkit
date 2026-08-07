@@ -200,6 +200,106 @@ _DISCLAIMER = "Not affiliated with NIST"
 _UNAFFILIATED = ("NIST",)
 
 
+# --- Chrome: the page shell every renderer draws ------------------------------
+#
+# The library floors what the library can see — text on white, a mark against its surface, a
+# bar against its own track. A rendered page has a second palette the library never touches:
+# a dark band with light text on it, a lifted sub-header inside that band, a hairline rule.
+# Five skills each carried their own copy of it, identical in all seven shared values, which
+# meant a client brand could reach the charts and leave the page around them in CAC colours.
+#
+# So the shell lives here too, and is floored here too.
+#
+# The CAC steps below were chosen by eye and are kept verbatim, because no single mix
+# fraction reproduces them — `inkRaised` is not `ink` blended toward `lime` by any one
+# number that also gives `inkLine`. A client palette has no hand-picked reference to keep, so
+# its steps are computed with the fractions those CAC values imply. Hand-tuned defaults,
+# computed overrides: every existing page renders byte-identically, and a client gets a
+# coherent shell instead of their ink wrapped around our sub-headers.
+_CHROME_CAC = {
+    "ink": DEFAULT_BRAND["ink"],            # the dark band
+    "inkRaised": "#1C2026",  # a sub-header lifted out of it
+    "inkLine": "#2A2F36",    # its keyline
+    "lime": "#EAE7DF",       # body text ON the dark band
+    "limeDim": "#9AA0A6",    # secondary text on the dark band
+    "patina": DEFAULT_BRAND["patina"],
+    "patinaHover": "#279884",
+    "patinaText": DEFAULT_BRAND["patinaText"],
+    "slate": "#666D7C",      # notes and placeholder borders, on the light side
+    "bg": DEFAULT_BRAND["bg"],
+    "surface": "#FFFFFF",
+    "line": "#D8D3C6",       # hairline rules
+    "muted": DEFAULT_BRAND["muted"],
+}
+# Fitted to the CAC steps, and applied only to client palettes.
+_CHROME_MIX = {"inkRaised": 0.044, "inkLine": 0.117, "limeDim": 0.336,
+               "patinaHover": 0.161}
+
+# Every pairing a rendered page actually sets, with the floor it has to clear. `line` on
+# `surface` is absent deliberately, on the same reasoning as `patina`: a hairline rule
+# carries no information, and flooring it would force a keyline dark enough to read as a
+# border. Measured CAC ratios are in the comment beside each, so a later edit to the table
+# above can be checked against what it used to clear.
+_CHROME_FLOORS = (
+    ("lime", "ink", 4.5),           # 14.54 — body text on the band
+    ("lime", "inkRaised", 4.5),     # 13.24
+    ("limeDim", "ink", 4.5),        # 6.80  — secondary text is still text
+    ("limeDim", "inkRaised", 4.5),  # 6.19
+    ("patina", "ink", 3.0),         # 6.14  — a rule and a kicker, not body copy
+    ("patinaHover", "ink", 3.0),    # 5.06
+    ("slate", "surface", 4.5),      # 5.19
+    ("slate", "bg", 4.5),           # 4.72
+    ("muted", "surface", 4.5),      # 8.23
+    ("ink", "bg", 4.5),             # 16.33
+)
+
+
+def chrome():
+    """The page shell for the active brand, floored.
+
+    Raises `BrandError` naming every pairing that fails, never the first. A client whose ink
+    is too light for the band gets told that, rather than a page whose sub-header text has
+    quietly become unreadable.
+    """
+    out = dict(_CHROME_CAC)
+    # Compared against DEFAULT_BRAND, never against _INK/_PATINA/_BG. `set_brand` rebinds
+    # those module globals to the ACTIVE palette, so testing the brand against them asks
+    # "does this brand equal itself" and is true for every client override. Written the
+    # obvious way first, and it silently returned CAC chrome for every client.
+    _cac = (DEFAULT_BRAND["ink"], DEFAULT_BRAND["patina"], DEFAULT_BRAND["bg"])
+    if (_brand.get("ink"), _brand.get("patina"), _brand.get("bg")) != _cac:
+        ink, patina = _brand["ink"], _brand["patina"]
+        out["ink"], out["patina"], out["bg"] = ink, patina, _brand["bg"]
+        out["muted"], out["patinaText"] = _brand["muted"], _brand["patinaText"]
+        out["inkRaised"] = _mix(ink, out["lime"], _CHROME_MIX["inkRaised"])
+        out["inkLine"] = _mix(ink, out["lime"], _CHROME_MIX["inkLine"])
+        out["limeDim"] = _mix(out["lime"], ink, _CHROME_MIX["limeDim"])
+        out["patinaHover"] = _mix(patina, ink, _CHROME_MIX["patinaHover"])
+    problems = ["%s on %s is %.2f:1, below %.1f:1"
+                % (fg, bg, contrast(out[fg], out[bg]), floor)
+                for fg, bg, floor in _CHROME_FLOORS
+                if contrast(out[fg], out[bg]) < floor]
+    if problems:
+        raise BrandError("the brand override was refused by the page shell:\n  - "
+                         + "\n  - ".join(problems))
+    return out
+
+
+def apply_chrome(brand=None):
+    """`set_brand` then `chrome`, atomically.
+
+    On refusal the previous brand is restored, so a caller that catches `BrandError` is not
+    left rendering half a client's palette — which would be worse than either whole one.
+    """
+    previous = dict(_brand)
+    set_brand(brand or {})
+    try:
+        return chrome()
+    except BrandError:
+        set_brand(previous)
+        raise
+
+
 def _unaffiliated(names) -> str:
     names = [str(n).strip() for n in names if str(n).strip()]
     if not names:
@@ -2481,6 +2581,63 @@ def _self_test():
     except TypeError:
         ok("a misspelled keyword is refused, not silently ignored")
 
+    # 57d. the page shell.
+    set_brand()
+    if chrome() == _CHROME_CAC:
+        ok("the CAC brand returns the hand-picked shell verbatim")
+    else:
+        bad("the CAC brand returns the hand-picked shell verbatim", str(chrome()))
+    # The comparison must be against DEFAULT_BRAND. set_brand rebinds _INK/_PATINA/_BG to the
+    # ACTIVE palette, so testing the brand against those asks whether it equals itself and is
+    # true for every client override — written that way first, and it silently handed CAC
+    # chrome to every client. This pins the fix: a client ink must move the derived steps.
+    client = apply_chrome({"ink": "#101820", "patina": "#B5651D", "bg": "#FAF7F2"})
+    if client["ink"] == "#101820" and client["inkRaised"] not in (_CHROME_CAC["inkRaised"],
+                                                                  "#101820"):
+        ok("a client ink moves the derived steps off both the CAC value and the ink itself")
+    else:
+        bad("a client ink moves the derived steps",
+            "%s / %s" % (client["ink"], client["inkRaised"]))
+    if _CHROME_CAC["ink"] == DEFAULT_BRAND["ink"]:
+        ok("and the CAC table is still pinned to DEFAULT_BRAND, not to the live globals")
+    else:
+        bad("the CAC table is pinned to DEFAULT_BRAND", _CHROME_CAC["ink"])
+    # The steps must sit BETWEEN the ink and the lime, or they are not steps.
+    lum = _relative_luminance
+    if lum(client["ink"]) < lum(client["inkRaised"]) < lum(client["inkLine"]) < lum(client["lime"]):
+        ok("the derived ink steps lighten in order, ink to line to lime")
+    else:
+        bad("the derived ink steps lighten in order",
+            "%s %s %s" % (client["ink"], client["inkRaised"], client["inkLine"]))
+    set_brand()
+
+    # The shell floors catch what the library floors cannot see. This ink clears every
+    # library check — it is dark enough for text on white — and still leaves the sub-header
+    # text on the dark band at 4.30:1. Without this case the shell floor is decoration.
+    try:
+        apply_chrome({"ink": "#3A3F48", "patina": "#2FA98C", "bg": "#F6F4EE"})
+        bad("a brand the library accepts can still be refused by the shell", "accepted")
+    except BrandError as e:
+        if "page shell" in str(e) and "limeDim on inkRaised" in str(e):
+            ok("a brand the library accepts can still be refused by the shell")
+        else:
+            bad("a brand the library accepts can still be refused by the shell", str(e))
+    if brand()["ink"] == DEFAULT_BRAND["ink"]:
+        ok("and a refused shell restores the previous brand, never half-applying one")
+    else:
+        bad("a refused shell restores the previous brand", brand()["ink"])
+    # Every failing pairing at once, not the first: a client fixing one at a time and being
+    # refused four times learns the tool is obstructive.
+    try:
+        apply_chrome({"ink": "#5A6070", "patina": "#2FA98C", "bg": "#F6F4EE"})
+        bad("the shell refusal names every failing pairing", "accepted")
+    except BrandError as e:
+        if len([l for l in str(e).splitlines() if l.strip().startswith("- ")]) >= 3:
+            ok("the shell refusal names every failing pairing, not the first")
+        else:
+            bad("the shell refusal names every failing pairing", str(e))
+    set_brand()
+
     # 58. whiteLabel is a flag, not a truthy string — "false" must not enable it
     try:
         set_brand({"whiteLabel": "false"})
@@ -2493,8 +2650,8 @@ def _self_test():
             bad("whiteLabel refuses a non-boolean", str(e))
 
     print()
-    if checks != 98:
-        print(f"self-test: ran {checks} checks, expected 98")
+    if checks != 105:
+        print(f"self-test: ran {checks} checks, expected 105")
         _sys.exit(1)
     if fails:
         print(f"self-test: {fails} of {checks} checks FAILED")

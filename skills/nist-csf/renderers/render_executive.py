@@ -328,7 +328,15 @@ def decisions(ctx: c.Context) -> str:
     return result
 
 
-CSS = f"""
+def css() -> str:
+    """The page stylesheet, built when it is asked for.
+
+    This was a module-level constant, an f-string evaluated at import — which is before
+    `_common.apply_brand()` has run, so every colour in it was frozen at the CAC palette and
+    a `--brand` override reached the charts while leaving the page around them unbranded.
+    Half a client's palette looks like a mistake in a way that none of it does not.
+    """
+    return f"""
 .tiles{{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}}
 .tile{{border-radius:10px;padding:14px;border:1px solid rgba(0,0,0,.07);min-height:150px;
   display:flex;flex-direction:column;gap:3px}}
@@ -377,7 +385,7 @@ CSS = f"""
 .lede{{font-size:15px;margin:0 0 10px}}
 .decisions li{{margin-bottom:8px;font-size:14px}}
 @media (max-width:720px){{.tierdetail{{grid-template-columns:1fr}}}}
-""" + c.EVIDENCE_CSS
+""" + c.evidence_css()
 
 
 def main(argv):
@@ -407,7 +415,7 @@ def main(argv):
             + rollup(ctx) + tier_block(ctx)
             + top_gaps(ctx) + what_changed(ctx) + decisions(ctx) + "</main>"
             + f'<footer>{c.esc(ctx.footer(ctx.overlay.get("provenance", "")))}</footer>')
-    c.write(ctx, c.page(f'{p.get("name", "CSF Profile")} — Board View', CSS, body, ctx.offline))
+    c.write(ctx, c.page(f'{p.get("name", "CSF Profile")} — Board View', css(), body, ctx.offline))
     return 0
 
 
