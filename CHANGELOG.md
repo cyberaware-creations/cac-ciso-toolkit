@@ -21,6 +21,22 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.37.1 — 2026-08-07
+
+A model-facing instruction that had been wrong for four releases.
+
+- `skills/board-pack/SKILL.md` still said the applicability profile narrowed
+  `incident-materiality` **alone**, and quoted a provenance sentence naming the other four as
+  not reading one. That stopped being true at `v0.35.0` and `v0.36.0`. `SKILL.md` is
+  operational guidance a model reads *instead of* the implementation, so a stale paragraph
+  there is not a typo — it is an instruction to believe something false about four skills.
+  Found by external retest, not by us.
+- The correction is a check, not a better memory. `assembly.sh` now extracts the blockquote
+  from `SKILL.md` and compares it, whitespace-normalised, against the note a real assembly
+  writes to the provenance page. It pins no phrase of its own, so when the sentence changes
+  because a producer implements the contract, the check fails until the doc is brought along.
+  76 → 77 checks.
+
 ## v0.37.0 — 2026-08-07
 
 Board prose is bound to the store it describes, and the deck has a board-length mode.
