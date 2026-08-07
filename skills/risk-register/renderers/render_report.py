@@ -121,8 +121,10 @@ def heat(ctx: C.Context) -> str:
         for lik in range(1, ctx.size + 1):
             b = C.sr.band(C.sr.exposure(lik, impact), ctx.size)
             n = counts[impact - 1][lik - 1]
-            fg = C.BAND_ON[b]
-            cells += f'<td style="background:{C.BAND[b]};color:{fg}">{n or ""}</td>'
+            # BAND_MID, not BAND: a matrix cell is a zone, and G.heat_matrix draws the
+            # same grid in the same tones on the board page.
+            fg = C.BAND_MID_ON[b]
+            cells += f'<td style="background:{C.BAND_MID[b]};color:{fg}">{n or ""}</td>'
         rows += f"<tr>{cells}</tr>"
     foot = '<td class="ax"></td>' + "".join(f'<td class="ax">{l}</td>'
                                            for l in range(1, ctx.size + 1))

@@ -389,6 +389,20 @@ print("PASS" if not problems else "FAIL " + "; ".join(problems[:2]))
 PY
 )"
 
+# --- one grid, one palette, wherever the grid is drawn ------------------------
+#
+# A likelihood x impact cell is a ZONE — "anything landing here scores this band" — which the
+# colour contract gives `mid`, the same tone a bullet's zone bands take. `G.heat_matrix` always
+# drew it that way; the two HTML matrices used `fill`, so the same grid arrived in two
+# saturations depending on which page a reader opened, and the board pack disagreed with the
+# working view about what medium looks like.
+#
+# Each of the three sites is checked where it can be checked unambiguously: the library by
+# calling it, the report by its cell backgrounds, the dashboard by the constant its JS builds
+# the grid from. Parsing every <rect> on the board page was the first attempt and it failed on
+# its own terms — the page carries four other marks, and their fills ARE meant to be saturated.
+chk M1 "one grid, one palette, at all three sites" "$("$PY" "$here/_gridpalette.py" "$work" "$repo")"
+
 echo
 if [ "$fails" -eq 0 ]; then
   echo "board-safety: all checks passed"

@@ -17,7 +17,17 @@ import sys as _sys
 #   fill  — saturated; use for bars, dots, line strokes where the mark IS status.
 #   text  — dark, accessible; use on tint backgrounds (chips) and as value labels.
 #   tint  — pale; chip/badge backgrounds. Never on data.
-#   mid   — desaturated zone band fill; replaces opacity compositing on bullet zones.
+#   mid   — desaturated zone band fill: bullet zones, and any REGION of a score space
+#           that says "anything landing here scores this band" — a likelihood x impact
+#           matrix cell is one. Not a mark that IS status; that is `fill`.
+#
+# The two are not interchangeable and the difference is measurable. On a matrix, `mid` reads
+# every band with ink at 8.2:1 or better where `fill` puts `good` at 4.56:1 and needs white
+# on `critical` alone; `fill` separates adjacent bands better (medium/high dE 28.4 against
+# 13.3) which is why a cell drawn in `mid` must always print its count. Both matrices in
+# risk-register shipped in `fill` for a while, so the board pack and the working view
+# disagreed about what medium looks like. skills/risk-register/evals/board-safety.sh
+# check M1 keeps the three drawing sites in step.
 _RAG = {
     "good":     {"fill": "#30915B", "text": "#25764A", "tint": "#E3EDE4", "mid": "#86BE9C"},
     "medium":   {"fill": "#e8c547", "text": "#7A6410", "tint": "#FBF3D6", "mid": "#F0DC92"},
