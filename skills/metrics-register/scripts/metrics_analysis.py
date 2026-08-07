@@ -539,6 +539,137 @@ def derive_metric(store: dict, metric: dict, today: str) -> dict:
     }
 
 
+# --- Escalation (contract CAC-EL-1 §1.3) --------------------------------------
+#
+# Derived, stateless, never written to the store, never a history event. A metric escalates
+# when it has moved for the worse without anyone being asked to look — a narrower claim than
+# "needs attention", and the difference is the point. `attention` lists what a review works
+# through; this lists what should have interrupted somebody before the review.
+#
+# Two triggers, and the exclusion is as deliberate as the inclusions:
+#
+#   threshold-breached   past a limit its owner set
+#   sustained-slip       moving the wrong way N readings running, without breaching
+#
+# `stale` is NOT a trigger. This skill states that age is "an age statement, not a claim
+# about whether the number is still true", exactly as risk-register says scores do not
+# expire. A metric nobody has re-measured has not moved for the worse — nobody knows whether
+# it moved at all — and escalating it would assert a decay this engine cannot observe. It
+# stays on the attention list, where a question about freshness belongs.
+
+ESCALATION_DEFAULTS = {
+    "sustainedSlipReadings": 2,   # consecutive slipping readings, no breach
+    "warnEscalates": True,        # a warn breach escalates too, not only critical
+}
+
+ESCALATION_SEVERITY_ORDER = ["critical", "high", "medium"]
+
+
+def _unit_suffix(unit: str) -> str:
+    """`%` for a percentage, a spaced word otherwise, nothing when the unit is unrecorded.
+
+    Never a guessed symbol — the same rule risk-register applies to currency. A figure
+    rendered in the wrong unit is worse than one rendered bare, because only the second is
+    obviously incomplete to whoever reads it.
+    """
+    if unit == "percent":
+        return "%"
+    return f" {unit}" if unit else ""
+
+
+def _escalation_policy(store: dict) -> dict:
+    """The store's thresholds, merged per key over the defaults.
+
+    Not validated here, matching the house rule: a write path refuses a bad value, and a
+    file already carrying one still loads and still reports.
+    """
+    return {**ESCALATION_DEFAULTS,
+            **((store.get("settings") or {}).get("escalation") or {})}
+
+
+def escalations(store: dict, today: str) -> list[dict]:
+    """Every escalation this register warrants, in the CAC-EL-1 §1.3 shape.
+
+    `subjectKind` is `metric` and `subjectRef` the metric id, so a consumer aggregating
+    across skills can put a breached metric beside a crossed risk band without knowing
+    anything about either skill.
+
+    `today` is accepted for signature parity across the suite and because a future
+    date-derived trigger will need it. Neither trigger here reads it: both are answered by
+    the reading series alone, and taking a date it does not use would be the kind of
+    unused-parameter that later gets quietly wired to something.
+    """
+    policy = _escalation_policy(store)
+    out = []
+    for metric in store["metrics"]:
+        rows = readings_for(store, metric["id"])
+        if not rows:
+            continue
+        direction = metric["direction"]
+        thr = metric.get("threshold") or {}
+        latest = rows[-1]
+        status = threshold_status(latest["value"], thr, direction)
+
+        if status in (STATUS_WARN, STATUS_CRITICAL):
+            if status == STATUS_WARN and not policy.get("warnEscalates", True):
+                continue
+            # How long it has been past a limit, counted back through the readings. A breach
+            # on its third consecutive reading is a different conversation from one that
+            # appeared this quarter, and the count is what distinguishes them.
+            run = 0
+            for r in reversed(rows):
+                if threshold_status(r["value"], thr, direction) in (STATUS_WARN,
+                                                                    STATUS_CRITICAL):
+                    run += 1
+                else:
+                    break
+            first = rows[len(rows) - run]
+            limit = thr.get("critical") if status == STATUS_CRITICAL else thr.get("warn")
+            suffix = _unit_suffix(metric.get("unit") or "")
+            word = "reading" if run == 1 else "consecutive readings"
+            out.append({
+                "subjectRef": metric["id"], "subjectKind": "metric",
+                "trigger": "threshold-breached",
+                "severity": "critical" if status == STATUS_CRITICAL else "high",
+                "since": first["date"],
+                "evidence": {
+                    "from": limit, "to": latest["value"],
+                    "baseline": first["period"] or "",
+                    "detail": (f"{metric['name']} is {latest['value']}{suffix} against a "
+                               f"{status} limit of {limit}{suffix}, for {run} {word}"),
+                },
+            })
+            continue
+
+        # Not breached — but has it been moving the wrong way anyway? A breach is the louder
+        # story and suppresses this, exactly as a crossed band suppresses drift in
+        # risk-register: the same movement reported twice reads as two problems.
+        need = policy.get("sustainedSlipReadings", 2)
+        run = 0
+        for i in range(len(rows) - 1, 0, -1):
+            if trend(rows[i]["value"], rows[i - 1]["value"], direction) == TREND_SLIPPING:
+                run += 1
+            else:
+                break
+        if run >= need >= 1:
+            first = rows[len(rows) - 1 - run]
+            out.append({
+                "subjectRef": metric["id"], "subjectKind": "metric",
+                "trigger": "sustained-slip", "severity": "medium",
+                "since": first["date"],
+                "evidence": {
+                    "from": first["value"], "to": latest["value"],
+                    "baseline": first["period"] or "",
+                    "detail": (f"{metric['name']} has moved the wrong way for {run} "
+                               f"consecutive readings without passing a limit"),
+                },
+            })
+
+    out.sort(key=lambda e: (ESCALATION_SEVERITY_ORDER.index(e["severity"]),
+                            e["subjectRef"]))
+    return out
+
+
 def attention(rows: list[dict]) -> dict:
     """The lists a review works from. Membership rules are stated, not implied.
 
@@ -593,6 +724,10 @@ def analyze(store: dict, today: str) -> dict:
         "cadenceDays": cadence,
         "metrics": rows,
         "attention": attention(rows),
+        # Top-level, beside `attention` rather than inside it, because they answer different
+        # questions. `attention` is the review agenda; this is what should not have waited
+        # for a review. Consumers read this list and never re-derive it.
+        "escalations": escalations(store, today),
         "rollups": rollups(rows),
         "counts": {
             "metrics": len(rows),
@@ -862,6 +997,107 @@ def _cmd_self_test(_args):
         # A round-trip through the file changes nothing derived.
         eq(analyze(load_store(path), "2026-07-31"), analyze(store, "2026-07-31"),
            "save/load round-trips without changing a single derived figure")
+
+        # --- escalation (CAC-EL-1 §1.3) --------------------------------------
+        # Built by hand so each trigger is isolated. A fixture that fires two at once
+        # cannot show which one a check is proving.
+
+        def _st(metrics_and_readings, **settings):
+            s = new_store("Fixture Co")
+            if settings:
+                s["settings"]["escalation"] = dict(settings)
+            for mid, direction, thr, unit, series in metrics_and_readings:
+                s["metrics"].append({"id": mid, "name": mid, "direction": direction,
+                                     "unit": unit, "threshold": dict(thr),
+                                     "archetype": None, "owner": "o",
+                                     "csfSubcategoryIds": [], "riskIds": [],
+                                     "vanityRisk": False})
+                for i, v in enumerate(series):
+                    s["readings"].append({"metricId": mid, "period": f"P{i + 1}",
+                                          "date": f"2026-0{i + 1}-01", "value": v,
+                                          "source": "t"})
+            return s
+
+        # Severity comes from which limit was passed, never from the size of the miss.
+        crit = _st([("M-001", "higher-better", {"warn": 90, "critical": 80}, "percent",
+                     [95.0, 75.0])])
+        eq([(e["trigger"], e["severity"]) for e in escalations(crit, "2026-07-31")],
+           [("threshold-breached", "critical")], "past critical escalates as critical")
+        warn = _st([("M-001", "higher-better", {"warn": 90, "critical": 80}, "percent",
+                     [95.0, 85.0])])
+        eq([e["severity"] for e in escalations(warn, "2026-07-31")], ["high"],
+           "past warn escalates as high")
+        eq(escalations(_st([("M-001", "higher-better", {"warn": 90, "critical": 80},
+                             "percent", [95.0, 85.0])], warnEscalates=False),
+                       "2026-07-31"), [],
+           "warnEscalates off suppresses the warn breach and only that")
+
+        # Polarity. A lower-better metric that RISES is slipping, and the naive
+        # implementation reports it as an improvement — the defect this suite exists for.
+        low = _st([("M-001", "lower-better", {"warn": 5, "critical": 10}, "percent",
+                    [2.0, 6.0])])
+        eq([e["severity"] for e in escalations(low, "2026-07-31")], ["high"],
+           "a lower-better metric rising past warn escalates")
+
+        # sustained-slip: exactly N, not N-1, and a breach suppresses it entirely.
+        slip = _st([("M-001", "higher-better", {"warn": 10, "critical": 5}, "percent",
+                     [99.0, 98.0, 97.0])])
+        eq([(e["trigger"], e["severity"]) for e in escalations(slip, "2026-07-31")],
+           [("sustained-slip", "medium")], "two slipping readings escalate as drift")
+        eq([e["trigger"] for e in escalations(
+               _st([("M-001", "higher-better", {"warn": 10, "critical": 5}, "percent",
+                     [99.0, 98.0])]), "2026-07-31")], [],
+           "one slipping reading does not")
+        # Polarity again, and this time for the drift trigger rather than the breach. A
+        # lower-better metric that RISES is slipping, and every higher-better fixture above
+        # has falling values — so a naive `value < prior` agrees with the correct answer on
+        # all of them and disagrees only here. Dwell time creeping 2 -> 3 -> 4 days, still
+        # well inside its limits, is exactly the movement a board wants before the breach.
+        eq([(e["trigger"], e["severity"]) for e in escalations(
+               _st([("M-001", "lower-better", {"warn": 50, "critical": 100}, "days",
+                     [2.0, 3.0, 4.0])]), "2026-07-31")],
+           [("sustained-slip", "medium")],
+           "a lower-better metric creeping upward inside its limits still slips")
+        eq([e["trigger"] for e in escalations(
+               _st([("M-001", "higher-better", {"warn": 10, "critical": 5}, "percent",
+                     [99.0, 98.0, 97.0])], sustainedSlipReadings=3), "2026-07-31")], [],
+           "and a raised threshold stops it firing")
+        eq([e["trigger"] for e in escalations(
+               _st([("M-001", "higher-better", {"warn": 90, "critical": 80}, "percent",
+                     [99.0, 95.0, 85.0])]), "2026-07-31")], ["threshold-breached"],
+           "a breach suppresses the slip — one movement, reported once")
+
+        # A metric with no readings escalates nothing rather than escalating from nothing.
+        eq(escalations(_st([("M-001", "higher-better", {"warn": 90}, "percent", [])]),
+                       "2026-07-31"), [], "no readings, no escalation")
+
+        # The §1.3 shape, and the ordering a consumer depends on.
+        shape = escalations(crit, "2026-07-31")[0]
+        eq(sorted(shape), ["evidence", "severity", "since", "subjectKind", "subjectRef",
+                           "trigger"], "every escalation carries the six contract keys")
+        eq(sorted(shape["evidence"]), ["baseline", "detail", "from", "to"],
+           "and its evidence names the comparison that fired it")
+        eq(shape["subjectKind"], "metric", "subjectKind is metric, not risk")
+        mixed = _st([("M-003", "higher-better", {"warn": 10, "critical": 5}, "percent",
+                      [99.0, 98.0, 97.0]),
+                     ("M-001", "higher-better", {"warn": 90, "critical": 80}, "percent",
+                      [95.0, 75.0]),
+                     ("M-002", "higher-better", {"warn": 90, "critical": 80}, "percent",
+                      [95.0, 85.0])])
+        eq([(e["severity"], e["subjectRef"]) for e in escalations(mixed, "2026-07-31")],
+           [("critical", "M-001"), ("high", "M-002"), ("medium", "M-003")],
+           "escalations sort worst-first, then by subject")
+
+        # Staleness is deliberately NOT a trigger. An old reading is an age statement, and
+        # this engine does not claim a number decayed because nobody re-measured it.
+        stale = _st([("M-001", "higher-better", {"warn": 90, "critical": 80}, "percent",
+                      [95.0])])
+        eq(escalations(stale, "2029-01-01"), [],
+           "a years-old reading inside its limits escalates nothing")
+
+        # And it reaches analyze(), where every consumer reads it.
+        eq(len(analyze(crit, "2026-07-31")["escalations"]), 1,
+           "analyze carries the escalation list")
     finally:
         shutil.rmtree(work, ignore_errors=True)
 
