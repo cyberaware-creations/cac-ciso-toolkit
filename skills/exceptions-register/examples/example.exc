@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "family": "exceptions-register",
   "meta": {
-    "clientName": "Acme Manufacturing",
+    "clientName": "Northwind Manufacturing",
     "owner": "CISO",
     "scopeNote": "",
     "asOf": "2026-07-31"

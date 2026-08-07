@@ -22,7 +22,7 @@ skill="$(cd "$here/.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=58
+EXPECTED_CHECKS=68
 checks=0
 fails=0
 ok()  { checks=$((checks + 1)); printf '  ok    %s\n' "$1"; }
@@ -518,7 +518,7 @@ fi
 # which would be marking our own homework in the other direction.
 INC="$work/escalating.inc"
 IE="$skill/../incident-materiality/scripts/incident_analysis.py"
-"$PY" "$IE" init "$INC" --client "Eval Co" --owner CISO --actor eval >/dev/null 2>&1
+"$PY" "$IE" init "$INC" --client "Northwind Manufacturing" --owner CISO --actor eval >/dev/null 2>&1
 # 1. an 8-K window that closed: determined material 2026-07-14, due 2026-07-20, nothing filed.
 "$PY" "$IE" open "$INC" --title "Payroll portal breach" --discovered 2026-07-06 \
     --regime sec-1.05 --actor eval >/dev/null 2>&1
@@ -571,7 +571,7 @@ fi
 # two producers, two severities, and the pack has to notice without merging.
 DUP="$work/dup.exc"
 XE="$skill/../exceptions-register/scripts/exceptions_register.py"
-"$PY" "$XE" init "$DUP" --client "Dup Co" --actor eval >/dev/null 2>&1
+"$PY" "$XE" init "$DUP" --client "Northwind Manufacturing" --actor eval >/dev/null 2>&1
 "$PY" "$XE" accept-add "$DUP" --title "Customer records held by the CRM vendor" \
     --approver CISO --justification "Contract renewed on the same terms." \
     --accepted 2026-01-01 --revalidation 2026-06-01 --expiry 2026-07-15 \
@@ -899,6 +899,117 @@ sys.exit(0 if any("profile could not be read" in n for n in notes) else 1)' "$wo
   fi
 else
   bad "an unreadable profile still assembles the pack" "assemble refused outright"
+fi
+
+# --- Whose pack is this, and does it agree with itself? -----------------------------
+#
+# Two defects, found by an external retest of v0.33.0, that produce the same outcome: a
+# polished board document that is internally inconsistent with nothing on any page saying so.
+#
+# (a) The pack was assembled from stores belonging to different organisations. The SHIPPED
+#     specimen did this — risk, metrics, exceptions and incident came from three different
+#     fictional firms — and nothing ever compared them.
+# (b) `incident-materiality` reported that the applicability profile and its own records
+#     disagreed about a legal perimeter, and the pack dropped the report. The rendered pack
+#     said "the profile narrowed incident", printed Form 8-K three times, and never mentioned
+#     that the profile declares the entity is not listed.
+#
+# The two are treated differently ON PURPOSE and these tests pin the difference: a
+# mixed-entity pack is REFUSED, a perimeter conflict is CARRIED and made impossible to hide.
+# Refusing a conflict would resolve it, and resolving it is the human's job.
+
+# 1-4. The conflict reaches every surface. The specimen profile declares listedEntity false
+# while all four specimen incidents are tracked against sec-1.05, so this needs no poison.
+if "$PY" -c 'import json,sys
+d=json.load(open(sys.argv[1]))
+sys.exit(0 if len(d.get("contextConflicts") or []) == 4 else 1)' "$work/ctx.json"; then
+  ok "an applicability conflict the producer reported reaches the pack model"
+else
+  bad "the pack carries the conflicts incident-materiality reported" "expected 4"
+fi
+eq "a pack with no conflicts carries no contextConflicts key at all" "False" \
+   "$("$PY" -c 'import json,sys;print("contextConflicts" in json.load(open(sys.argv[1])))' "$J")"
+if "$PY" -c 'import json,sys
+notes = json.load(open(sys.argv[1]))["provenance"]["missing"]
+sys.exit(0 if any("DISAGREE" in n for n in notes) else 1)' "$work/ctx.json"; then
+  ok "...and the provenance page states the disagreement, not just that it narrowed"
+else
+  bad "the provenance page states the disagreement" "no DISAGREE note"
+fi
+(cd "$skill/renderers" && "$PY" render_pack.py --in "$work/ctx.json" \
+  --html "$work/ctx.html" --pptx "$work/ctx.pptx") >/dev/null 2>&1
+"$PY" "$here/_deckhas.py" "$work/ctx.pptx" disagree >/dev/null 2>&1
+deck_has=$?
+if grep -q "profile and the records disagree" "$work/ctx.html" && [ "$deck_has" -eq 0 ]; then
+  ok "...and it is on a page of the document AND a slide of the deck, not only the JSON"
+else
+  bad "the conflict reaches both rendered deliverables" \
+      "html=$(grep -c 'profile and the records disagree' "$work/ctx.html") deck_rc=$deck_has"
+fi
+
+# 5. THE GUARD, SEEN TO FAIL. Drop the conflicts from the model and the rendered pack must
+# stop mentioning them. Without this, the checks above would still pass against a renderer
+# that printed the word for some unrelated reason.
+"$PY" -c 'import json,sys
+d=json.load(open(sys.argv[1])); d.pop("contextConflicts", None)
+json.dump(d, open(sys.argv[2], "w"))' "$work/ctx.json" "$work/noconf.json"
+(cd "$skill/renderers" && "$PY" render_pack.py --in "$work/noconf.json" \
+  --html "$work/noconf.html" --pptx "$work/noconf.pptx") >/dev/null 2>&1
+if grep -q "profile and the records disagree" "$work/noconf.html"; then
+  bad "a pack model with no conflicts renders no conflict page" \
+      "the page appears with nothing in the model — the checks above prove nothing"
+else
+  ok "a pack model with no conflicts renders no conflict page, so the page tracks the data"
+fi
+
+# 6-9. Mixed organisations are REFUSED, and the refusal is worth reading.
+orgm="$work/org.manifest.json"
+"$PY" "$here/_orgfixture.py" "$M" "$orgm" "$work" --section metrics --org "Contoso Freight"
+if "$PY" "$A" assemble "$orgm" --out "$work/org.json" >"$work/org.err" 2>&1; then
+  bad "a pack assembled from two organisations is refused" \
+      "it assembled, and the cover names only one of them"
+else
+  ok "a pack assembled from two organisations is refused, not rendered"
+fi
+if grep -q "Contoso Freight" "$work/org.err" && grep -q "metrics" "$work/org.err"; then
+  ok "...and the refusal names the disagreeing store and what it said"
+else
+  bad "the refusal names the offending store" "$(head -2 "$work/org.err")"
+fi
+"$PY" "$here/_orgfixture.py" "$M" "$work/unsigned.json" "$work" --section metrics \
+  --org "Contoso Freight" --declared-by "R. Calder"
+if "$PY" "$A" assemble "$work/unsigned.json" --out "$work/u.json" >"$work/u.err" 2>&1; then
+  bad "an unsigned consolidation is still refused" \
+      "a consolidation with no basis was accepted; that is the silent merge with an extra key"
+else
+  ok "a consolidation declared without a basis is still refused"
+fi
+"$PY" "$here/_orgfixture.py" "$M" "$work/signed.json" "$work" --section metrics \
+  --org "Contoso Freight" --declared-by "R. Calder, CISO" \
+  --basis "wholly owned subsidiary, consolidated for group reporting"
+if "$PY" "$A" assemble "$work/signed.json" --out "$work/s.json" >/dev/null 2>&1; then
+  if "$PY" -c 'import json,sys
+notes = json.load(open(sys.argv[1]))["provenance"]["missing"]
+sys.exit(0 if any("consolidates 2 organisations" in n and "R. Calder, CISO" in n
+                  for n in notes) else 1)' "$work/s.json"; then
+    ok "an attributed consolidation assembles, and the page names who declared it"
+  else
+    bad "a consolidated pack says so on the page" "no consolidation note in provenance"
+  fi
+else
+  bad "an attributed consolidation assembles" "it was refused despite being signed"
+fi
+
+# 10. Normalisation is not a licence to merge. A legal form, case and a parenthetical are one
+# company; a different name is not. Without this the guard could be "fixed" by normalising
+# every name to the empty string, which would pass every check above.
+"$PY" "$here/_orgfixture.py" "$M" "$work/samey.json" "$work" --section metrics \
+  --org "NORTHWIND MANUFACTURING Ltd."
+if "$PY" "$A" assemble "$work/samey.json" --out "$work/samey.out.json" >/dev/null 2>&1; then
+  ok "case, a legal form and a parenthetical are the same company, not a false refusal"
+else
+  bad "'NORTHWIND MANUFACTURING Ltd.' matches 'Northwind Manufacturing'" \
+      "the guard refused a pack that names one company two ways"
 fi
 
 echo

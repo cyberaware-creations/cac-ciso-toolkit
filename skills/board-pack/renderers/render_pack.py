@@ -139,6 +139,11 @@ dd{{margin:2px 0 0 0;color:{INK}}}
   border-radius:8px;padding:12px 16px;margin:16px 0;color:{MUTED};font-size:14px}}
 .note strong{{color:{INK};display:block;margin-bottom:4px}}
 .note p{{margin:0}}
+/* An applicability conflict. Only the left rule changes: the background/text pair is the
+   one `.note` already uses and is already checked for AA, and a border carries no text
+   contrast obligation — so this buys visual weight without opening a contrast question. */
+.note.alarm{{border-left-color:{G._sev_colour("critical", "text")}}}
+.note.alarm strong{{color:{G._sev_colour("critical", "text")}}}
 footer{{color:{MUTED};font-size:12.5px;margin-top:28px;padding-top:14px;
   border-top:1px solid {WB_LINE}}}
 
@@ -355,6 +360,48 @@ def _escalations(escalations: list) -> str:
             f'changed for the worse without anyone being asked.</p>')
 
 
+def _conflicts(conflicts: list) -> str:
+    """Where the applicability profile and this pack's own records disagree.
+
+    Its own page, before the through-line, because of what it is: not a finding inside a
+    section but a statement that two parts of this document describe different perimeters.
+    A reader who stops after the executive summary must still have passed it.
+
+    Renders nothing at all when there are none — and that silence is correct here, unlike
+    the escalations block which announces an empty list. "No section escalated" is a real
+    result about the period. "The profile and the records agree" is not a result; it is the
+    ordinary state, and a panel asserting it on every clean pack would train a reader to
+    skip the place the alarm appears.
+    """
+    if not conflicts:
+        return ""
+    rows = ""
+    for c in conflicts:
+        rows += (f'<tr><td class="mono">{esc(c.get("id") or "—")}</td>'
+                 f'<td class="mono">{esc(c["regime"])}</td>'
+                 f'<td class="mono">{esc(c["flag"])}</td>'
+                 f'<td>{esc(c["sentence"])}</td></tr>')
+    n = len(conflicts)
+    return (
+        f'<div class="page">{_band("Applicability conflict")}'
+        f'<h2>The profile and the records disagree</h2>'
+        f'<p class="sub">Read this before the rest of the pack.</p>'
+        f'<div class="note alarm"><strong>'
+        f'{n} record{"" if n == 1 else "s"} {"is" if n == 1 else "are"} tracked against a '
+        f'regime the applicability profile declares does not apply.</strong>'
+        f'<p>The disclosure clocks below were computed anyway. A profile narrows the default '
+        f'question set; it does not overrule an assessor who opened a clock in front of the '
+        f'evidence. Both readings are therefore still in this document, and one of them is '
+        f'wrong — resolve it in the profile or in the records before relying on this pack.</p>'
+        f'</div>'
+        f'<table class="esc"><thead><tr><th>Record</th><th>Regime</th><th>Flag</th>'
+        f'<th>The disagreement</th></tr></thead><tbody>{rows}</tbody></table>'
+        f'<p class="note">Reported by the section that owns the clock and read here '
+        f'unchanged. This pack raised none of it and resolved none of it: choosing a side '
+        f'would be the pack overruling either the organisation\'s declaration or its own '
+        f'incident record, and it is entitled to do neither.</p></div>')
+
+
 def _decisions(decisions: list) -> str:
     board, management = split_by_altitude(decisions)
     if not decisions:
@@ -482,6 +529,10 @@ def build_html(pack: dict) -> str:
     pages = "".join(_section_page(s, charts) for s in pack["sections"])
     body = (
         _cover(pack, audience)
+        # Before the through-line, not after it. The through-line is the sentence a director
+        # remembers; if the document is describing two different perimeters, that has to be
+        # known before the memorable sentence rather than in a footnote after it.
+        + _conflicts(pack.get("contextConflicts") or [])
         + f'<div class="page">{_band("Executive through-line")}'
         f'<h2>Executive through-line</h2>'
         f'<p class="sub">{esc(pack["period"])} · {esc(audience)} · '
@@ -522,6 +573,31 @@ def build_pptx(pack: dict, path: str) -> None:
                [("Client", pack["client"]), ("Period", pack["period"]),
                 ("Audience", audience), ("As at", pack["asOf"])],
                eyebrow="Quarterly security board pack")
+
+    # Straight after the cover, ahead of the through-line, on the same reasoning as the HTML:
+    # if the pack is describing two different regulatory perimeters, a director must meet that
+    # before the sentence they will remember. Parity is not optional here — a conflict that
+    # reached the document and not the deck would mean the room and the reading pack disagreed
+    # about whether there was a problem, which is a worse failure than the one being reported.
+    conflicts = pack.get("contextConflicts") or []
+    if conflicts:
+        n = len(conflicts)
+        regimes = ", ".join(sorted({c["regime"] for c in conflicts}))
+        paras = [(f"{n} record{'' if n == 1 else 's'} {'is' if n == 1 else 'are'} tracked "
+                  f"against {regimes}, which the applicability profile declares does not "
+                  f"apply. The clocks were computed anyway.", 1250, True, PX.SEV_TEXT.get(
+                      "critical", PX.INK), False),
+                 ("A profile narrows the default question set; it does not overrule an "
+                  "assessor who opened a clock in front of the evidence. Both readings are "
+                  "still in this pack and one of them is wrong.", 1100, False, PX.MUTED,
+                  False)]
+        for c in conflicts[:4]:
+            paras.append((f"{c.get('id') or '—'}  ·  {c['regime']}  ·  {c['flag']}",
+                          1050, False, PX.INK, True))
+        if n > 4:
+            paras.append((f"and {n - 4} more, listed in full in the document",
+                          1000, False, PX.MUTED, False))
+        deck.add("The profile and the records disagree", paras, eyebrow=eyebrow)
 
     tl = pack["throughLine"]
     deck.add("Executive through-line",
