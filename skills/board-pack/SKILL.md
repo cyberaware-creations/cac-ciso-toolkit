@@ -258,6 +258,38 @@ leaves `asOf` alone.
 cannot be read costs you the figures and is named on the provenance page; it never stops a pack
 from building.
 
+### `context` — the applicability profile (CAC-AP-1)
+
+```json
+"context": "../../business-context/examples/example-org.biz"
+```
+
+Optional, and absent is the normal case: a pack without one assembles exactly as it did before,
+against every producer's full question set — the safe direction, and what §2.2 requires.
+
+Given one, the assembler exports the payload by running `business-context` itself — it never
+reads the flags directly, because the narrowing decision belongs to that skill and §2.6 forbids
+the import — and hands it to **every producer that declares it reads one.** A producer that does
+not is never given the flag: it would exit on an unrecognised argument and the whole section
+would drop off the pack, which is strictly worse than not narrowing.
+
+Today that is `incident-materiality` alone, and the provenance page says so in as many words:
+
+> *the applicability profile narrowed incident; exceptions, metrics, posture, risk do not read
+> one yet and asked their full question set*
+
+A profile that quietly narrowed nothing would be indistinguishable from one that narrowed
+everything, so the pack states which sections read it. It also records the **profile version**
+it was assembled against (§2.5): a pack read a year later should say which perimeter the
+questions inside it were asked against.
+
+A profile that cannot be read or exported is a note on the provenance page, never a refusal.
+The pack assembles un-narrowed, which is the full question set.
+
+This is what stops the worksheet and the pack disagreeing. Before it, a `.biz` on disk narrowed
+`incident-materiality`'s own worksheet and did nothing to the pack built from the same store,
+so the two showed different clock rows for the same incident.
+
 ## Client branding, and the part of the palette it cannot reach
 
 A pack can carry a client's identity. Add a `brand` block to the manifest — inline, or a path
