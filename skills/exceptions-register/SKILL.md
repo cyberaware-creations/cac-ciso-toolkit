@@ -214,6 +214,37 @@ Without `--translations`, every narrative slot renders a labelled placeholder. T
 conforms to the section contract: section `exceptions`, with **two** per-item maps,
 `acceptances` and `exceptions`.
 
+## The applicability profile (CAC-AP-1)
+
+```bash
+python3 $E analyze register.exc --context context.json
+```
+
+Optional, and absent is the normal case — a run without one behaves exactly as it always did
+and its output is byte-for-byte identical. The payload comes from
+`business_context.py export <file.biz>`; this skill reads it as **data** and imports nothing
+(§2.6).
+
+What a profile narrows here is the **question set**, not the arithmetic. An acceptance expires on its own date whether or not DORA applies. So what
+changes is which completeness questions this skill puts to you:
+
+- **DORA register of information** — gated on `doraScope`
+
+A flag declared `false` removes its question and records the skip with the flag, the declarer
+and the date, so an auditor can tell a question that was out of scope from one nobody asked
+(§2.4). A flag that is **absent, or declared `null`, asks the question anyway** — §2.2, absence
+asks more, because silently narrowing on undeclared data produces an assessment that looks
+complete and is not.
+
+**It asks; it does not answer.** Nothing in an `.exc` records whether a record belongs to a DORA register of information. A coverage figure would be inferred from data that is
+not there, and this skill refuses to invent the number it asks for — the same rule that makes
+it demand an approver and a justification rather than guess. That is also why there is no *conflict* record here as
+there is in `incident-materiality`: a conflict needs both sides stated, and one side is missing.
+
+A payload from another contract version, or one carrying no decision, is **refused** rather than
+ignored: `--context` was passed on purpose, and a silently un-narrowed run reads as a profile
+that decided nothing applied.
+
 ## Read before you sell this
 
 `references/exceptions.md` carries the receipts **with their limits attached** — DORA RTS

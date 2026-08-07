@@ -1172,6 +1172,23 @@ def analyze(store: dict, today: str, now_iso: str, context: dict = None) -> dict
             "unimplementedBatteries": unimplemented_batteries(context),
             "conflicts": [dict({"id": r["id"]}, **c)
                           for r in rows for c in r["context"]["conflicts"]],
+            # The PROFILE-LAYER decision, rolled up beside the conflicts and for the same
+            # reason: a consumer should not have to walk every record to learn what the
+            # organisation's profile decided. It is the profile layer specifically, because
+            # that is the only part that is uniform across the store — §2.3 lets any single
+            # incident declare its way in or out, so a rolled-up "asked" that blended the
+            # subject layer would be true of no record in particular.
+            #
+            # Every other consumer of CAC-AP-1 puts exactly these two keys at the top level.
+            # They have no subject layer, so for them this IS the whole answer; here it is
+            # the org-level half of it, and `subjectMayAdjust` says so rather than leaving a
+            # reader to discover the difference from a record that disagrees with it.
+            "asked": sorted((context.get("applicability") or {})
+                            .get(CONTEXT_SKILL, {}).get("ask") or []),
+            "skipped": sorted(((context.get("applicability") or {})
+                               .get(CONTEXT_SKILL, {}).get("skipped") or []),
+                              key=lambda r: r.get("battery") or ""),
+            "subjectMayAdjust": True,
         }
     return dict({
         "meta": dict(store.get("meta") or {}),

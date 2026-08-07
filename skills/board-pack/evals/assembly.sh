@@ -872,12 +872,27 @@ eq "a pack with no profile carries no profileVersion key" "False" \
    "$("$PY" -c 'import json,sys;print("profileVersion" in json.load(open(sys.argv[1])))' "$J")"
 # The provenance note names WHICH sections read one. A profile that silently narrowed
 # nothing would look identical to one that narrowed everything.
-if "$PY" -c 'import json,sys
-notes = json.load(open(sys.argv[1]))["provenance"]["missing"]
-sys.exit(0 if any("narrowed incident" in n for n in notes) else 1)' "$work/ctx.json"; then
-  ok "the provenance page names which sections read the profile and which did not"
+#
+# Derived from the producer table rather than pinned to a phrase. This list GROWS as
+# producers implement CAC-AP-1 — it was "narrowed incident" alone, and pinning that string
+# meant the check failed the moment three more producers started reading a profile, which
+# is the check rotting rather than the product breaking. What must hold is the invariant:
+# every producer that declares `context` is named as a taker, and every one that does not
+# is named as still asking its full set.
+if "$PY" -c 'import json, sys, importlib.util
+spec = importlib.util.spec_from_file_location("ap", sys.argv[2])
+ap = importlib.util.module_from_spec(spec); spec.loader.exec_module(ap)
+doc = json.load(open(sys.argv[1]))
+note = next((n for n in doc["provenance"]["missing"] if "applicability profile narrowed" in n), "")
+present = {s["section"] for s in doc["sections"]}
+takers = sorted(n for n in present if (ap.PRODUCERS.get(n) or {}).get("context"))
+deaf = sorted(n for n in present if not (ap.PRODUCERS.get(n) or {}).get("context"))
+ok = bool(note) and all(t in note for t in takers) and all(d in note for d in deaf)
+print("note:", note or "(absent)", file=sys.stderr)
+sys.exit(0 if ok else 1)' "$work/ctx.json" "$A" 2>"$work/note.err"; then
+  ok "the provenance page names every section that read the profile, and every one that did not"
 else
-  bad "the provenance page names which sections read the profile" "no such note"
+  bad "the provenance page names which sections read the profile" "$(cat "$work/note.err")"
 fi
 # A producer that does not accept --context is never handed it: it would exit 2 on an
 # unrecognised argument and the whole section would fall off the pack.

@@ -168,6 +168,37 @@ can lie outright.
 **And the floor never rises above the data.** A reading below its own bands keeps
 the full axis, so "well short" cannot be redrawn as "at the bottom of the range".
 
+## The applicability profile (CAC-AP-1)
+
+```bash
+python3 $E analyze metrics.mtr --context context.json
+```
+
+Optional, and absent is the normal case — a run without one behaves exactly as it always did
+and its output is byte-for-byte identical. The payload comes from
+`business_context.py export <file.biz>`; this skill reads it as **data** and imports nothing
+(§2.6).
+
+What a profile narrows here is the **question set**, not the arithmetic. A reading is trended and banded identically whether it measures OT or payroll. So what
+changes is which completeness questions this skill puts to you:
+
+- **OT coverage** — gated on `otPresent`
+
+A flag declared `false` removes its question and records the skip with the flag, the declarer
+and the date, so an auditor can tell a question that was out of scope from one nobody asked
+(§2.4). A flag that is **absent, or declared `null`, asks the question anyway** — §2.2, absence
+asks more, because silently narrowing on undeclared data produces an assessment that looks
+complete and is not.
+
+**It asks; it does not answer.** Nothing in a `.mtr` records whether a metric measures OT: `archetype` is the metric's KIND, not its subject. A coverage figure would be inferred from data that is
+not there, and this skill refuses to invent the number it asks for — the same rule that makes
+it demand a direction and thresholds rather than guess. That is also why there is no *conflict* record here as
+there is in `incident-materiality`: a conflict needs both sides stated, and one side is missing.
+
+A payload from another contract version, or one carrying no decision, is **refused** rather than
+ignored: `--context` was passed on purpose, and a silently un-narrowed run reads as a profile
+that decided nothing applied.
+
 ## What the engine never does
 
 - **Invent a number.** No interpolation, no carry-forward, no projection. A missing reading
