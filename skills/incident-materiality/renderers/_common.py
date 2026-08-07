@@ -130,7 +130,14 @@ REGIME_LABEL = {"sec-1.05": "SEC Item 1.05", "dora": "DORA"}
 WINDOW_LABEL = {"8-K": "8-K", "initial": "initial notification",
                 "intermediate": "intermediate report", "final": "final report"}
 
-DISCLAIMER = "A Cyber Aware Creation · Not affiliated with NIST · Not legal advice"
+# The attribution line comes from the graphics library, at render time.
+#
+# It was a module constant here, one copy per skill, five copies in all — and every one of
+# them spelled the maker's name out by hand. `G.footer()` drops that name when a client
+# white-labels and keeps the disclaimer, so a hardcoded copy is a white-label leak waiting
+# for the day this renderer gains a brand flag. Called rather than bound at import for the
+# same reason: the brand is process-global and can be rebound after this module loads, and a
+# constant captured at import would keep printing the old name on a re-branded page.
 PLACEHOLDER = ("Board narrative not supplied. Run the ciso-board-translation skill over this "
                "incident record and pass its output with --translations to replace this block.")
 
@@ -455,7 +462,7 @@ class Context:
         return any(r["linkedExceptionIds"] or r["linkedRiskIds"] for r in self.incidents)
 
     def footer(self) -> str:
-        bits = [DISCLAIMER, f"generated {esc(self.today)}"]
+        bits = [G.footer("Not legal advice"), f"generated {esc(self.today)}"]
         if self.meta.get("clientName"):
             bits.insert(0, esc(self.meta["clientName"]))
         return "<footer>" + " · ".join(bits) + "</footer>"
