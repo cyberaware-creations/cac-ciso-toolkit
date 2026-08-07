@@ -122,6 +122,18 @@ jobs:
       - name: Board-safety (board-pack), on the floor
         run: PY="$(command -v python3)" ./skills/board-pack/evals/board-safety.sh
 
+      # Contrast in the .pptx. It belongs in this job rather than behind the `rendered`
+      # job's Chrome gate because it needs no browser: `pptx_writer` emits explicit EMU
+      # geometry and an explicit srgbClr on every run, so the pairing a viewer sees is
+      # already written down and the scan walks the emitted XML.
+      #
+      # The deck was the one output format nothing measured, and that is how a band label
+      # at 2.62:1 shipped in both outputs — nothing looked at the deck, and the browser
+      # checker resolved SVG text against the page ground rather than the mark behind it,
+      # so the two artifacts agreed with each other and both were wrong.
+      - name: Deck contrast (board-pack), on the floor
+        run: PY="$(command -v python3)" ./skills/board-pack/evals/deck-contrast.sh
+
       # incident-materiality shipped in Phase C with three suites and none of them listed
       # here. The disclosure-clock suite is the one that matters most: the SEC window runs
       # from the determination and not from discovery, and an off-by-one in business-day

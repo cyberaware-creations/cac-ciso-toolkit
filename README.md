@@ -382,6 +382,7 @@ python3 skills/board-pack/scripts/assemble_pack.py self-test               # con
 ./skills/business-context/evals/no-derived-materiality.sh  # the guard, seen to fail on a poisoned copy
 ./skills/board-pack/evals/assembly.sh                    # ordering, merge, refusals, a sound .pptx
 ./skills/board-pack/evals/section-contract.sh            # the contract every producer writes to
+./skills/board-pack/evals/deck-contrast.sh               # WCAG AA in the .pptx, from its own XML
 
 ./skills/nist-csf/evals/board-safety.sh                   # each of these six guards its own views
 ./skills/metrics-register/evals/board-safety.sh
