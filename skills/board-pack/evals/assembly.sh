@@ -22,7 +22,7 @@ skill="$(cd "$here/.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=76
+EXPECTED_CHECKS=77
 checks=0
 fails=0
 ok()  { checks=$((checks + 1)); printf '  ok    %s\n' "$1"; }
@@ -893,6 +893,16 @@ sys.exit(0 if ok else 1)' "$work/ctx.json" "$A" 2>"$work/note.err"; then
   ok "the provenance page names every section that read the profile, and every one that did not"
 else
   bad "the provenance page names which sections read the profile" "$(cat "$work/note.err")"
+fi
+# ...and SKILL.md quotes that same sentence. The check above holds the CODE to the producer
+# table; nothing held the DOC to either. It drifted for four releases saying the profile
+# narrowed incident alone, and an external retest found it — a model reading SKILL.md instead
+# of the implementation would have been told something false about every other producer.
+if "$PY" "$(dirname "$0")/_docquote.py" "$(dirname "$0")/../SKILL.md" "$work/ctx.json" \
+     2>"$work/quote.err"; then
+  ok "SKILL.md quotes the provenance sentence the pack actually emits"
+else
+  bad "SKILL.md quotes the sentence the pack emits" "$(cat "$work/quote.err")"
 fi
 # A producer that does not accept --context is never handed it: it would exit 2 on an
 # unrecognised argument and the whole section would fall off the pack.

@@ -273,10 +273,17 @@ the import — and hands it to **every producer that declares it reads one.** A 
 not is never given the flag: it would exit on an unrecognised argument and the whole section
 would drop off the pack, which is strictly worse than not narrowing.
 
-Today that is `incident-materiality` alone, and the provenance page says so in as many words:
+Today that is **all five** — `exceptions`, `incident`, `metrics`, `posture`, `risk` — and the
+provenance page says so in as many words:
 
-> *the applicability profile narrowed incident; exceptions, metrics, posture, risk do not read
-> one yet and asked their full question set*
+> *the applicability profile narrowed every section in this pack (exceptions, incident, metrics,
+> posture, risk); none asked a question the profile had ruled out*
+
+`board-pack` is not itself on that list, and never will be. It exports the profile and
+distributes it; it owns no question set of its own to narrow, because it owns no data. Until a
+producer implements the contract it is named in a second sentence — *"… `x` does not read one
+yet and asked its full question set"* — so the list shrinks visibly as the suite catches up
+rather than the note quietly disappearing when it empties.
 
 A profile that quietly narrowed nothing would be indistinguishable from one that narrowed
 everything, so the pack states which sections read it. It also records the **profile version**
