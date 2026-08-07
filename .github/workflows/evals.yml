@@ -254,6 +254,19 @@ jobs:
       # and consistency alone would not have caught 18cfec5 (that commit was internally
       # consistent at every step; only the bump check catches it). Guarded against the
       # all-zero `before` that a branch's first push reports, which resolves to nothing.
-      - name: Shipped changes carry a version bump (direct push)
-        if: github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000'
+      #
+      # Pinned to main, and that pin is load-bearing. `github.event.before` is the branch's
+      # own previous SHA, which is the right base only when the branch IS the release line.
+      # On a feature branch it asks a question with no sensible answer -- "did the version
+      # move between these two commits of one PR?" -- and a version is bumped once per PR,
+      # not once per commit. Adding feat/** and fix/** to this workflow's push trigger
+      # briefly applied it there, and the first rebase that touched a shipped file failed a
+      # branch whose version was already correct. The pull_request check above is what
+      # guards feature branches; it compares against the base branch, which is the
+      # comparison that means something.
+      - name: Shipped changes carry a version bump (direct push to main)
+        if: >-
+          github.event_name == 'push'
+          && github.ref == 'refs/heads/main'
+          && github.event.before != '0000000000000000000000000000000000000000'
         run: ./tools/check-versions.py --base "${{ github.event.before }}"

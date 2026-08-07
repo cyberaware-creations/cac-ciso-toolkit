@@ -22,7 +22,7 @@ skill="$(cd "$here/.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=45
+EXPECTED_CHECKS=46
 checks=0
 fails=0
 ok()  { checks=$((checks + 1)); printf '  ok    %s\n' "$1"; }
@@ -404,6 +404,67 @@ if [ -z "$deck_res" ]; then
   ok "every band-mix segment reaches the deck as well as the document"
 else
   bad "every band-mix segment reaches the deck as well as the document" "$deck_res"
+fi
+
+# --- escalations: read from the producer, reaching BOTH deliverables ------------------
+# CAC-EL-1 §1.3. Three properties, and the third is the one that matters: the pack must not
+# have derived any of this. An assembler that recomputed an escalation would be a second
+# opinion able to contradict the section printed beside it, which is the failure the
+# "computes nothing" rule exists to prevent.
+esc_res=$("$PY" - "$J" "$work/full.html" "$work/full.pptx" "$skill" <<'PY'
+import json, os, re, subprocess, sys, zipfile
+pack = json.load(open(sys.argv[1]))
+doc = open(sys.argv[2], encoding="utf-8").read()
+z = zipfile.ZipFile(sys.argv[3])
+deck = "".join(z.read(n).decode("utf-8", "ignore") for n in z.namelist()
+               if re.match(r"ppt/slides/slide\d+\.xml", n))
+skill = sys.argv[4]
+esc = pack.get("escalations") or []
+problems, KEYS = [], ("subjectRef", "subjectKind", "trigger", "severity", "since", "evidence")
+
+if not esc:
+    problems.append("the shipped example escalates nothing, so this check proves nothing — "
+                    "the fixture is supposed to carry one of every trigger")
+
+for e in esc:
+    miss = [k for k in KEYS if k not in e]
+    if miss:
+        problems.append("%s is missing contract keys: %s" % (e.get("subjectRef"), miss))
+    if e["subjectRef"] not in doc:
+        problems.append("%s is in the model but not the document" % e["subjectRef"])
+    if e["subjectRef"] not in deck:
+        problems.append("%s is in the model but not the deck" % e["subjectRef"])
+    if e["trigger"] not in doc or e["trigger"] not in deck:
+        problems.append("%s: the trigger is not named on both surfaces" % e["subjectRef"])
+
+# The assembler must not have invented any of it: every record has to appear, verbatim, in
+# the producer's own output. This is the escalation twin of the headline check above, and it
+# is what makes "the pack computes nothing" checkable rather than asserted.
+rr = os.path.join(skill, "..", "risk-register")
+store = os.path.join(rr, "examples", "example-register-v2.rr")
+if os.path.exists(store):
+    out = subprocess.run([sys.executable, os.path.join(rr, "scripts", "score_register.py"),
+                          "score", store, "--json", "--today", pack["asOf"]],
+                         capture_output=True, text=True)
+    produced = {json.dumps(x, sort_keys=True)
+                for x in (json.loads(out.stdout).get("escalations") or [])}
+    for e in esc:
+        if e.get("section") != "risk":
+            continue
+        bare = {k: v for k, v in e.items() if k != "section"}
+        if json.dumps(bare, sort_keys=True) not in produced:
+            problems.append("%s is not verbatim from the producer — the pack altered or "
+                            "invented it" % e["subjectRef"])
+else:
+    problems.append("the risk-register example is missing; provenance went unchecked")
+print("\n".join(problems))
+PY
+)
+if [ -z "$esc_res" ]; then
+  n_esc=$(q 'len(p.get("escalations") or [])')
+  ok "every escalation is verbatim from its producer and reaches both deliverables ($n_esc)"
+else
+  bad "every escalation is verbatim from its producer and reaches both deliverables" "$esc_res"
 fi
 
 # The unassessed case, end to end. A CSF Function with nothing assessed must reach the page
