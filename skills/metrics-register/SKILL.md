@@ -94,6 +94,38 @@ rule in the report, so a disagreement is about the rule rather than about the to
 For each item the review captures the decision it forces — fund, accept, or re-scope — and
 those become the `decisions[]` in the board sidecar.
 
+### What the register raises without being asked
+
+The attention lists are the agenda a review works through. **Escalation is narrower**: what
+should have interrupted somebody *before* the review. `analyze` carries them in the suite-wide
+`CAC-EL-1 §1.3` shape with `subjectKind: "metric"`, so `board-pack` can put a breached metric
+beside a crossed risk band without knowing anything about either skill's clock.
+
+| trigger | fires when | severity |
+|---|---|---|
+| `threshold-breached` | past a limit its owner set — with how many consecutive readings it has been past it | `critical` past critical, `high` past warn |
+| `sustained-slip` | moved the wrong way N readings running, **without** breaching | `medium` |
+
+A breach **suppresses** the slip on the same metric: one movement reported twice reads as two
+problems. Polarity holds throughout — a lower-better metric creeping *upward* inside its limits
+is slipping, and that is exactly the movement worth seeing before a breach.
+
+**Staleness is deliberately not a trigger.** An old reading is an age statement, not a claim the
+number got worse — the same position this skill takes on `stale` and `risk-register` takes on
+scores not expiring. A metric nobody re-measured has not moved for the worse; nobody knows
+whether it moved at all, and escalating it would assert a decay the engine cannot observe. It
+stays on the attention list, where a question about freshness belongs.
+
+Tune per register, and the block travels with the store:
+
+```json
+"settings": { "escalation": { "sustainedSlipReadings": 2, "warnEscalates": true } }
+```
+
+Escalations are **derived on every run, never stored, never a history event.** They clear when
+their cause clears. Nothing here blocks — a breached metric does not gate a command, and no
+reading is changed on the strength of one.
+
 ## Reporting
 
 ```bash

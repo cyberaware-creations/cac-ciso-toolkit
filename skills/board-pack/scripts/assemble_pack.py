@@ -686,6 +686,16 @@ def _risk_escalations(a):
     return list(a.get("escalations") or [])
 
 
+def _metrics_escalations(a):
+    """The escalations metrics-register derived. Same contract, different subjectKind.
+
+    The second producer, and the one that tests whether §1.3 actually generalises: a
+    breached metric and a crossed risk band arrive here in one shape, and the pack orders
+    them together without knowing anything about either skill's clock.
+    """
+    return list(a.get("escalations") or [])
+
+
 def _posture_headline(a):
     # No sev on either figure. A gap is a distance from a Target, and this skill
     # is explicit that a low coverage figure may be a deliberately low Target
@@ -773,7 +783,8 @@ PRODUCERS = {
              "escalations": _risk_escalations},
     "metrics": {"skill": "metrics-register", "script": "scripts/metrics_analysis.py",
                 "argv": ["analyze", "{store}", "--today", "{asOf}"],
-                "headline": _metrics_headline, "figures": _metrics_figures},
+                "headline": _metrics_headline, "figures": _metrics_figures,
+                "escalations": _metrics_escalations},
     "exceptions": {"skill": "exceptions-register", "script": "scripts/exceptions_register.py",
                    "argv": ["analyze", "{store}", "--today", "{asOf}"],
                    "headline": _exceptions_headline, "figures": _exceptions_figures},
