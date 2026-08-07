@@ -396,6 +396,44 @@ Two strings live in the Core's `tiers` block and they are not interchangeable. `
 holding the report. A board deck that tells its own reader what "must never be rendered" is the
 report talking to its author.
 
+## The applicability profile (CAC-AP-1)
+
+```bash
+python3 $E analyze profile.csfp --context context.json
+```
+
+Optional; a run without one behaves exactly as it always did and its output is byte-for-byte
+identical. The payload comes from `business_context.py export <file.biz>` and is read as
+**data** — this skill imports nothing (§2.6).
+
+One battery: **the NIST Cyber AI Profile overlay (IR 8596)**, gated on `aiInUse`.
+
+The gate is on the overlay's **AI-use focus areas only** — `secure` (you build or deploy AI)
+and `defend` (your security programme uses AI). It is deliberately **not** on `thwart`, which
+covers attackers using AI against you and, as `overlay enable` says in its own help, *applies
+whether or not you use AI at all*. Gating the whole overlay on `aiInUse` would narrow away a
+question that is not conditional on anything the organisation declares — the exact harm §2.2
+exists to prevent, arriving through the front door.
+
+**This skill answers its question, and most consumers cannot.** A `.csfp` records whether the
+overlay is enabled and which focus areas apply, so the profile's declaration and the Profile's
+own state can be held together. Where they disagree it says so in both directions:
+
+| Declared | This Profile | Reported |
+|---|---|---|
+| AI in use | no AI-use focus area | the assessment is missing a lens it is owed |
+| AI **not** in use | `secure` or `defend` applied | weighted for something the organisation says it does not do |
+| AI not in use | `thwart` only | **nothing** — `thwart` was never conditional on that flag |
+
+Reported, never resolved — the same rule `incident-materiality` applies to a clock. A profile
+narrows the default question set; it does not reach into a Profile and switch an overlay on or
+off, because which of the two statements is wrong is a human's call. Both readings reach the
+board pack, on their own page and their own slide.
+
+A payload from another contract version, or one carrying no decision, is **refused** rather
+than ignored: `--context` was passed on purpose, and a silently un-narrowed run reads as a
+profile that decided nothing applied.
+
 ## Routing between the three skills
 
 | The user wants | Skill |

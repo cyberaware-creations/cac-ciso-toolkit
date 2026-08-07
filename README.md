@@ -200,16 +200,23 @@ reasoning, the person, and the date, in a local `.inc` file.
 ### `business-context`
 The organisation's own facts, in a local `.biz` file — revenue base, crown jewels, board-voiced
 risk tolerance, segments, strategic goals, contractual obligations — plus the **applicability
-profile** (CAC-AP-1) that narrows what a consuming skill asks. The profile is a *contract*
-skills implement one at a time: `risk-register`, `metrics-register`, `exceptions-register` and
-`incident-materiality` read it today; `nist-csf` does not yet. A pack built from a profile names
-on its provenance page which sections read it and which asked their full question set.
+profile** (CAC-AP-1) that narrows what a consuming skill asks. **Every register reads it** —
+`risk-register`, `nist-csf`, `metrics-register`, `exceptions-register` and
+`incident-materiality`. A pack built from a profile names on its provenance page which sections
+read it and which asked their full question set.
 
-What a profile narrows is the **question set**, not the arithmetic. `incident-materiality` is the
-one consumer that also suppresses computed rows, because a disclosure window is only owed by an
-entity the regime covers. The registers score, trend and expire records identically either way —
-so what a profile changes there is which completeness questions get asked, and none of them
-answers those questions from data the store does not hold.
+What a profile narrows is the **question set**, not the arithmetic — a risk is scored and a
+metric trended identically whether the subject is OT or payroll. Two consumers do more, because
+they hold both sides of their question:
+
+- `incident-materiality` also suppresses **computed rows**: a disclosure window is only owed by
+  an entity the regime covers.
+- `nist-csf` also **answers** its question and reports disagreement in either direction — a
+  Profile applying the IR 8596 AI focus areas while the organisation declares no AI in use, or
+  declaring AI in use with no AI focus area applied.
+
+The registers cannot answer theirs, because nothing in them records whether a record concerns OT
+or AI, and this suite refuses to infer a number it has no data for.
 
 - **It fills the one gap the other skills left.** Each of them correctly refuses to invent the
   number it asks for: `risk-register` takes an appetite band, `metrics-register` takes thresholds,

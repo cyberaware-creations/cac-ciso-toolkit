@@ -36,7 +36,7 @@ trap 'rm -rf "$work"' EXIT
 
 E="$skill/scripts/business_context.py"
 
-EXPECTED_CHECKS=29
+EXPECTED_CHECKS=36
 checks=0
 fails=0
 ok()  { checks=$((checks + 1)); printf '  ok    %s\n' "$1"; }
@@ -51,6 +51,7 @@ risk|$root/risk-register/scripts/score_register.py|score|$root/risk-register/exa
 metrics|$root/metrics-register/scripts/metrics_analysis.py|analyze|$root/metrics-register/examples/example-metrics.mtr|
 exceptions|$root/exceptions-register/scripts/exceptions_register.py|analyze|$root/exceptions-register/examples/example.exc|
 incident|$root/incident-materiality/scripts/incident_analysis.py|analyze|$root/incident-materiality/examples/example-incident.inc|--now 2026-08-07T12:00:00+00:00
+posture|$root/nist-csf/scripts/profile_analysis.py|analyze|$root/nist-csf/examples/example-profile.csfp|
 "
 
 # 1. Every question set this engine defines has a consumer here. A set with no consumer is a
@@ -59,7 +60,7 @@ incident|$root/incident-materiality/scripts/incident_analysis.py|analyze|$root/i
 declared="$("$PY" -c 'import sys; sys.path.insert(0, sys.argv[1])
 import business_context as bc
 print(" ".join(sorted(bc.QUESTION_SETS)))' "$skill/scripts")"
-covered="exceptions incident metrics risk"
+covered="exceptions incident metrics posture risk"
 unimplemented=""
 for d in $declared; do
   case " $covered vendor " in *" $d "*) ;; *) unimplemented="$unimplemented $d";; esac

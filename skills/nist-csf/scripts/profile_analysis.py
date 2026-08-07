@@ -2936,10 +2936,148 @@ def _cmd_action(args):
     raise ValueError(usage)
 
 
+# --- CAC-AP-1: the applicability profile, read as data --------------------------------
+#
+# The consumer with both sides of its question, and the only one so far besides
+# `incident-materiality` that can report a DISAGREEMENT rather than only a narrowing.
+#
+# The battery is the NIST Cyber AI Profile (IR 8596), and the gate is NOT the overlay as a
+# whole. This skill's own `overlay enable` help is why:
+#
+#   secure  — you build or deploy AI systems
+#   defend  — your security programme uses AI
+#   thwart  — attackers use AI against you. THIS APPLIES WHETHER OR NOT YOU USE AI AT ALL.
+#
+# So `aiInUse` gates `secure` and `defend` only. Gating the whole overlay on it would tell
+# an organisation with no AI to switch off the lens that covers attackers using AI against
+# THEM — narrowing away a question that is not conditional on anything the profile declares,
+# which is the exact harm §2.2 is written to prevent, arriving through the front door.
+#
+# Unlike the registers, a `.csfp` RECORDS the answer: the enabled flag and the focus areas
+# are facts in the store. So this consumer holds the profile's declaration and the Profile's
+# own state together, and where they disagree it says so in both directions:
+#
+#   * AI declared in use, no AI-use focus area applied -> the assessment is missing a lens
+#     it is owed
+#   * AI declared NOT in use, `secure` or `defend` applied -> the assessment is weighted for
+#     something the organisation says it does not do. `thwart` alone is never a conflict.
+#
+# Reported, never resolved — the same rule `incident-materiality` applies to a clock. A
+# profile narrows the default question set; it does not reach into a Profile and switch an
+# overlay on or off, because which of the two statements is wrong is a human's call.
+
+# The focus areas that turn on whether the organisation itself uses AI. `thwart` is
+# deliberately absent: it is conditional on the threat landscape, not on this flag.
+AI_USE_FOCUS = ("secure", "defend")
+
+CONTEXT_CONTRACT = "CAC-AP-1"
+CONTEXT_SKILL = "posture"
+CONTEXT_BATTERIES = {
+    "ai-overlay": {"flag": "aiInUse", "label": "NIST Cyber AI Profile overlay (IR 8596)",
+                   "question": "are the AI-use focus areas of the Cyber AI Profile overlay "
+                               "(secure, defend) applied to this Profile?"},
+}
+
+
+def load_context(path: str) -> dict:
+    """Read an applicability payload. As data — this skill imports no other skill (§2.6).
+
+    Both refusals are deliberate. `--context` was passed on purpose, so a payload that
+    cannot be honoured must say so rather than quietly leave the Profile un-narrowed: a full
+    question set would read as a profile that decided nothing applied.
+    """
+    try:
+        with open(path, encoding="utf-8") as fh:
+            payload = json.load(fh)
+    except FileNotFoundError:
+        raise ValueError(f"no such context payload: {path}")
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"{path} is not valid JSON (line {exc.lineno}, "
+                         f"column {exc.colno}): {exc.msg}")
+    if not isinstance(payload, dict):
+        raise ValueError(f"{path} must contain a JSON object, got {type(payload).__name__}")
+    got = payload.get("contractVersion")
+    if got != CONTEXT_CONTRACT:
+        raise ValueError(
+            f"{path} declares contractVersion {got!r}; this engine reads "
+            f"{CONTEXT_CONTRACT!r}. Produce one with `business_context.py export <file.biz>`.")
+    if not isinstance(payload.get("applicability"), dict):
+        raise ValueError(
+            f"{path} carries no decided `applicability`, so this skill cannot tell which "
+            f"batteries the profile narrowed away. Re-export it with "
+            f"`business_context.py export <file.biz>`; the narrowing decision belongs to "
+            f"that skill and is not re-derived here.")
+    return payload
+
+
+def applicability_for(payload: dict, overlay_cfg: dict) -> dict:
+    """The profile's decision, and where it disagrees with what this Profile actually does.
+
+    The payload arrives DECIDED — §2.2 and §2.3 were applied by `business-context`, and
+    re-deriving them here would be the second implementation the contract prevents. What is
+    added here is the half only this skill holds: which focus areas this Profile applies.
+    """
+    base = (payload.get("applicability") or {}).get(CONTEXT_SKILL) or {}
+    profile_ask = set(base.get("ask") or ())
+    profile_skipped = {r.get("battery"): r for r in (base.get("skipped") or ())}
+    enabled = bool((overlay_cfg or {}).get("enabled"))
+    focus = [f for f in ((overlay_cfg or {}).get("focusAreas") or []) if isinstance(f, str)]
+    ai_use_focus = sorted(f for f in focus if f in AI_USE_FOCUS)
+    applied = enabled and bool(ai_use_focus)
+
+    asked, skipped, conflicts = [], [], []
+    for battery in sorted(CONTEXT_BATTERIES):
+        spec = CONTEXT_BATTERIES[battery]
+        if battery in profile_skipped:
+            rec = dict(profile_skipped[battery])
+            skipped.append(rec)
+            # `thwart` alone is NOT a conflict: it applies whether or not the organisation
+            # uses AI, so a Profile carrying only that focus area agrees with a declaration
+            # of no AI in use rather than contradicting it.
+            if battery == "ai-overlay" and applied:
+                conflicts.append({
+                    "battery": battery, "flag": spec["flag"],
+                    "sentence": (
+                        f"{spec['label']} — this Profile applies the "
+                        f"{', '.join(ai_use_focus)} focus area"
+                        f"{'' if len(ai_use_focus) == 1 else 's'} while the applicable "
+                        f"declaration says AI is not in use, so its priorities are weighted "
+                        f"for something the organisation says it does not do. Resolve it in "
+                        f"the profile or in the Profile. Declaration: "
+                        f"{rec.get('sentence', '')}")})
+        elif battery in profile_ask:
+            asked.append({"battery": battery, "label": spec["label"],
+                          "flag": spec["flag"], "question": spec["question"],
+                          # The answer, which no other consumer can give.
+                          "answered": True, "applied": applied,
+                          "focusAreas": sorted(focus)})
+            if battery == "ai-overlay" and not applied:
+                conflicts.append({
+                    "battery": battery, "flag": spec["flag"],
+                    "sentence": (
+                        f"{spec['label']} — AI is declared in production use and this "
+                        f"Profile applies no AI-use focus area"
+                        + (f" (it carries {', '.join(sorted(focus))}, which covers a "
+                           f"different question)" if focus else "")
+                        + f", so the assessment is not weighted for the AI-relevant "
+                          f"Subcategories IR 8596 identifies. Enable `secure` and/or "
+                          f"`defend` with `overlay enable --focus`, or record why they do "
+                          f"not apply.")})
+    return {
+        "profileVersion": str(payload.get("profileVersion") or ""),
+        "asked": asked,
+        "skipped": sorted(skipped, key=lambda r: r.get("battery") or ""),
+        "conflicts": conflicts,
+        # True here, unlike the registers: this skill holds the answer as well as the
+        # question, so a reader is entitled to expect one.
+        "coverageAssessed": True,
+    }
+
+
 def _cmd_analyze(args):
     pos, opt = parse_flags(args)
     path = _require_store(pos, "usage: analyze <store.csfp> [--today YYYY-MM-DD] [--top N] "
-                                "[--queue-top N] [--out F]")
+                                "[--queue-top N] [--out F] [--context PAYLOAD]")
     core = load_core(); index = index_subcategories(core)
     store = load_store(path)
 
@@ -3087,6 +3225,12 @@ def _cmd_analyze(args):
     # never opted in, which is exactly what the parity assertion forbids.
     if overlay_block:
         out["overlay"] = overlay_block
+
+    # CAC-AP-1. Additive on the same rule as the overlay block directly above: the key
+    # exists only when a profile was supplied, so a run without one is byte-for-byte what
+    # it always was.
+    if isinstance(opt.get("context"), (str, list)):
+        out["context"] = applicability_for(load_context(_s(opt["context"])), cfg)
 
     # Crosswalk lenses are a report-time choice, so they appear only when asked
     # for and are never written back to the store. Same omit-when-absent rule as
