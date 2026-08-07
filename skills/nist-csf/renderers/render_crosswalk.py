@@ -47,6 +47,14 @@ def css() -> str:
   font-weight:600;letter-spacing:.02em}}
 .cell .band{{font-size:12px;font-weight:700;margin-top:5px}}
 .cell .lab{{font-size:11.5px;margin-top:3px;line-height:1.35}}
+/* The control count carried `opacity:.85` and it took the cell from 4.5:1 to 4.05:1
+   on the `moderate` band — under AA, at every width. `render_executive.py` already
+   states this rule for its tiles and this file did not follow it: opacity is invisible
+   to a colour-pair check reading CSS but not to a reader, because it fades the text
+   toward the fill it sits on. The cell's text colour is measured against its own fill
+   by `text_on()`, so it can be used at full strength; the count is set back with
+   weight instead, which composites nothing. */
+.cell .ct{{font-weight:500}}
 .cell.unknown{{background:repeating-linear-gradient(45deg,{c.WB_LINE},{c.WB_LINE} 4px,
   {c.WB} 4px,{c.WB} 8px);color:{c.SLATE}}}
 .bandchip{{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;
@@ -223,7 +231,7 @@ def heatmap(block: dict) -> str:
             f'<div class="band">{c.esc(c.CROSSWALK_BAND_LABEL.get(band, band))}'
             f'{score_bit}</div>'
             f'<div class="lab">{c.esc(g.get("label") or "")} '
-            f'<span style="opacity:.85">({n} control{plural})</span></div>'
+            f'<span class="ct">({n} control{plural})</span></div>'
             f'</div>')
     if not out:
         return ('<div class="card muted">No theme in this lens has a rated control behind '

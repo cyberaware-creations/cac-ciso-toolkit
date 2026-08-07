@@ -73,6 +73,13 @@ jobs:
       # `validate` step above enforces the same invariant from inside the shipped
       # skill; this is the build-time checker that owns the rule, and it also
       # covers the build tooling that never ships.
+      # The checker's own tests come first, and they exist because it reported
+      # "0 catalogs · 0 errors · 0 warnings" and exited 0 against an empty directory —
+      # a clean bill from a run that read nothing. Running the guard before the data
+      # it guards is the only order in which a green tick below means anything.
+      - name: The crosswalk checker's own tests
+        run: python3 tools/crosswalks/validate_crosswalks.py --self-test
+
       - name: Crosswalk data carries no ISO/CIS verbatim text
         run: python3 tools/crosswalks/validate_crosswalks.py
 
