@@ -179,6 +179,65 @@ def esc(text) -> str:
     return escape("" if text is None else str(text))
 
 
+# --- Fitting text into a fixed box ---------------------------------------------
+#
+# The deck is drawn with explicit EMU geometry, which is what makes it reproducible and
+# what makes every other check in this suite possible. It also means nothing wraps for
+# free: a box holds what it was given whether or not it fits, and every textBody here
+# carries `normAutofit` with no computed fontScale — so a viewer that recomputes shrinks
+# the text and one that does not simply clips it. Both are the writer's problem, not the
+# reader's.
+#
+# Pagination used to count ITEMS. Eight figures per slide, three mixes, and `add()` took a
+# whole list into one fixed box regardless of length. Eight short decisions fit; eight
+# decisions written the way a real risk committee writes them do not, and nothing said so.
+# The specimen never showed it because the specimen is written tightly.
+#
+# So the writer measures. This is an ESTIMATE and is documented as one — real line breaking
+# belongs to PowerPoint, which has the font. It is deliberately pessimistic: the advances
+# below run wide, so the writer paginates slightly early rather than slightly late, and a
+# slide with room to spare is a better failure than a sentence with its last line cut off.
+#
+# evals/deck-fit.sh checks the RESULT independently, with its own metric and its own
+# constants, rather than re-running this arithmetic. Two implementations that share a
+# constant agree by construction and prove nothing — which is exactly how the band-label
+# contrast defect survived four releases.
+_ADV_NARROW = frozenset("iljtfrI.,;:'\"!|()[]- ")
+_ADV_WIDE = frozenset("mMW@%")
+
+
+def advance_em(text: str) -> float:
+    """Width of `text` in ems, on the pessimistic side of Helvetica Neue."""
+    total = 0.0
+    for ch in text:
+        if ch in _ADV_NARROW:
+            total += 0.32
+        elif ch in _ADV_WIDE:
+            total += 0.95
+        elif ch.isupper():
+            total += 0.73
+        elif ch.isdigit():
+            total += 0.58
+        else:
+            total += 0.56
+    return total
+
+
+def para_height(text: str, size: int, width: int, bullet: bool = False,
+                space_after: int = 700) -> int:
+    """Height in EMU that one paragraph needs at `size` (hundredths of a point)."""
+    pt = size / 100.0
+    usable = width - (BULLET_INDENT if bullet else 0)
+    if usable <= 0:
+        return int(pt * 1.25 * EMU_PER_PT) + space_after * EMU_PER_PT // 100
+    text_w = advance_em(text) * pt * EMU_PER_PT
+    lines = max(1, int(-(-text_w // usable)))
+    return int(lines * pt * 1.25 * EMU_PER_PT) + space_after * EMU_PER_PT // 100
+
+
+BULLET_INDENT = 228600
+
+
 def _run(text: str, size: int, bold: bool = False, colour: str = INK) -> str:
     return (f'<a:r><a:rPr lang="en-GB" sz="{size}" b="{1 if bold else 0}" dirty="0">'
             f'<a:solidFill><a:srgbClr val="{colour}"/></a:solidFill>'
@@ -517,11 +576,16 @@ class Deck:
             total = sum(s["value"] for s in segments)
             if not total:
                 continue
+            # A chart title used to get one line's worth of box whatever its length.
+            # A two-line title then overlapped the bar under it, which reads as a
+            # rendering fault rather than a long title.
+            title_h = max(inch(0.28), para_height(chart["title"], 1200, self.BODY_W,
+                                                  space_after=0))
             shapes.append(_textbox(sid, f"Mix title {sid}", self.MARGIN, y,
-                                   self.BODY_W, inch(0.28),
+                                   self.BODY_W, title_h,
                                    _para(chart["title"], 1200, True, INK, 0)))
             sid += 1
-            bar_y = y + inch(0.34)
+            bar_y = y + title_h + inch(0.06)
             bar_h = inch(0.42)
             x = self.MARGIN
             for seg in segments:
@@ -563,15 +627,44 @@ class Deck:
         self.slides.append(slide_xml("".join(shapes + foot)))
 
     def add(self, title: str, paragraphs: list, eyebrow: str = "") -> None:
-        """paragraphs: list of (text, size, bold, colour, bullet) tuples."""
-        shapes, sid = self._head_shapes(2, title, eyebrow)
-        body = "".join(_para(t, size, bold, colour, 700, bullet)
-                       for t, size, bold, colour, bullet in paragraphs)
-        shapes.append(_textbox(sid, "Body", self.MARGIN, self.BODY_Y, self.BODY_W,
-                               self.FOOT_Y - self.BODY_Y - inch(0.2), body))
-        sid += 1
-        foot, sid = self._footer_shapes(sid)
-        self.slides.append(slide_xml("".join(shapes + foot)))
+        """paragraphs: list of (text, size, bold, colour, bullet) tuples.
+
+        Paginates by measured height. This took the whole list into one fixed box, which
+        is correct for the specimen and wrong for any pack whose author writes in
+        sentences: the box does not grow, so the last decisions on a long list were simply
+        below the bottom of the slide. Nothing reported it, because the deck had no fit
+        check at all and the box is a valid shape whatever is inside it.
+
+        The suffix matches `figures()` — "Decisions (2)" — so a paginated slide keeps a
+        title distinct from its own continuation, which the assembly suite already
+        requires of every slide in the deck.
+
+        A single paragraph too tall for an empty slide still goes on its own slide rather
+        than being dropped or truncated. Cutting a board decision in half to make it fit
+        would be the one outcome worse than a crowded slide.
+        """
+        budget = self.FOOT_Y - self.BODY_Y - inch(0.2)
+        pages, page, used = [], [], 0
+        for item in paragraphs:
+            text, size, _bold, _colour, bullet = item
+            need = para_height(text, size, self.BODY_W, bullet, 700)
+            if page and used + need > budget:
+                pages.append(page)
+                page, used = [], 0
+            page.append(item)
+            used += need
+        pages.append(page)
+
+        for page_no, page in enumerate(pages, start=1):
+            suffix = "" if len(pages) == 1 else f" ({page_no})"
+            shapes, sid = self._head_shapes(2, title + suffix, eyebrow)
+            body = "".join(_para(t, size, bold, colour, 700, bullet)
+                           for t, size, bold, colour, bullet in page)
+            shapes.append(_textbox(sid, "Body", self.MARGIN, self.BODY_Y, self.BODY_W,
+                                   budget, body))
+            sid += 1
+            foot, sid = self._footer_shapes(sid)
+            self.slides.append(slide_xml("".join(shapes + foot)))
 
     def _ensure_cover(self) -> None:
         """A deck always opens on the branded cover, even from a caller that asks for none.
