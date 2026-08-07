@@ -70,7 +70,12 @@ SECTION_KEYS = {
 DEPRECATED_ALIASES = {"posture": {"subcategories": "gaps"}}
 
 # Keys the envelope owns. Anything else that is a dict is a suspected mis-spelled item map.
-ENVELOPE_KEYS = ("section", "executiveSummary", "decisions", "asOf", "contractVersion")
+# `boundTo` is envelope, not content: it says which store state this prose was written
+# against, and carries no sentence a board reads. Added to the envelope rather than bumping
+# CONTRACT_VERSION because it is purely additive — every sidecar ever written omits it and
+# still validates, and a version bump would refuse all of them to gain nothing.
+ENVELOPE_KEYS = ("section", "executiveSummary", "decisions", "asOf", "contractVersion",
+                 "boundTo")
 
 SECTION_ORDER = {
     # The frame first, then what we carry, how it moves, what we accepted, what happened.
@@ -472,6 +477,89 @@ def check_one_organisation(manifest: dict) -> list:
     return ["this pack consolidates %d organisations (%s) on a declaration by %s: %s"
             % (len(groups), "; ".join(named), consolidation["declaredBy"],
                consolidation["basis"])]
+
+
+# --- Was this prose written against these numbers? --------------------------------
+#
+# A pack pairs each section's FIGURES, read live from its store, with that section's PROSE,
+# read from a sidecar `ciso-board-translation` wrote at some earlier moment. Nothing tied the
+# two together. A register edited after its sidecar was written produced a pack whose
+# sentences described one state of the world and whose numbers described another, with the
+# sidecar's `asOf` — a reporting date, not a store version — still agreeing with the pack.
+#
+# That is a quieter failure than a mixed-entity pack and a worse one to argue with later: the
+# board was told a risk improved, in a sentence a human wrote and signed, beside a figure
+# showing it did not.
+#
+# `boundTo` is OPTIONAL and additive. Every sidecar in existence predates it, so requiring one
+# would refuse every pack ever built — and unlike the organisation check there is no honest
+# default to fall back on. So:
+#
+#   * bound and matching   -> silence, which is the ordinary case and earns no words
+#   * bound and MISMATCHED -> a warning naming both timestamps. The store moved under the
+#                             prose, and that is exactly what this exists to catch.
+#   * not bound            -> ONE note for the whole pack listing the unbound sections, never
+#                             one note per section. Five notes on every pack until the world
+#                             catches up is how a provenance page teaches people to skim it,
+#                             which is the same reasoning that deferred `fact-unattributed`.
+
+BINDING_KEY = "boundTo"
+
+
+def _store_version(path: str) -> str:
+    """The store's own last-modified stamp, as it records it. "" if it does not say."""
+    try:
+        with open(path, encoding="utf-8") as fh:
+            doc = json.load(fh)
+    except (OSError, ValueError):
+        return ""
+    return str(doc.get("updatedAt") or "") if isinstance(doc, dict) else ""
+
+
+def check_sidecar_bindings(manifest: dict, profile_version: str = "") -> dict:
+    """Compare each sidecar's declared binding against the store being assembled now."""
+    warnings, unbound = [], []
+    for entry in manifest.get("sections") or []:
+        name = entry.get("section")
+        sidecar_path, store_path = entry.get("translationsPath"), entry.get("storePath")
+        if not sidecar_path or not store_path:
+            continue
+        try:
+            with open(sidecar_path, encoding="utf-8") as fh:
+                sidecar = json.load(fh)
+        except (OSError, ValueError):
+            continue                      # validate_pack already reports an unreadable sidecar
+        if not isinstance(sidecar, dict):
+            continue
+        bound = sidecar.get(BINDING_KEY)
+        if not isinstance(bound, dict) or not bound:
+            unbound.append(name)
+            continue
+        declared = str(bound.get("storeUpdatedAt") or "")
+        actual = _store_version(store_path)
+        if declared and actual and declared != actual:
+            warnings.append(
+                f"the {name!r} prose was written against the store as it stood at {declared} "
+                f"and the store now reads {actual}: it has been edited since, so the "
+                f"sentences in this section may describe a state its figures no longer show. "
+                f"Re-run ciso-board-translation for {name!r}, or confirm the prose still holds")
+        want_profile = str(bound.get("profileVersion") or "")
+        if want_profile and profile_version and want_profile != profile_version:
+            warnings.append(
+                f"the {name!r} prose was written against applicability profile "
+                f"{want_profile!r} and this pack was assembled against {profile_version!r}: "
+                f"the perimeter moved, so the questions behind that prose are not the "
+                f"questions behind these figures")
+    notes = []
+    if unbound:
+        notes.append(
+            "%s %s no `boundTo` block, so whether %s prose was written against the store "
+            "being assembled here could not be checked. It is optional and additive; a "
+            "sidecar that declares it gets that check."
+            % (", ".join(f"{n!r}" for n in sorted(unbound)),
+               "carries" if len(unbound) == 1 else "carry",
+               "its" if len(unbound) == 1 else "their"))
+    return {"warnings": warnings, "notes": notes}
 
 
 def validate_pack(manifest: dict) -> dict:
@@ -1381,13 +1469,18 @@ def assemble(manifest: dict, skills_root: str = None, with_stores: bool = True) 
               if not with_stores
               else headline_counts(manifest, ordered, skills_root))
 
-    warnings = (list(validated["warnings"]) + possible_duplicate_asks(decisions)
+    # Checked against the profile version this pack actually used, which is only known once
+    # the rollup has run — a sidecar written under last quarter's perimeter is not stale
+    # against a pack that used the same one.
+    bindings = check_sidecar_bindings(manifest, rollup.get("profileVersion") or "")
+    warnings = (list(bindings["warnings"]) + list(validated["warnings"])
+                + possible_duplicate_asks(decisions)
                 + possible_duplicate_escalations(rollup.get("escalations") or []))
     # A consolidated pack must never look like a single-entity one. The declaration that
     # allowed it through is carried onto the page, so a reader can see that the scope was
     # widened deliberately and by whom.
     missing = (list(consolidation_notes) + list(validated["missing"])
-               + list(rollup["unavailable"]))
+               + list(rollup["unavailable"]) + list(bindings["notes"]))
     if through_line is None:
         missing.append("no through-line sidecar was supplied; the pack opens on a "
                        "placeholder rather than a synthesis")
