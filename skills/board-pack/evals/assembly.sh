@@ -22,7 +22,7 @@ skill="$(cd "$here/.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=48
+EXPECTED_CHECKS=50
 checks=0
 fails=0
 ok()  { checks=$((checks + 1)); printf '  ok    %s\n' "$1"; }
@@ -557,6 +557,51 @@ if [ -z "$inc_res" ]; then
   ok "an incident workspace that escalates reaches the pack, both triggers, both severities"
 else
   bad "an incident workspace that escalates reaches the pack" "$inc_res"
+fi
+
+# --- one record, two producers, two severities --------------------------------------
+#
+# The shipped exceptions store was hand-entered, so no record carries a `sourceRiskRef` and
+# nothing collides -- correct for that fixture, and it means the self-test's join cases run
+# only on synthetic rows. Here the real thing: an acceptance declared as the acceptance OF
+# R-010, which is the risk the shipped register escalates `acceptance-lapsed` on. One expiry,
+# two producers, two severities, and the pack has to notice without merging.
+DUP="$work/dup.exc"
+XE="$skill/../exceptions-register/scripts/exceptions_register.py"
+"$PY" "$XE" init "$DUP" --client "Dup Co" --actor eval >/dev/null 2>&1
+"$PY" "$XE" accept-add "$DUP" --title "Customer records held by the CRM vendor" \
+    --approver CISO --justification "Contract renewed on the same terms." \
+    --accepted 2026-01-01 --revalidation 2026-06-01 --expiry 2026-07-15 \
+    --source-risk-ref R-010 --risk R-010 --actor eval >/dev/null 2>&1
+export DUP
+variant "$work/dup.manifest.json" 'import os
+for e in m["sections"]:
+    if e["section"] == "exceptions":
+        e["store"] = os.environ["DUP"]
+        e.pop("translations", None)'
+if "$PY" "$A" assemble "$work/dup.manifest.json" --out "$work/dup.pack.json" \
+     >/dev/null 2>"$work/dup.err"; then
+  dup_res=$("$PY" "$here/_dupcheck.py" "$work/dup.pack.json")
+else
+  dup_res="the duplicate-escalation variant did not assemble: $(tail -2 "$work/dup.err")"
+fi
+if [ -z "$dup_res" ]; then
+  ok "one acceptance escalating in two producers is flagged, both entries left standing"
+else
+  bad "one acceptance escalating in two producers is flagged" "$dup_res"
+fi
+
+# And the shipped pack, which declares no link, carries no such warning. The pair matters: a
+# check that only looks for the flag passes over a join that fires on everything.
+if "$PY" -c "
+import json,sys
+p=json.load(open(sys.argv[1]))
+sys.exit(0 if not [w for w in p['provenance']['warnings']
+                   if 'linked to the same record' in w] else 1)" "$J"; then
+  ok "and a pack whose producers declare no link carries no such warning"
+else
+  bad "and a pack whose producers declare no link carries no such warning" \
+      "the shipped pack flagged a duplicate, so the join is matching on something else"
 fi
 
 # Distinguishing "this producer was quiet" from "this producer was never asked". Every source

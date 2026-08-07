@@ -131,6 +131,34 @@ Profile expires. That is *absent* rather than empty, and the distinction is why 
 per-producer adapter — a skill that escalates nothing and a skill that cannot escalate yet are
 different facts, and the provenance page says which.
 
+### When two producers escalate the same record
+
+`exceptions-register` owns the acceptance lifecycle and escalates `expired` on the
+authoritative record. `risk-register` keeps its own lightweight `accepted` marker and escalates
+`acceptance-lapsed` on that. One expiry can therefore reach a pack twice — and, because each
+skill severities its own concern on its own terms, often at two severities:
+
+```
+2 escalations are linked to the same record R-010: exceptions A-001 (expired), risk R-010
+(acceptance-lapsed). They were not merged — each was derived by the skill that owns that
+clock — but they may be one fact reported twice. They also disagree on severity (critical,
+high), so the same day reads as two different sizes of problem.
+```
+
+**Noticed, named, and both left standing** — the same answer this pack gives to two sections
+asking for one decision. Merging would mean deciding which clock-owner was right, and that is
+not the assembler's call to make.
+
+With one difference in its favour. The duplicate-*decision* flag regexes ids out of free prose
+and can only say the two *may* be one ask. Here the join is **declared**: `exceptions-register`
+stamps `relatedRef` from `sourceRiskRef`, which `export-acceptances` sets and intake uses as its
+idempotency key — so the identity is a fact, not a guess.
+
+It is `sourceRiskRef` and deliberately **not** `riskIds`. One means *this record is the
+acceptance of that risk*; the other means *this relates to that risk*. An acceptance linked to
+R-003 and a dwell escalation on R-003 are two different facts about one risk, and joining them
+would manufacture exactly the false positive the flag exists to avoid.
+
 The severities are not comparable across producers by arithmetic, and the pack does not pretend
 they are. It orders by the severity each producer **declared**, then by section, then by
 subject. A `critical` from the incident workspace means a filing deadline passed; a `critical`
