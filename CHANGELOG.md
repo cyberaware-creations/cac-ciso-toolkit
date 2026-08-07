@@ -21,6 +21,27 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.38.0 — 2026-08-07
+
+An agenda can be wrong as a whole while every ask on it is right.
+
+- Above **five** decisions pitched at the board, the pack says so on the provenance page, in
+  the document and on a slide — naming the count and which sections it came from. Five is a
+  convention this skill declares, not a standard it cites, so it is named in one constant a
+  reader can disagree with rather than buried in a comparison.
+- The same failure as the mixed-organisation pack and the hidden conflict: an artifact true on
+  every page and unusable as a whole. Ten votes in one sitting does not get ten decisions — it
+  gets a few and a queue nobody names. The shipped specimen carries ten, which an external
+  retest read as a packaging problem; it is a fixture problem, and the pack now says so itself.
+- **It counts and does not choose**, and it suggests no remedy on purpose. Re-pitching an ask
+  from `board` to `management` would make the warning vanish and change nothing about the
+  exposure; a governance tool that nudges toward relabelling decisions so a deck looks tidier
+  is worse than one that stays quiet. Holding an ask back belongs in the minutes, not in an
+  `altitude` field.
+- Mutation-tested three ways: a warning that never fires, one that counts list length instead
+  of altitude, and a threshold of zero each fail a named check. Self-test 132 → **133**,
+  assembly 77 → **80**.
+
 ## v0.37.1 — 2026-08-07
 
 A model-facing instruction that had been wrong for four releases.

@@ -697,6 +697,50 @@ def possible_duplicate_asks(decisions: list) -> list:
     return notes
 
 
+# How many things a board can genuinely decide in one sitting.
+#
+# A convention this tool declares, not a standard it cites. There is no authority to appeal
+# to here, so the number is named in one place, at the top, where a reader can disagree with
+# it — rather than buried in a comparison where they would have to guess where it came from.
+# It sits alongside the deck's own 12-18 slide target: both are claims about what a meeting
+# can absorb, and both are the writer's to overrule.
+BOARD_ASK_SITTING = 5
+
+
+def crowded_board_agenda(decisions: list) -> list:
+    """Say when a pack asks the board for more decisions than a sitting can take.
+
+    Every ask in the list may be individually correct and still be wrong as an agenda. That
+    is the same failure the organisation check and the conflict page exist for: an artifact
+    true on every page and unusable as a whole. Ten votes in one meeting does not get ten
+    decisions — it gets a few decisions and a queue nobody names.
+
+    This counts and does not choose. Which asks are genuinely due this quarter needs the
+    board's calendar, what was deferred last time, and what the chair will actually table:
+    none of which is in this pack, and all of which the person writing it has.
+
+    It deliberately suggests no remedy, because the obvious one is harmful. Re-pitching an
+    ask from `board` to `management` would make this warning disappear without changing a
+    thing about the exposure, and a governance tool that nudges toward relabelling decisions
+    so the deck looks tidier is worse than one that stays quiet. Holding an ask back is a
+    decision in itself, and it belongs in the minutes rather than in an altitude field.
+    """
+    board = [d for d in decisions if d.get("altitude") == "board"]
+    if len(board) <= BOARD_ASK_SITTING:
+        return []
+    by_section = {}
+    for entry in board:
+        for name in entry.get("sections") or []:
+            by_section[name] = by_section.get(name, 0) + 1
+    breakdown = ", ".join("%s %d" % (n, c) for n, c in sorted(by_section.items()))
+    return [
+        "%d decisions in this pack are pitched at the board (%s), against the %d a sitting "
+        "can genuinely take. Nothing was dropped and nothing was re-pitched: which asks are "
+        "due this quarter is the writer's call, and an ask held back is itself a decision "
+        "worth minuting."
+        % (len(board), breakdown, BOARD_ASK_SITTING)]
+
+
 # Each producer computes its own figures. The assembler runs the producer's analysis and
 # READS them. It does not recompute a count, a band or a trend — any temptation to do so
 # belongs back in the producing skill, and a headline the assembler derived would be a second
@@ -1475,6 +1519,7 @@ def assemble(manifest: dict, skills_root: str = None, with_stores: bool = True) 
     bindings = check_sidecar_bindings(manifest, rollup.get("profileVersion") or "")
     warnings = (list(bindings["warnings"]) + list(validated["warnings"])
                 + possible_duplicate_asks(decisions)
+                + crowded_board_agenda(decisions)
                 + possible_duplicate_escalations(rollup.get("escalations") or []))
     # A consolidated pack must never look like a single-entity one. The declaration that
     # allowed it through is carried onto the page, so a reader can see that the scope was
@@ -2079,6 +2124,46 @@ def _cmd_self_test(_args):
                {"text": "Close PR.DS-01.", "sections": ["posture"]},
                {"text": "Fund the work behind PR.DS-01.", "sections": ["metrics"]}])[0][:1],
            "2", "CSF Subcategory ids are recognised too")
+
+        # --- more asks than a sitting can take ----------------------------------
+        # Every ask individually correct, the agenda wrong as a whole. Both directions are
+        # asserted: a check that only fires on the crowded case would pass against a
+        # function that warned about every pack, which is a warning nobody reads.
+        def _asks(n, altitude="board", section="risk"):
+            return [{"text": "Fund thing %d." % i, "sections": [section],
+                     "altitude": altitude} for i in range(n)]
+
+        eq(crowded_board_agenda(_asks(BOARD_ASK_SITTING)), [],
+           "a pack at the sitting convention says nothing")
+        eq(len(crowded_board_agenda(_asks(BOARD_ASK_SITTING + 1))), 1,
+           "and one ask past it warns")
+        eq(crowded_board_agenda([]), [], "a pack with no decisions at all says nothing")
+        # The load-bearing one. Management actions are not board votes, so twenty of them
+        # must not trip a warning about the board's agenda. A function that counted the
+        # list length would pass every other case here and fail this.
+        eq(crowded_board_agenda(_asks(20, altitude="management")), [],
+           "twenty management actions are not a crowded board agenda")
+        eq(len(crowded_board_agenda(_asks(20, altitude="management") + _asks(2))), 0,
+           "and management actions do not push a small board agenda over the line")
+        crowded = crowded_board_agenda(
+            _asks(4, section="risk") + _asks(3, section="incident"))
+        # One warning about the agenda, never one per ask: a note repeated seven times is how
+        # a provenance page becomes something nobody reads to the bottom of. Indexing this
+        # list directly also made a broken function raise IndexError instead of failing a
+        # check, which loses the count of what else broke.
+        eq(len(crowded), 1, "a crowded agenda produces ONE warning, not one per ask")
+        note = crowded[0] if crowded else ""
+        ok("7 decisions" in note, "the warning states how many asks there are")
+        ok("risk 4" in note and "incident 3" in note,
+           "and where they came from, so the writer can see the crowding")
+        ok(str(BOARD_ASK_SITTING) in note,
+           "and the convention it is measured against, not a bare complaint")
+        # It must never suggest the remedy that would hide the problem: re-pitching a board
+        # ask as a management action makes the warning vanish and changes nothing real.
+        ok("management" not in note.lower(),
+           "and never suggests re-pitching an ask to make the count go down")
+        ok("Nothing was dropped" in note,
+           "and says plainly that the pack still carries every ask")
 
         # --- two producers, one record, two escalations -------------------------
         # `exceptions-register` owns the acceptance lifecycle and escalates `expired` on the

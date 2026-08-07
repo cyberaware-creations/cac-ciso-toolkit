@@ -227,6 +227,26 @@ ask arriving twice.
 Read both, decide whether they are one ask or two, and edit the sidecars. A board asked the
 same question twice in one pack will answer neither.
 
+**An agenda can be wrong as a whole while every ask on it is right.** Above five decisions
+pitched at the board — a convention this skill declares rather than a standard it cites, and
+one you should overrule when your board's calendar says otherwise — the pack says so:
+
+```
+note: 10 decisions in this pack are pitched at the board (exceptions 2, incident 3,
+metrics 1, pack 1, posture 1, risk 2), against the 5 a sitting can genuinely take.
+Nothing was dropped and nothing was re-pitched: which asks are due this quarter is the
+writer's call, and an ask held back is itself a decision worth minuting.
+```
+
+It counts, and it does not choose. Which asks are genuinely due needs the board's calendar,
+what was deferred last quarter, and what the chair will table — none of which is in this pack
+and all of which you have.
+
+**It suggests no remedy, deliberately, because the obvious one is harmful.** Re-pitching an ask
+from `board` to `management` makes the warning disappear and changes nothing about the
+exposure. Do not do it to quiet the note. Holding an ask back is a decision in its own right,
+and it belongs in the minutes rather than in an `altitude` field.
+
 ## The manifest
 
 ```json
