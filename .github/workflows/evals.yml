@@ -24,9 +24,19 @@ on:
     # gap: a docs branch was validated only once a PR existed. ADD A PREFIX HERE when a new
     # one comes into use; there is no wildcard that works.
     #
-    # Testing this is awkward and worth knowing before trying: a branch whose prefix is not
-    # in the list on the DEFAULT branch gets no push run, so a trigger change cannot
-    # demonstrate itself until it is merged. Verify after merging, not before.
+    # A trigger change IS testable before it merges: GitHub reads this file from the ref
+    # being pushed, not from the default branch. The branch that restored this list got a
+    # push run from `fix/**` while main still carried the broken config, which settles it.
+    #
+    # That is worth stating because the obvious wrong conclusion was drawn first. When the
+    # filterless version produced no run on a `chore/**` branch, the reading was "GitHub
+    # decides which branches to watch from the default branch, so this cannot be tested
+    # yet". It was not that. The branch was carrying the broken config itself, and the test
+    # had already returned the right answer — it was the diagnosis that was wrong, and the
+    # change was merged on the strength of it.
+    #
+    # So: push a branch with the new prefix and look for a push run. If none appears, the
+    # filter does not work. Do not merge and check afterwards.
     branches: [main, 'feat/**', 'fix/**', 'docs/**']
   pull_request:
   workflow_dispatch:
