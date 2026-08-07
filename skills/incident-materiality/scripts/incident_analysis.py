@@ -139,6 +139,37 @@ ESCALATION_SEVERITY_ORDER = ["critical", "high", "medium"]
 # after them are the process working rather than a record moving underneath a conclusion.
 SETTLED_DETERMINATIONS = ("material", "not-material")
 
+# --- The applicability profile (CAC-AP-1), read as data -----------------------
+#
+# `--context <file.biz payload>` is OPTIONAL and absent is the normal case. Everything this
+# block adds is additive and appears nowhere unless a payload was supplied, so a run without
+# one produces the same bytes it produced before any of this existed. That is asserted in
+# evals/applicability.sh rather than intended here.
+#
+# The profile NARROWS the question set and never answers a question. Two batteries are
+# genuinely conditional in this skill and both are gated on something a lawyer declares, not
+# on anything this engine could infer:
+#
+#   sec-item-105  — Item 1.05 applies to a registrant. A private company has no 8-K.
+#   dora-windows  — the three report windows apply to a DORA-scoped entity.
+#
+# What the payload carries is the DECIDED narrowing, not the raw flags: `business-context`
+# owns §2.2 (absent and null both mean *not declared*, so both ask) and ships its answer.
+# This file deliberately does not re-implement that clause — `if not declared:` reads
+# correctly, passes every test anyone writes, and silently narrows every assessment in the
+# suite. One copy of it, in the skill that owns it.
+#
+# §2.3 IS implemented here, because its data is here: the subject declaration lives on the
+# incident record and the organisation profile has never seen it.
+CONTEXT_CONTRACT = "CAC-AP-1"
+CONTEXT_SKILL = "incident"
+CONTEXT_BATTERIES = {
+    "sec-item-105": {"flag": "listedEntity", "regime": "sec-1.05",
+                     "label": "SEC Item 1.05 disclosure window"},
+    "dora-windows": {"flag": "doraScope", "regime": "dora",
+                     "label": "DORA reporting windows"},
+}
+
 
 class Refusal(Exception):
     """A mutation the engine declines to perform.
@@ -348,6 +379,169 @@ def _required_text(value: str, flag: str, why: str) -> str:
     return str(value).strip()
 
 
+# --- CAC-AP-1 consumer surface ------------------------------------------------
+
+def load_context(path: str) -> dict:
+    """Read an applicability payload. As data — this skill imports no other skill.
+
+    Both refusals below are deliberate. `--context` was passed on purpose, so a payload that
+    cannot be honoured must say so rather than quietly leave the assessment un-narrowed: the
+    user would read a full question set as a profile that decided nothing applied.
+    """
+    try:
+        with open(path, encoding="utf-8") as fh:
+            payload = json.load(fh)
+    except FileNotFoundError:
+        raise Refusal(f"no such context payload: {path}")
+    except json.JSONDecodeError as exc:
+        raise Refusal(f"{path} is not valid JSON (line {exc.lineno}, "
+                      f"column {exc.colno}): {exc.msg}")
+    if not isinstance(payload, dict):
+        raise Refusal(f"{path} must contain a JSON object, got {type(payload).__name__}")
+    got = payload.get("contractVersion")
+    if got != CONTEXT_CONTRACT:
+        raise Refusal(
+            f"{path} declares contractVersion {got!r}; this engine reads "
+            f"{CONTEXT_CONTRACT!r}. Produce one with "
+            f"`business_context.py export <file.biz>`.")
+    if not isinstance(payload.get("applicability"), dict):
+        raise Refusal(
+            f"{path} carries no decided `applicability`, so this skill cannot tell which "
+            f"batteries the profile narrowed away. Re-export it with "
+            f"`business_context.py export <file.biz>`; the narrowing decision belongs to "
+            f"that skill and is not re-derived here.")
+    return payload
+
+
+def subject_value(field):
+    """A wrapped subject declaration or a bare scalar. Bare is legal on read."""
+    return field.get("value") if isinstance(field, dict) else field
+
+
+def _subject_record(battery: str, spec: dict, field, value: bool, kind: str) -> dict:
+    """A skip or an override attributed to the incident's own declaration.
+
+    Built here rather than reused from the payload because the payload cannot contain it: the
+    subject declaration exists only on this record. It is also RICHER than the org-level form
+    — a subject declaration made through `declare-context` carries its own declarer, date and
+    basis, so the sentence can say who decided that this incident sits inside a different
+    perimeter from the organisation around it.
+    """
+    by = str((field or {}).get("declaredBy") or "") if isinstance(field, dict) else ""
+    on = str((field or {}).get("declaredOn") or "") if isinstance(field, dict) else ""
+    basis = str((field or {}).get("basis") or "").strip() if isinstance(field, dict) else ""
+    attribution = (f"declared {on} by {by}" if on and by
+                   else f"declared by {by}" if by else "an unattributed declaration")
+    lead = ("not assessed" if kind == "skip" else "assessed despite the organisation profile")
+    tail = (basis if basis.endswith((".", "!", "?")) else basis + ".") if basis else ""
+    sentence = (f"{spec['label']} — {lead}. This incident declares "
+                f"`{spec['flag']}: {str(bool(value)).lower()}`, {attribution}"
+                + (f" — {tail}" if tail else "."))
+    return {"battery": battery, "label": spec["label"], "flag": spec["flag"],
+            "source": "subject", "subjectValue": bool(value), "declaredBy": by,
+            "declaredOn": on, "basis": basis, "sentence": sentence}
+
+
+def applicability_for(payload: dict, inc: dict) -> dict:
+    """§2.3 applied on top of the profile-layer decision the payload already made.
+
+    The profile's answer arrives decided. What happens here is only the subject layer, and
+    only the part of it that cannot be decided anywhere else: `None` does not override, a
+    declaration in either direction does, and both are recorded.
+    """
+    base = (payload.get("applicability") or {}).get(CONTEXT_SKILL) or {}
+    profile_ask = set(base.get("ask") or ())
+    profile_skipped = {r.get("battery"): r for r in (base.get("skipped") or ())}
+    declares = inc.get("contextDeclares") or {}
+    tracked = list((inc.get("disclosure") or {}).get("regimes") or ())
+
+    asked, skipped, overrides = [], [], []
+    for battery in sorted(CONTEXT_BATTERIES):
+        spec = CONTEXT_BATTERIES[battery]
+        if battery not in profile_ask and battery not in profile_skipped:
+            continue                 # the profile's question set does not carry this battery
+        field = declares.get(spec["flag"])
+        declared = subject_value(field)
+        # §2.3, and `is None` rather than truthiness: a subject that recorded "we do not know"
+        # has said something worth keeping and has still not overridden anything.
+        if spec["flag"] in declares and declared is not None:
+            if declared:
+                asked.append(battery)
+                # Recorded as an override only where it CHANGED the answer. The removing
+                # direction is already fully carried by its skip record, whose `source` is
+                # `subject`; listing it twice would read as two separate findings.
+                if battery in profile_skipped:
+                    overrides.append(_subject_record(battery, spec, field, True, "override"))
+            else:
+                skipped.append(_subject_record(battery, spec, field, False, "skip"))
+        elif battery in profile_skipped:
+            skipped.append(dict(profile_skipped[battery]))
+        else:
+            asked.append(battery)
+
+    # A battery the profile narrowed away, on an incident that is tracked against that regime
+    # anyway. Reported, never resolved: §2.3 says the profile keeps the default question set
+    # proportionate and does not overrule the assessor standing in front of the evidence, so
+    # the window is still computed and the disagreement is put where a human will see it.
+    conflicts = []
+    for rec in skipped:
+        spec = CONTEXT_BATTERIES[rec["battery"]]
+        if spec["regime"] not in tracked:
+            continue
+        conflicts.append({
+            "battery": rec["battery"], "flag": spec["flag"], "regime": spec["regime"],
+            "source": rec.get("source", ""),
+            "sentence": (f"{spec['label']} — this incident is tracked against "
+                         f"{spec['regime']} while the applicable declaration says it does "
+                         f"not apply. The window is still computed: a profile narrows the "
+                         f"default question set and does not overrule an assessor who "
+                         f"opened the clock. Resolve the disagreement in one place or the "
+                         f"other. Declaration: {rec.get('sentence', '')}"),
+        })
+
+    return {
+        "profileVersion": str(payload.get("profileVersion") or ""),
+        "asked": sorted(asked),
+        "skipped": sorted(skipped, key=lambda r: r["battery"]),
+        "overrides": sorted(overrides, key=lambda r: r["battery"]),
+        "conflicts": sorted(conflicts, key=lambda r: r["battery"]),
+        # The raw subject declarations, including any recorded `null`. A null that vanished
+        # from the record would be indistinguishable from never having asked the question,
+        # which is the same failure §2.4 exists to prevent one level up.
+        "subjectDeclared": json.loads(json.dumps(declares)),
+    }
+
+
+def narrow_clocks(clocks: list, view: dict, inc: dict) -> list:
+    """Drop the windows of a battery that was not asked.
+
+    A skipped battery's windows are not computed at all — that is what narrowing a question
+    set means. The rows do not become `not-applicable`; they are absent, and the skip record
+    carries the sentence that explains where they went.
+
+    The one exception is the conflict above: an incident explicitly tracked against the
+    regime keeps its clock. That exception is why narrowing can never suppress an escalation
+    — a regime nobody tracked produced a `not-applicable` row, and `not-applicable` escalates
+    nothing.
+    """
+    tracked = list((inc.get("disclosure") or {}).get("regimes") or ())
+    dropped = {CONTEXT_BATTERIES[r["battery"]]["regime"] for r in view["skipped"]
+               if CONTEXT_BATTERIES[r["battery"]]["regime"] not in tracked}
+    return [c for c in clocks if c["regime"] not in dropped]
+
+
+def unimplemented_batteries(payload: dict) -> list:
+    """Batteries the profile answered that this skill has no question for.
+
+    Named rather than dropped. A reader comparing the profile against this analysis would
+    otherwise find a declared answer with nothing on the page it could have affected, and
+    have no way to tell a battery that belongs to another skill from one this skill forgot.
+    """
+    base = (payload.get("applicability") or {}).get(CONTEXT_SKILL) or {}
+    seen = list(base.get("ask") or ()) + [r.get("battery") for r in (base.get("skipped") or ())]
+    return sorted({b for b in seen if b not in CONTEXT_BATTERIES})
+
+
 # --- Mutations ----------------------------------------------------------------
 
 def open_incident(store: dict, title: str, discovered: str, scope_note: str = "",
@@ -376,6 +570,61 @@ def open_incident(store: dict, title: str, discovered: str, scope_note: str = ""
                    detail={"title": rec["title"], "discoveredAt": discovered,
                            "regimes": regs})
     return rec
+
+
+def parse_subject_flag(raw: str):
+    """`true`/`false`/`null` for a subject declaration. Never a bare truthiness test."""
+    text = str(raw if raw is not None else "").strip().lower()
+    if text in ("true", "yes", "1"):
+        return True
+    if text in ("false", "no", "0"):
+        return False
+    if text in ("null", "none", "unknown"):
+        return None
+    raise Refusal(f"--value must be true, false or null; got {raw!r}. "
+                  f"`null` is not `false`: it records that the question was asked of this "
+                  f"incident and nobody could answer it, which does not override the "
+                  f"organisation profile.")
+
+
+def declare_context(store: dict, iid: str, flag: str, value, by: str, basis: str,
+                    on: str = "", actor: str = "") -> dict:
+    """Declare, at this incident, something the organisation profile decides org-wide.
+
+    This is the §2.3 subject declaration. It is refused without a declarer and a basis for
+    the same reason `business-context` refuses a flag without one: a declaration that
+    narrows what gets asked and cannot say why is worse than no declaration at all, because
+    absence asks everything and only a declaration can ask less.
+
+    The record is never initialised empty on `open`. An incident that has declared nothing
+    carries no `contextDeclares` key, so a store written before this existed is not a store
+    with an empty answer in it.
+    """
+    inc = find_incident(store, iid)
+    _required_text(flag, "--flag", "name the profile flag this incident declares differently")
+    _required_text(by, "--by",
+                   "a subject declaration nobody made cannot be weighed against the "
+                   "organisation profile it overrides")
+    _required_text(basis, "--basis",
+                   "this narrows or widens what gets asked of a disclosure decision; a "
+                   "declaration that cannot say why is worse than an absent one, because "
+                   "absence asks everything")
+    if on:
+        check_date(on, "--on")
+    known = {spec["flag"] for spec in CONTEXT_BATTERIES.values()}
+    if flag not in known:
+        # Accepted with a warning, matching how `business-context` treats an unknown flag:
+        # the regulatory perimeter will outgrow this enumeration, and a record that refuses
+        # tomorrow's regime is worse than one that keeps it unrecognised.
+        print(f"warning: {flag!r} gates no battery in this skill (known: "
+              f"{', '.join(sorted(known))}); recorded, but it narrows nothing here",
+              file=sys.stderr)
+    field = {"value": value, "declaredBy": by.strip(), "declaredOn": on,
+             "basis": basis.strip()}
+    inc.setdefault("contextDeclares", {})[flag] = field
+    append_history(store, "context-declared", iid, actor,
+                   detail={"flag": flag, "value": value, "declaredBy": field["declaredBy"]})
+    return field
 
 
 def assess_factor(store: dict, iid: str, key: str, assessment: str, rationale: str,
@@ -408,7 +657,7 @@ def assess_factor(store: dict, iid: str, key: str, assessment: str, rationale: s
 
 
 def determine(store: dict, iid: str, state: str, rationale: str, decider: str,
-              on: str, actor: str = "") -> dict:
+              on: str, actor: str = "", context: dict = None) -> dict:
     """Append a determination. The engine never writes one by itself.
 
     Nothing in this tool computes, suggests or defaults a state. The factors are recorded so a
@@ -427,6 +676,23 @@ def determine(store: dict, iid: str, state: str, rationale: str, decider: str,
     current = current_determination(inc)
     entry = {"state": state, "rationale": rationale.strip(), "decider": decider.strip(),
              "determinedAt": on, "ts": now_ts()}
+    # CAC-AP-1 §2.5 — the profile in force when this was decided, frozen into the record.
+    #
+    # A determination made in Q1 was made against Q1's perimeter, and the questions it did
+    # not ask are part of what it means. Without this, a reader a year later finds a
+    # determination that never considered Item 1.05 and no way to tell whether that was
+    # because the organisation was private at the time or because somebody forgot. The
+    # `--context` version and the skips are frozen; the flags themselves are not, because
+    # the payload names a `profileVersion` a reader can go and read in full.
+    if context:
+        view = applicability_for(context, inc)
+        entry["contextFrozen"] = {
+            "contractVersion": CONTEXT_CONTRACT,
+            "profileVersion": str(context.get("profileVersion") or ""),
+            "profileReviewedOn": str(context.get("profileReviewedOn") or ""),
+            "asked": list(view["asked"]),
+            "skipped": json.loads(json.dumps(view["skipped"])),
+        }
     inc["determinations"].append(entry)
     append_history(store, "determination-recorded", iid, actor,
                    detail={"state": state, "from": current["state"] if current else None,
@@ -684,12 +950,20 @@ def incident_band(inc: dict, clocks: list) -> str:
     return BAND_MATERIAL
 
 
-def derive(inc: dict, today: str, now_iso: str, holidays) -> dict:
+def derive(inc: dict, today: str, now_iso: str, holidays, context: dict = None) -> dict:
     clocks = [sec_clock(inc, today, holidays)] + dora_clocks(inc, now_iso)
+    view = applicability_for(context, inc) if context else None
+    if view:
+        clocks = narrow_clocks(clocks, view, inc)
     latest = current_factors(inc)
     det = current_determination(inc)
     assessed = [k for k in FACTOR_KEYS if k in latest]
-    return {
+    # The context block is added at the END of this dict, and only when a payload was
+    # supplied. Both matter: a key that appears empty on an un-narrowed run would change
+    # every output this skill has ever produced, and appending rather than inserting keeps
+    # the un-narrowed prefix of the JSON identical rather than merely equivalent.
+    extra = {"context": view} if view else {}
+    return dict({
         "id": inc["id"],
         "title": inc["title"],
         "discoveredAt": inc["discoveredAt"],
@@ -723,7 +997,7 @@ def derive(inc: dict, today: str, now_iso: str, holidays) -> dict:
         "awaitingDetermination": det is None or det["state"] in ("assessing",
                                                                  "not-yet-determinable"),
         "notes": inc.get("notes", ""),
-    }
+    }, **extra)
 
 
 def _escalation_policy(store: dict) -> dict:
@@ -747,7 +1021,7 @@ def _factors_as_of(inc: dict, at: datetime) -> dict:
     return out
 
 
-def escalations(store: dict, today: str, now_iso: str) -> list:
+def escalations(store: dict, today: str, now_iso: str, context: dict = None) -> list:
     """Every escalation this workspace warrants, in the CAC-EL-1 §1.3 shape.
 
     `subjectKind` is always `incident` — unlike exceptions-register, which distinguishes an
@@ -764,7 +1038,11 @@ def escalations(store: dict, today: str, now_iso: str) -> list:
     for inc in store["incidents"]:
         if inc.get("status") == "closed":
             continue
-        row = derive(inc, today, now_iso, holidays)
+        # The same narrowed clocks the worksheet shows, for the reason in the docstring: an
+        # escalation must never disagree with the page beside it about whether a deadline
+        # exists. Narrowing cannot in fact move an escalation — see `narrow_clocks` — and
+        # evals/applicability.sh asserts that rather than leaving it as a claim.
+        row = derive(inc, today, now_iso, holidays, context)
         iid = inc["id"]
 
         if policy.get("windowOverdue"):
@@ -872,17 +1150,36 @@ def escalations(store: dict, today: str, now_iso: str) -> list:
     return out
 
 
-def analyze(store: dict, today: str, now_iso: str) -> dict:
+def analyze(store: dict, today: str, now_iso: str, context: dict = None) -> dict:
     holidays = holidays_of(store)
-    rows = [derive(inc, today, now_iso, holidays) for inc in store["incidents"]]
+    rows = [derive(inc, today, now_iso, holidays, context) for inc in store["incidents"]]
     live = [r for r in rows if r["band"] != BAND_CLOSED]
-    return {
+    # As on the rows: present only when a payload was supplied, appended last. `attention`
+    # deliberately gains no key — its shape is read by two renderers and a board pack, and a
+    # list that exists only sometimes is worse than one that lives where it belongs.
+    extra = {}
+    if context:
+        extra["context"] = {
+            "contractVersion": CONTEXT_CONTRACT,
+            "orgName": str(context.get("orgName") or ""),
+            "profileVersion": str(context.get("profileVersion") or ""),
+            "profileReviewedOn": str(context.get("profileReviewedOn") or ""),
+            # Exact, and never a denominator. The consumer of this figure is a human weighing
+            # a financial impact against the size of the business; nothing in this file
+            # divides by it, and evals/no-derived-materiality.sh walks the AST to prove it.
+            "revenueBase": json.loads(json.dumps(context.get("revenue"))) if
+            context.get("revenue") else None,
+            "unimplementedBatteries": unimplemented_batteries(context),
+            "conflicts": [dict({"id": r["id"]}, **c)
+                          for r in rows for c in r["context"]["conflicts"]],
+        }
+    return dict({
         "meta": dict(store.get("meta") or {}),
         "today": today,
         "now": now_iso,
         "holidays": sorted(holidays),
         "incidents": rows,
-        "escalations": escalations(store, today, now_iso),
+        "escalations": escalations(store, today, now_iso, context),
         "attention": {
             "overdue": [r["id"] for r in live if r["band"] == BAND_OVERDUE],
             "due": [r["id"] for r in live if r["band"] == BAND_DUE],
@@ -914,7 +1211,7 @@ def analyze(store: dict, today: str, now_iso: str) -> dict:
             "byBand": {b: len([r for r in live if r["band"] == b])
                        for b in INCIDENT_BANDS if b != BAND_CLOSED},
         },
-    }
+    }, **extra)
 
 
 # --- Self-test ----------------------------------------------------------------
@@ -1489,6 +1786,91 @@ def _cmd_self_test(_args):
         refuses(lambda: close_incident(store, "I-002", "again"),
                 "closing an already-closed incident is refused")
 
+        # --- CAC-AP-1 §2.3, at the function boundary -------------------------------
+        #
+        # evals/applicability.sh drives all of this through the CLI, which is where it
+        # matters. It is pinned here as well because the clause below is the one that reads
+        # correctly while being wrong: a subject that declared `null` has said something,
+        # and `if declares.get(flag):` treats that identically to `false` — silently removing
+        # a disclosure question on the strength of a record that says nobody knew.
+        payload = {
+            "contractVersion": CONTEXT_CONTRACT, "profileVersion": "FY26",
+            "applicability": {"incident": {
+                "ask": ["dora-windows"],
+                "skipped": [{"battery": "sec-item-105",
+                             "label": "SEC Item 1.05 disclosure window",
+                             "flag": "listedEntity", "source": "profile",
+                             "declaredBy": "GC", "declaredOn": "2026-01-02",
+                             "basis": "Privately held.",
+                             "sentence": "SEC Item 1.05 disclosure window — not assessed."}]}},
+        }
+        bare = {"id": "X", "disclosure": {"regimes": []}}
+        eq(applicability_for(payload, bare)["asked"], ["dora-windows"],
+           "the profile's decision arrives decided and is used as-is")
+        eq([r["battery"] for r in applicability_for(payload, bare)["skipped"]],
+           ["sec-item-105"], "...including which battery it removed")
+
+        def _decl(value):
+            return {"id": "X", "disclosure": {"regimes": []},
+                    "contextDeclares": {"listedEntity": {
+                        "value": value, "declaredBy": "GC", "declaredOn": "2026-02-02",
+                        "basis": "The affected entity is listed."}}}
+
+        eq("sec-item-105" in applicability_for(payload, _decl(True))["asked"], True,
+           "a subject declaring true re-adds a battery the profile removed")
+        eq([r["battery"] for r in applicability_for(payload, _decl(True))["overrides"]],
+           ["sec-item-105"], "...and the override is recorded, not merely acted on")
+        eq([r["source"] for r in applicability_for(payload, _decl(None))["skipped"]],
+           ["profile"],
+           "a subject declaring NULL does not override — null is not false")
+        eq("listedEntity" in applicability_for(payload, _decl(None))["subjectDeclared"], True,
+           "...and the null is still carried, so the gap stays visible")
+        # The other direction, on the battery the profile kept.
+        dora_no = {"id": "X", "disclosure": {"regimes": []},
+                   "contextDeclares": {"doraScope": {"value": False, "declaredBy": "GC",
+                                                     "declaredOn": "2026-02-02",
+                                                     "basis": "Outside the entity."}}}
+        eq([r["source"] for r in applicability_for(payload, dora_no)["skipped"]
+            if r["battery"] == "dora-windows"], ["subject"],
+           "a subject declaring false removes a battery the profile kept")
+        ok("GC" in [r for r in applicability_for(payload, dora_no)["skipped"]
+                    if r["battery"] == "dora-windows"][0]["sentence"],
+           "...and the sentence carries the subject's own declarer, which the profile "
+           "could not have supplied")
+
+        # Narrowing drops windows, and never for a regime the incident actually tracks.
+        fake_clocks = [{"regime": "sec-1.05", "window": "8-K"},
+                       {"regime": "dora", "window": "initial"}]
+        view = applicability_for(payload, bare)
+        eq([c["regime"] for c in narrow_clocks(fake_clocks, view, bare)], ["dora"],
+           "a skipped battery's windows are absent, not `not-applicable`")
+        tracked = {"id": "X", "disclosure": {"regimes": ["sec-1.05"]}}
+        tview = applicability_for(payload, tracked)
+        eq([c["regime"] for c in narrow_clocks(fake_clocks, tview, tracked)],
+           ["sec-1.05", "dora"],
+           "an incident tracked against the regime keeps its window — the profile narrows "
+           "the default question set and does not overrule the assessor")
+        eq([c["battery"] for c in tview["conflicts"]], ["sec-item-105"],
+           "...and the disagreement is reported instead")
+        eq(unimplemented_batteries(
+            {"applicability": {"incident": {"ask": ["nydfs-notification"], "skipped": []}}}),
+           ["nydfs-notification"],
+           "a battery this skill has no question for is named, not silently dropped")
+
+        eq(parse_subject_flag("null"), None, "`null` parses to None, not to False")
+        eq(parse_subject_flag("false"), False, "and `false` parses to False")
+        refuses(lambda: parse_subject_flag("maybe"), "an unparseable subject value")
+        bad_ctx = os.path.join(work, "bad-context.json")
+        with open(bad_ctx, "w", encoding="utf-8") as fh:
+            json.dump({"contractVersion": "CAC-AP-2", "applicability": {}}, fh)
+        refuses(lambda: load_context(bad_ctx), "a payload from another contract version",
+                CONTEXT_CONTRACT)
+        with open(bad_ctx, "w", encoding="utf-8") as fh:
+            json.dump({"contractVersion": CONTEXT_CONTRACT}, fh)
+        refuses(lambda: load_context(bad_ctx),
+                "a payload with no decided applicability, rather than a silent full ask",
+                "business_context.py export")
+
         other = os.path.join(work, "other.exc")
         with open(other, "w", encoding="utf-8") as fh:
             json.dump({"schemaVersion": 1, "family": "exceptions-register"}, fh)
@@ -1555,8 +1937,9 @@ def _cmd_assess(args):
 
 def _cmd_determine(args):
     store = load_store(args.store)
+    context = load_context(args.context) if getattr(args, "context", None) else None
     e = determine(store, args.id, args.state, args.rationale, args.decider, args.on,
-                  args.actor)
+                  args.actor, context)
     save_store(args.store, store)
     print(f"{args.id} determined {e['state']} on {e['determinedAt']} by {e['decider']}")
     if e["state"] == "material":
@@ -1627,9 +2010,19 @@ def _when(args):
     return today, now_iso
 
 
+def _cmd_declare_context(args):
+    store = load_store(args.store)
+    field = declare_context(store, args.id, args.flag, parse_subject_flag(args.value),
+                            args.by, args.basis, args.on, args.actor)
+    save_store(args.store, store)
+    print(f"{args.id}: {args.flag} declared {field['value']!r} by {field['declaredBy']}")
+    return 0
+
+
 def _cmd_analyze(args):
     today, now_iso = _when(args)
-    out = analyze(load_store(args.store), today, now_iso)
+    context = load_context(args.context) if args.context else None
+    out = analyze(load_store(args.store), today, now_iso, context)
     text = json.dumps(out, indent=2, ensure_ascii=False)
     if args.out:
         with open(args.out, "w", encoding="utf-8") as fh:
@@ -1682,7 +2075,25 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--rationale", default="")
     sp.add_argument("--decider", default="")
     sp.add_argument("--on", default="", help="the determination date — the Item 1.05 anchor")
+    sp.add_argument("--context", default=None, metavar="FILE",
+                    help="a CAC-AP-1 payload; freezes the profile version and the batteries "
+                         "not asked into this determination (§2.5)")
     sp.set_defaults(fn=_cmd_determine)
+
+    sp = sub.add_parser("declare-context",
+                        help="declare, at this incident, something the org profile decides "
+                             "org-wide (CAC-AP-1 §2.3)")
+    common(sp)
+    sp.add_argument("--id", required=True)
+    sp.add_argument("--flag", default="",
+                    help="e.g. listedEntity, doraScope")
+    sp.add_argument("--value", default="",
+                    help="true, false or null — null records that nobody could answer, "
+                         "which does not override the organisation profile")
+    sp.add_argument("--by", default="")
+    sp.add_argument("--on", default="")
+    sp.add_argument("--basis", default="")
+    sp.set_defaults(fn=_cmd_declare_context)
 
     sp = sub.add_parser("set-anchor", help="record the DORA awareness/classification stamps")
     common(sp)
@@ -1720,6 +2131,10 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--now", default=None,
                     help="ISO-8601 instant for the DORA hour comparisons")
     sp.add_argument("--out", default=None)
+    sp.add_argument("--context", default=None, metavar="FILE",
+                    help="a CAC-AP-1 applicability payload from "
+                         "`business_context.py export`; optional, and absent leaves every "
+                         "byte of this output as it was")
     sp.set_defaults(fn=_cmd_analyze)
 
     sp = sub.add_parser("self-test")

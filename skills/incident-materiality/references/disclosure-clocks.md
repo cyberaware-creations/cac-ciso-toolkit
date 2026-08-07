@@ -146,6 +146,19 @@ not silently produce a phantom intermediate deadline.
 comfortable position — nothing is owed yet. The second is a gap in the record, and it is the one
 that should make somebody act.
 
+### There is no state for "the profile narrowed this away"
+
+`analyze --context` against an applicability profile that declares a regime out of scope does
+**not** produce a row in some seventh state. The windows are **absent** — a question nobody asked
+has no answer, and inventing a state for it would put a clock on the page whose only content is
+that there is no clock. Where they went is recorded beside them, naming who declared it and when
+(CAC-AP-1 §2.4).
+
+An incident explicitly tracked against the regime **keeps its clock regardless.** The profile
+narrows the default question set; it does not close a window an assessor opened. The
+disagreement is reported as a conflict rather than resolved — which is why narrowing can never
+suppress an `overdue`.
+
 ## Not legal advice
 
 These clocks are decision support. The determination, the classification and any filing are legal
