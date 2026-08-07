@@ -21,7 +21,7 @@ E="$skill/scripts/exceptions_register.py"
 work="$(mktemp -d)"; trap 'rm -rf "$work"' EXIT
 S="$work/t.exc"
 
-EXPECTED_CHECKS=29
+EXPECTED_CHECKS=40
 checks=0; fails=0
 ok()  { checks=$((checks+1)); printf '  ok    %s\n' "$1"; }
 bad() { checks=$((checks+1)); fails=$((fails+1)); printf '  FAIL  %s\n         %s\n' "$1" "$2"; }
@@ -130,6 +130,83 @@ is "and every imported record carries its source risk" \
    "$($PY -c "
 import json;d=json.load(open('$work/b.exc'))
 print(all(a.get('sourceRiskRef') for a in d['acceptances']))")" "True"
+
+# --- re-measure before you renew, across the skill boundary -------------------------
+#
+# The magnitude is stamped by one skill and enforced by another, over a JSON file. Both
+# self-tests do pin their own half — a rename on either side fails one of them, checked by
+# mutation rather than assumed. What only this suite can show is that the two halves meet
+# on the SHIPPED example, through the real CLI: the self-tests reason over synthetic
+# fixtures they build themselves, so an example register carrying no affirming history
+# would hand every imported record an undated magnitude and refuse every first renewal,
+# with both self-tests green.
+is "the bridge stamps what each acceptance was accepted against" \
+   "$($PY -c "
+import json
+rows = json.load(open('$work/acc.json'))
+mags = [r.get('magnitude') or {} for r in rows]
+print(all(m.get('value') is not None and m.get('unit') and m.get('measuredAt')
+          for m in mags))")" "True"
+# Asserted on a store imported EXACTLY ONCE. `b.exc` above is imported twice to prove
+# idempotency, and the second pass takes the update branch — which re-populates the
+# magnitude and so hides a broken add branch completely. Mutation-testing this suite is
+# what surfaced that: dropping the magnitude from the add path left all 39 checks green.
+$PY "$E" init "$work/c.exc" --client Once --actor eval >/dev/null
+$PY "$E" import-acceptances "$work/c.exc" --from "$work/acc.json" --actor eval >/dev/null
+is "and the intake keeps it on first import, not only on a later refresh" \
+   "$($PY -c "
+import json
+d = json.load(open('$work/c.exc'))
+print(all((a.get('magnitude') or {}).get('value') is not None for a in d['acceptances']))")" \
+   "True"
+is "and on the refresh path too, which is a separate branch" \
+   "$($PY -c "
+import json
+d = json.load(open('$work/b.exc'))
+print(all((a.get('magnitude') or {}).get('value') is not None for a in d['acceptances']))")" \
+   "True"
+
+# First renewal: the magnitude was measured after the acceptance, so it carries.
+first="$($PY "$E" revalidate "$work/b.exc" --id A-001 --on 2026-08-01 --next 2026-09-10 \
+    --why "Reviewed with the board; basis unchanged." --actor eval 2>&1)"
+case "$first" in *"re-validated on 2026-08-01"*) ok "a measured acceptance renews normally";;
+  *) bad "a measured acceptance renews normally" "$first";; esac
+
+# Second: the same number cannot carry a second renewal.
+sha_before="$(sha "$work/b.exc")"
+second="$($PY "$E" revalidate "$work/b.exc" --id A-001 --on 2027-01-01 --next 2028-01-01 \
+    --why "Still fine." --actor eval 2>&1)"; rc=$?
+case "$second" in *"nobody has re-measured"*) ok "renewing again on one measurement is refused";;
+  *) bad "renewing again on one measurement is refused" "rc=$rc :: $second";; esac
+is "and the refused renewal left the store byte-identical" "$(sha "$work/b.exc")" "$sha_before"
+
+# The refusal is on the act, never on the record. This is the claim the whole skill rests
+# on, checked here rather than assumed: a refused renewal must not remove anything.
+$PY "$E" analyze "$work/b.exc" --today 2026-09-01 --out "$work/b.json" >/dev/null
+is "a record awaiting re-measurement is still in the analysis" \
+   "$($PY -c "
+import json;d=json.load(open('$work/b.json'))
+print(any(r['id']=='A-001' for r in d['records']))")" "True"
+is "and still in the exported evidence artifact" \
+   "$($PY "$E" export-inventory "$work/b.exc" --format csv 2>/dev/null | grep -c '^A-001,')" "1"
+is "and is named on the re-measure agenda, its review being due" \
+   "$($PY -c "
+import json;print(json.load(open('$work/b.json'))['attention']['remeasureNeeded'])")" \
+   "['A-001']"
+
+# And the way through clears it, in one act that records both facts.
+third="$($PY "$E" revalidate "$work/b.exc" --id A-001 --on 2027-01-01 --next 2028-01-01 \
+    --why "Re-scored with IT before renewal." --remeasured 4 --measured-on 2026-12-20 \
+    --actor eval 2>&1)"
+case "$third" in *"re-measured to 4"*) ok "re-measuring in the same act carries the renewal";;
+  *) bad "re-measuring in the same act carries the renewal" "$third";; esac
+is "and the history records the number it was, and the number it became" \
+   "$($PY -c "
+import json
+d = json.load(open('$work/b.exc'))
+m = [e['detail']['magnitude'] for e in d['history']
+     if (e.get('detail') or {}).get('magnitude')]
+print(len(m) == 1 and m[0]['to'] == 4 and m[0]['measuredAt'] == '2026-12-20')")" "True"
 
 echo
 [ "$checks" -ne "$EXPECTED_CHECKS" ] && { printf 'revalidation-lifecycle: ran %s checks, expected %s\n' "$checks" "$EXPECTED_CHECKS"; exit 1; }

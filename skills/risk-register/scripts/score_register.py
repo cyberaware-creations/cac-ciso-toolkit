@@ -1503,6 +1503,64 @@ def _cmd_self_test(_: list[str]) -> int:
                 [_snap("2026-06-30T00:00:00Z", "Q2", [_risk("R-001", 3, 3)])]))],
        ["band-crossed"])
 
+    # T13 — the magnitude the acceptance bridge exports.
+    #
+    # `exceptions-register` refuses to re-validate against a magnitude measured before its
+    # last review, which makes `measuredAt` load-bearing on the far side of a skill
+    # boundary: get it wrong here and a stale number renews cleanly over there.
+    def _hist(rid, etype, ts):
+        return {"riskId": rid, "type": etype, "ts": ts, "actor": "t"}
+
+    _h = _reg([_risk("R-001", 2, 2)])
+    eq("no history means no measurement date, rather than a guessed one",
+       _last_affirmed(_h, "R-001"), None)
+    _h["history"] = [_hist("R-001", "risk-added", "2026-01-05T00:00:00Z"),
+                     _hist("R-001", "score-changed", "2026-04-02T00:00:00Z"),
+                     _hist("R-001", "risk-updated", "2026-06-01T00:00:00Z")]
+    eq("the latest AFFIRMING event dates the measurement",
+       _last_affirmed(_h, "R-001"), "2026-04-02")
+    eq("a non-affirming event does not date it — risk-updated is the later one here",
+       "risk-updated" in AGE_AFFIRMING, False)
+    _h["history"].append(_hist("R-002", "score-changed", "2026-09-09T00:00:00Z"))
+    eq("another risk's affirmation does not date this one",
+       _last_affirmed(_h, "R-001"), "2026-04-02")
+    _h["history"].append(_hist("R-001", "score-changed", "not-a-timestamp"))
+    eq("an unreadable ts is skipped, never coerced into a measurement date",
+       _last_affirmed(_h, "R-001"), "2026-04-02")
+    _only_bad = _reg([_risk("R-001", 2, 2)])
+    _only_bad["history"] = [_hist("R-001", "score-changed", "not-a-timestamp")]
+    eq("and when every affirmation is unreadable the date is None, not a fabrication",
+       _last_affirmed(_only_bad, "R-001"), None)
+
+    # The row itself, end to end through the command. Both defects this section was written
+    # after — a NameError on a regex this module does not define, and reading a scored field
+    # off a RAW register risk — were invisible to every check above and surfaced only by
+    # running the command. So it is run.
+    _acc_full = {"approver": "CISO", "justification": "within appetite",
+                 "acceptedDate": "2026-02-01", "revalidationDate": "2027-02-01",
+                 "expiryDate": "2027-06-01"}
+    _breg = _reg([_risk("R-001", 2, 3, response={"type": "accept", "description": ""},
+                        acceptance=_acc_full)])
+    _breg["history"] = [_hist("R-001", "score-changed", "2026-03-04T00:00:00Z")]
+    with tempfile.TemporaryDirectory() as _bd:
+        _bridge, _out = os.path.join(_bd, "bridge.rr"), os.path.join(_bd, "bridge.json")
+        with open(_bridge, "w", encoding="utf-8") as fh:
+            json.dump(_breg, fh)
+        # Redirected: this command reports what it wrote, and a self-test that prints a
+        # temp path in the middle of its own results reads like a failure.
+        _buf = io.StringIO()
+        with contextlib.redirect_stdout(_buf):
+            _cmd_export_acceptances([_bridge, "--out", _out])
+        with open(_out, encoding="utf-8") as fh:
+            _rows = json.load(fh)
+    eq("the bridge exports the accepted risk", len(_rows), 1)
+    eq("with the magnitude it was accepted against, computed not read",
+       _rows[0]["magnitude"],
+       {"value": 6, "unit": "residual exposure", "band": "medium",
+        "measuredAt": "2026-03-04", "source": "risk-register"})
+    eq("and the exported value is exposure() over the residual pair, not a stored field",
+       _rows[0]["magnitude"]["value"], exposure(2, 3))
+
     failures = [(n, g, w) for (n, g, w) in checks if g != w]
     for n, g, w in checks:
         status = "ok " if (g == w) else "FAIL"
@@ -2299,6 +2357,30 @@ def _cmd_escalations(args):
     return 0
 
 
+def _last_affirmed(reg: dict, rid: str):
+    """The date this risk's score was last stood behind, or None.
+
+    Only `AGE_AFFIRMING` events count — the same partition `renderers/_common.py` uses for
+    confirmation age, read here rather than re-decided, so the export and the dashboards
+    cannot disagree about when a number was last affirmed.
+
+    An unreadable `ts` is skipped rather than coerced. A malformed timestamp becoming a
+    measurement date would hand `exceptions-register` a magnitude that looks dated and is
+    not, which is precisely the state its re-measurement refusal exists to catch.
+    """
+    dates = []
+    for e in reg.get("history") or []:
+        if e.get("riskId") != rid or e.get("type") not in AGE_AFFIRMING:
+            continue
+        stamp = str(e.get("ts") or "")[:10]
+        try:
+            date.fromisoformat(stamp)
+        except ValueError:
+            continue
+        dates.append(stamp)
+    return max(dates) if dates else None
+
+
 def _cmd_export_acceptances(args):
     """Emit accepted risks in the exceptions-register intake shape.
 
@@ -2322,6 +2404,7 @@ def _cmd_export_acceptances(args):
                          "[--today YYYY-MM-DD]")
     today = _iso_date(opt["today"], "--today") if "today" in opt else _utc_today()
     reg = load_register(pos[0])
+    size = reg["settings"]["matrixSize"]
     rows, incomplete, lapsed = [], [], []
     for r in reg["risks"]:
         acc = r.get("acceptance")
@@ -2339,6 +2422,11 @@ def _cmd_export_acceptances(args):
         expiry = acc.get("expiryDate")
         if expiry and str(expiry)[:10] <= today:
             lapsed.append((r["id"], str(expiry)[:10]))
+        # Computed with the same two functions `score` uses, on the same settings, rather
+        # than read off a scored row — this command walks the raw register. Calling
+        # exposure()/band() here means the exported magnitude and the scored one cannot
+        # drift apart; re-implementing the arithmetic is how they would.
+        res = exposure(r["residual"]["likelihood"], r["residual"]["impact"])
         rows.append({
             "title": r["title"],
             "approver": acc["approver"],
@@ -2350,6 +2438,19 @@ def _cmd_export_acceptances(args):
             "csfSubcategoryIds": ([r["csfSubcategoryId"]]
                                   if r.get("csfSubcategoryId") else []),
             "sourceRiskRef": r["id"],
+            # What the acceptance was accepted AGAINST. The receiving register refuses to
+            # re-validate against a magnitude measured before its last review, so this is
+            # the field that makes "re-measure before you renew" enforceable there rather
+            # than aspirational. `measuredAt` is null when nothing ever affirmed the score:
+            # a number with no date is reported as exactly that, and the receiver treats it
+            # as needing measurement rather than as fresh.
+            "magnitude": {
+                "value": res,
+                "unit": "residual exposure",
+                "band": band(res, size),
+                "measuredAt": _last_affirmed(reg, r["id"]),
+                "source": "risk-register",
+            },
         })
     text = json.dumps(rows, indent=2, ensure_ascii=False) + "\n"
     out = _s(opt.get("out")) if isinstance(opt.get("out"), (str, list)) else None

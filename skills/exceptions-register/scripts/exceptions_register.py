@@ -204,6 +204,103 @@ def find_record(store: dict, rid: str) -> tuple:
     raise Refusal(f"no record {rid!r} in this register (have: {known})")
 
 
+# --- Magnitude: what the acceptance was accepted AGAINST -----------------------
+#
+# An acceptance is a decision about a quantity — "we will carry this much exposure, on this
+# basis, until this date". Re-validating without re-measuring confirms a judgment about a
+# number nobody re-checked, which is the failure `--why` exists to prevent one level up: the
+# act happens, the record looks complete, and nothing was actually reviewed.
+#
+# So a record MAY carry the magnitude it was accepted against, and `revalidate` refuses to
+# renew one whose magnitude predates the last review. Three properties keep that honest:
+#
+#   * The register never invents a magnitude, and never demands one it was not given. A
+#     hand-entered acceptance with no number is never refused for the absence of one. This
+#     skill stands alone without a quantified risk register, and requiring a quantity it was
+#     never handed would make an unquantified register unusable rather than more rigorous.
+#   * The staleness rule invents no interval. "Older than the last time somebody reviewed
+#     this record" comes from the record's own history. A `remeasureWindowDays` setting would
+#     be this file naming a number no standard sets — the same objection incident-materiality
+#     makes to timing a determination against an invented deadline.
+#   * The refusal lands on the MUTATION only. A stale magnitude never removes a record from
+#     the inventory, the export, the analysis or any rendered page. Flagged everywhere,
+#     blocked at exactly one point: the act that would claim it had been re-checked.
+MAGNITUDE_KEYS = ("value", "unit", "band", "measuredAt", "source")
+
+
+def clean_magnitude(raw, field: str = "magnitude"):
+    """Normalise a magnitude, or refuse. `None` stays `None` — absence is legitimate."""
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        raise Refusal(f"{field} must be an object carrying at least a value and the date it "
+                      f"was measured")
+    value = raw.get("value")
+    if value is None or not str(value).strip():
+        raise Refusal(f"{field} carries no value. A magnitude with no number is not a "
+                      f"magnitude, and storing one would make the re-measurement check pass "
+                      f"over the records that most need it")
+    measured = raw.get("measuredAt")
+    if measured:
+        check_date(str(measured)[:10], f"{field}.measuredAt")
+    return {"value": value,
+            "unit": str(raw.get("unit") or "").strip(),
+            "band": str(raw.get("band") or "").strip() or None,
+            "measuredAt": str(measured)[:10] if measured else None,
+            "source": str(raw.get("source") or "").strip() or None}
+
+
+def last_review_point(store: dict, rec: dict, kind: str):
+    """The date somebody last stood behind this record: its last re-validation, else its
+    acceptance.
+
+    Read out of history rather than stored on the record. It is already in history, and a
+    second copy is a second thing that can disagree — the same reason this register keeps no
+    derived field. Only well-formed dates count: an unreadable one is not quietly treated as
+    "never reviewed", which would fire the refusal below for a reason its message does not
+    name.
+    """
+    dates = []
+    for e in store.get("history") or []:
+        if e.get("event") != f"{kind}-revalidated" or e.get("target") != rec.get("id"):
+            continue
+        on = str((e.get("detail") or {}).get("on") or "")[:10]
+        if DATE_RE.match(on):
+            dates.append(on)
+    return max(dates) if dates else rec.get("acceptedDate")
+
+
+def remeasure_required(store: dict, rec: dict, kind: str) -> tuple:
+    """`(required, reason)` — would the NEXT renewal be refused for want of a measurement?
+
+    Named for what it predicts rather than for the number's age, because the two part
+    company immediately after a review. Re-measure on the 20th, renew on the 1st, and the
+    measurement is twelve days old and already cannot carry the following renewal: each
+    review has to stand on a measurement taken since the last one, or "re-measure before you
+    renew" degrades into measuring once and citing it forever.
+
+    So this reads True for most of a record's life, which is correct and is also why the
+    `remeasureNeeded` attention list narrows it to records whose review is actually due —
+    a list containing every record is not a list.
+
+    `undated` and `older-than-last-review` are kept apart rather than collapsed into one
+    boolean, because they tell the reader different things: one means nobody wrote down when
+    the number was taken, the other means somebody did and it was before the last review.
+    """
+    mag = rec.get("magnitude")
+    if not mag:
+        return False, ""
+    measured = mag.get("measuredAt")
+    if not measured:
+        return True, "undated"
+    point = last_review_point(store, rec, kind)
+    if not point:
+        return False, ""
+    # Measured ON the review day counts as fresh. The comparison is `<` and not `<=`: a
+    # number taken the same day somebody reviewed the record was taken for that review.
+    return (measured < point), ("older-than-last-review" if measured < point else "")
+
+
 # --- The refusal that is the product ------------------------------------------
 
 def _require(fields: dict, names) -> None:
@@ -228,7 +325,7 @@ def _require(fields: dict, names) -> None:
 
 def accept_add(store: dict, title: str, approver: str, justification: str,
                accepted: str, revalidation: str, expiry: str = "", description: str = "",
-               risk_ids=(), csf_ids=(), source_risk_ref: str = "",
+               risk_ids=(), csf_ids=(), source_risk_ref: str = "", magnitude=None,
                actor: str = "") -> dict:
     fields = {"title": title, "approver": approver, "justification": justification,
               "acceptedDate": accepted, "revalidationDate": revalidation}
@@ -251,6 +348,9 @@ def accept_add(store: dict, title: str, approver: str, justification: str,
         "csfSubcategoryIds": list(csf_ids or []),
         "incidentIds": [],
         "sourceRiskRef": source_risk_ref or None,
+        # What this was accepted against, if anything was measured. Optional by design —
+        # see the magnitude block above.
+        "magnitude": clean_magnitude(magnitude),
         "notes": "",
     }
     store["acceptances"].append(rec)
@@ -261,7 +361,8 @@ def accept_add(store: dict, title: str, approver: str, justification: str,
 
 def except_add(store: dict, title: str, deviation_from: str, compensating: str,
                approver: str, justification: str, accepted: str, revalidation: str,
-               expiry: str = "", risk_ids=(), csf_ids=(), actor: str = "") -> dict:
+               expiry: str = "", risk_ids=(), csf_ids=(), magnitude=None,
+               actor: str = "") -> dict:
     fields = {"title": title, "approver": approver, "justification": justification,
               "acceptedDate": accepted, "revalidationDate": revalidation,
               "deviationFrom": deviation_from, "compensatingControl": compensating}
@@ -284,6 +385,7 @@ def except_add(store: dict, title: str, deviation_from: str, compensating: str,
         "riskIds": list(risk_ids or []),
         "csfSubcategoryIds": list(csf_ids or []),
         "incidentIds": [],
+        "magnitude": clean_magnitude(magnitude),
         "notes": "",
     }
     store["exceptions"].append(rec)
@@ -293,12 +395,18 @@ def except_add(store: dict, title: str, deviation_from: str, compensating: str,
 
 
 def revalidate(store: dict, rid: str, on: str, next_date: str, why: str,
+               remeasured=None, measured_on: str = "", magnitude_unit: str = "",
                actor: str = "") -> dict:
     """Record that a human re-checked the reasoning and it still holds.
 
     Refuses without a rationale. Re-validation is the act DORA RTS Art. 3(d)(iv) asks an
     organisation to demonstrate; an event with no stated reason is indistinguishable from
     an automated renewal, which is the practice the requirement exists to rule out.
+
+    Refuses a second way where the record carries a magnitude: renewing against a number
+    measured before the last review asserts something nobody checked. `--remeasured` with
+    `--measured-on` supplies a fresh one in the same act, which is the point — the fix is to
+    do the measuring, not to wave the check away.
     """
     rec, kind = find_record(store, rid)
     if not (why or "").strip():
@@ -314,10 +422,60 @@ def revalidate(store: dict, rid: str, on: str, next_date: str, why: str,
     if days_between(on, next_date) <= 0:
         raise Refusal(f"--next ({next_date}) must be after --on ({on}); a re-validation "
                       f"that does not move the clock forward is not a re-validation")
+
+    # Every refusal below is raised before anything is written, like every other refusal in
+    # this file, so a rejected re-validation leaves the store byte-identical.
+    fresh = None
+    if remeasured is not None:
+        if not str(measured_on or "").strip():
+            raise Refusal(
+                f"--remeasured needs --measured-on. A fresh magnitude with no date is the "
+                f"same undated number this check exists to catch, and it would pass every "
+                f"future review silently.")
+        check_date(measured_on, "--measured-on")
+        if days_between(measured_on, on) < 0:
+            raise Refusal(
+                f"--measured-on ({measured_on}) is after --on ({on}): a review cannot cite "
+                f"a measurement taken after the review happened.")
+        prior = rec.get("magnitude") or {}
+        fresh = clean_magnitude({
+            "value": remeasured,
+            "unit": str(magnitude_unit or "").strip() or prior.get("unit"),
+            "band": prior.get("band"),
+            "measuredAt": measured_on,
+            "source": prior.get("source"),
+        }, "--remeasured")
+    else:
+        stale, reason = remeasure_required(store, rec, kind)
+        if stale:
+            mag = rec["magnitude"]
+            shown = f"{mag['value']}{(' ' + mag['unit']) if mag.get('unit') else ''}"
+            when = ("never — the number carries no date" if reason == "undated"
+                    else f"{mag['measuredAt']}")
+            raise Refusal(
+                f"{rid} cannot be re-validated against a magnitude nobody has re-measured.\n"
+                f"    accepted against: {shown}\n"
+                f"    last measured:    {when}\n"
+                f"    last reviewed:    {last_review_point(store, rec, kind)}\n"
+                f"  Re-validation records that a human re-checked the reasoning and it still "
+                f"holds. This reasoning rests on that number, and renewing without "
+                f"re-measuring asserts something nobody checked — the same gap `--why` "
+                f"exists to close.\n"
+                f"  Either re-measure and say so:   --remeasured <value> --measured-on <date>\n"
+                f"  or, if the basis has changed:   close it and record a fresh acceptance.\n"
+                f"  Nothing was written, and nothing is hidden: this record still appears in "
+                f"the inventory, the export, the analysis and every rendered view. One act is "
+                f"refused, not one record.")
+
     previous = rec["revalidationDate"]
     rec["revalidationDate"] = next_date
-    append_history(store, f"{kind}-revalidated", rid, actor, why=why,
-                   detail={"on": on, "from": previous, "to": next_date})
+    detail = {"on": on, "from": previous, "to": next_date}
+    if fresh is not None:
+        was = (rec.get("magnitude") or {}).get("value")
+        rec["magnitude"] = fresh
+        detail["magnitude"] = {"from": was, "to": fresh["value"],
+                               "measuredAt": fresh["measuredAt"]}
+    append_history(store, f"{kind}-revalidated", rid, actor, why=why, detail=detail)
     return rec
 
 
@@ -380,6 +538,10 @@ def import_acceptances(store: dict, rows: list, actor: str = "") -> dict:
                 check_date(row[f], flag)
             if row.get("expiryDate"):
                 check_date(row["expiryDate"], "expiryDate")
+            # Validated inside the try so a malformed magnitude refuses that ROW and is
+            # reported, rather than aborting the whole intake. One bad row in an export must
+            # not cost the other nine their update.
+            incoming = clean_magnitude(row.get("magnitude"), "magnitude")
         except Refusal as exc:
             refused.append((src or f"row {i}", str(exc).splitlines()[0]))
             continue
@@ -392,6 +554,12 @@ def import_acceptances(store: dict, rows: list, actor: str = "") -> dict:
                 "revalidationDate": row["revalidationDate"],
                 "expiryDate": row.get("expiryDate") or None,
             })
+            # A refresh that carries no magnitude leaves the one already recorded alone. The
+            # source register may simply not be scoring that risk any more, and silently
+            # blanking the number would clear the re-measurement check on a record nobody
+            # re-measured — turning a bridge into a way around the refusal.
+            if incoming is not None:
+                existing["magnitude"] = incoming
             append_history(store, "acceptance-updated", existing["id"], actor,
                            why=f"refreshed from {src} via export-acceptances")
             updated.append(existing["id"])
@@ -401,7 +569,7 @@ def import_acceptances(store: dict, rows: list, actor: str = "") -> dict:
                              row.get("expiryDate") or "",
                              risk_ids=row.get("riskIds") or [],
                              csf_ids=row.get("csfSubcategoryIds") or [],
-                             source_risk_ref=src or "", actor=actor)
+                             source_risk_ref=src or "", magnitude=incoming, actor=actor)
             if src:
                 by_source[src] = rec
             added.append(rec["id"])
@@ -510,6 +678,7 @@ def escalations(store: dict, today: str) -> list[dict]:
 def derive(store: dict, rec: dict, kind: str, today: str, window: int) -> dict:
     reval = rec.get("revalidationDate")
     expiry = rec.get("expiryDate")
+    _rm = remeasure_required(store, rec, kind)
     return {
         "id": rec["id"],
         "kind": kind,
@@ -529,6 +698,14 @@ def derive(store: dict, rec: dict, kind: str, today: str, window: int) -> dict:
         "csfSubcategoryIds": list(rec.get("csfSubcategoryIds") or []),
         "incidentIds": list(rec.get("incidentIds") or []),
         "sourceRiskRef": rec.get("sourceRiskRef"),
+        # What it was accepted against, and whether that number has been re-measured since
+        # anybody last reviewed it. Reported on every record, including the ones carrying no
+        # magnitude at all — a reader can then tell "measured and fresh" from "never
+        # quantified", which one boolean would have collapsed.
+        "magnitude": dict(rec["magnitude"]) if rec.get("magnitude") else None,
+        "remeasureRequired": _rm[0],
+        "remeasureReason": _rm[1] or None,
+        "lastReviewedOn": last_review_point(store, rec, kind),
     }
 
 
@@ -559,6 +736,17 @@ def analyze(store: dict, today: str) -> dict:
                                       and not (r["compensatingControl"] or "").strip()],
             "unlinked": [r["id"] for r in active
                          if not (r["riskIds"] or r["csfSubcategoryIds"])],
+            # Records whose recorded magnitude predates the last review. These are the ones
+            # `revalidate` will refuse until somebody re-measures — surfaced here so the
+            # review can plan the measuring rather than discover it at the refusal.
+            # Narrowed to records whose review is actually due. `remeasureRequired` reads
+            # True for most of a record's life by design (see the function), so listing it
+            # unfiltered would put every quantified record on the agenda every quarter and
+            # teach a reviewer to skip the list. What belongs here is the intersection: a
+            # review that is coming up AND will be refused until somebody measures.
+            "remeasureNeeded": [r["id"] for r in active if r["remeasureRequired"]
+                                and r["band"] in (STATUS_DUE, STATUS_OVERDUE,
+                                                  STATUS_EXPIRED)],
         },
         "counts": {
             "acceptances": len(store["acceptances"]),
@@ -791,6 +979,199 @@ def _cmd_self_test(_args):
         eq(len(analyze(mixed, "2026-07-31")["escalations"]), 2,
            "analyze carries the escalation list")
 
+        # --- re-measurement before renewal ----------------------------------------
+        #
+        # An acceptance is a decision about a quantity. Renewing it without re-measuring
+        # confirms a judgment about a number nobody re-checked — the gap `--why` closes one
+        # level up. Every case below is built on its own store, because this refusal turns
+        # on history and a fixture carrying somebody else's re-validation would decide it.
+        def _mstore(mag=None, accepted="2026-01-01"):
+            s = new_store("Magnitude Co")
+            accept_add(s, "Patch window", "CISO", "Vendor cadence is quarterly.",
+                       accepted, "2026-09-01", magnitude=mag, actor="t")
+            return s
+
+        _mag = {"value": 12, "unit": "residual exposure", "measuredAt": "2026-02-01",
+                "source": "risk-register"}
+
+        # A record with NO magnitude is never refused. This register stands alone without a
+        # quantified risk register, and demanding a number it was never given would make an
+        # unquantified register unusable rather than more rigorous.
+        plain = _mstore()
+        eq(plain["acceptances"][0]["magnitude"], None,
+           "a record recorded without a magnitude carries none, rather than a zero")
+        revalidate(plain, "A-001", "2026-08-01", "2027-08-01", "Re-checked with the board.",
+                   actor="t")
+        eq(plain["acceptances"][0]["revalidationDate"], "2027-08-01",
+           "and re-validates freely — no magnitude means nothing to re-measure")
+
+        # Measured AFTER the acceptance: fresh, and renews.
+        fresh = _mstore(mag=_mag)
+        eq(fresh["acceptances"][0]["magnitude"]["measuredAt"], "2026-02-01",
+           "the magnitude is stored with the date it was measured")
+        eq(remeasure_required(fresh, fresh["acceptances"][0], "acceptance"), (False, ""),
+           "measured after the acceptance, so nothing is stale")
+        revalidate(fresh, "A-001", "2026-08-01", "2027-08-01", "Re-checked.", actor="t")
+        eq(fresh["acceptances"][0]["revalidationDate"], "2027-08-01",
+           "a fresh magnitude renews without ceremony")
+
+        # ...and now it is stale, because that re-validation moved the review point past it.
+        eq(last_review_point(fresh, fresh["acceptances"][0], "acceptance"), "2026-08-01",
+           "the review point advances to the last re-validation")
+        eq(remeasure_required(fresh, fresh["acceptances"][0], "acceptance"),
+           (True, "older-than-last-review"),
+           "the same magnitude is now older than the last review")
+        refuses(lambda: revalidate(fresh, "A-001", "2027-01-01", "2028-01-01", "Still fine."),
+                "renewing twice against one measurement is refused",
+                "cannot be re-validated against a magnitude nobody has re-measured")
+        eq(fresh["acceptances"][0]["revalidationDate"], "2027-08-01",
+           "and the refused renewal moved nothing")
+
+        # The refusal says what it does NOT do. A reader who thinks a stale magnitude hides
+        # the record will go looking for it in the wrong place.
+        _msg = ""
+        try:
+            revalidate(fresh, "A-001", "2027-01-01", "2028-01-01", "Still fine.")
+        except Refusal as exc:
+            _msg = str(exc)
+        ok("--remeasured" in _msg and "--measured-on" in _msg,
+           "the refusal names the flags that resolve it")
+        ok("close it and record a fresh acceptance" in _msg,
+           "and the other legitimate way out, when the basis itself changed")
+        ok("still appears in the inventory" in _msg,
+           "and states that the record is not hidden — one act refused, not one record")
+
+        # --- and the way through: re-measure, in the same act ---------------------
+        revalidate(fresh, "A-001", "2027-01-01", "2028-01-01", "Re-measured with IT.",
+                   remeasured=8, measured_on="2026-12-20", actor="t")
+        eq(fresh["acceptances"][0]["magnitude"]["value"], 8, "the fresh magnitude is stored")
+        eq(fresh["acceptances"][0]["magnitude"]["measuredAt"], "2026-12-20",
+           "with the date it was taken")
+        eq(fresh["acceptances"][0]["magnitude"]["unit"], "residual exposure",
+           "the unit carries over — a re-measurement is the same quantity, measured again")
+        eq(fresh["acceptances"][0]["revalidationDate"], "2028-01-01",
+           "and the clock moves")
+        _mh = [e for e in fresh["history"] if (e.get("detail") or {}).get("magnitude")]
+        eq(len(_mh), 1, "the re-measurement is one history entry, not a silent overwrite")
+        eq(_mh[0]["detail"]["magnitude"], {"from": 12, "to": 8, "measuredAt": "2026-12-20"},
+           "and it records what the number was, what it became, and when")
+
+        # An undated magnitude is stale on its own terms, and says so differently. The two
+        # reasons are kept apart because they tell the reader different things.
+        undated = _mstore(mag={"value": 12, "unit": "residual exposure"})
+        eq(undated["acceptances"][0]["magnitude"]["measuredAt"], None,
+           "an undated magnitude is stored with a null date, not today's")
+        eq(remeasure_required(undated, undated["acceptances"][0], "acceptance"),
+           (True, "undated"), "and is stale for a reason of its own")
+        refuses(lambda: revalidate(undated, "A-001", "2026-08-01", "2027-08-01", "Fine."),
+                "an undated magnitude is refused too", "never — the number carries no date")
+
+        # The boundary, pinned. Measured ON the review day was measured FOR that review.
+        onday = _mstore(mag={**_mag, "measuredAt": "2026-01-01"}, accepted="2026-01-01")
+        eq(remeasure_required(onday, onday["acceptances"][0], "acceptance"), (False, ""),
+           "a magnitude measured on the review date itself is fresh, not stale")
+        before_day = _mstore(mag={**_mag, "measuredAt": "2025-12-31"}, accepted="2026-01-01")
+        eq(remeasure_required(before_day, before_day["acceptances"][0], "acceptance")[0], True,
+           "and one measured the day before it is not")
+
+        # Refusals around the re-measurement flags themselves.
+        refuses(lambda: revalidate(_mstore(mag=_mag), "A-001", "2026-08-01", "2027-08-01",
+                                   "ok", remeasured=8),
+                "--remeasured without --measured-on is refused", "needs --measured-on")
+        refuses(lambda: revalidate(_mstore(mag=_mag), "A-001", "2026-08-01", "2027-08-01",
+                                   "ok", remeasured=8, measured_on="2026-09-15"),
+                "a measurement dated after the review is refused", "after --on")
+        refuses(lambda: accept_add(new_store("C"), "t", "CISO", "j", "2026-01-01",
+                                   "2027-01-01", magnitude={"unit": "exposure"}),
+                "a magnitude with no value is refused", "carries no value")
+        refuses(lambda: accept_add(new_store("C"), "t", "CISO", "j", "2026-01-01",
+                                   "2027-01-01",
+                                   magnitude={"value": 3, "measuredAt": "2026-1-1"}),
+                "a magnitude with a non-canonical date is refused", "zero-padded")
+
+        # Nothing here filters, hides or blocks a derivation. The refusal lands on one act.
+        # Renewed on 2026-08-01 to a review date close enough to be DUE at the `today`
+        # below, so this record sits in the intersection the list is narrowed to: its
+        # magnitude predates that renewal AND its next review is in range.
+        stale_store = _mstore(mag=_mag)
+        revalidate(stale_store, "A-001", "2026-08-01", "2026-09-15", "First.", actor="t")
+        _sa = analyze(stale_store, "2026-09-01")
+        eq(_sa["records"][0]["band"], STATUS_DUE, "the fixture's review really is due")
+        eq(_sa["counts"]["active"], 1, "a stale magnitude still counts in the inventory")
+        eq([r["id"] for r in _sa["records"]], ["A-001"], "and still appears in the analysis")
+        eq(_sa["attention"]["remeasureNeeded"], ["A-001"],
+           "surfaced on its own attention list once the review is actually due, so the "
+           "measuring can be planned rather than discovered at the refusal")
+        eq(_sa["records"][0]["remeasureReason"], "older-than-last-review",
+           "with the reason carried, not just a boolean")
+        eq(len(export_inventory(stale_store, "2026-09-01")), 1,
+           "and still exports — the evidence artifact never drops it")
+        # A record just re-measured and renewed is NOT on the list, and the reason it is not
+        # is the reason this list is filtered rather than raw. `remeasureRequired` is already
+        # True for it — the measurement it cited cannot carry the following renewal — but its
+        # next review is a year out, so putting it on a review agenda now would be noise.
+        # The first draft of this asserted the raw predicate here and failed, which is what
+        # surfaced the distinction.
+        _renewed = analyze(fresh, "2026-09-01")
+        eq(_renewed["attention"]["remeasureNeeded"], [],
+           "a record whose review is a year out stays off the agenda")
+        eq(_renewed["records"][0]["remeasureRequired"], True,
+           "even though its next renewal will still need a fresh measurement")
+        eq(_renewed["records"][0]["band"], STATUS_CURRENT,
+           "which is exactly the difference: required, but not yet due")
+        # And it appears the moment the review comes into range.
+        eq(analyze(fresh, "2027-12-15")["attention"]["remeasureNeeded"], ["A-001"],
+           "and joins the agenda once its review is in the due window")
+
+        # Exceptions carry it too, on the same terms as acceptances.
+        xs = new_store("Exception Co")
+        except_add(xs, "No MFA in finance", "NYDFS-500.12", "Out-of-band callback",
+                   "CFO", "ERP upgrade blocks rollout.", "2026-01-01", "2026-09-01",
+                   magnitude={"value": 9, "unit": "residual exposure",
+                              "measuredAt": "2026-02-01"}, actor="t")
+        revalidate(xs, "X-001", "2026-08-01", "2027-08-01", "Re-checked.", actor="t")
+        refuses(lambda: revalidate(xs, "X-001", "2027-01-01", "2028-01-01", "Fine."),
+                "an exception is refused on the same terms as an acceptance",
+                "nobody has re-measured")
+
+        # --- the bridge carries it ------------------------------------------------
+        # `export-acceptances` stamps the magnitude; intake must keep it, or the refusal
+        # above never fires for the records that came from the register that measured them.
+        imported = new_store("Imported Co")
+        import_acceptances(imported, [{
+            "title": "Patch window", "approver": "CISO", "justification": "j",
+            "acceptedDate": "2026-01-01", "revalidationDate": "2026-09-01",
+            "sourceRiskRef": "R-006",
+            "magnitude": {"value": 6, "unit": "residual exposure", "band": "medium",
+                          "measuredAt": "2026-02-01", "source": "risk-register"},
+        }], actor="t")
+        eq(imported["acceptances"][0]["magnitude"]["value"], 6,
+           "intake keeps the magnitude the bridge measured")
+        eq(imported["acceptances"][0]["magnitude"]["source"], "risk-register",
+           "and where it came from")
+
+        # A refresh carrying no magnitude leaves the recorded one alone. Blanking it would
+        # clear the re-measurement check on a record nobody re-measured, turning the bridge
+        # into a way around the refusal.
+        import_acceptances(imported, [{
+            "title": "Patch window", "approver": "CISO", "justification": "j",
+            "acceptedDate": "2026-01-01", "revalidationDate": "2026-10-01",
+            "sourceRiskRef": "R-006",
+        }], actor="t")
+        eq(imported["acceptances"][0]["magnitude"]["value"], 6,
+           "a magnitude-less refresh does not blank the magnitude already recorded")
+        eq(imported["acceptances"][0]["revalidationDate"], "2026-10-01",
+           "though it still refreshes everything else")
+        _bad = import_acceptances(imported, [{
+            "title": "Broken", "approver": "CISO", "justification": "j",
+            "acceptedDate": "2026-01-01", "revalidationDate": "2026-10-01",
+            "sourceRiskRef": "R-007", "magnitude": {"unit": "exposure"},
+        }], actor="t")
+        eq([r[0] for r in _bad["refused"]], ["R-007"],
+           "a malformed magnitude refuses its own row and is reported")
+        eq(len(imported["acceptances"]), 1,
+           "and costs the other rows nothing — one bad row is not a failed intake")
+
         # --- the refusals. This is the product. -----------------------------------
         save_store(path, store)
         before = open(path, "rb").read()
@@ -929,11 +1310,51 @@ def _cmd_init(args):
     return 0
 
 
+def _num(raw, flag: str):
+    """A magnitude from the command line. `None` stays `None` — the flag is optional.
+
+    Integral input stays an int so a store written by the CLI and one written by the
+    risk-register bridge hold the same JSON for the same number; `6.0` and `6` are the same
+    measurement and should not read as two.
+    """
+    if raw is None:
+        return None
+    text = str(raw).strip()
+    try:
+        return int(text)
+    except ValueError:
+        pass
+    try:
+        return float(text)
+    except ValueError:
+        raise Refusal(f"{flag} must be a number; got {raw!r}. A magnitude that is not a "
+                      f"quantity cannot be compared with the next measurement of it.")
+
+
+def _magnitude_from_args(args):
+    """Build a magnitude from the add-command flags, or `None` if none were given.
+
+    `--measured-on` without `--magnitude` is refused rather than ignored: it means the
+    caller believes they recorded a measurement, and silently dropping it would leave the
+    record looking quantified to its author and unquantified to the engine.
+    """
+    value = _num(getattr(args, "magnitude", None), "--magnitude")
+    measured = str(getattr(args, "measured_on", "") or "").strip()
+    if value is None:
+        if measured:
+            raise Refusal("--measured-on was given without --magnitude: there is no "
+                          "measurement for that date to belong to")
+        return None
+    return {"value": value, "unit": getattr(args, "magnitude_unit", "") or "",
+            "measuredAt": measured or None, "source": "recorded here"}
+
+
 def _cmd_accept_add(args):
     store = load_store(args.store)
     r = accept_add(store, args.title, args.approver, args.justification, args.accepted,
                    args.revalidation, args.expiry, args.description, args.risk, args.csf,
-                   args.source_risk_ref, args.actor)
+                   args.source_risk_ref, magnitude=_magnitude_from_args(args),
+                   actor=args.actor)
     save_store(args.store, store)
     print(f"{r['id']}: {r['title']}  (approved by {r['approver']}, "
           f"re-validate by {r['revalidationDate']})")
@@ -944,7 +1365,8 @@ def _cmd_except_add(args):
     store = load_store(args.store)
     r = except_add(store, args.title, args.deviation_from, args.compensating, args.approver,
                    args.justification, args.accepted, args.revalidation, args.expiry,
-                   args.risk, args.csf, args.actor)
+                   args.risk, args.csf, magnitude=_magnitude_from_args(args),
+                   actor=args.actor)
     save_store(args.store, store)
     print(f"{r['id']}: {r['title']}  (deviates from {r['deviationFrom']}, "
           f"re-validate by {r['revalidationDate']})")
@@ -953,9 +1375,16 @@ def _cmd_except_add(args):
 
 def _cmd_revalidate(args):
     store = load_store(args.store)
-    r = revalidate(store, args.id, args.on, args.next, args.why, args.actor)
+    r = revalidate(store, args.id, args.on, args.next, args.why,
+                   remeasured=_num(args.remeasured, "--remeasured"),
+                   measured_on=args.measured_on, magnitude_unit=args.magnitude_unit,
+                   actor=args.actor)
     save_store(args.store, store)
     print(f"{r['id']} re-validated on {args.on}; next review {r['revalidationDate']}")
+    mag = r.get("magnitude")
+    if mag and mag.get("measuredAt") == args.measured_on and args.remeasured is not None:
+        print(f"  re-measured to {mag['value']}"
+              f"{(' ' + mag['unit']) if mag.get('unit') else ''} on {mag['measuredAt']}")
     return 0
 
 
@@ -1052,6 +1481,11 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--risk", action="append", default=[])
     sp.add_argument("--csf", action="append", default=[])
     sp.add_argument("--source-risk-ref", default="")
+    sp.add_argument("--magnitude", default=None,
+                    help="what this was accepted against, as a number")
+    sp.add_argument("--magnitude-unit", default="",
+                    help="what that number counts (e.g. 'residual exposure')")
+    sp.add_argument("--measured-on", default="", help="the date it was measured")
     sp.set_defaults(fn=_cmd_accept_add)
 
     sp = sub.add_parser("except-add", help="record a control/policy deviation"); common(sp)
@@ -1065,6 +1499,11 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--expiry", default="")
     sp.add_argument("--risk", action="append", default=[])
     sp.add_argument("--csf", action="append", default=[])
+    sp.add_argument("--magnitude", default=None,
+                    help="what this was accepted against, as a number")
+    sp.add_argument("--magnitude-unit", default="",
+                    help="what that number counts (e.g. 'residual exposure')")
+    sp.add_argument("--measured-on", default="", help="the date it was measured")
     sp.set_defaults(fn=_cmd_except_add)
 
     sp = sub.add_parser("revalidate", help="record that a human re-checked the reasoning")
@@ -1073,6 +1512,11 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--on", required=True)
     sp.add_argument("--next", required=True)
     sp.add_argument("--why", default="")
+    sp.add_argument("--remeasured", default=None,
+                    help="a fresh magnitude, measured for THIS review")
+    sp.add_argument("--measured-on", default="", help="the date --remeasured was taken")
+    sp.add_argument("--magnitude-unit", default="",
+                    help="only needed when establishing a magnitude this record never had")
     sp.set_defaults(fn=_cmd_revalidate)
 
     sp = sub.add_parser("close"); common(sp)
