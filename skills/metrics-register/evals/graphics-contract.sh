@@ -16,7 +16,7 @@ skill="$(cd "$here/.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=19
+EXPECTED_CHECKS=20
 checks=0
 fails=0
 ok()  { checks=$((checks + 1)); printf '  ok    %s\n' "$1"; }
@@ -250,6 +250,19 @@ if [ "$spark" = "suppressed drawn" ]; then
 else
   bad "sparkline is suppressed at 3 readings and drawn at 4" "got: $spark"
 fi
+
+# --- the library's banding against the REAL engine -----------------------------
+#
+# The chip and the bullet on one page must never disagree about the same number.
+# They are computed by two modules that cannot import each other: the library is
+# standard-library-only and ships vendored into six skills, so its own self-test
+# compares against a hand-written mirror of threshold_status. This suite can import
+# both, so it is the only place the two real implementations meet.
+band_parity="$("$PY" "$here/_bandparity.py" 2>&1)"
+case "$band_parity" in
+  PASS*) ok "the library's bands agree with the engine's status (${band_parity#PASS })" ;;
+  *)     bad "the library's bands agree with the engine's status" "$band_parity" ;;
+esac
 
 echo
 if [ "$checks" -ne "$EXPECTED_CHECKS" ]; then
