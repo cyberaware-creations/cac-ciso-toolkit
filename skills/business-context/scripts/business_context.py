@@ -512,6 +512,18 @@ QUESTION_SETS = {
     "risk": {"ot-scenarios": "otPresent", "ai-scenarios": "aiInUse"},
     "metrics": {"ot-coverage": "otPresent"},
     "exceptions": {"dora-register": "doraScope"},
+    # `posture` is `nist-csf`, named for the board section it produces rather than for the
+    # skill, because that is the word every other consumer of this payload already uses.
+    #
+    # One battery, and it is the strongest gate in this table. The NIST Cyber AI Profile
+    # (IR 8596) reweights the same 106 Subcategories for AI relevance, so applying it to an
+    # organisation that runs no AI is exactly the disproportionate assessment a profile
+    # exists to prevent — and leaving it off one that does is a real gap in the assessment.
+    #
+    # It is also the only battery any consumer can currently ANSWER. A `.csfp` records
+    # whether the overlay is enabled, so unlike the registers this consumer holds both sides
+    # of the question and can report a disagreement in either direction.
+    "posture": {"ai-overlay": "aiInUse"},
 }
 
 BATTERY_LABEL = {
@@ -526,6 +538,7 @@ BATTERY_LABEL = {
     "ai-scenarios": "AI scenarios",
     "ot-coverage": "OT coverage",
     "dora-register": "DORA register of information",
+    "ai-overlay": "NIST Cyber AI Profile overlay (IR 8596)",
 }
 
 
