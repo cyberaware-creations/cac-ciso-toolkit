@@ -161,12 +161,18 @@ def fonts(offline: bool = False) -> str:
     return FONTS_OFFLINE if offline else FONTS
 
 
-DISCLAIMER = "A Cyber Aware Creation · Not affiliated with NIST"
 # A crosswalk view names ISO and CIS controls, so the non-affiliation line has to
 # cover them too. Selected by Context.footer() from the content actually rendered
 # rather than passed in by each renderer: a report that shows ISO or CIS material
 # must not be able to ship the NIST-only wording by omission.
-DISCLAIMER_CROSSWALK = "A Cyber Aware Creation · Not affiliated with NIST, ISO, or CIS"
+#
+# Both lines come from the graphics library, at render time. They were constants here,
+# spelling the maker's name out by hand — and `G.footer()` is what drops that name when a
+# client white-labels while keeping the disclaimer, so a hardcoded copy is a white-label
+# leak waiting for the day this renderer gains a brand flag. Called rather than bound at
+# import for the same reason: the brand is process-global and can be rebound after this
+# module loads, and a constant captured at import would keep printing the old name.
+UNAFFILIATED_CROSSWALK = ("NIST", "ISO", "CIS")
 
 PLACEHOLDER = ("Board narrative not supplied. Run the ciso-board-translation skill over this "
                "Profile and pass its output with --translations to replace this block.")
@@ -456,7 +462,8 @@ class Context:
         return f"As of {self.today} · no snapshot yet, so no trend is available"
 
     def footer(self, extra: str = "") -> str:
-        bits = [DISCLAIMER_CROSSWALK if self.crosswalks else DISCLAIMER,
+        bits = [G.footer(unaffiliated=UNAFFILIATED_CROSSWALK) if self.crosswalks
+                else G.footer(),
                 f'{self.framework.get("name", "framework")} {self.framework.get("version", "")}'.strip(),
                 f"generated {self.today}"]
         if extra:

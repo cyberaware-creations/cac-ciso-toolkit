@@ -200,6 +200,56 @@ def check_vendored(root="."):
     return ok
 
 
+# The maker's name, and the one place it is allowed to be written down. `G.footer()` drops
+# it when a client white-labels and keeps the NIST disclaimer; a renderer that spells it out
+# by hand ships the maker's name onto a re-branded page and cannot be told to stop.
+MAKER = "A Cyber Aware Creation"
+MAKER_HOME = "cac_graphics.py"
+
+
+def check_maker_name(root="."):
+    """No shipped renderer may spell the maker's name out for itself.
+
+    This existed as five hand-written copies, one per skill, each of them correct only
+    because nothing could rebrand those renderers yet. The day one gains a brand flag, every
+    copy becomes a white-label leak — and the copies are in five files nobody would think to
+    open while adding that flag. So the rule is checked rather than remembered.
+
+    An empty match is an error, on the same reasoning as check_vendored: a guard that stops
+    finding files to guard reports success forever.
+    """
+    import pathlib
+    base = pathlib.Path(root)
+    scanned, offenders = 0, []
+    for path in sorted(base.glob("skills/*/renderers/*.py")):
+        if path.name == MAKER_HOME:
+            continue                      # the one file entitled to hold the string
+        scanned += 1
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        for n, line in enumerate(text.splitlines(), 1):
+            if MAKER in line and not line.lstrip().startswith("#"):
+                offenders.append((path.relative_to(base).as_posix(), n))
+    if not scanned:
+        print("ERROR: no shipped renderers were scanned for the maker name; the glob "
+              "stopped matching and this check is no longer checking anything.")
+        return False
+    if offenders:
+        print("ERROR: {} shipped renderer line(s) hardcode the maker name:".format(
+            len(offenders)))
+        for f, n in offenders:
+            print("         {}:{}".format(f, n))
+        print("       Call G.footer() instead — it drops the maker on a white-labelled "
+              "page and keeps the NIST disclaimer. Call it at render time, not at import: "
+              "the brand can be rebound after the module loads.")
+        return False
+    print("attribution: {} shipped renderers, none hardcodes the maker name.".format(
+        scanned))
+    return True
+
+
 def _git(args, root="."):
     # Decoded as UTF-8 rather than by locale: with --name-only -z below, a non-ASCII
     # path arrives as raw bytes, and a C-locale runner would otherwise fail to decode
@@ -687,6 +737,7 @@ def main(argv):
 
     passed = check_consistency(root)
     passed = check_vendored(root) and passed
+    passed = check_maker_name(root) and passed
     if base is not None:
         passed = check_bump(base, root) and passed
     return 0 if passed else 1

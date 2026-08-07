@@ -123,7 +123,14 @@ def fonts(offline: bool = False) -> str:
     return FONTS_OFFLINE if offline else FONTS
 
 
-DISCLAIMER = "A Cyber Aware Creation · Not affiliated with NIST"
+# The attribution line comes from the graphics library, at render time.
+#
+# It was a module constant here, one copy per skill, five copies in all — and every one of
+# them spelled the maker's name out by hand. `G.footer()` drops that name when a client
+# white-labels and keeps the disclaimer, so a hardcoded copy is a white-label leak waiting
+# for the day this renderer gains a brand flag. Called rather than bound at import for the
+# same reason: the brand is process-global and can be rebound after this module loads, and a
+# constant captured at import would keep printing the old name on a re-branded page.
 
 # Confirmation-age band width T, in days. One definition, one place. The twin
 # (nist-csf's attention_lists) makes the equivalent parameter REQUIRED with no default
@@ -1148,7 +1155,7 @@ class Context:
         # UTC date reached a board artifact and read as tomorrow to a reader west of
         # Greenwich. "generated" is also slightly wrong — it is the reference date, which
         # --today can move — but that wording predates this change and is left alone.
-        bits = [DISCLAIMER,
+        bits = [G.footer(),
                 f"generated {self.today} {self.ZONE} from {Path(self.register_path).name}"]
         if extra:
             bits.append(extra)
