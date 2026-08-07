@@ -198,7 +198,14 @@ FONTS = ('<link rel="preconnect" href="https://fonts.googleapis.com">'
          '<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700'
          '&family=Space+Grotesk:wght@500;600&display=swap" rel="stylesheet">')
 
-DISCLAIMER = "A Cyber Aware Creation · Not affiliated with NIST"
+# The attribution line comes from the graphics library, at render time.
+#
+# It was a module constant here, one copy per skill, five copies in all — and every one of
+# them spelled the maker's name out by hand. `G.footer()` drops that name when a client
+# white-labels and keeps the disclaimer, so a hardcoded copy is a white-label leak waiting
+# for the day this renderer gains a brand flag. Called rather than bound at import for the
+# same reason: the brand is process-global and can be rebound after this module loads, and a
+# constant captured at import would keep printing the old name on a re-branded page.
 PLACEHOLDER = ("Board narrative not supplied. Run the ciso-board-translation skill over this "
                "register and pass its output with --translations to replace this block.")
 
@@ -327,7 +334,7 @@ class Context:
         self.tr = Translations.load(getattr(args, "translations", None))
 
     def footer(self) -> str:
-        bits = [DISCLAIMER, f"generated {esc(self.today)}"]
+        bits = [G.footer(), f"generated {esc(self.today)}"]
         if self.meta.get("clientName"):
             bits.insert(0, esc(self.meta["clientName"]))
         return '<footer>' + ' · '.join(bits) + '</footer>'

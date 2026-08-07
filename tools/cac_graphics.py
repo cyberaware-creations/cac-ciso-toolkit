@@ -194,9 +194,26 @@ _FLAG_KEYS   = ("whiteLabel",)
 
 # The NIST disclaimer is not branding, and white-labelling cannot remove it.
 _DISCLAIMER = "Not affiliated with NIST"
+# The bodies named by default. A list rather than the baked string so a page reproducing
+# more than one framework's material can name all of them through the same function, instead
+# of hand-rolling a second disclaimer that then drifts from this one.
+_UNAFFILIATED = ("NIST",)
 
 
-def footer():
+def _unaffiliated(names) -> str:
+    names = [str(n).strip() for n in names if str(n).strip()]
+    if not names:
+        names = list(_UNAFFILIATED)
+    if len(names) == 1:
+        joined = names[0]
+    elif len(names) == 2:
+        joined = "%s or %s" % (names[0], names[1])
+    else:
+        joined = "%s, or %s" % (", ".join(names[:-1]), names[-1])
+    return "Not affiliated with " + joined
+
+
+def footer(*extra, **kwargs):
     """
     The attribution line every deliverable carries.
 
@@ -206,10 +223,32 @@ def footer():
     thing is not a NIST product, which is a statement about the world that stays
     true no matter whose logo is on the cover. A white-label switch that removed
     both would let a client ship an unaffiliated document that reads as endorsed.
+
+    `extra` clauses follow the disclaimer and are **never** dropped by
+    white-labelling, on exactly that reasoning. "Not legal advice" is a statement
+    about what the document is, not about who made it, and a client rebranding a
+    deliverable does not thereby acquire the standing to remove it.
+
+    `unaffiliated` replaces the list of bodies named in the disclaimer, for pages
+    that reproduce more than one framework's material — a CSF-to-ISO-to-CIS
+    crosswalk has three organisations to be unaffiliated with, and naming only
+    the first would leave the other two implied.
+
+    Callers should call this at render time rather than binding it to a module
+    constant at import. The brand is process-global and can be rebound after the
+    module loads, and a constant captured at import would keep printing the maker
+    name on a white-labelled page — the exact failure this function exists to
+    prevent, reintroduced one layer up.
     """
-    if _brand.get("whiteLabel"):
-        return _DISCLAIMER + "."
-    return "%s · %s" % (_brand["wordmark"], _DISCLAIMER)
+    unaffiliated = kwargs.pop("unaffiliated", None)
+    if kwargs:
+        raise TypeError("footer() got unexpected keyword arguments: %s"
+                        % ", ".join(sorted(kwargs)))
+    parts = [_unaffiliated(unaffiliated or _UNAFFILIATED)]
+    parts.extend(str(x).strip() for x in extra if str(x).strip())
+    if not _brand.get("whiteLabel"):
+        parts.insert(0, _brand["wordmark"])
+    return " · ".join(parts)
 
 # `surface` is deliberately absent. Every contrast number in this file was
 # measured against white, and _surf() pins the surface light for exactly that
@@ -2395,6 +2434,53 @@ def _self_test():
         bad("white-label drops the maker, keeps the NIST disclaimer", f)
     set_brand()
 
+    # 57b. extra clauses survive white-labelling, and the maker name does not.
+    #
+    # "Not legal advice" is a statement about what the document IS, not about who made it.
+    # A client rebranding a deliverable does not thereby acquire the standing to drop it,
+    # so it sits on the same side of the line as the NIST disclaimer.
+    set_brand({"whiteLabel": True, "wordmark": "Northwind Group"})
+    wl = footer("Not legal advice")
+    if ("Not legal advice" in wl and _DISCLAIMER in wl
+            and "Cyber Aware" not in wl and "Northwind" not in wl):
+        ok("white-label keeps an extra clause and still drops the maker")
+    else:
+        bad("white-label keeps an extra clause and still drops the maker", wl)
+    set_brand()
+    if footer("Not legal advice") == ("A Cyber Aware Creation · Not affiliated with NIST "
+                                      "· Not legal advice"):
+        ok("and an extra clause follows the disclaimer, not the maker")
+    else:
+        bad("and an extra clause follows the disclaimer, not the maker",
+            footer("Not legal advice"))
+    if footer("", "  ") == footer():
+        ok("an empty extra clause adds no stray separator")
+    else:
+        bad("an empty extra clause adds no stray separator", footer("", "  "))
+
+    # 57c. a page reproducing more than one framework names all of them. Naming only the
+    # first would leave the other two implied, which is the overclaim this line exists to
+    # rule out rather than commit.
+    cases = [(("NIST",), "Not affiliated with NIST"),
+             (("NIST", "ISO"), "Not affiliated with NIST or ISO"),
+             (("NIST", "ISO", "CIS"), "Not affiliated with NIST, ISO, or CIS")]
+    for names, want in cases:
+        got = footer(unaffiliated=names)
+        if got.endswith(want):
+            ok("the disclaimer names %d body/bodies correctly" % len(names))
+        else:
+            bad("the disclaimer names %d body/bodies correctly" % len(names), got)
+    if footer(unaffiliated=()) == footer():
+        ok("an empty body list falls back to the default rather than to nothing")
+    else:
+        bad("an empty body list falls back to the default rather than to nothing",
+            footer(unaffiliated=()))
+    try:
+        footer(unaffilated=("NIST",))          # deliberate typo
+        bad("a misspelled keyword is refused", "accepted it silently")
+    except TypeError:
+        ok("a misspelled keyword is refused, not silently ignored")
+
     # 58. whiteLabel is a flag, not a truthy string — "false" must not enable it
     try:
         set_brand({"whiteLabel": "false"})
@@ -2407,8 +2493,8 @@ def _self_test():
             bad("whiteLabel refuses a non-boolean", str(e))
 
     print()
-    if checks != 90:
-        print(f"self-test: ran {checks} checks, expected 90")
+    if checks != 98:
+        print(f"self-test: ran {checks} checks, expected 98")
         _sys.exit(1)
     if fails:
         print(f"self-test: {fails} of {checks} checks FAILED")
