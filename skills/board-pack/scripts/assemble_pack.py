@@ -675,6 +675,73 @@ def _incident_figures(a):
 
 ESCALATION_KEYS = ("subjectRef", "subjectKind", "trigger", "severity", "since", "evidence")
 
+# Optional, and read only by the duplicate check below. A producer sets it when it can name,
+# from data it already holds, the record in ANOTHER skill that its subject is the same thing
+# as. Nothing here infers one: an absent or null `relatedRef` means no link was declared, and
+# the assembler never goes looking for one.
+ESCALATION_LINK_KEY = "relatedRef"
+
+
+def possible_duplicate_escalations(escalations: list) -> list:
+    """Flag escalations from different producers about one underlying record, without merging.
+
+    The failure is real. `exceptions-register` owns the acceptance lifecycle and escalates
+    `expired` on the authoritative record; `risk-register` keeps its own lightweight
+    `accepted` marker and escalates `acceptance-lapsed` on that. One expiry, two entries, and
+    — because each skill severities its own concern on its own terms — often two different
+    severities for the same day. A board reading "one critical and one high" counts two
+    problems.
+
+    This is the same answer the assembler gives to two sections asking for one decision:
+    notice, name, leave both standing. With one difference in its favour. `possible_duplicate_asks`
+    regexes ids out of free prose and can only say the two *may* be the same ask, because it
+    cannot tell a real duplicate from two asks that rhyme. Here the join is declared — the
+    producer stamped `relatedRef` from a field it owns — so the identity is a fact, and the
+    only judgement left is whether one fact reported twice needs saying twice.
+
+    Merging is still refused, for the reason it is always refused: the two records were
+    derived by two skills that each own a clock, and an assembler that dropped one would be
+    deciding which owner was right. Reporting both, and saying they are linked, leaves that
+    where it belongs.
+    """
+    by_id, notes = {}, []
+    for e in escalations:
+        keys = {e["subjectRef"]}
+        link = e.get(ESCALATION_LINK_KEY)
+        if link:
+            keys.add(link)
+        for key in keys:
+            by_id.setdefault(key, []).append(e)
+    for key, group in sorted(by_id.items()):
+        sections = []
+        for e in group:
+            if e.get("section") not in sections:
+                sections.append(e.get("section"))
+        # Two triggers from ONE producer on one subject is ordinary and already ordered —
+        # an incident with a missing anchor and a superseded determination is two facts, not
+        # one reported twice. Only a cross-producer collision is the failure described above.
+        #
+        # This is the whole condition. An earlier version also guarded `len(group) < 2`,
+        # which cannot fire: two distinct sections need two escalations to carry them, so
+        # the group is already at least that big. Mutation testing found it unreachable and
+        # it came out rather than staying as a branch no test could ever justify.
+        if len(sections) < 2:
+            continue
+        named = ", ".join(sorted(
+            "{} {} ({})".format(e.get("section"), e["subjectRef"], e["trigger"])
+            for e in group))
+        severities = sorted({e["severity"] for e in group})
+        note = ("{} escalations are linked to the same record {}: {}. They were not merged — "
+                "each was derived by the skill that owns that clock — but they may be one "
+                "fact reported twice.".format(len(group), key, named))
+        if len(severities) > 1:
+            # Worth its own sentence. A reader who spots the duplicate still has to decide
+            # which severity the board sees, and the pack must not quietly pick.
+            note += (" They also disagree on severity ({}), so the same day reads as two "
+                     "different sizes of problem.".format(", ".join(severities)))
+        notes.append(note)
+    return notes
+
 
 def _risk_escalations(a):
     """The escalations risk-register derived. Lifted whole, not re-read field by field.
@@ -951,7 +1018,8 @@ def assemble(manifest: dict, skills_root: str = None, with_stores: bool = True) 
               if not with_stores
               else headline_counts(manifest, ordered, skills_root))
 
-    warnings = list(validated["warnings"]) + possible_duplicate_asks(decisions)
+    warnings = (list(validated["warnings"]) + possible_duplicate_asks(decisions)
+                + possible_duplicate_escalations(rollup.get("escalations") or []))
     missing = list(validated["missing"]) + list(rollup["unavailable"])
     if through_line is None:
         missing.append("no through-line sidecar was supplied; the pack opens on a "
@@ -1538,6 +1606,76 @@ def _cmd_self_test(_args):
                {"text": "Close PR.DS-01.", "sections": ["posture"]},
                {"text": "Fund the work behind PR.DS-01.", "sections": ["metrics"]}])[0][:1],
            "2", "CSF Subcategory ids are recognised too")
+
+        # --- two producers, one record, two escalations -------------------------
+        # `exceptions-register` owns the acceptance lifecycle and escalates `expired` on the
+        # authoritative record; `risk-register` keeps its own `accepted` marker and escalates
+        # `acceptance-lapsed` on that. One expiry, two entries, two severities.
+        def _esc(section, ref, trigger, sev, related=None):
+            row = {"section": section, "subjectRef": ref, "subjectKind": "x",
+                   "trigger": trigger, "severity": sev, "since": "2026-07-15",
+                   "evidence": {"from": "", "to": "", "baseline": "", "detail": ""}}
+            if related is not None:
+                row["relatedRef"] = related
+            return row
+
+        pair = [_esc("risk", "R-010", "acceptance-lapsed", "high"),
+                _esc("exceptions", "A-002", "expired", "critical", related="R-010")]
+        dups = possible_duplicate_escalations(pair)
+        eq(len(dups), 1, "one declared link produces one flag, not one per id")
+        ok("R-010" in dups[0] and "A-002" in dups[0],
+           "and it names both records, so a reader can find each")
+        ok("risk" in dups[0] and "exceptions" in dups[0], "and both producers")
+        ok("not merged" in dups[0], "while stating plainly that both entries still stand")
+        ok("disagree on severity" in dups[0] and "critical" in dups[0] and "high" in dups[0],
+           "and names the severity disagreement, which is the sharpest symptom")
+
+        # Only exceptions-register can declare the link — the bridge is one-way and
+        # risk-register has no back-channel — so the join has to work from one side alone,
+        # whichever order the producers ran in.
+        eq(len(possible_duplicate_escalations(list(reversed(pair)))), 1,
+           "and finds the pair from the one side that can declare it, in either order")
+
+        # Same severity is still a duplicate, just without the extra sentence.
+        agree = possible_duplicate_escalations(
+            [_esc("risk", "R-010", "acceptance-lapsed", "high"),
+             _esc("exceptions", "A-002", "expired", "high", related="R-010")])
+        eq(len(agree), 1, "two producers agreeing on severity is still one fact twice")
+        ok("disagree on severity" not in agree[0],
+           "but there is no disagreement to report, and none is invented")
+
+        # No declared link, no flag. The assembler never infers identity — two records that
+        # merely concern related things are two facts.
+        eq(possible_duplicate_escalations(
+               [_esc("risk", "R-003", "appetite-dwell", "high"),
+                _esc("exceptions", "A-002", "revalidation-overdue", "high")]), [],
+           "without a declared link nothing is joined, however suggestive the pair looks")
+        eq(possible_duplicate_escalations(
+               [_esc("risk", "R-010", "acceptance-lapsed", "high"),
+                _esc("exceptions", "A-002", "expired", "critical", related=None)]), [],
+           "and a null relatedRef is no link, not a link to nothing")
+
+        # Two triggers from ONE producer on one subject is ordinary, not a duplicate: an
+        # incident with an absent anchor and a superseded determination is two facts.
+        eq(possible_duplicate_escalations(
+               [_esc("incident", "I-001", "anchor-missing", "high"),
+                _esc("incident", "I-001", "determination-superseded", "high")]), [],
+           "two triggers from one producer on one subject are not a duplicate")
+
+        # Three collide when a risk escalates twice and its acceptance escalates once.
+        triple = possible_duplicate_escalations(
+            [_esc("risk", "R-010", "band-crossed", "critical"),
+             _esc("risk", "R-010", "acceptance-lapsed", "high"),
+             _esc("exceptions", "A-002", "expired", "critical", related="R-010")])
+        eq(len(triple), 1, "one record, one flag, however many escalations name it")
+        ok(triple[0].startswith("3 escalations"), "which counts all of them")
+
+        # The shipped example declares no bridge link — its acceptances were hand-entered,
+        # so `sourceRiskRef` is null on every one. Four distinct facts, no flag. Asserted
+        # rather than assumed, because a flag appearing here would mean the join had started
+        # matching on something it was built not to match on.
+        eq(possible_duplicate_escalations(pack["escalations"]), [],
+           "the shipped example's escalations are distinct facts, and none is joined")
 
         # --- the brief handed to ciso-board-translation -------------------------
         brief = compose_brief(pack)
