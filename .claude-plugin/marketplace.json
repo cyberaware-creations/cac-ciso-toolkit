@@ -5,13 +5,13 @@
     "url": "https://cyberawarecreations.com"
   },
   "description": "Marketplace for the Cyber Aware Creations CISO Toolkit — NIST-aligned security leadership skills that run locally against your own files.",
-  "version": "0.34.0",
+  "version": "0.35.0",
   "plugins": [
     {
       "name": "cyber-aware-creations",
       "source": "./",
-      "description": "Eight NIST-aligned skills for security leaders, running locally against your own files. Six own data and persist it: risk-register scores and tracks a cybersecurity risk register with change history and board dashboards; nist-csf assesses your programme against NIST CSF 2.0 as a tracked Organizational Profile with gap analysis, coverage reporting and read-only crosswalks to ISO 27001, CIS Controls and 800-53; metrics-register trends security metrics and KRIs with direction-aware thresholds; exceptions-register runs the lifecycle of accepted risks and control exceptions and exports the evidence artifact an auditor asks for; incident-materiality structures an SEC Item 1.05 and DORA disclosure determination and its clocks, and never emits a verdict; business-context records the organisation's own facts — revenue base, crown jewels, board-voiced tolerance — and the applicability profile that narrows what a consuming skill asks — incident-materiality is the first consumer. ciso-board-translation owns the board-facing language they all call, with sourced regulatory receipts. board-pack assembles the quarterly pack as a print-ready document and an editable PowerPoint deck, and owns no data at all.",
-      "version": "0.34.0",
+      "description": "Eight NIST-aligned skills for security leaders, running locally against your own files. Six own data and persist it: risk-register scores and tracks a cybersecurity risk register with change history and board dashboards; nist-csf assesses your programme against NIST CSF 2.0 as a tracked Organizational Profile with gap analysis, coverage reporting and read-only crosswalks to ISO 27001, CIS Controls and 800-53; metrics-register trends security metrics and KRIs with direction-aware thresholds; exceptions-register runs the lifecycle of accepted risks and control exceptions and exports the evidence artifact an auditor asks for; incident-materiality structures an SEC Item 1.05 and DORA disclosure determination and its clocks, and never emits a verdict; business-context records the organisation's own facts — revenue base, crown jewels, board-voiced tolerance — and the applicability profile that narrows what a consuming skill asks — four of the five registers read it; nist-csf does not yet. ciso-board-translation owns the board-facing language they all call, with sourced regulatory receipts. board-pack assembles the quarterly pack as a print-ready document and an editable PowerPoint deck, and owns no data at all.",
+      "version": "0.35.0",
       "author": {
         "name": "Cyber Aware Creations, LLC.",
         "url": "https://cyberawarecreations.com"

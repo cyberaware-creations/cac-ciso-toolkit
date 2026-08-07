@@ -1062,14 +1062,17 @@ PRODUCERS = {
     # one answer: the pack dates the producer exactly as it dates every other section.
     "risk": {"skill": "risk-register", "script": "scripts/score_register.py",
              "argv": ["score", "{store}", "--json", "--today", "{asOf}"],
+             "context": True,
              "headline": _risk_headline, "figures": _risk_figures,
              "escalations": _risk_escalations},
     "metrics": {"skill": "metrics-register", "script": "scripts/metrics_analysis.py",
                 "argv": ["analyze", "{store}", "--today", "{asOf}"],
+                "context": True,
                 "headline": _metrics_headline, "figures": _metrics_figures,
                 "escalations": _metrics_escalations},
     "exceptions": {"skill": "exceptions-register", "script": "scripts/exceptions_register.py",
                    "argv": ["analyze", "{store}", "--today", "{asOf}"],
+                   "context": True,
                    "headline": _exceptions_headline, "figures": _exceptions_figures,
                    "escalations": _exceptions_escalations},
     # `context: True` says this producer accepts `--context`. Declared per adapter and
@@ -1214,8 +1217,14 @@ def headline_counts(manifest: dict, sections: list, skills_root: str) -> dict:
                     "reads one yet, so nothing was narrowed")
             elif deaf:
                 unavailable.append(
-                    "the applicability profile narrowed %s; %s do not read one yet and "
-                    "asked their full question set" % (", ".join(takers), ", ".join(deaf)))
+                    # Pluralised, because this list SHRINKS as producers implement the
+                    # contract. It read "posture do not read one yet" the day only one was
+                    # left — a broken sentence on the page whose whole job is to be trusted.
+                    "the applicability profile narrowed %s; %s %s not read one yet and "
+                    "asked %s full question set"
+                    % (", ".join(takers), ", ".join(deaf),
+                       "does" if len(deaf) == 1 else "do",
+                       "its" if len(deaf) == 1 else "their"))
 
     for section in sections:
         name = section["section"]

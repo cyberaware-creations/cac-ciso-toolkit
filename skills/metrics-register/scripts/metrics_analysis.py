@@ -715,10 +715,104 @@ def rollups(rows: list[dict]) -> dict:
     return {"byArchetype": by_arch, "byCsfFunction": by_fn}
 
 
-def analyze(store: dict, today: str) -> dict:
+# --- CAC-AP-1: the applicability profile, read as data --------------------------------
+#
+# A consumer of the contract `incident-materiality` proved the shape of.
+#
+# What narrowing means here is NOT what it means there, and the difference is worth being
+# exact about, because getting it wrong would be the token narrowing the contract was
+# written to avoid. `incident-materiality` suppresses COMPUTED ROWS — a disclosure window a
+# not-listed entity should never have had calculated. This register computes nothing
+# per-domain: a reading is trended the same whether it measures OT or payroll.
+#
+# So what a profile narrows here is the QUESTION SET, which is exactly what CAC-AP-1 says a
+# profile does and all it says. An organisation with no OT is not asked whether it tracks
+# OT metrics; one that has declared nothing IS asked, because §2.2 makes absence ask more.
+#
+# What this deliberately does NOT do is ANSWER the question. Nothing in a `.mtr` records
+# whether a metric measures OT — `archetype` is the metric's KIND, not its subject — so a
+# coverage figure would be inferred from data that is not there, and this suite refuses to
+# invent the number it asks for. That is also why there is no conflict record here as there
+# is in `incident-materiality`: a conflict needs both sides stated, and one is missing.
+
+CONTEXT_CONTRACT = "CAC-AP-1"
+CONTEXT_SKILL = "metrics"
+CONTEXT_BATTERIES = {
+    "ot-coverage": {"flag": "otPresent", "label": "OT coverage",
+                    "question": "does this register track metrics for the operational "
+                                "technology in the estate?"},
+}
+
+
+def load_context(path: str) -> dict:
+    """Read an applicability payload. As data — this skill imports no other skill (§2.6).
+
+    Both refusals are deliberate. `--context` was passed on purpose, so a payload that
+    cannot be honoured must say so rather than quietly leave the register un-narrowed: a
+    full question set would read as a profile that decided nothing applied.
+    """
+    try:
+        with open(path, encoding="utf-8") as fh:
+            payload = json.load(fh)
+    except FileNotFoundError:
+        raise Refusal(f"no such context payload: {path}")
+    except json.JSONDecodeError as exc:
+        raise Refusal(f"{path} is not valid JSON (line {exc.lineno}, "
+                      f"column {exc.colno}): {exc.msg}")
+    if not isinstance(payload, dict):
+        raise Refusal(f"{path} must contain a JSON object, got {type(payload).__name__}")
+    got = payload.get("contractVersion")
+    if got != CONTEXT_CONTRACT:
+        raise Refusal(
+            f"{path} declares contractVersion {got!r}; this engine reads "
+            f"{CONTEXT_CONTRACT!r}. Produce one with "
+            f"`business_context.py export <file.biz>`.")
+    if not isinstance(payload.get("applicability"), dict):
+        raise Refusal(
+            f"{path} carries no decided `applicability`, so this skill cannot tell which "
+            f"batteries the profile narrowed away. Re-export it with "
+            f"`business_context.py export <file.biz>`; the narrowing decision belongs to "
+            f"that skill and is not re-derived here.")
+    return payload
+
+
+def applicability_for(payload: dict) -> dict:
+    """The profile's decision for this skill, in this skill's own vocabulary.
+
+    The payload arrives DECIDED — §2.2 and §2.3 were applied by `business-context`, and
+    re-deriving them here would be the second implementation the contract prevents.
+
+    There is no subject layer. This store has no per-record perimeter to declare one
+    against: `incident-materiality` has an incident and a vendor record will have a vendor,
+    but a metric does not sit in a different perimeter from the register around it.
+    """
+    base = (payload.get("applicability") or {}).get(CONTEXT_SKILL) or {}
+    profile_ask = set(base.get("ask") or ())
+    profile_skipped = {r.get("battery"): r for r in (base.get("skipped") or ())}
+
+    asked, skipped = [], []
+    for battery in sorted(CONTEXT_BATTERIES):
+        spec = CONTEXT_BATTERIES[battery]
+        if battery in profile_skipped:
+            skipped.append(dict(profile_skipped[battery]))
+        elif battery in profile_ask:
+            asked.append({"battery": battery, "label": spec["label"],
+                          "flag": spec["flag"], "question": spec["question"]})
+    return {
+        "profileVersion": str(payload.get("profileVersion") or ""),
+        "asked": asked,
+        "skipped": sorted(skipped, key=lambda r: r.get("battery") or ""),
+        # Stated rather than left to be inferred from an absent key. This skill asks the
+        # question and does not answer it, and a reader who assumed otherwise would take a
+        # silence for a clean bill.
+        "coverageAssessed": False,
+    }
+
+
+def analyze(store: dict, today: str, context: dict = None) -> dict:
     rows = [derive_metric(store, m, today) for m in store["metrics"]]
     cadence = int((store.get("settings") or {}).get("cadenceDays") or DEFAULT_CADENCE_DAYS)
-    return {
+    out = {
         "meta": dict(store.get("meta") or {}),
         "today": today,
         "cadenceDays": cadence,
@@ -735,6 +829,12 @@ def analyze(store: dict, today: str) -> dict:
             "readings": len(store["readings"]),
         },
     }
+    # Additive by construction, as `--context` is in every consumer of CAC-AP-1: the key
+    # exists only when a profile was supplied, so a run without one produces the bytes it
+    # always did and no consumer has to tell an empty block from an absent one.
+    if context is not None:
+        out["context"] = applicability_for(context)
+    return out
 
 
 # --- Self-test ----------------------------------------------------------------
@@ -1174,7 +1274,8 @@ def _cmd_link(args):
 def _cmd_analyze(args):
     store = load_store(args.store)
     today = check_date(args.today, "--today") if args.today else date.today().isoformat()
-    _emit(analyze(store, today), args.out)
+    context = load_context(args.context) if args.context else None
+    _emit(analyze(store, today, context), args.out)
     return 0
 
 
@@ -1243,6 +1344,9 @@ def build_parser() -> argparse.ArgumentParser:
     store_arg(sp)
     sp.add_argument("--today", default=None)
     sp.add_argument("--out", default=None)
+    sp.add_argument("--context", default=None, metavar="FILE",
+                    help="a CAC-AP-1 applicability payload from "
+                         "`business_context.py export`")
     sp.set_defaults(fn=_cmd_analyze)
 
     sp = sub.add_parser("self-test", help="assert the engine against hand-worked cases")

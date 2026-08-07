@@ -256,6 +256,38 @@ Dashboards are self-contained, CAC-branded HTML (tokens in `assets/brand.md`; la
 ones as artifacts so they survive the conversation. Every deliverable carries the footer *"A Cyber
 Aware Creation · Not affiliated with NIST."*
 
+## The applicability profile (CAC-AP-1)
+
+```bash
+python3 $E score register.rr --context context.json
+```
+
+Optional, and absent is the normal case — a run without one behaves exactly as it always did
+and its output is byte-for-byte identical. The payload comes from
+`business_context.py export <file.biz>`; this skill reads it as **data** and imports nothing
+(§2.6).
+
+What a profile narrows here is the **question set**, not the arithmetic. A risk is scored, banded and flagged against appetite identically whether it concerns OT or payroll. So what
+changes is which completeness questions this skill puts to you:
+
+- **OT scenarios** — gated on `otPresent`
+- **AI scenarios** — gated on `aiInUse`
+
+A flag declared `false` removes its question and records the skip with the flag, the declarer
+and the date, so an auditor can tell a question that was out of scope from one nobody asked
+(§2.4). A flag that is **absent, or declared `null`, asks the question anyway** — §2.2, absence
+asks more, because silently narrowing on undeclared data produces an assessment that looks
+complete and is not.
+
+**It asks; it does not answer.** Nothing in a `.rr` records whether a risk concerns OT or AI: `category` is the CSF Function and `theme` derives from it. A coverage figure would be inferred from data that is
+not there, and this skill refuses to invent the number it asks for — the same rule that makes
+it demand an appetite band rather than guess. That is also why there is no *conflict* record here as
+there is in `incident-materiality`: a conflict needs both sides stated, and one side is missing.
+
+A payload from another contract version, or one carrying no decision, is **refused** rather than
+ignored: `--context` was passed on purpose, and a silently un-narrowed run reads as a profile
+that decided nothing applied.
+
 ## Board layer
 
 For the executive summary, the theme narrative, the over-appetite story, the trend, and any "what do

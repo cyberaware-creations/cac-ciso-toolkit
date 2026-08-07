@@ -661,7 +661,106 @@ def _utc_today() -> str:
     return datetime.now(timezone.utc).date().isoformat()
 
 
-def score_register(reg: dict, today: str = "") -> dict:
+# --- CAC-AP-1: the applicability profile, read as data --------------------------------
+#
+# The second consumer of the contract, after `incident-materiality` proved the shape.
+#
+# What narrowing means here is NOT what it means there, and the difference is worth being
+# exact about, because getting it wrong would be the token narrowing the contract was written
+# to avoid. `incident-materiality` suppresses COMPUTED ROWS — a disclosure window a not-listed
+# entity should never have had calculated. This register computes nothing per-domain: a risk
+# is scored the same whether it concerns OT or payroll.
+#
+# So what a profile narrows here is the QUESTION SET, which is exactly what CAC-AP-1 says a
+# profile does and all it says. An organisation with no OT is not asked whether its register
+# carries OT scenarios; one that has declared nothing IS asked, because §2.2 makes absence
+# ask more.
+#
+# What this deliberately does NOT do is ANSWER the question. Nothing in a `.rr` records
+# whether a risk concerns OT or AI — `category` is the CSF Function and `theme` derives from
+# it — so a "coverage" figure would be inferred from data that is not there, and this suite
+# refuses to invent the number it asks for. That is also why there is no conflict record here
+# as there is in `incident-materiality`: a conflict needs both sides stated, and one side is
+# genuinely missing. A domain dimension on a risk would make it computable; until one exists,
+# the honest output is the question, attributed, and the skips.
+
+CONTEXT_CONTRACT = "CAC-AP-1"
+CONTEXT_SKILL = "risk"
+CONTEXT_BATTERIES = {
+    "ot-scenarios": {"flag": "otPresent", "label": "OT scenarios",
+                     "question": "does this register carry scenarios for the operational "
+                                 "technology in the estate?"},
+    "ai-scenarios": {"flag": "aiInUse", "label": "AI scenarios",
+                     "question": "does this register carry scenarios for the AI systems in "
+                                 "production use?"},
+}
+
+
+def load_context(path: str) -> dict:
+    """Read an applicability payload. As data — this skill imports no other skill (§2.6).
+
+    Both refusals are deliberate. `--context` was passed on purpose, so a payload that cannot
+    be honoured must say so rather than quietly leave the register un-narrowed: a full
+    question set would read as a profile that decided nothing applied.
+    """
+    try:
+        with open(path, encoding="utf-8") as fh:
+            payload = json.load(fh)
+    except FileNotFoundError:
+        raise ValueError(f"no such context payload: {path}")
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"{path} is not valid JSON (line {exc.lineno}, "
+                         f"column {exc.colno}): {exc.msg}")
+    if not isinstance(payload, dict):
+        raise ValueError(f"{path} must contain a JSON object, got {type(payload).__name__}")
+    got = payload.get("contractVersion")
+    if got != CONTEXT_CONTRACT:
+        raise ValueError(
+            f"{path} declares contractVersion {got!r}; this engine reads "
+            f"{CONTEXT_CONTRACT!r}. Produce one with `business_context.py export <file.biz>`.")
+    if not isinstance(payload.get("applicability"), dict):
+        raise ValueError(
+            f"{path} carries no decided `applicability`, so this skill cannot tell which "
+            f"batteries the profile narrowed away. Re-export it with "
+            f"`business_context.py export <file.biz>`; the narrowing decision belongs to "
+            f"that skill and is not re-derived here.")
+    return payload
+
+
+def applicability_for(payload: dict) -> dict:
+    """The profile's decision for this skill, in this skill's own vocabulary.
+
+    The payload arrives DECIDED — §2.2 and §2.3 were applied by `business-context`, and
+    re-deriving them here would be the second implementation the contract exists to prevent.
+
+    There is no subject layer. A register has no per-record perimeter to declare one against:
+    `incident-materiality` has an incident and a vendor record will have a vendor, but a risk
+    does not sit in a different jurisdiction from the register around it.
+    """
+    base = (payload.get("applicability") or {}).get(CONTEXT_SKILL) or {}
+    profile_ask = set(base.get("ask") or ())
+    profile_skipped = {r.get("battery"): r for r in (base.get("skipped") or ())}
+
+    asked, skipped = [], []
+    for battery in sorted(CONTEXT_BATTERIES):
+        spec = CONTEXT_BATTERIES[battery]
+        if battery in profile_skipped:
+            skipped.append(dict(profile_skipped[battery]))
+        elif battery in profile_ask:
+            asked.append({"battery": battery, "label": spec["label"],
+                          "flag": spec["flag"], "question": spec["question"]})
+    return {
+        "profileVersion": str(payload.get("profileVersion") or ""),
+        "asked": asked,
+        "skipped": sorted(skipped, key=lambda r: r.get("battery") or ""),
+        # Stated rather than left to be inferred from an absent key. This skill asks the
+        # question and does not answer it, and a reader who assumed otherwise would take a
+        # silence for a clean bill.
+        "coverageAssessed": False,
+    }
+
+
+def score_register(reg: dict, today: str = "", context: dict = None) -> dict:
     """Score a register, and derive the escalations that follow from it.
 
     `today` is optional and defaults to empty rather than to the clock. An empty reference
@@ -699,7 +798,7 @@ def score_register(reg: dict, today: str = "") -> dict:
               for s in ESCALATION_SEVERITY_ORDER}
     summary["escalations"] = {**counts, "total": len(esc)}
     summary["escalationsSuppressedProvisional"] = suppressed_provisional(reg)
-    return {
+    out = {
         "meta": reg["meta"],
         "settings": reg["settings"],
         "themes": reg.get("themes", []),
@@ -709,6 +808,12 @@ def score_register(reg: dict, today: str = "") -> dict:
         "escalations": esc,
         "risks": scored_risks,
     }
+    # Additive by construction, exactly as `--context` is in every consumer of CAC-AP-1: the
+    # key exists only when a profile was supplied, so a run without one produces the bytes it
+    # always did and no renderer has to tell an empty block from an absent one.
+    if context is not None:
+        out["context"] = applicability_for(context)
+    return out
 
 
 # --- CLI ---------------------------------------------------------------------
@@ -719,13 +824,14 @@ def _cmd_score(args: list[str]) -> int:
     _, opt = parse_flags(args)
     paths = [a for a in args if not a.startswith("--")]
     if not paths:
-        print("usage: score_register.py score <register.rr> [--json] [--today YYYY-MM-DD]",
-              file=sys.stderr)
+        print("usage: score_register.py score <register.rr> [--json] [--today YYYY-MM-DD] "
+              "[--context <payload.json>]", file=sys.stderr)
         return 2
     # Defaulted at the CLI boundary rather than inside score_register(), so the library
     # function stays reproducible and only the command reads the clock.
     today = _iso_date(opt["today"], "--today") if "today" in opt else _utc_today()
-    scored = score_register(load_register(paths[0]), today)
+    context = load_context(opt["context"]) if "context" in opt else None
+    scored = score_register(load_register(paths[0]), today, context)
     if as_json:
         print(json.dumps(scored, indent=2))
         return 0

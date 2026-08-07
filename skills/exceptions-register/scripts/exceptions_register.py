@@ -730,13 +730,108 @@ def derive(store: dict, rec: dict, kind: str, today: str, window: int) -> dict:
     }
 
 
-def analyze(store: dict, today: str) -> dict:
+# --- CAC-AP-1: the applicability profile, read as data --------------------------------
+#
+# A consumer of the contract `incident-materiality` proved the shape of.
+#
+# What narrowing means here is NOT what it means there, and the difference is worth being
+# exact about, because getting it wrong would be the token narrowing the contract was
+# written to avoid. `incident-materiality` suppresses COMPUTED ROWS — a disclosure window a
+# not-listed entity should never have had calculated. This register computes nothing
+# per-regime: an acceptance expires on its own date whether or not DORA applies.
+#
+# So what a profile narrows here is the QUESTION SET, which is exactly what CAC-AP-1 says a
+# profile does and all it says. An organisation outside DORA is not asked whether it keeps
+# the register of information; one that has declared nothing IS asked, because §2.2 makes
+# absence ask more.
+#
+# What this deliberately does NOT do is ANSWER the question. Nothing in an `.exc` records
+# whether a record belongs to a DORA register of information, so a coverage figure would be
+# inferred from data that is not there, and this suite refuses to invent the number it asks
+# for. That is also why there is no conflict record here as there is in
+# `incident-materiality`: a conflict needs both sides stated, and one is missing.
+
+CONTEXT_CONTRACT = "CAC-AP-1"
+CONTEXT_SKILL = "exceptions"
+CONTEXT_BATTERIES = {
+    "dora-register": {"flag": "doraScope", "label": "DORA register of information",
+                      "question": "do these records carry the ICT third-party "
+                                  "arrangements DORA requires to be listed?"},
+}
+
+
+def load_context(path: str) -> dict:
+    """Read an applicability payload. As data — this skill imports no other skill (§2.6).
+
+    Both refusals are deliberate. `--context` was passed on purpose, so a payload that
+    cannot be honoured must say so rather than quietly leave the register un-narrowed: a
+    full question set would read as a profile that decided nothing applied.
+    """
+    try:
+        with open(path, encoding="utf-8") as fh:
+            payload = json.load(fh)
+    except FileNotFoundError:
+        raise Refusal(f"no such context payload: {path}")
+    except json.JSONDecodeError as exc:
+        raise Refusal(f"{path} is not valid JSON (line {exc.lineno}, "
+                      f"column {exc.colno}): {exc.msg}")
+    if not isinstance(payload, dict):
+        raise Refusal(f"{path} must contain a JSON object, got {type(payload).__name__}")
+    got = payload.get("contractVersion")
+    if got != CONTEXT_CONTRACT:
+        raise Refusal(
+            f"{path} declares contractVersion {got!r}; this engine reads "
+            f"{CONTEXT_CONTRACT!r}. Produce one with "
+            f"`business_context.py export <file.biz>`.")
+    if not isinstance(payload.get("applicability"), dict):
+        raise Refusal(
+            f"{path} carries no decided `applicability`, so this skill cannot tell which "
+            f"batteries the profile narrowed away. Re-export it with "
+            f"`business_context.py export <file.biz>`; the narrowing decision belongs to "
+            f"that skill and is not re-derived here.")
+    return payload
+
+
+def applicability_for(payload: dict) -> dict:
+    """The profile's decision for this skill, in this skill's own vocabulary.
+
+    The payload arrives DECIDED — §2.2 and §2.3 were applied by `business-context`, and
+    re-deriving them here would be the second implementation the contract prevents.
+
+    There is no subject layer. This store has no per-record perimeter to declare one
+    against: `incident-materiality` has an incident and a vendor record will have a vendor,
+    but an acceptance does not sit in a different perimeter from the register around it.
+    """
+    base = (payload.get("applicability") or {}).get(CONTEXT_SKILL) or {}
+    profile_ask = set(base.get("ask") or ())
+    profile_skipped = {r.get("battery"): r for r in (base.get("skipped") or ())}
+
+    asked, skipped = [], []
+    for battery in sorted(CONTEXT_BATTERIES):
+        spec = CONTEXT_BATTERIES[battery]
+        if battery in profile_skipped:
+            skipped.append(dict(profile_skipped[battery]))
+        elif battery in profile_ask:
+            asked.append({"battery": battery, "label": spec["label"],
+                          "flag": spec["flag"], "question": spec["question"]})
+    return {
+        "profileVersion": str(payload.get("profileVersion") or ""),
+        "asked": asked,
+        "skipped": sorted(skipped, key=lambda r: r.get("battery") or ""),
+        # Stated rather than left to be inferred from an absent key. This skill asks the
+        # question and does not answer it, and a reader who assumed otherwise would take a
+        # silence for a clean bill.
+        "coverageAssessed": False,
+    }
+
+
+def analyze(store: dict, today: str, context: dict = None) -> dict:
     window = int((store.get("settings") or {}).get("dueWindowDays")
                  or DEFAULT_DUE_WINDOW_DAYS)
     rows = ([derive(store, r, "acceptance", today, window) for r in store["acceptances"]]
             + [derive(store, r, "exception", today, window) for r in store["exceptions"]])
     active = [r for r in rows if r["band"] != STATUS_CLOSED]
-    return {
+    out = {
         "meta": dict(store.get("meta") or {}),
         "today": today,
         "dueWindowDays": window,
@@ -787,6 +882,12 @@ def analyze(store: dict, today: str) -> dict:
                        for b in STATUS_BANDS if b != STATUS_CLOSED},
         },
     }
+    # Additive by construction, as `--context` is in every consumer of CAC-AP-1: the key
+    # exists only when a profile was supplied, so a run without one produces the bytes it
+    # always did and no consumer has to tell an empty block from an absent one.
+    if context is not None:
+        out["context"] = applicability_for(context)
+    return out
 
 
 def export_inventory(store: dict, today: str) -> list:
@@ -1458,7 +1559,8 @@ def _today(args) -> str:
 
 
 def _cmd_analyze(args):
-    out = analyze(load_store(args.store), _today(args))
+    context = load_context(args.context) if args.context else None
+    out = analyze(load_store(args.store), _today(args), context)
     text = json.dumps(out, indent=2, ensure_ascii=False)
     if args.out:
         with open(args.out, "w", encoding="utf-8") as fh:
@@ -1582,6 +1684,9 @@ def build_parser() -> argparse.ArgumentParser:
     sp = sub.add_parser("analyze"); common(sp)
     sp.add_argument("--today", default=None)
     sp.add_argument("--out", default=None)
+    sp.add_argument("--context", default=None, metavar="FILE",
+                    help="a CAC-AP-1 applicability payload from "
+                         "`business_context.py export`")
     sp.set_defaults(fn=_cmd_analyze)
 
     sp = sub.add_parser("export-inventory", help="the DORA evidence artifact"); common(sp)
