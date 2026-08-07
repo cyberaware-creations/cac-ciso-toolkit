@@ -236,6 +236,9 @@ jobs:
       - name: Vendor engine self-test, on the floor
         run: python3 ./skills/vendor-register/scripts/vendor_register.py self-test
 
+      - name: Criticality walk and the D-10 colour split, on the floor
+        run: PY="$(command -v python3)" ./skills/vendor-register/evals/criticality.sh
+
       - name: No vendor score, on the floor
         run: PY="$(command -v python3)" ./skills/vendor-register/evals/no-vendor-score.sh
 
