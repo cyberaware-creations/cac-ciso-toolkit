@@ -339,6 +339,63 @@ human saying so by name — the same shape `exceptions-register` demands for an 
 the silent merge with an extra key. When it is accepted, the declaration is printed on the
 provenance page, so a consolidated pack never looks like a single-entity one.
 
+### `boundTo` — was this prose written against these numbers?
+
+```json
+"boundTo": {
+  "storeUpdatedAt": "2026-07-26T20:00:33Z",
+  "profileVersion": "FY26 close"
+}
+```
+
+Optional, in any section sidecar. A pack pairs **live figures**, read from the store now,
+with **prose** `ciso-board-translation` wrote at some earlier moment — and nothing tied the
+two together. A register edited after its sidecar was written produced a pack whose sentences
+described one state of the world and whose numbers described another, with the sidecar's
+`asOf` (a reporting date, not a store version) still agreeing with the pack.
+
+That is a quiet failure and a bad one to argue with later: the board was told a risk improved,
+in a sentence a human wrote and signed, beside a figure showing it did not.
+
+| Sidecar | Result |
+|---|---|
+| bound, and matching | silence — the ordinary case earns no words |
+| bound, and the store has moved since | a **warning** naming both timestamps |
+| bound to a different `profileVersion` | a warning: the perimeter moved, so the questions behind that prose are not the questions behind these figures |
+| not bound | **one** note for the whole pack listing the unbound sections |
+
+It is a warning and not a refusal because every sidecar ever written omits it, and because a
+sidecar legitimately predating a trivial store edit is not a governance failure. And it is one
+note rather than one per section for the same reason `fact-unattributed` was deferred in
+`business-context`: five notes on every pack is how a provenance page teaches people to skim
+it.
+
+`boundTo` lives in the sidecar **envelope**, beside `asOf` and `contractVersion`. It carries no
+sentence a board reads, and it is purely additive — the contract version did not move, because
+bumping it would have refused every existing sidecar to gain nothing.
+
+## The board deck mode
+
+```bash
+python3 render_pack.py --in pack.json --pptx deck.pptx --deck-mode board
+```
+
+`full` is the default and is every slide in reading order. `board` targets a deck a board
+actually sits through: the shipped specimen goes from **31 slides to 15 before the appendix**.
+
+**It moves; it never drops.** The per-section item lists and the management actions are
+relocated behind an appendix divider, and the five section dividers — pure navigation for a
+deck that no longer runs long — stop being drawn. Every other slide is still in the file, and
+`assembly.sh` proves it by diffing every text run of the two decks: the only thing the board
+deck does not say is `Section N of 5`.
+
+That distinction is the whole design. A board deck that silently omitted a section's detail
+would be this skill inventing an editorial judgment about what a board needs to see, which is
+what it refuses to do everywhere else — and unlike a placeholder, an omission leaves nothing
+behind for anyone to notice. The appendix divider says what was moved and that nothing was cut.
+
+The **HTML document is unchanged in both modes.** It is the record; the deck is the meeting.
+
 ## Client branding, and the part of the palette it cannot reach
 
 A pack can carry a client's identity. Add a `brand` block to the manifest — inline, or a path
