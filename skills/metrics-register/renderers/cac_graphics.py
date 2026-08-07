@@ -645,7 +645,22 @@ def _fmt(v):
 
 
 def _zone_sev(value, zones, direction="higher"):
-    """Compute RAG severity from zone list [(threshold, sev), ...]."""
+    """Compute RAG severity from zone list [(threshold, sev), ...].
+
+    The comparisons are `<` and `>`, matching metrics_analysis.threshold_status
+    exactly, and the boundary is the whole point of saying so.
+
+    Lower-better read `>=` here against the engine's `>`. Higher-better already
+    agreed, so the disagreement only showed on a lower-better metric sitting ON a
+    threshold: at warn=8 with value 8 the engine returns `ok` and this returned
+    `high`, so the chip went green and the bullet beside it went amber. At
+    critical=12 with value 12 the chip said warn and the bar said critical.
+
+    Boundary values are not an edge case in security metrics — they are the
+    common one. "Patch within 30 days" reads 30. "Under 5 percent click rate"
+    reads 5.0. Those are exactly the numbers a reviewer looks at hardest, and the
+    two marks on the page contradicted each other on precisely them.
+    """
     direction = _normalize_direction(direction)
     sorted_z = sorted(zones, key=lambda z: z[0])
     if direction == "higher":
@@ -655,7 +670,7 @@ def _zone_sev(value, zones, direction="higher"):
         return "good"
     else:
         for thresh, s in reversed(sorted_z):
-            if value >= thresh:
+            if value > thresh:
                 return s
         return "good"
 
@@ -2281,7 +2296,14 @@ def _self_test():
     # boundary. Promoting it to a boundary invented a fourth band, so a value
     # between warn and target drew a yellow band under a green status tile.
     def _engine_status(v, thr, direction):
-        """Mirror of metrics_analysis.threshold_status."""
+        """Mirror of metrics_analysis.threshold_status.
+
+        A mirror is a second source of truth and can drift from the thing it
+        mirrors without either side noticing — this file cannot import the engine,
+        which is why it exists. It is kept for the in-library sweep above, and
+        `skills/metrics-register/evals/graphics-contract.sh` now runs the same
+        comparison against the REAL engine so the mirror itself is checked.
+        """
         c, w = thr.get("critical"), thr.get("warn")
         if direction == "higher-better":
             if c is not None and v < c:
@@ -2298,23 +2320,39 @@ def _self_test():
     STATUS_TO_SEV = {"ok": "good", "warn": "high", "critical": "critical"}
     agree = True
     detail = ""
+    # The samples MUST include the thresholds themselves.
+    #
+    # This check has existed since the banding was written and was green while
+    # lower-better disagreed with the engine on every boundary. It swept
+    # `(i + 0.5) / 60` across the range — 120 samples, none of them a threshold,
+    # because a midpoint sampler cannot land on one by construction. It tested the
+    # interiors of bands, which never disagreed, and could not have failed for the
+    # reason it exists.
+    #
+    # So each threshold is now probed at t-eps, exactly t, and t+eps. The middle
+    # one is the whole check; the neighbours prove the sampler is straddling the
+    # boundary rather than sitting to one side of it.
     for direction, thr, lo, hi in (
             ("higher-better", {"target": 95.0, "warn": 90.0, "critical": 80.0}, 0, 100),
-            ("lower-better", {"target": 2.0, "warn": 5.0, "critical": 10.0}, 0, 15)):
+            ("lower-better", {"target": 2.0, "warn": 5.0, "critical": 10.0}, 0, 15),
+            # "Patch within 30 days", the phrasing that reads exactly 30.
+            ("lower-better", {"target": 15.0, "warn": 30.0, "critical": 60.0}, 0, 90)):
         zs = zones_from_threshold(thr, direction)
-        for i in range(60):
-            v = lo + (hi - lo) * (i + 0.5) / 60
+        edges = [t for k, t in thr.items() if k != "target" and t is not None]
+        probes = [lo + (hi - lo) * (i + 0.5) / 40 for i in range(40)]
+        probes += [t + d for t in edges for d in (-1e-9, 0.0, 1e-9)]
+        for v in sorted(probes):
             want = STATUS_TO_SEV[_engine_status(v, thr, direction)]
             got = _zone_sev(v, zs, direction)
             if got != want:
                 agree = False
-                detail = (f"{direction} at {v:.2f}: engine says {want}, "
+                detail = (f"{direction} at {v!r}: engine says {want}, "
                           f"zone says {got}")
                 break
         if not agree:
             break
     if agree:
-        ok("zones_from_threshold reproduces the engine's banding (120 samples)")
+        ok("zones_from_threshold reproduces the engine's banding, boundaries included")
     else:
         bad("zones_from_threshold reproduces the engine's banding", detail)
 
