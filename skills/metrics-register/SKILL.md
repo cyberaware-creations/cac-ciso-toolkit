@@ -143,6 +143,31 @@ this guards against. The sidecar conforms to the section contract
 (`skills/board-pack/references/section-contract.md`): section `metrics`, per-item map keyed
 by metric id, so the board-pack assembler ingests it with no re-plumbing.
 
+### The axis a bullet is drawn on
+
+A percent metric shares the 0-100 axis so a wall of them is comparable at a glance —
+but only while that axis is readable. Two shapes break it, at opposite ends:
+
+- **Banded near zero** — a click rate at 2/5/10. Its whole meaningful range is the
+  first tenth of the bar. The shared ceiling is dropped and the mark scales to its
+  own data.
+- **Banded near the ceiling** — coverage at 85/90/95, MFA at 90/95/99, backup at
+  95/98/99. On a 0-100 axis these spend **204 of 240 pixels** on the critical band,
+  squeeze warn into **12**, and push every threshold past the right edge where the
+  label placer drops them for collision. The bands are unreadable and their numbers
+  unrecoverable at the same time.
+
+For the second, the axis **floor** rises instead. Coverage at 85/90/95 goes from
+204/12/24 pixels to **120/40/80**, and the 85 and 90 labels come back.
+
+**A raised floor announces itself** — the axis prints its real value and the bar
+carries a break glyph at the origin. Bar length reads as a proportion; a silently
+truncated baseline makes it a proportion of nothing, which is the one way this mark
+can lie outright.
+
+**And the floor never rises above the data.** A reading below its own bands keeps
+the full axis, so "well short" cannot be redrawn as "at the bottom of the range".
+
 ## What the engine never does
 
 - **Invent a number.** No interpolation, no carry-forward, no projection. A missing reading

@@ -742,13 +742,31 @@ def rag_chip(sev, label):
 # ── Mark 3: Bullet Graph ───────────────────────────────────────────────────────
 
 def bullet(value, target, zones, direction="higher", unit="", labels=True,
-           axis_max=None):
+           axis_max=None, axis_min=None):
     """
     Bullet graph. zones=[(threshold, sev), ...]. Bar fill = zone of value.
 
     axis_max: explicit scale ceiling (use 100 for percent metrics). Defaults to
     1.1× the largest value/threshold. Set explicitly to make a metric wall
     comparable — different auto-scales make bars unreadable side by side.
+
+    axis_min: explicit scale floor, default 0. There was none, and the marks that
+    need one most are the ordinary ones: coverage banded 85/90/95 on a 0-100 axis
+    spends 204 of 240 pixels on the critical band, squeezes warn into 12, and puts
+    all three thresholds between x=224 and x=248 — where the label placer then
+    drops two of them for collision, so the reader cannot even recover the numbers
+    the bands are drawn from. The mark stops answering the question it exists for.
+
+    Two rules keep a raised floor honest, and both are enforced here rather than
+    left to the caller:
+
+      * The floor never rises above the data. It is lowered to include `value`,
+        `target` and every threshold, so a zoomed axis cannot hide the number it
+        was drawn to show. A caller asking for 70 on a metric reading 65 gets 65.
+      * A bar that does not start at zero SAYS so, with a break glyph at the
+        origin and the real floor printed on the axis. Bar length reads as a
+        proportion; a silently truncated baseline makes it a proportion of
+        nothing, which is the one way this mark can lie outright.
     """
     w, h = 280, 72
     bar_y, bar_h = 26, 24
@@ -756,10 +774,20 @@ def bullet(value, target, zones, direction="higher", unit="", labels=True,
     scale_max = axis_max if axis_max is not None else max(all_thresh) * 1.1
     if scale_max == 0:
         scale_max = 1
+    # A floor above the data is a floor that would hide it. The zoom is abandoned
+    # rather than clamped down to the value: clamping lands the reading exactly on
+    # the origin and draws a zero-length bar, which shows the number without
+    # showing anything about it. If the window is wrong for this reading, the
+    # window goes, and the reader sees how far below the bands the value sits.
+    requested_min = 0.0 if axis_min is None else float(axis_min)
+    scale_min = requested_min if 0 <= requested_min <= min(all_thresh) else 0.0
+    if scale_min >= scale_max:
+        scale_min = 0.0
+    span = (scale_max - scale_min) or 1.0
     chart_w = w - 40
 
     def to_x(v):
-        return _clamp(v / scale_max * chart_w, 0, chart_w) + 20
+        return _clamp((v - scale_min) / span * chart_w, 0, chart_w) + 20
 
     sorted_z = sorted(zones, key=lambda z: z[0])
     end_x = to_x(scale_max)
@@ -769,7 +797,11 @@ def bullet(value, target, zones, direction="higher", unit="", labels=True,
     # under "lower", it means values AT OR ABOVE t are s. Painting bands from the
     # "higher" reading silently inverts every lower-better mark. Asking _zone_sev
     # what a mid-band value scores makes the bands and the bar the same claim.
-    edges = [0.0] + [z[0] for z in sorted_z] + [scale_max]
+    # `scale_min` and not 0.0, though the two render identically: to_x clamps, so
+    # both land the first edge on x=20, and scale_min is never above the lowest
+    # threshold. Mutation testing flags the swap as uncaught and it is — an
+    # equivalent mutant, kept in the form that says what the edge means.
+    edges = [scale_min] + [z[0] for z in sorted_z] + [scale_max]
     zone_rects = ""
     for lo, hi in zip(edges, edges[1:]):
         if hi <= lo:
@@ -839,7 +871,7 @@ def bullet(value, target, zones, direction="higher", unit="", labels=True,
         cand = [(to_x(target), f"{_fmt(target)}{unit}", True)]
         for thresh, _s in sorted_z:
             cand.append((to_x(thresh), f"{_fmt(thresh)}{unit}", False))
-        cand.append((20.0, f"0{unit}", False))
+        cand.append((20.0, f"{_fmt(scale_min)}{unit}", False))
         cand.append((end_x, f"{_fmt(scale_max)}{unit}", False))
 
         placed = []
@@ -866,11 +898,24 @@ def bullet(value, target, zones, direction="higher", unit="", labels=True,
                 f'font-size="10" font-family="{_FONT_BODY}"{weight} '
                 f'fill="{fill}">{_esc(text)}</text>')
 
+    # The break glyph, drawn last so it sits over the bar it interrupts. Two
+    # strokes rather than one: a single slash at the origin reads as a tick.
+    axis_break = ""
+    if scale_min > 0:
+        for dx in (0.0, 4.0):
+            axis_break += (
+                f'<line x1="{20 + dx - 2.5:.1f}" y1="{bar_y + bar_h + 3}" '
+                f'x2="{20 + dx + 2.5:.1f}" y2="{bar_y - 3}" '
+                f'stroke="{_SURFACE}" stroke-width="3.5"/>'
+                f'<line x1="{20 + dx - 2.5:.1f}" y1="{bar_y + bar_h + 3}" '
+                f'x2="{20 + dx + 2.5:.1f}" y2="{bar_y - 3}" '
+                f'stroke="{_MUTED}" stroke-width="1.2"/>')
+
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" '
         f'viewBox="0 0 {w} {h}">{_surf()}'
-        f'{zone_rects}{lane}{val_bar}{val_label}{target_line}{label_svg}'
-        f'</svg>'
+        f'{zone_rects}{lane}{val_bar}{val_label}{target_line}{axis_break}'
+        f'{label_svg}</svg>'
     )
 
 
@@ -2653,6 +2698,74 @@ def _self_test():
     except TypeError:
         ok("a misspelled keyword is refused, not silently ignored")
 
+    # 57f. a raised axis floor: what it fixes, and what it must never do.
+    import re as _re
+
+    def _bands(svg):
+        return [float(x) for x in
+                _re.findall(r'<rect x="[\d.]+" y="26" width="([\d.]+)"', svg)]
+
+    def _axis_left(svg):
+        m = _re.search(r'text-anchor="start"[^>]*>([\d.]+)', svg)
+        return m.group(1) if m else None
+
+    _z = zones_from_threshold({"target": 95.0, "warn": 90.0, "critical": 85.0},
+                              "higher-better")
+    flat = bullet(88, 95, _z, direction="higher-better", unit="%", axis_max=100)
+    zoom = bullet(88, 95, _z, direction="higher-better", unit="%", axis_max=100,
+                  axis_min=70)
+    # The compression this exists for: coverage banded 85/90/95 spends 204 of 240
+    # pixels on critical and leaves warn 12. Pinned as a RATIO so the check
+    # survives a canvas resize.
+    if min(_bands(flat)) / sum(_bands(flat)) < 0.06 <= min(_bands(zoom)) / sum(_bands(zoom)):
+        ok("a raised floor widens the narrowest band out of the unreadable range")
+    else:
+        bad("a raised floor widens the narrowest band",
+            "flat %s zoom %s" % (_bands(flat), _bands(zoom)))
+    # Every band must still be drawn — widening one by dropping another is not a fix.
+    if len(_bands(flat)) == len(_bands(zoom)) == 3:
+        ok("and draws the same three bands, none dropped")
+    else:
+        bad("a raised floor draws the same bands",
+            "%d vs %d" % (len(_bands(flat)), len(_bands(zoom))))
+    # The thresholds the bands are drawn from must be recoverable from the axis.
+    if "85" not in flat and "85" in zoom and "90" in zoom:
+        ok("the threshold labels the flat axis suppressed for collision come back")
+    else:
+        bad("threshold labels come back", "flat/zoom label sets unchanged")
+    # A bar that does not start at zero has to say so, twice over.
+    if _axis_left(zoom) == "70" and 'stroke-width="3.5"' in zoom:
+        ok("a raised floor prints its real value and draws an axis break")
+    else:
+        bad("a raised floor announces itself",
+            "left=%r break=%s" % (_axis_left(zoom), 'stroke-width="3.5"' in zoom))
+    if _axis_left(flat) == "0" and 'stroke-width="3.5"' not in flat:
+        ok("and a zero-based axis draws no break, so the glyph means something")
+    else:
+        bad("a zero-based axis draws no break", _axis_left(flat))
+    # The floor is abandoned, not clamped, when it would sit above the data. A
+    # clamped floor puts the reading exactly on the origin and draws a
+    # zero-length bar: the number shown, and nothing shown about it.
+    below = bullet(72, 95, _z, direction="higher-better", unit="%", axis_max=100,
+                   axis_min=80)
+    if _axis_left(below) == "0" and 'stroke-width="3.5"' not in below:
+        ok("a floor above the reading is abandoned, not clamped onto it")
+    else:
+        bad("a floor above the reading is abandoned", _axis_left(below))
+    for absurd in (140, -5):
+        nonsense = bullet(88, 95, _z, direction="higher-better", axis_max=100,
+                          axis_min=absurd)
+        if _axis_left(nonsense) != "0":
+            bad("an out-of-range floor falls back to zero", "axis_min=%s" % absurd)
+            break
+    else:
+        ok("an out-of-range floor falls back to zero rather than inverting")
+    # Default behaviour is untouched: no argument, no change.
+    if bullet(88, 95, _z, direction="higher-better", unit="%", axis_max=100) == flat:
+        ok("omitting axis_min renders exactly what it always did")
+    else:
+        bad("omitting axis_min renders exactly what it always did", "output moved")
+
     # 57e. the time axis is linear in time.
     #
     # Pinned as PROPERTIES rather than as ordinal values, because the values are an
@@ -2769,8 +2882,8 @@ def _self_test():
             bad("whiteLabel refuses a non-boolean", str(e))
 
     print()
-    if checks != 111:
-        print(f"self-test: ran {checks} checks, expected 111")
+    if checks != 119:
+        print(f"self-test: ran {checks} checks, expected 119")
         _sys.exit(1)
     if fails:
         print(f"self-test: {fails} of {checks} checks FAILED")
