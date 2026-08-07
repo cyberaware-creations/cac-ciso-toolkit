@@ -390,6 +390,7 @@ python3 skills/board-pack/scripts/assemble_pack.py self-test               # con
 ./skills/business-context/evals/board-safety.sh
 ./skills/board-pack/evals/board-safety.sh
 
+python3 tools/crosswalks/validate_crosswalks.py --self-test  # the crosswalk checker's own tests
 ./tools/check-versions.py                                # the four plugin version strings agree
 ./tools/check-versions.py --self-test                    # and the guard's own tests
 ./tools/check-versions.py --base main                    # ...and that a shipped change bumped them
