@@ -134,6 +134,14 @@ jobs:
       - name: Deck contrast (board-pack), on the floor
         run: PY="$(command -v python3)" ./skills/board-pack/evals/deck-contrast.sh
 
+      # Whether the deck HOLDS what the pack put in it, as opposed to whether the text can
+      # be read. Pagination counted items, so eight decisions written the way a real risk
+      # committee writes them ran off the bottom of the slide with nothing reporting it.
+      # Its load-bearing case is behavioural — longer prose must cost more slides — which
+      # no shared constant between the writer's estimate and the checker's can fake.
+      - name: Deck fit (board-pack), on the floor
+        run: PY="$(command -v python3)" ./skills/board-pack/evals/deck-fit.sh
+
       # incident-materiality shipped in Phase C with three suites and none of them listed
       # here. The disclosure-clock suite is the one that matters most: the SEC window runs
       # from the determination and not from discovery, and an off-by-one in business-day
