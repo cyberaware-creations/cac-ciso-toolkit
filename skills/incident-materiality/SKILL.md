@@ -147,6 +147,60 @@ live clock. *"Not material"* and *"no notification duty"* are different question
 different tests. The band reports the clock, because that is the one of the two with a date
 attached. The shipped example demonstrates it.
 
+## What this workspace raises without being asked
+
+`analyze` carries escalations in the suite-wide `CAC-EL-1 §1.3` shape with
+`subjectKind: "incident"`, so `board-pack` can put a missed 8-K window beside a crossed risk
+band and a breached metric without knowing anything about any of the three clocks.
+
+**This is the narrowest escalation set in the toolkit, and the narrowness is the design.** The
+engine emits no verdict, so an escalation here may only ever report one of three facts about
+the store: a deadline that passed, an anchor that is absent, or a record that moved.
+
+| trigger | fires when | severity |
+|---|---|---|
+| `window-overdue` | a disclosure deadline passed with no filing recorded against it | `critical` |
+| `anchor-missing` | tracked against DORA with no anchor timestamp, so no deadline can be computed at all | `high` |
+| `determination-superseded` | a factor was recorded **after** a settled determination and changed its answer | `high` |
+
+**`determination-superseded` never says the determination was wrong.** It says the record moved
+after the determination was written, and the determination has not been revisited — a fact about
+two dated entries, not a review of a legal judgment. Its severity deliberately **does not vary
+with which way the factor moved**: ranking *"a factor turned `bearing` after a `not-material`
+determination"* above the reverse would be this engine grading a judgment it exists not to make,
+and a graded judgment is discoverable as an exhibit arguing against your own conclusion.
+
+It compares the **recording** timestamps, never `determinedAt`. That date is back-datable by
+design — it is the Item 1.05 anchor and often records a decision made before anyone typed it in
+— so a determination written *after* a factor is not superseded by it, however it is dated.
+
+### What deliberately does not escalate
+
+- **Elapsed days with no determination.** Item 1.05 requires the determination *without
+  unreasonable delay* and names no number of days. `analyze` reports the elapsed distance and
+  declines to judge it. An escalation would *be* that judgment — manufacturing the standard the
+  rule declines to set, then writing down the date you supposedly crossed it. That record would
+  be discoverable too.
+- **A window that is `due`.** Inside the window is on schedule. Due is the attention list;
+  overdue is the escalation.
+- **Unassessed factors.** Already reported as completeness. A gap in the worksheet is not a
+  clock that ran out.
+- **Anything counting `bearing` factors.** That is a score wearing different clothes.
+
+Tune per store, and the block travels with it:
+
+```json
+"settings": { "escalation": { "windowOverdue": true, "anchorMissing": true,
+                              "supersededDetermination": true } }
+```
+
+**Note what is missing: a number.** Every other register in the suite tunes an escalation with a
+count or a window. The only quantities this one could tune are the ones the SEC and DORA already
+set, and they are not this engine's to move.
+
+Escalations are **derived on every run, never stored, never a history event** — and nothing here
+blocks. An overdue window still renders, still exports, still counts.
+
 ## Reporting
 
 ```bash
