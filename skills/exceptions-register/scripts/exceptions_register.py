@@ -630,9 +630,30 @@ def escalations(store: dict, today: str) -> list[dict]:
     `subjectKind` is `acceptance` or `exception` — the record's own kind rather than one
     word for both, because a board reads them differently: an accepted risk is a decision
     somebody made, and a control exception is a rule somebody is not following.
+
+    Records that came across the bridge also carry `relatedRef`: the risk id this record is
+    the acceptance OF. `risk-register` keeps its own lightweight `accepted` marker and can
+    escalate `acceptance-lapsed` on it, so the same expiry can legitimately arrive at a pack
+    twice — once on the marker, once on the authoritative record here, and at two severities.
+    Declaring the link lets the consumer NOTICE that without either register having to know
+    the other exists.
+
+    It is `sourceRiskRef` and deliberately not `riskIds`. `sourceRiskRef` is stamped by
+    `export-acceptances` and is the intake idempotency key: it means "this record IS the
+    acceptance of that risk", which is identity. `riskIds` means "this relates to that risk",
+    which is not — an acceptance linked to R-003 and a dwell escalation on R-003 are two
+    different facts about one risk, and joining them would manufacture the false positive
+    `possible_duplicate_asks` exists to avoid making.
     """
     window = int((store.get("settings") or {}).get("dueWindowDays")
                  or DEFAULT_DUE_WINDOW_DAYS)
+
+    def _related(rec):
+        # Present and null rather than absent when there is no link, matching how every
+        # other optional field on these records is written. Absent-versus-null is a
+        # distinction a consumer would have to guess at.
+        return {"relatedRef": rec.get("sourceRiskRef") or None}
+
     out = []
     for kind, records in (("acceptance", store["acceptances"]),
                           ("exception", store["exceptions"])):
@@ -644,7 +665,7 @@ def escalations(store: dict, today: str) -> list[dict]:
                 out.append({
                     "subjectRef": rec["id"], "subjectKind": kind,
                     "trigger": "expired", "severity": "critical",
-                    "since": expiry,
+                    "since": expiry, **_related(rec),
                     "evidence": {
                         "from": expiry, "to": today,
                         "baseline": rec.get("approver") or "",
@@ -660,7 +681,7 @@ def escalations(store: dict, today: str) -> list[dict]:
                 out.append({
                     "subjectRef": rec["id"], "subjectKind": kind,
                     "trigger": "revalidation-overdue", "severity": "high",
-                    "since": reval,
+                    "since": reval, **_related(rec),
                     "evidence": {
                         "from": reval, "to": today,
                         "baseline": rec.get("approver") or "",
@@ -969,9 +990,11 @@ def _cmd_self_test(_args):
         eq([(e["severity"], e["subjectRef"], e["subjectKind"]) for e in got],
            [("critical", "X-100", "exception"), ("high", "A-200", "acceptance")],
            "escalations sort worst-first, and each keeps its own kind on either branch")
-        eq(sorted(got[0]), ["evidence", "severity", "since", "subjectKind", "subjectRef",
-                            "trigger"],
-           "every escalation carries the six contract keys")
+        eq(sorted(got[0]), ["evidence", "relatedRef", "severity", "since", "subjectKind",
+                            "subjectRef", "trigger"],
+           "every escalation carries the six contract keys, plus the optional link")
+        eq(got[0]["relatedRef"], None,
+           "which is null on a hand-entered record — it is the acceptance OF nothing here")
         eq(sorted(got[0]["evidence"]), ["baseline", "detail", "from", "to"],
            "and its evidence names the comparison that fired it")
 
@@ -1171,6 +1194,31 @@ def _cmd_self_test(_args):
            "a malformed magnitude refuses its own row and is reported")
         eq(len(imported["acceptances"]), 1,
            "and costs the other rows nothing — one bad row is not a failed intake")
+
+        # --- the declared link across the bridge ----------------------------------
+        # `risk-register` can escalate `acceptance-lapsed` on its own marker for the same
+        # expiry this register escalates on the authoritative record. Declaring the source
+        # risk lets a consumer notice one fact arriving twice without either register
+        # knowing the other exists.
+        linked = new_store("Linked Co")
+        import_acceptances(linked, [{
+            "title": "Vendor CRM records", "approver": "CISO", "justification": "j",
+            "acceptedDate": "2026-01-01", "revalidationDate": "2026-02-01",
+            "expiryDate": "2026-03-01", "sourceRiskRef": "R-010",
+        }], actor="t")
+        _le = escalations(linked, "2026-07-31")
+        eq([(e["subjectRef"], e["trigger"], e["relatedRef"]) for e in _le],
+           [("A-001", "expired", "R-010")],
+           "an imported record declares the risk it is the acceptance of")
+
+        # `riskIds` is NOT the join. An acceptance that merely relates to a risk is not the
+        # same fact as an escalation about that risk, and treating it as one would invent
+        # the false positive this link exists to avoid.
+        related_only = new_store("Related Co")
+        accept_add(related_only, "Merely linked", "CISO", "j", "2026-01-01", "2026-02-01",
+                   expiry="2026-03-01", risk_ids=["R-003"], actor="t")
+        eq([e["relatedRef"] for e in escalations(related_only, "2026-07-31")], [None],
+           "a riskIds link is not identity, and does not become a relatedRef")
 
         # --- the refusals. This is the product. -----------------------------------
         save_store(path, store)

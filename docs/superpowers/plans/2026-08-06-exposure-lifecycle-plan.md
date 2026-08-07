@@ -627,7 +627,9 @@ anything.
 
 `nist-csf` emits none, as the audit predicted: a gap against a Target is a distance, not a clock.
 
-**Still outstanding**, and both are decisions rather than tasks:
+**Both now closed**, each recorded below with what the decision turned out to be. The
+statements of the problem are kept as they were written, because they are the reason the
+answers took the shape they did.
 
 1. **`exceptions-register` re-measurement before renewal.** The audit assumed this mirrors
    `risk-register`'s `provisionalScore` refusal because *"the mechanism already exists in the
@@ -636,6 +638,13 @@ anything.
    holds only a marker §1.1 forbids it to update. Option A carries the magnitude and a
    `measuredAt` in the record (self-contained; needs an intake schema change); Option B reads the
    `.rr` at renewal (no schema change, breaks standalone use). **A is recommended.**
+
+   **Decided: A, shipped in #52.** A record may carry the magnitude it was accepted against;
+   `revalidate` refuses to renew against one measured before the last review; `--remeasured`
+   with `--measured-on` supplies a fresh one in the same act. `export-acceptances` stamps
+   residual exposure, its band, and the date the score was last affirmed. Three properties
+   keep it honest: a record with no magnitude is never refused, the staleness rule invents no
+   interval, and the refusal lands on the act rather than the record.
 2. **Duplicate escalations across producers.** `risk-register` can escalate `acceptance-lapsed`
    on its marker while `exceptions-register` escalates `expired` on the authoritative record —
    one fact, two entries, at two severities. The agreed answer is the one this suite already
@@ -643,6 +652,12 @@ anything.
    provable rather than heuristic — `sourceRiskRef` is stamped by `export-acceptances` and is the
    intake idempotency key — so the assembler can join on a field the producer declared and flag
    the pair, including their disagreement about severity.
+
+   **Decided as stated, shipped in #53.** `exceptions-register` declares `relatedRef` on its
+   escalations; `board-pack` joins on it and warns, naming both records, both producers, and
+   the severity disagreement, with both entries left standing. `relatedRef` comes from
+   `sourceRiskRef` and deliberately not `riskIds` — identity rather than relatedness, because
+   joining on relatedness would flag two genuinely different facts as one.
 
 ## Layer 3 — Conformance requirements for sibling skills
 

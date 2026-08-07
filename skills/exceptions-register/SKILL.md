@@ -176,6 +176,13 @@ the second quarter. Due is the attention list; overdue is an escalation.
 reads them differently: an accepted risk is a decision somebody made, a control exception is a
 rule somebody is not following.
 
+Records that came across the bridge also carry **`relatedRef`** — the risk id this record is the
+acceptance *of*, taken from `sourceRiskRef`. `risk-register` can escalate `acceptance-lapsed` on
+its own marker for the same expiry, so declaring the link lets `board-pack` notice one fact
+arriving twice without either register knowing the other exists. It is `sourceRiskRef` and not
+`riskIds`: the first is identity, the second is only relatedness, and joining on relatedness
+would flag two genuinely different facts as one.
+
 Escalations are **derived on every run, never stored, never a history event** — and nothing
 here blocks. An expired record still exports, still renders, still counts.
 
