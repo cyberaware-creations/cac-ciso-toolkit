@@ -160,6 +160,13 @@ jobs:
       # wrong implementation is `if not declared:` — which reads correctly, passes every
       # other test anyone writes, and silently narrows every assessment in the suite with
       # nothing on any rendered page to show it happened.
+      #
+      # There is no `business-context/evals/applicability.sh`, and its absence is deliberate
+      # rather than an oversight: the owner's side of CAC-AP-1 is asserted inside the engine
+      # self-test below (the five §2.2/§2.3 cases, plus subject-null and empty-wrapper
+      # variants). The CONSUMER's side has its own suite, listed further down. Adding a third
+      # file asserting the same things from the same constants would look like more coverage
+      # and buy none. See docs/superpowers/plans/2026-08-07-business-context-implementation-plan.md.
       - name: Business-context engine self-test, on the floor
         run: python3 ./skills/business-context/scripts/business_context.py self-test
 
