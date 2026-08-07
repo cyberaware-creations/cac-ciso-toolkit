@@ -141,15 +141,34 @@ this amendment exists to stop someone rediscovering.
 
 **Escalations emit no events.** They are derived. Only the human decision that answers one does.
 
-#### Scope note, recorded 2026-08-06
+#### Scope note, recorded 2026-08-06 — corrected the same day
 
-`risk-register` is currently the **only** skill in the suite with a history-event vocabulary;
-`exceptions-register`, `incident-materiality` and `metrics-register` carry no `history` array
-and no event types at all. So this clause binds `risk-register` today and binds the others at
-the moment they gain one — which Layer 3 proposes for `exceptions-register`
-(`acceptance-revalidated` as a first-class act). Whoever plans that should build the vocabulary
-**and its partitions and their checks together**, rather than adding a type first and
-discovering the partitions afterwards.
+**Corrected.** The first version of this note claimed `risk-register` was the only skill with a
+history-event vocabulary and that the siblings carried no `history` array at all. That was
+wrong, and wrong because of a bad grep rather than a bad reading: the siblings write history
+through an `append_history()` helper with an `"event"` key, not the `"type"` key
+`risk-register` uses, and the pattern I searched for missed all of it.
+
+What is actually true is narrower and more useful. **Every skill in the suite has a history-event
+vocabulary. Only `risk-register` has any partition over one:**
+
+| skill | event types emitted | partitions over them |
+|---|---|---|
+| `risk-register` | 17 | **2** (`AGE_AFFIRMING`…, `CHANGE_EXPLAINING`…) |
+| `nist-csf` | 12 | 0 |
+| `incident-materiality` | 9 | 0 |
+| `exceptions-register` | 7 | 0 |
+| `metrics-register` | 5 | 0 |
+
+So §1.4 binds `risk-register` fully today, and binds the other four the moment any of them needs
+to answer a question *about* its event types — "which of these affirm freshness", "which may
+caption a change on a board page". None of them asks such a question yet, which is why none has
+a partition and why nothing is broken. The clause is what stops the first one being added
+carelessly.
+
+That also means Layer 3's `exceptions-register` work is smaller than this plan assumes: it
+already emits `{kind}-revalidated` from a `revalidate` command that requires a rationale and
+refuses without one. See the conformance audit below.
 
 <details>
 <summary>The original clause, for the record</summary>
@@ -536,10 +555,100 @@ record per trigger type.
 
 - [x] T12 complete
 
+## Layer 3 — conformance audit, 2026-08-06
+
+**Read this before planning any of the Layer 3 items below.** They were written without access
+to the sibling sources. The sources are in the worktree, and reading them changes the scope
+substantially: **two of the four contract clauses already conform across the whole suite**, and
+the single largest ask — a `revalidate` command in `exceptions-register` — already exists.
+
+### Clause by clause
+
+| clause | status | evidence |
+|---|---|---|
+| **§1.1** clock ownership | **conforms, suite-wide** | No skill writes to a store it does not own. The one cross-skill bridge, `risk-register export-acceptances` → `exceptions-register intake`, is one-way and idempotent on `sourceRiskRef` — the receiving side documents that property and implements it |
+| **§1.2** lapse: flag, never block | **conforms, suite-wide** | Nothing in any skill filters, drops or withholds an item for being lapsed. Each carries its lapse state in the payload it exports (`expiryDate`, `revalidationDate`, `overdue`, `breach`) |
+| **§1.3** escalation record | **`risk-register` only** | The four siblings emit no records carrying `subjectRef`/`subjectKind`. This is the real Layer 3 work |
+| **§1.4** taxonomy handshake | **`risk-register` only has partitions** | Every skill has an event vocabulary; only `risk-register` partitions one. Nothing is broken — a partition is only needed once a skill asks a question *about* its event types |
+
+### Event vocabularies, measured
+
+| skill | event types | partitions |
+|---|---|---|
+| `risk-register` | 17 | 2 |
+| `nist-csf` | 12 | 0 |
+| `incident-materiality` | 9 | 0 |
+| `exceptions-register` | 7 | 0 |
+| `metrics-register` | 5 | 0 |
+
+### What each Layer 3 item actually needs
+
+**`exceptions-register`** — most of it is built. `revalidate` exists as a first-class act,
+emits `{kind}-revalidated`, requires a rationale and refuses without one, with refusals covered
+in its self-test; its own docstring already states the governing idea, *"re-validation is an act,
+not a timer"*. Idempotent intake on `sourceRiskRef` exists. Lapse handling conforms. **Genuinely
+outstanding:** escalation records per §1.3 with its own trigger vocabulary, and
+*re-measurement before renewal* — the clause that makes renewal refuse against a stale
+magnitude, mirroring `risk-register`'s `accept` refusing against `provisionalScore`.
+
+**`board-pack`** — **nothing built, and the highest value.** The assembler has zero references
+to escalation. `risk-register` now emits records it cannot see. The plan calls this "where the
+contract pays for itself", and it is the one item whose absence is visible to a reader of the
+deliverable rather than only to a maintainer. It is also cheap: the pack already runs each
+producer's analysis, so escalations arrive in the same payload as the headline figures.
+
+**`metrics-register`** and **`incident-materiality`** — both already compute the underlying
+state (`breach`, `overdue`). What is missing is expressing it in the §1.3 shape. Neither needs a
+new clock, only a new projection of one they own.
+
+**`nist-csf`** — no lifecycle of its own; conforms trivially. No work.
+
+### Suggested order
+
+`board-pack` first, against `risk-register` alone. It is the only item that makes the escalation
+work visible where it was meant to land, and doing it first proves the §1.3 shape survives a
+consumer before three more producers are built against it. Then `metrics-register` (its breach
+state is closest to the shape), then `exceptions-register`'s two remaining clauses, then
+`incident-materiality`.
+
+### Outcome, recorded 2026-08-06
+
+That order was followed and **§1.3 is now complete across every producer.** The audit above is
+kept as written rather than edited into agreement with the result — it is the record of what was
+known before the work, and a plan quietly rewritten to match its outcome stops being evidence of
+anything.
+
+| producer | PR | `subjectKind` | triggers |
+|---|---|---|---|
+| `board-pack` (consumer) | #47 | — | aggregates and orders; decides nothing |
+| `metrics-register` | #48 | `metric` | `threshold-breached`, `sustained-slip` |
+| `exceptions-register` | #49 | `acceptance`, `exception` | `expired`, `revalidation-overdue` |
+| `incident-materiality` | #50 | `incident` | `window-overdue`, `anchor-missing`, `determination-superseded` |
+
+`nist-csf` emits none, as the audit predicted: a gap against a Target is a distance, not a clock.
+
+**Still outstanding**, and both are decisions rather than tasks:
+
+1. **`exceptions-register` re-measurement before renewal.** The audit assumed this mirrors
+   `risk-register`'s `provisionalScore` refusal because *"the mechanism already exists in the
+   suite"*. Reading both, it does not: `provisionalScore` is a flag on the record the command
+   mutates, whereas the magnitude behind an acceptance lives in `risk-register` and this skill
+   holds only a marker §1.1 forbids it to update. Option A carries the magnitude and a
+   `measuredAt` in the record (self-contained; needs an intake schema change); Option B reads the
+   `.rr` at renewal (no schema change, breaks standalone use). **A is recommended.**
+2. **Duplicate escalations across producers.** `risk-register` can escalate `acceptance-lapsed`
+   on its marker while `exceptions-register` escalates `expired` on the authoritative record —
+   one fact, two entries, at two severities. The agreed answer is the one this suite already
+   uses for duplicate *decisions*: surface, never merge. Unlike the decisions case the join is
+   provable rather than heuristic — `sourceRiskRef` is stamped by `export-acceptances` and is the
+   intake idempotency key — so the assembler can join on a field the producer declared and flag
+   the pair, including their disagreement about severity.
+
 ## Layer 3 — Conformance requirements for sibling skills
 
 **Not task-level.** These were written without access to the source and must be planned against
-the real code before execution. Each is a conformance target against Layer 1.
+the real code before execution — see the audit above for what is already done. Each is a
+conformance target against Layer 1.
 
 **`exceptions-register`** — owns the acceptance clock, so it carries the part of the LinkedIn
 thesis that does not belong in `risk-register`:
