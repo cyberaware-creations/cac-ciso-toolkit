@@ -49,6 +49,8 @@ COVERAGE_RAMP = [(25, "#7C3A32"), (50, "#A6603A"), (75, "#C08A3E"), (100, "#8A9A
 COVERAGE_FULL = "#4A7C59"
 UNTARGETED_FILL = WB_LINE          # hatched in CSS; must never read as 0% or 100%
 NA_FILL = WB
+# Assigned again by _rebuild_derived() below, which is the one definition that matters —
+# these two lines exist so the names are bound before anything that reads them at import.
 
 # Crosswalk band fills. A THIRD ramp, and deliberately so: this skill already has
 # two measures that must not be confused, and a crosswalk band is a third one.
@@ -99,6 +101,27 @@ EVIDENCE_FILL = {
     "unrated":          WB_LINE,    # 12.02:1 with ink
     "not-applicable":   WB,         # 16.33:1 with ink, plus a WB_LINE border
 }
+def _rebuild_derived() -> None:
+    """Recompute everything downstream of the chrome primitives.
+
+    Called at import and again by apply_brand(). Defined once and invoked twice rather than
+    written out in both places: two copies of a fill map is two things that can disagree
+    about what "not applicable" looks like, and only one of them would be on the page.
+    """
+    global UNTARGETED_FILL, NA_FILL, CROSSWALK_UNKNOWN_FILL, EVIDENCE_FILL
+    UNTARGETED_FILL = WB_LINE
+    NA_FILL = WB
+    CROSSWALK_UNKNOWN_FILL = WB_LINE
+    EVIDENCE_FILL = {
+        "confirmed":        INK,        # 17.96:1 with white on the CAC palette
+        "evidence-pending": "#526A78",  #  5.69:1 with white
+        "unrated":          WB_LINE,    # 12.02:1 with ink
+        "not-applicable":   WB,         # 16.33:1 with ink, plus a WB_LINE border
+    }
+
+
+_rebuild_derived()
+
 EVIDENCE_LABEL = {
     "confirmed": "confirmed", "evidence-pending": "material, not yet confirmed",
     "unrated": "not looked at", "not-applicable": "not applicable",
@@ -176,6 +199,64 @@ UNAFFILIATED_CROSSWALK = ("NIST", "ISO", "CIS")
 
 PLACEHOLDER = ("Board narrative not supplied. Run the ciso-board-translation skill over this "
                "Profile and pass its output with --translations to replace this block.")
+
+
+# --- Client brand override ----------------------------------------------------
+#
+# The chart marks followed a client brand long before the page around them did: the graphics
+# library floors what it can see, and this shell — a dark band, light text on it, a lifted
+# sub-header — lived here as literals. A brand that reached the charts and left the page in
+# CAC colours is a worse result than no override at all, because only one half of it looks
+# deliberate.
+#
+# `G.chrome()` now owns the shell and floors the pairings the library cannot see. This binds
+# what that returns onto the names the CSS below already interpolates.
+_BRAND_BINDINGS = {
+    "INK": "ink", "INK_RAISED": "inkRaised", "INK_LINE": "inkLine",
+    "LIME": "lime", "LIME_DIM": "limeDim",
+    "PATINA": "patina", "PATINA_H": "patinaHover", "PATINA_TEXT": "patinaText",
+    "SLATE": "slate", "WB": "bg", "WB_SURF": "surface", "WB_LINE": "line",
+    "MUTED": "muted",
+}
+# Snapshotted at import, and restored verbatim when no brand is supplied. Not recomputed from
+# `G.chrome()`, deliberately: a couple of these values were tuned in this file and differ
+# slightly from the library's, and rebuilding the default from the library would change what
+# an unbranded page renders. Restoring the literal shipped values makes "no --brand renders
+# exactly what it always did" true by construction rather than by inspection.
+_BRAND_DEFAULTS = {n: globals()[n] for n in _BRAND_BINDINGS if n in globals()}
+
+
+def apply_brand(path: str = "") -> None:
+    """Rebind this module's shell from a client brand file, or restore the CAC one.
+
+    Raises `SystemExit` with the reason on a bad file or a refused palette. A renderer that
+    fell back to CAC colours after a failed override would hand a client a document that
+    looks finished and is not the one they asked for.
+    """
+    if not path:
+        globals().update(_BRAND_DEFAULTS)
+        G.set_brand()
+        _rebuild_derived()
+        return
+    try:
+        with open(path, encoding="utf-8") as fh:
+            raw = json.load(fh)
+    except OSError as exc:
+        raise SystemExit("--brand %s: %s" % (path, exc))
+    except ValueError as exc:
+        raise SystemExit("--brand %s is not valid JSON: %s" % (path, exc))
+    if not isinstance(raw, dict):
+        raise SystemExit("--brand %s must contain a JSON object, got %s"
+                         % (path, type(raw).__name__))
+    try:
+        shell = G.apply_chrome(raw)
+    except G.BrandError as exc:
+        raise SystemExit("--brand %s was refused:\n%s" % (path, exc))
+    g = globals()
+    for name, key in _BRAND_BINDINGS.items():
+        if name in g:
+            g[name] = shell[key]
+    _rebuild_derived()
 
 
 def esc(s) -> str:
@@ -297,6 +378,10 @@ def parse_args(argv: list[str], description: str, default_out: str) -> argparse.
     p.add_argument("--translations", metavar="FILE",
                    help="board-language sidecar from the ciso-board-translation skill; "
                         "omitted means board narrative is shown as a labelled placeholder")
+    p.add_argument("--brand", metavar="FILE",
+                   help="client brand JSON — ink, patina, bg, measure, wordmark, "
+                        "whiteLabel. Refused rather than approximated if any pairing "
+                        "falls below its contrast floor")
     p.add_argument("--offline", action="store_true",
                    help="omit the Google Fonts links so the file makes no external request; "
                         "falls back to the system font stack")
@@ -395,6 +480,10 @@ class Context:
 
     def __init__(self, args: argparse.Namespace):
         self.args = args
+        # Applied before anything renders. Every CSS block below is an f-string evaluated at
+        # call time, so rebinding the module palette here reaches all of them — but only if
+        # it happens before the first one is built.
+        apply_brand(getattr(args, "brand", "") or "")
         self.offline = bool(getattr(args, "offline", False))
         self.out_path = args.out
         if args.infile:
@@ -528,7 +617,14 @@ def write(ctx: Context, doc: str) -> None:
 
 # --- Shared chrome -----------------------------------------------------------
 
-BASE_CSS = f"""
+def base_css_block() -> str:
+    """The base stylesheet, built when it is asked for.
+
+    Was a module-level constant, an f-string evaluated at import — before apply_brand() has
+    run — so every colour in it was frozen at the CAC palette and a --brand override reached
+    the charts while leaving this chrome unbranded.
+    """
+    return f"""
 *,*::before,*::after{{box-sizing:border-box}}
 body{{margin:0;background:{WB};color:{INK};
   font-family:'Manrope',system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.5}}
@@ -646,7 +742,7 @@ def page(title: str, head_extra: str, body: str, offline: bool = False) -> str:
     return (f"<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">"
             f"<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
             f"<title>{esc(title)}</title>{fonts(offline)}"
-            f"<style>{BASE_CSS}{head_extra}</style></head><body>{body}</body></html>")
+            f"<style>{base_css_block()}{head_extra}</style></head><body>{body}</body></html>")
 
 
 def band(title: str, kicker: str = "") -> str:
@@ -915,7 +1011,14 @@ def age_band_bar(age: dict, threshold_days: int) -> str:
             f'and none of this says how much to trust a rating.</div>')
 
 
-EVIDENCE_CSS = f"""
+def evidence_css() -> str:
+    """The evidence-state stylesheet, built when it is asked for.
+
+    Was a module-level constant, an f-string evaluated at import — before apply_brand() has
+    run — so every colour in it was frozen at the CAC palette and a --brand override reached
+    the charts while leaving this chrome unbranded.
+    """
+    return f"""
 .ebar{{display:flex;height:34px;border-radius:6px;overflow:hidden;margin-top:10px}}
 .eseg{{display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;
       min-width:0;overflow:hidden}}

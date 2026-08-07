@@ -264,7 +264,15 @@ def decisions(ctx: C.Context) -> str:
     return f'<h2>Decisions for the board</h2><ul class="dec">{items}</ul>'
 
 
-CSS = f"""
+def css() -> str:
+    """The page stylesheet, built when it is asked for.
+
+    This was a module-level constant, an f-string evaluated at import — which is before
+    `_common.apply_brand()` has run, so every colour in it was frozen at the CAC palette and
+    a `--brand` override reached the charts while leaving the page around them unbranded.
+    Half a client's palette looks like a mistake in a way that none of it does not.
+    """
+    return f"""
 @page{{size:A4;margin:14mm 14mm 20mm}}
 *{{box-sizing:border-box}}
 body{{margin:0;font-family:'Manrope',system-ui,sans-serif;color:{C.INK};font-size:10.5px}}
@@ -359,7 +367,7 @@ def render(ctx: C.Context) -> str:
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Risk Register — Board Report{title_tail}</title>
-{C.fonts(ctx.offline)}<style>{CSS}</style></head><body><div class="sheet">
+{C.fonts(ctx.offline)}<style>{css()}</style></head><body><div class="sheet">
 {cover(ctx)}
 <h2>Executive summary</h2>
 {exec_summary(ctx)}

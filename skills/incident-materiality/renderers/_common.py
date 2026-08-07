@@ -45,7 +45,7 @@ MUTED = "#4A4F58"
 # state word is always inside the chip — colour never carries the meaning alone, which also
 # means no reader has to infer alarm from a hue.
 BAND_FILL = {
-    "no-determination":   ("#EDEAE2", "#4A4F58"),
+    "no-determination":   ("#EDEAE2", MUTED),
     "assessing":          ("#E4E9F0", "#2F4A63"),
     "not-yet-determinable": ("#E4E9F0", "#2F4A63"),
     "not-material":       G.chip("good"),
@@ -69,7 +69,7 @@ BAND_LABEL = {
 
 CLOCK_FILL = {
     "not-applicable": ("#EFEDE7", MUTED),
-    "not-started":    ("#EDEAE2", "#4A4F58"),
+    "not-started":    ("#EDEAE2", MUTED),
     "anchor-missing": ("#EDE0EA", "#5E3660"),
     "due":            G.chip("high"),
     "overdue":        G.chip("critical"),
@@ -87,8 +87,46 @@ CLOCK_LABEL = {
 ASSESSMENT_FILL = {
     "bearing":    G.chip("high"),
     "no-bearing": G.chip("good"),
-    "unknown":    ("#EDEAE2", "#4A4F58"),
+    "unknown":    ("#EDEAE2", MUTED),
 }
+
+
+def _rebuild_derived() -> None:
+    """Recompute the maps that read a palette primitive.
+
+    Called at import and again by apply_brand(). Built from MUTED, so binding them
+    once at import froze a client's muted tone back to the CAC one — a leak invisible
+    to any test whose sample brand happens not to override `muted`, which is how it
+    survived until check_import_time_palette went in.
+    """
+    global BAND_FILL, CLOCK_FILL, ASSESSMENT_FILL
+    BAND_FILL = {
+        "no-determination":   ("#EDEAE2", MUTED),
+        "assessing":          ("#E4E9F0", "#2F4A63"),
+        "not-yet-determinable": ("#E4E9F0", "#2F4A63"),
+        "not-material":       G.chip("good"),
+        "material":           G.chip("high"),
+        "disclosure-due":     G.chip("high"),
+        "disclosure-overdue": G.chip("critical"),
+        "filed":              G.chip("good"),
+        "closed":             ("#EFEDE7", MUTED),
+    }
+    CLOCK_FILL = {
+        "not-applicable": ("#EFEDE7", MUTED),
+        "not-started":    ("#EDEAE2", MUTED),
+        "anchor-missing": ("#EDE0EA", "#5E3660"),
+        "due":            G.chip("high"),
+        "overdue":        G.chip("critical"),
+        "filed":          G.chip("good"),
+    }
+    ASSESSMENT_FILL = {
+        "bearing":    G.chip("high"),
+        "no-bearing": G.chip("good"),
+        "unknown":    ("#EDEAE2", MUTED),
+    }
+
+
+_rebuild_derived()
 ASSESSMENT_LABEL = {
     "bearing": "bears on the judgment",
     "no-bearing": "assessed, does not bear",
@@ -170,6 +208,65 @@ CAVEAT = (
     "entries governance-level and factual, align them with what is disclosed, and involve "
     "counsel on anything touching disclosure.")
 
+
+
+
+# --- Client brand override ----------------------------------------------------
+#
+# The chart marks followed a client brand long before the page around them did: the graphics
+# library floors what it can see, and this shell — a dark band, light text on it, a lifted
+# sub-header — lived here as literals. A brand that reached the charts and left the page in
+# CAC colours is a worse result than no override at all, because only one half of it looks
+# deliberate.
+#
+# `G.chrome()` now owns the shell and floors the pairings the library cannot see. This binds
+# what that returns onto the names the CSS below already interpolates.
+_BRAND_BINDINGS = {
+    "INK": "ink", "INK_RAISED": "inkRaised", "INK_LINE": "inkLine",
+    "LIME": "lime", "LIME_DIM": "limeDim",
+    "PATINA": "patina", "PATINA_H": "patinaHover", "PATINA_TEXT": "patinaText",
+    "SLATE": "slate", "WB": "bg", "WB_SURF": "surface", "WB_LINE": "line",
+    "MUTED": "muted",
+}
+# Snapshotted at import, and restored verbatim when no brand is supplied. Not recomputed from
+# `G.chrome()`, deliberately: a couple of these values were tuned in this file and differ
+# slightly from the library's, and rebuilding the default from the library would change what
+# an unbranded page renders. Restoring the literal shipped values makes "no --brand renders
+# exactly what it always did" true by construction rather than by inspection.
+_BRAND_DEFAULTS = {n: globals()[n] for n in _BRAND_BINDINGS if n in globals()}
+
+
+def apply_brand(path: str = "") -> None:
+    """Rebind this module's shell from a client brand file, or restore the CAC one.
+
+    Raises `SystemExit` with the reason on a bad file or a refused palette. A renderer that
+    fell back to CAC colours after a failed override would hand a client a document that
+    looks finished and is not the one they asked for.
+    """
+    if not path:
+        globals().update(_BRAND_DEFAULTS)
+        G.set_brand()
+        _rebuild_derived()
+        return
+    try:
+        with open(path, encoding="utf-8") as fh:
+            raw = json.load(fh)
+    except OSError as exc:
+        raise SystemExit("--brand %s: %s" % (path, exc))
+    except ValueError as exc:
+        raise SystemExit("--brand %s is not valid JSON: %s" % (path, exc))
+    if not isinstance(raw, dict):
+        raise SystemExit("--brand %s must contain a JSON object, got %s"
+                         % (path, type(raw).__name__))
+    try:
+        shell = G.apply_chrome(raw)
+    except G.BrandError as exc:
+        raise SystemExit("--brand %s was refused:\n%s" % (path, exc))
+    g = globals()
+    for name, key in _BRAND_BINDINGS.items():
+        if name in g:
+            g[name] = shell[key]
+    _rebuild_derived()
 
 def esc(s) -> str:
     return html.escape("" if s is None else str(s))
@@ -424,6 +521,10 @@ class Context:
 
     def __init__(self, args: argparse.Namespace):
         self.args = args
+        # Applied before anything renders. Every CSS block below is an f-string evaluated at
+        # call time, so rebinding the module palette here reaches all of them — but only if
+        # it happens before the first one is built.
+        apply_brand(getattr(args, "brand", "") or "")
         self.offline = bool(getattr(args, "offline", False))
         self.out_path = args.out
         try:
@@ -613,6 +714,10 @@ def build_parser(description: str, default_out: str) -> argparse.ArgumentParser:
     p.add_argument("--translations", metavar="FILE",
                    help="ciso-board-translation sidecar; omitted means the board "
                         "narrative renders as a labelled placeholder")
+    p.add_argument("--brand", metavar="FILE",
+                   help="client brand JSON — ink, patina, bg, measure, wordmark, "
+                        "whiteLabel. Refused rather than approximated if any pairing "
+                        "falls below its contrast floor")
     p.add_argument("--offline", action="store_true")
     return p
 

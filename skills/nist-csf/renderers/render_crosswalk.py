@@ -22,7 +22,15 @@ import sys
 
 import _common as c
 
-CSS = f"""
+def css() -> str:
+    """The page stylesheet, built when it is asked for.
+
+    This was a module-level constant, an f-string evaluated at import — which is before
+    `_common.apply_brand()` has run, so every colour in it was frozen at the CAC palette and
+    a `--brand` override reached the charts while leaving the page around them unbranded.
+    Half a client's palette looks like a mistake in a way that none of it does not.
+    """
+    return f"""
 .lensmeta{{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}}
 .lensmeta .chip{{background:{c.WB_SURF};border:1px solid {c.WB_LINE};color:{c.SLATE};
   font-weight:600}}
@@ -459,7 +467,7 @@ def main(argv):
     # page() already prepends BASE_CSS; pass only this renderer's additions.
     c.write(ctx, c.page(
         f'{ctx.profile.get("name", "CSF Profile")} — Crosswalk coverage',
-        CSS, body, ctx.offline))
+        css(), body, ctx.offline))
     return 0
 
 

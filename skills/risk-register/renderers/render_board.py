@@ -188,7 +188,15 @@ def summary_block(ctx: C.Context) -> str:
             + C.freshness_line(ctx))
 
 
-CSS = f"""
+def css() -> str:
+    """The page stylesheet, built when it is asked for.
+
+    This was a module-level constant, an f-string evaluated at import — which is before
+    `_common.apply_brand()` has run, so every colour in it was frozen at the CAC palette and
+    a `--brand` override reached the charts while leaving the page around them unbranded.
+    Half a client's palette looks like a mistake in a way that none of it does not.
+    """
+    return f"""
 *{{box-sizing:border-box}}body{{margin:0;font-family:'Manrope',system-ui,sans-serif;
   background:{C.WB};color:{C.INK}}}
 h1,h2,h3{{font-family:'Space Grotesk','Manrope',system-ui,sans-serif;margin:0}}
@@ -267,7 +275,7 @@ footer{{margin-top:36px;color:{C.SLATE};font-size:11px;border-top:1px solid {C.W
 /* The column counts live in CSS, never inline on the element: an inline
    grid-template-columns outranks this rule and silently defeats it. */
 @media (max-width:900px){{.exec-top,.themegrid,.grid2{{grid-template-columns:1fr}}}}
-{C.MARK_CSS}"""
+{C.mark_css()}"""
 
 
 def _dtext(d): return d.get("text") if isinstance(d, dict) else d
@@ -322,7 +330,7 @@ def render(ctx: C.Context) -> str:
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Risk Register — Executive{title_tail}</title>
-{C.fonts(ctx.offline)}<style>{CSS}</style></head><body>
+{C.fonts(ctx.offline)}<style>{css()}</style></head><body>
 <header><div class="wrap"><div class="brand"><div class="mark"></div><div>
   <div class="eyebrow">Cyber Aware Creations · Risk Register</div>
   <h1>Executive dashboard</h1></div></div>

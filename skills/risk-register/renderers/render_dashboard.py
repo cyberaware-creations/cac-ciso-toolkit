@@ -379,7 +379,15 @@ def owner_table(ctx: C.Context) -> str:
             f'<tbody>{rows}</tbody></table>')
 
 
-CSS = f"""
+def css() -> str:
+    """The page stylesheet, built when it is asked for.
+
+    This was a module-level constant, an f-string evaluated at import — which is before
+    `_common.apply_brand()` has run, so every colour in it was frozen at the CAC palette and
+    a `--brand` override reached the charts while leaving the page around them unbranded.
+    Half a client's palette looks like a mistake in a way that none of it does not.
+    """
+    return f"""
 *{{box-sizing:border-box}}body{{margin:0;font-family:'Manrope',system-ui,sans-serif;
   background:{C.WB};color:{C.INK}}}
 h1,h2,h3{{font-family:'Space Grotesk','Manrope',sans-serif;margin:0}}
@@ -524,10 +532,13 @@ footer{{margin-top:32px;color:{C.SLATE};font-size:11px;border-top:1px solid {C.W
   .meta{{text-align:left}}
 }}
 @media (max-width:460px){{.tiles{{grid-template-columns:1fr}}.bandrow{{flex-wrap:wrap}}}}
-{C.MARK_CSS}"""
+{C.mark_css()}"""
 
 SCRIPT = r"""
 const DB=__DATA__;const BAND=__BAND__;const BL=__BANDLABEL__;const BAND_ON=__BANDON__;
+// Injected, not inlined: this block is a plain string, so a colour written here would
+// survive --brand and print CAC green on a client's page.
+const VELCOLOR=__VELCOLOR__;
 const size=DB.settings.matrixSize;const appetite=DB.settings.appetite;
 const BAND_ORDER=["low","medium","high","critical"];
 const THRESH={5:{low:1,medium:5,high:10,critical:15},4:{low:1,medium:4,high:8,critical:12},
@@ -582,7 +593,7 @@ function renderRows(){const list=sorted(filtered());
  document.getElementById("rows").innerHTML=list.map(r=>`<tr class="row" onclick="openDrawer('${r.id}')">
   <td>${r.id}</td><td>${r.title}${r.provisionalTitle?' <span class="provtag">unreworded</span>':''}</td><td>${r.themeName}</td><td>${r.response.type}</td>
   <td>${chip(bandOfView(r))} ${expOf(r)} ${isOver(r)?'<span class="flag">⚠</span>':''}</td>
-  <td style="color:${{improving:BAND.low,worsening:BAND.critical,steady:"#6A7180",new:"#2FA98C"}[r.velocity]}"
+  <td style="color:${{improving:BAND.low,worsening:BAND.critical,steady:VELCOLOR.steady,new:VELCOLOR.new}[r.velocity]}"
     title="${r.priorExposure===null?"no baseline":"was "+r.priorExposure+" at "+DB.baseline}">${VELMARK[r.velocity]}</td>
   <td>${r.owner||'<span class="muted">unowned</span>'}</td><td>${r.status}</td>
   <td>${flagsOf(r)}</td></tr>`).join("");
@@ -643,7 +654,8 @@ def render(ctx: C.Context) -> str:
     script = (SCRIPT.replace("__DATA__", build_data(ctx))
               .replace("__BANDLABEL__", json.dumps(C.BAND_LABEL))
               .replace("__BANDON__", json.dumps(C.BAND_ON))
-              .replace("__BAND__", json.dumps(C.BAND)))
+              .replace("__BAND__", json.dumps(C.BAND))
+              .replace("__VELCOLOR__", json.dumps(C.VELOCITY_COLOR)))
     client = C.esc(m.get("clientName") or "")
     title_tail = " · " + client if client else ""
     note = C.provisional_note(ctx.live)
@@ -658,7 +670,7 @@ def render(ctx: C.Context) -> str:
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Risk Register — Working View{title_tail}</title>
-{C.fonts(ctx.offline)}<style>{CSS}</style></head><body>
+{C.fonts(ctx.offline)}<style>{css()}</style></head><body>
 <header><div class="wrap"><div class="brand"><div class="mark"></div><div>
   <div class="eyebrow">Cyber Aware Creations · Risk Register</div>
   <h1>Heat map &amp; register — working view</h1></div></div>
