@@ -411,7 +411,8 @@ python3 skills/board-pack/scripts/assemble_pack.py self-test               # con
 python3 tools/crosswalks/validate_crosswalks.py --self-test  # the crosswalk checker's own tests
 ./tools/check-versions.py                                # the four plugin version strings agree
 ./tools/check-versions.py --self-test                    # and the guard's own tests
-./tools/check-versions.py --base main                    # ...and that a shipped change bumped them
+./tools/check-versions.py --base main                    # ...that a shipped change bumped them,
+                                                         #    and that CHANGELOG.md says what moved
 ```
 
 Each prints its own count. Don't pin those counts in prose — three of them have already gone
