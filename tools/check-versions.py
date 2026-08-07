@@ -2,7 +2,8 @@
 """Version-manifest guard.
 
 Four version strings describe this plugin, across three files. They must agree with
-each other, and they must move when shipped content moves.
+each other, they must move when shipped content moves, and a version that moves must
+say what moved in CHANGELOG.md.
 
 Both halves exist because both halves failed. Commit 18cfec5 bumped
 .claude-plugin/plugin.json to 0.4.1 and left the other three at 0.4.0 -- and since
@@ -15,13 +16,14 @@ gets the same answer, already written at the top of that workflow: a release che
 a human has to remember is not a check.
 
   ./tools/check-versions.py                 # consistency only
-  ./tools/check-versions.py --base <ref>    # consistency + bump-on-change
-  ./tools/check-versions.py --self-test     # exercise both checks in a scratch repo
+  ./tools/check-versions.py --base <ref>    # + bump-on-change + changelog entry
+  ./tools/check-versions.py --self-test     # exercise every check in a scratch repo
 
 Exit 0 = all checks passed. Exit 1 = at least one failed, with the reason.
 """
 
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -522,6 +524,68 @@ def check_bump(base, root="."):
     return False
 
 
+def check_changelog(base, root="."):
+    """If the version moved against `base`, CHANGELOG.md must carry an entry for it.
+
+    The gap this closes is the one the changelog's own opening paragraph describes. The
+    v0.11.0 release note said the repo had run to 0.10.5 across 65 commits with no tag, so
+    the version strings were the only record of what an installed copy actually was. That
+    was named, fixed once with a single tag, and recurred immediately: 0.12.0 to 0.37.0,
+    28 versions, no tag and no changelog. Naming a problem is not a guard against it.
+
+    Same shape as `check_bump` directly above, one step further along. That one says the
+    version must move when shipped files change; this says a moved version must say what
+    moved. Both exist because a release step a human has to remember is not a check.
+
+    Deliberately NOT a check on the entry's content. A guard trying to judge whether an
+    entry was any good would be unfalsifiable and would be satisfied by a placeholder. What
+    it can prove is that the version has a heading -- which is what is missing when somebody
+    forgets, and forgetting is the failure that actually happened here 28 times.
+    """
+    changelog = Path(root) / "CHANGELOG.md"
+    try:
+        head_version = _dig(
+            json.loads((Path(root) / MANIFESTS[0][0]).read_text(encoding="utf-8")),
+            MANIFESTS[0][1])
+    except (OSError, ValueError, KeyError):
+        print("ERROR: cannot read the head version; the changelog check cannot run.")
+        return False
+
+    try:
+        raw = _git(["show", "{}:{}".format(base, MANIFESTS[0][0])], root)
+        base_version = _dig(json.loads(raw), MANIFESTS[0][1])
+    except (subprocess.CalledProcessError, ValueError, KeyError):
+        print("changelog: no manifest at {}; treating as a first release.".format(base))
+        return True
+
+    if base_version == head_version:
+        print("changelog: the version did not move against {}; no entry required.".format(
+            base))
+        return True
+
+    if not changelog.exists():
+        print("ERROR: the version moved {} -> {} and there is no CHANGELOG.md.".format(
+            base_version, head_version))
+        return False
+
+    text = changelog.read_text(encoding="utf-8")
+    # `## v0.37.0` at the start of a line. Anchored, so a version named in prose -- "fixed
+    # since v0.37.0" -- cannot satisfy the check for a release with no section of its own.
+    heading = re.compile(r"^##\s+v{}\b".format(re.escape(head_version)), re.M)
+    if heading.search(text):
+        print("changelog: the version moved {} -> {} and CHANGELOG.md has an entry for "
+              "it.".format(base_version, head_version))
+        return True
+
+    print("ERROR: the version moved {} -> {} and CHANGELOG.md has no entry for {}.".format(
+        base_version, head_version, head_version))
+    print("       Add a section headed `## v{}` describing what changed.".format(
+        head_version))
+    print("       This repo shipped 28 versions with no changelog because the step was "
+          "somebody's to remember. It is a check now.")
+    return False
+
+
 # -- self-test ------------------------------------------------------------------
 
 
@@ -756,6 +820,40 @@ def self_test():
         ok(check_bump("nosuchref", str(repo)) is False,
            "an unresolvable base ref fails")
 
+        # -- the changelog guard, in every direction that matters -------------------
+        # Its own movement rather than the bump fixture's: base3 already carries the same
+        # version as HEAD, so reusing it would have tested "did not move" three times and
+        # called it three passes. That is the vacuous-pass shape this file argues against,
+        # and it is what the first draft of these cases actually did.
+        (repo / "docs" / "cl.md").write_text("marker\n", encoding="utf-8")
+        cl_base = _git_commit(repo, "before the changelog bump")
+        _write_manifests(repo, "0.9.0")
+        _git_commit(repo, "bump to 0.9.0, no changelog")
+        ok(check_changelog(cl_base, str(repo)) is False,
+           "a moved version with no CHANGELOG.md at all fails")
+        (repo / "CHANGELOG.md").write_text(
+            "# Changelog\n\n## v0.1.0 — old\n\nthe previous one\n", encoding="utf-8")
+        ok(check_changelog(cl_base, str(repo)) is False,
+           "a CHANGELOG with no entry for the NEW version fails")
+        # Named in prose but given no section. This is the case an unanchored search would
+        # pass, and passing it would let a release ship whose only mention of itself is a
+        # sentence about something else.
+        (repo / "CHANGELOG.md").write_text(
+            "# Changelog\n\nfixed since v0.9.0, see below\n\n## v0.1.0 — old\n",
+            encoding="utf-8")
+        ok(check_changelog(cl_base, str(repo)) is False,
+           "a version named only in prose does not count as an entry")
+        (repo / "CHANGELOG.md").write_text(
+            "# Changelog\n\n## v0.9.0 — new\n\nwhat changed\n\n## v0.1.0 — old\n",
+            encoding="utf-8")
+        ok(check_changelog(cl_base, str(repo)) is True,
+           "a CHANGELOG carrying `## v<new>` passes")
+        # And the quiet case: no bump, no obligation. A guard that demanded an entry for
+        # every commit would be satisfied with noise within a week.
+        nobump = _git_commit(repo, "changelog fixture")
+        ok(check_changelog(nobump, str(repo)) is True,
+           "a change that does not move the version needs no entry")
+
         # -- a base whose manifest is present but malformed is not a first release --
         bad = Path(tmp) / "bad"
         bad.mkdir()
@@ -925,6 +1023,7 @@ def main(argv):
     passed = check_skill_coverage(root) and passed
     if base is not None:
         passed = check_bump(base, root) and passed
+        passed = check_changelog(base, root) and passed
     return 0 if passed else 1
 
 
