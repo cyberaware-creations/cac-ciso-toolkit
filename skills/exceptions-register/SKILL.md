@@ -58,6 +58,57 @@ the event cannot be told apart from an automated renewal.
 **A lapsed clock surfaces an item; it never expires the reasoning.** Overdue records stay in
 the inventory and stay visible, because the organisation is still carrying that risk.
 
+## Re-measure before you renew
+
+An acceptance is a decision about a **quantity** — *we will carry this much exposure, on this
+basis, until this date*. So a record may carry the magnitude it was accepted against, and
+`revalidate` refuses to renew against a number nobody has re-measured since the last review:
+
+```bash
+python3 scripts/exceptions_register.py accept-add register.exc \
+    --title "40-day patch window" ... \
+    --magnitude 12 --magnitude-unit "residual exposure" --measured-on 2026-04-01
+```
+
+```
+A-001 cannot be re-validated against a magnitude nobody has re-measured.
+    accepted against: 12 residual exposure
+    last measured:    2026-04-01
+    last reviewed:    2026-08-01
+```
+
+The way through is to do the measuring, in the same act that records the review:
+
+```bash
+python3 scripts/exceptions_register.py revalidate register.exc --id A-001 \
+    --on 2027-01-01 --next 2028-01-01 --remeasured 8 --measured-on 2026-12-20 \
+    --why "Re-scored with IT before renewal; segmentation landed in November."
+```
+
+This is the same argument as `--why`, one level down. `--why` stops a renewal that records no
+reasoning; this stops one whose reasoning rests on a number nobody re-checked.
+
+Three properties keep it honest:
+
+- **The register never demands a number it was never given.** A record with no magnitude is
+  never refused. This skill stands alone without a quantified risk register, and requiring a
+  quantity it never had would make an unquantified register unusable rather than more rigorous.
+- **The staleness rule invents no interval.** *Older than the last time somebody reviewed this
+  record* comes from the record's own history. A configurable window would be this skill naming
+  a number that no standard sets.
+- **The refusal lands on the act, never on the record.** A record awaiting re-measurement still
+  counts, still analyses, still exports, still renders. One act is refused, not one record — and
+  the refusal says so, because a reader who thinks a record has been hidden goes looking in the
+  wrong place.
+
+`analyze` puts these on the **`remeasureNeeded`** attention list, narrowed to records whose
+review is actually due. Every quantified record needs re-measuring *eventually*; only the ones
+with a review coming up belong on this quarter's agenda.
+
+Records imported from `risk-register` arrive already measured — `export-acceptances` stamps the
+residual exposure, its band, and the date the score was last affirmed. A refresh that carries no
+magnitude leaves the recorded one alone, so the bridge cannot become a way around the refusal.
+
 ## Workflow A — record
 
 ```bash
@@ -82,8 +133,8 @@ python3 $E analyze register.exc --today 2026-07-31 --out analysis.json
 (cd renderers && python3 render_inventory.py --in ../analysis.json --out ../inventory.html)
 ```
 
-Work the attention lists — **overdue**, **due**, **expired**, **no compensating control**,
-**unlinked**. For each, the review reaches one of three outcomes and records it:
+Work the attention lists — **overdue**, **due**, **expired**, **needs re-measurement**, **no
+compensating control**, **unlinked**. For each, the review reaches one of three outcomes and records it:
 
 - still valid → `revalidate` with the rationale
 - no longer valid → `close` with the reason, and raise the underlying work
@@ -135,6 +186,10 @@ python3 ../risk-register/scripts/score_register.py export-acceptances register.r
 python3 $E import-acceptances register.exc --from acc.json --actor "you"
 ```
 
+One-way, and it now carries the magnitude too: each row brings the risk's residual exposure,
+its band, and the date that score was last affirmed, so an imported acceptance arrives able to
+answer *"what was this accepted against, and when was that last measured?"*
+
 One-way. `risk-register` keeps its lightweight `accepted` marker and feeds it across; the
 lifecycle lives **here**, and the register deliberately has no `revalidate`. Two homes for
 the same clock is how the two come to disagree. The import is idempotent on the source risk
@@ -171,7 +226,7 @@ make it.
 
 | File | What it covers |
 |---|---|
-| `references/schema.md` | the `.exc` store, required fields, status bands, derived list |
+| `references/schema.md` | the `.exc` store, required fields, the magnitude block, status bands, derived list |
 | `references/exceptions.md` | the exception model, compensating controls, receipts and their limits, the discoverability caveat |
 
 Verify the engine with `python3 scripts/exceptions_register.py self-test`.
