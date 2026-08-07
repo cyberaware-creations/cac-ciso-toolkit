@@ -22,7 +22,7 @@ skill="$(cd "$here/.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=46
+EXPECTED_CHECKS=48
 checks=0
 fails=0
 ok()  { checks=$((checks + 1)); printf '  ok    %s\n' "$1"; }
@@ -450,6 +450,14 @@ SOURCES = [
      ["analyze", "{store}", "--today", "{asOf}"], "example-metrics.mtr"),
     ("exceptions", "exceptions-register", "exceptions_register.py",
      ["analyze", "{store}", "--today", "{asOf}"], "example.exc"),
+    # The one producer whose argv is not just --today. DORA counts clock hours, so this
+    # engine takes a --now as well, and the adapter has to hand it the same instant the
+    # pack is dated from. Reproducing the adapter's argv here rather than a simplified one
+    # is the point: a pack that dated the clocks differently from the worksheet would put
+    # two answers to a statutory question in one document.
+    ("incident", "incident-materiality", "incident_analysis.py",
+     ["analyze", "{store}", "--today", "{asOf}", "--now", "{asOf}T00:00:00+00:00"],
+     "example-incident.inc"),
 ]
 checked_sections = set()
 for section, skill_dir, script, argv, fixture in SOURCES:
@@ -496,6 +504,103 @@ if [ -z "$esc_res" ]; then
 else
   bad "every escalation is verbatim from its producer and reaches both deliverables" "$esc_res"
 fi
+
+# The shipped incident workspace is a well-run one: every clock filed or not yet started, no
+# anchor absent, no determination outrun by its own record. Zero escalations is the correct
+# answer for it — and it means the check above compared an empty set with an empty set for
+# that producer, which is a pass with nothing behind it.
+#
+# So: a store built here that genuinely escalates, wired in through a manifest variant. This
+# proves the fourth adapter end to end without editing a shipped example to make a test bite,
+# which would be marking our own homework in the other direction.
+INC="$work/escalating.inc"
+IE="$skill/../incident-materiality/scripts/incident_analysis.py"
+"$PY" "$IE" init "$INC" --client "Eval Co" --owner CISO --actor eval >/dev/null 2>&1
+# 1. an 8-K window that closed: determined material 2026-07-14, due 2026-07-20, nothing filed.
+"$PY" "$IE" open "$INC" --title "Payroll portal breach" --discovered 2026-07-06 \
+    --regime sec-1.05 --actor eval >/dev/null 2>&1
+"$PY" "$IE" determine "$INC" --id I-001 --state material \
+    --rationale "Export of SSN and bank details confirmed." --decider "General Counsel" \
+    --on 2026-07-14 --actor eval >/dev/null 2>&1
+# 2. a DORA incident with no anchor recorded, so no deadline can be computed at all.
+"$PY" "$IE" open "$INC" --title "Payment rail outage" --discovered 2026-07-28 \
+    --regime dora --actor eval >/dev/null 2>&1
+# Exported BEFORE the variant runs, because `_variant.py` reads it from the environment. On
+# the first pass this line sat after the call: the snippet raised, no manifest was written,
+# the assemble that followed failed, and the `&&` chaining it to the assertion short-circuited
+# so the result string came back empty and the check reported ok. A vacuous pass wearing a
+# tick, in the block written to remove one. Hence also the explicit else below — a variant
+# that does not assemble is a failure of this check, never the absence of one.
+export INC
+variant "$work/inc.manifest.json" 'import os
+for e in m["sections"]:
+    if e["section"] == "incident":
+        e["store"] = os.environ["INC"]
+        e.pop("translations", None)'
+if "$PY" "$A" assemble "$work/inc.manifest.json" --out "$work/inc.pack.json" \
+     >/dev/null 2>"$work/inc.err"; then
+  inc_res=$("$PY" - "$work/inc.pack.json" <<'PY'
+import json, sys
+esc = [e for e in (json.load(open(sys.argv[1])).get("escalations") or [])
+       if e.get("section") == "incident"]
+got = sorted((e["subjectRef"], e["trigger"], e["severity"], e["subjectKind"]) for e in esc)
+want = sorted([("I-001", "window-overdue", "critical", "incident"),
+               ("I-002", "anchor-missing", "high", "incident")])
+if got != want:
+    print("expected %r, got %r" % (want, got))
+PY
+)
+else
+  inc_res="the incident-variant manifest did not assemble: $(tail -2 "$work/inc.err")"
+fi
+if [ -z "$inc_res" ]; then
+  ok "an incident workspace that escalates reaches the pack, both triggers, both severities"
+else
+  bad "an incident workspace that escalates reaches the pack" "$inc_res"
+fi
+
+# Distinguishing "this producer was quiet" from "this producer was never asked". Every source
+# above must have RUN and answered with an escalations key, even when the answer is an empty
+# list. Without this, unwiring an adapter whose example happens to escalate nothing is
+# indistinguishable from the calm quarter it would look like.
+asked_res=$("$PY" - "$skill" "$(q 'p["asOf"]')" <<'PY'
+import json, os, subprocess, sys
+skill, as_of = sys.argv[1], sys.argv[2]
+SOURCES = [("risk", "risk-register", "score_register.py",
+            ["score", "{store}", "--json", "--today", "{asOf}"], "example-register-v2.rr"),
+           ("metrics", "metrics-register", "metrics_analysis.py",
+            ["analyze", "{store}", "--today", "{asOf}"], "example-metrics.mtr"),
+           ("exceptions", "exceptions-register", "exceptions_register.py",
+            ["analyze", "{store}", "--today", "{asOf}"], "example.exc"),
+           ("incident", "incident-materiality", "incident_analysis.py",
+            ["analyze", "{store}", "--today", "{asOf}", "--now", "{asOf}T00:00:00+00:00"],
+            "example-incident.inc")]
+problems, counts = [], {}
+for section, skill_dir, script, argv, fixture in SOURCES:
+    root = os.path.join(skill, "..", skill_dir)
+    store = os.path.join(root, "examples", fixture)
+    out = subprocess.run([sys.executable, os.path.join(root, "scripts", script)]
+                         + [a.replace("{store}", store).replace("{asOf}", as_of) for a in argv],
+                         capture_output=True, text=True)
+    try:
+        payload = json.loads(out.stdout)
+    except ValueError:
+        problems.append("%s produced no readable analysis at all" % section)
+        continue
+    if "escalations" not in payload:
+        problems.append("%s answered without an escalations key — it is not wired for §1.3"
+                        % section)
+        continue
+    counts[section] = len(payload["escalations"] or [])
+if len(counts) != len(SOURCES):
+    problems.append("only %d of %d producers answered" % (len(counts), len(SOURCES)))
+print("\n".join(problems) or "COUNTS " + json.dumps(counts, sort_keys=True))
+PY
+)
+case "$asked_res" in
+  COUNTS*) ok "all four producers answer the §1.3 contract, quiet or not (${asked_res#COUNTS })" ;;
+  *)       bad "all four producers answer the §1.3 contract, quiet or not" "$asked_res" ;;
+esac
 
 # The unassessed case, end to end. A CSF Function with nothing assessed must reach the page
 # as a hatched row and not as a zero-length bar: a zero bar in a row of long ones reads as

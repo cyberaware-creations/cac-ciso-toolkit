@@ -117,9 +117,25 @@ Two consequences worth knowing:
   no escalations and a pack that could not read any are different states and only one is good
   news.
 
-Today `risk-register` is the only producer emitting them. The others are *absent* rather than
-empty, which is why this is a per-producer adapter — a skill that escalates nothing and a skill
-that cannot escalate yet are different facts, and the provenance page says which.
+Four producers emit them, each owning a different clock and none knowing about the others:
+
+| producer | `subjectKind` | what it is entitled to say has run out |
+|---|---|---|
+| `risk-register` | `risk` | a band crossed, appetite dwelt in, an acceptance marker lapsed |
+| `metrics-register` | `metric` | a threshold breached, a reading sliding the wrong way |
+| `exceptions-register` | `acceptance`, `exception` | the acceptance lifecycle it is the system of record for |
+| `incident-materiality` | `incident` | a statutory disclosure clock — and nothing about materiality |
+
+`nist-csf` emits none: a gap against a Target is a distance, not a clock, and nothing in a
+Profile expires. That is *absent* rather than empty, and the distinction is why this is a
+per-producer adapter — a skill that escalates nothing and a skill that cannot escalate yet are
+different facts, and the provenance page says which.
+
+The severities are not comparable across producers by arithmetic, and the pack does not pretend
+they are. It orders by the severity each producer **declared**, then by section, then by
+subject. A `critical` from the incident workspace means a filing deadline passed; a `critical`
+from the register means a band crossed. One list, four vocabularies, no translation layer
+inventing a common scale.
 
 ## What it adds
 
