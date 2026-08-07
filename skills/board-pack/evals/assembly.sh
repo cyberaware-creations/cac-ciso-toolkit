@@ -448,6 +448,8 @@ SOURCES = [
      ["score", "{store}", "--json", "--today", "{asOf}"], "example-register-v2.rr"),
     ("metrics", "metrics-register", "metrics_analysis.py",
      ["analyze", "{store}", "--today", "{asOf}"], "example-metrics.mtr"),
+    ("exceptions", "exceptions-register", "exceptions_register.py",
+     ["analyze", "{store}", "--today", "{asOf}"], "example.exc"),
 ]
 checked_sections = set()
 for section, skill_dir, script, argv, fixture in SOURCES:
