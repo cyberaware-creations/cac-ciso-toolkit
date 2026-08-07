@@ -561,7 +561,20 @@ def build_html(pack: dict) -> str:
 
 # --- PPTX ---------------------------------------------------------------------
 
-def build_pptx(pack: dict, path: str) -> None:
+def build_pptx(pack: dict, path: str, mode: str = "full") -> None:
+    """Write the deck. `mode` is "full" (everything, in reading order) or "board".
+
+    BOARD MODE MOVES; IT NEVER DROPS. Every slide the full deck contains is still in the
+    file — the per-section item lists and the management actions are relocated behind an
+    appendix divider, and the section dividers, which are pure navigation for a deck that no
+    longer runs long, are the only things that stop being drawn.
+
+    That distinction is the whole design. A board deck that silently omitted a section's
+    detail would be this skill inventing an editorial judgment about what a board needs to
+    see, which is exactly what it refuses to do everywhere else — and unlike a placeholder,
+    an omission leaves nothing behind to notice. An appendix is a reading order, not a
+    filter, and the deck says on its divider what was moved and why.
+    """
     audience = "Board" if pack["audience"] == "board" else "Audit committee"
     eyebrow = f'{pack["client"]} · {pack["period"]} · {audience}'
     deck = PX.Deck(f'{FOOTER} · as at {pack["asOf"]}')
@@ -667,14 +680,22 @@ def build_pptx(pack: dict, path: str) -> None:
     # Management actions travel with the deck but after the decisions, and never mixed into
     # them. A board asked to decide something management already owns learns to skim the
     # decision slide, which is the one slide it must not skim.
+    #
+    # In board mode they move to the appendix on the same reasoning taken one step further:
+    # they are not for board decision at all, so they are not core to a board meeting. They
+    # are still in the file, in full.
+    appendix = []
     for i in range(0, len(management_asks), 5):
         chunk = management_asks[i:i + 5]
         more = "" if len(management_asks) <= 5 else f" ({i // 5 + 1})"
-        deck.add(f"Management actions — not for board decision{more}",
-                 [(d["text"], 1300, False, PX.INK, True) for d in chunk]
-                 + [("Marked by the section that raised each one. An ask nobody marked "
-                     "stays on the decision slides.", 1000, False, PX.MUTED, False)],
-                 eyebrow=eyebrow)
+        rows = ([(d["text"], 1300, False, PX.INK, True) for d in chunk]
+                + [("Marked by the section that raised each one. An ask nobody marked "
+                    "stays on the decision slides.", 1000, False, PX.MUTED, False)])
+        title = f"Management actions — not for board decision{more}"
+        if mode == "board":
+            appendix.append((title, rows))
+        else:
+            deck.add(title, rows, eyebrow=eyebrow)
 
     total_sections = len(pack["sections"])
     for idx, section in enumerate(pack["sections"], start=1):
@@ -682,7 +703,8 @@ def build_pptx(pack: dict, path: str) -> None:
         # The counter, not the title, is the divider's second run: a divider
         # repeating its section's name would collide with that section's own
         # summary slide and trip the no-duplicate-titles check.
-        deck.section(title, f"Section {idx} of {total_sections}")
+        if mode != "board":
+            deck.section(title, f"Section {idx} of {total_sections}")
         paras = [(section["executiveSummary"] or PLACEHOLDER, 1300, False,
                   PX.INK if section["executiveSummary"] else PX.MUTED, False)]
         if section["section"] == "incident":
@@ -703,9 +725,11 @@ def build_pptx(pack: dict, path: str) -> None:
             for i in range(0, len(entries), 4):
                 chunk = entries[i:i + 4]
                 part = "" if len(entries) <= 4 else f" ({i // 4 + 1})"
-                deck.add(heading + part,
-                         [(f"{k}: {v}", 1150, False, PX.INK, True) for k, v in chunk],
-                         eyebrow=eyebrow)
+                rows = [(f"{k}: {v}", 1150, False, PX.INK, True) for k, v in chunk]
+                if mode == "board":
+                    appendix.append((heading + part, rows))
+                else:
+                    deck.add(heading + part, rows, eyebrow=eyebrow)
 
     prov = pack["provenance"]
     notes = prov["missing"] + prov["warnings"]
@@ -718,6 +742,17 @@ def build_pptx(pack: dict, path: str) -> None:
              + profile_line
              + [(n, 1100, False, PX.INK, True) for n in (notes or ["Nothing was missing."])],
              eyebrow=eyebrow)
+
+    # The appendix, in board mode only. The divider states what was moved, so a reader who
+    # notices the main deck is shorter than the document can see where the rest went instead
+    # of wondering whether it was cut.
+    if appendix:
+        deck.section("Appendix",
+                     "Item detail and management actions, moved out of the main sequence. "
+                     "Nothing has been removed — this is the same content the full deck "
+                     "carries inline.")
+        for title, rows in appendix:
+            deck.add(title, rows, eyebrow=eyebrow)
     deck.write(path)
 
 
@@ -731,6 +766,10 @@ def main(argv=None) -> int:
     p.add_argument("--html", default="board-pack.html")
     p.add_argument("--pptx", default="board-pack.pptx")
     p.add_argument("--no-pptx", action="store_true")
+    p.add_argument("--deck-mode", choices=("full", "board"), default="full",
+                   help="'full' (default) is every slide in reading order. 'board' moves "
+                        "item detail and management actions behind an appendix divider and "
+                        "drops the section dividers; nothing is removed from the file.")
     args = p.parse_args(argv)
 
     try:
@@ -760,7 +799,7 @@ def main(argv=None) -> int:
           file=sys.stderr)
 
     if not args.no_pptx:
-        build_pptx(pack, args.pptx)
+        build_pptx(pack, args.pptx, args.deck_mode)
         problems = PX.verify(args.pptx)
         size = os.path.getsize(args.pptx)
         print(f"wrote {args.pptx} ({size:,} bytes)")

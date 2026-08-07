@@ -22,7 +22,7 @@ skill="$(cd "$here/.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=68
+EXPECTED_CHECKS=76
 checks=0
 fails=0
 ok()  { checks=$((checks + 1)); printf '  ok    %s\n' "$1"; }
@@ -1025,6 +1025,92 @@ if "$PY" "$A" assemble "$work/samey.json" --out "$work/samey.out.json" >/dev/nul
 else
   bad "'NORTHWIND MANUFACTURING Ltd.' matches 'Northwind Manufacturing'" \
       "the guard refused a pack that names one company two ways"
+fi
+
+# --- Was this prose written against these numbers? ----------------------------------
+#
+# A pack pairs live FIGURES with PROSE written at some earlier moment, and nothing tied the
+# two together: a register edited after its sidecar produced sentences describing one state
+# of the world beside numbers describing another. `boundTo` is optional and additive, so
+# these check all three states — bound and matching, bound and stale, and not bound at all.
+
+# 11. Unbound is the world as it stands: ONE note for the pack, never one per section.
+if "$PY" -c 'import json,sys
+notes=[n for n in json.load(open(sys.argv[1]))["provenance"]["missing"] if "boundTo" in n]
+sys.exit(0 if len(notes) == 1 and "risk" in notes[0] else 1)' "$J"; then
+  ok "sidecars with no binding produce ONE note for the pack, not one per section"
+else
+  bad "unbound sidecars produce a single note" \
+      "$("$PY" -c 'import json,sys
+print(len([n for n in json.load(open(sys.argv[1]))["provenance"]["missing"] if "boundTo" in n]))' "$J") notes"
+fi
+
+# 12-14. A bound sidecar. Written into $work so the shipped one stays as it is.
+"$PY" "$here/_bindfixture.py" "$M" "$work/bound.manifest.json" "$work" --section risk --match
+if "$PY" "$A" assemble "$work/bound.manifest.json" --out "$work/bound.json" >/dev/null 2>&1 &&
+   "$PY" -c 'import json,sys
+p=json.load(open(sys.argv[1]))["provenance"]
+stale=[w for w in p["warnings"] if "prose was written" in w]
+unbound=[n for n in p["missing"] if "boundTo" in n]
+sys.exit(0 if not stale and not any("risk" in n for n in unbound) else 1)' "$work/bound.json"; then
+  ok "a sidecar bound to the store it was written against raises nothing"
+else
+  bad "a matching binding is silent" "it warned, or risk stayed on the unbound list"
+fi
+"$PY" "$here/_bindfixture.py" "$M" "$work/stale.manifest.json" "$work" --section risk --stale
+"$PY" "$A" assemble "$work/stale.manifest.json" --out "$work/stale.json" >/dev/null 2>&1
+if "$PY" -c 'import json,sys
+w=[x for x in json.load(open(sys.argv[1]))["provenance"]["warnings"] if "prose was written" in x]
+sys.exit(0 if w and "2026-05-01T09:00:00Z" in w[0] else 1)' "$work/stale.json"; then
+  ok "...and one written before the store was last edited warns, naming both stamps"
+else
+  bad "a stale binding warns with both timestamps" "no such warning"
+fi
+# THE GUARD, SEEN TO FAIL. Without this, check 12 passes against an engine that never warns.
+if "$PY" -c 'import json,sys
+a=[x for x in json.load(open(sys.argv[1]))["provenance"]["warnings"] if "prose was written" in x]
+b=[x for x in json.load(open(sys.argv[2]))["provenance"]["warnings"] if "prose was written" in x]
+sys.exit(0 if len(b) > len(a) else 1)' "$work/bound.json" "$work/stale.json"; then
+  ok "...and the matching case really is quieter than the stale one, so the check can see"
+else
+  bad "the binding check distinguishes matching from stale" "both produced the same warnings"
+fi
+
+# --- The board deck mode -------------------------------------------------------------
+#
+# 15-18. The deck ran 31 slides, most of them item lists. `--deck-mode board` moves those
+# behind an appendix divider. The load-bearing case is #17: it MOVES and never DROPS, because
+# a deck that silently omitted a section's detail would be this skill inventing an editorial
+# judgment about what a board needs to see — and unlike a placeholder, an omission leaves
+# nothing behind for anyone to notice.
+(cd "$skill/renderers" && "$PY" render_pack.py --in "$J" --html "$work/dm.html" \
+  --pptx "$work/dm_full.pptx" --deck-mode full) >/dev/null 2>&1
+(cd "$skill/renderers" && "$PY" render_pack.py --in "$J" --html "$work/dm2.html" \
+  --pptx "$work/dm_board.pptx" --deck-mode board) >/dev/null 2>&1
+core="$("$PY" "$here/_deckhas.py" "$work/dm_board.pptx" --core)"
+full_n="$("$PY" "$here/_deckfit.py" "$work/dm_full.pptx" --slides)"
+if [ "${core:-0}" -ge 8 ] && [ "${core:-0}" -le 18 ]; then
+  ok "board mode puts $core slides before the appendix, inside the 12-18 a board sitting reads"
+else
+  bad "board mode produces a board-length core" "core=$core (wanted 8-18), full=$full_n"
+fi
+if [ "${core:-0}" -lt "${full_n:-0}" ]; then
+  ok "...which is shorter than the full deck's $full_n"
+else
+  bad "the board core is shorter than the full deck" "core=$core full=$full_n"
+fi
+"$PY" "$here/_deckhas.py" "$work/dm_full.pptx" --lost "$work/dm_board.pptx" \
+  >"$work/lost.txt" 2>&1
+if [ -s "$work/lost.txt" ] && ! grep -qv "^Section [0-9]* of [0-9]*$" "$work/lost.txt"; then
+  ok "...and NOTHING the full deck says is missing from it but the section dividers"
+else
+  bad "board mode moves content rather than dropping it" \
+      "these runs are in the full deck and not the board deck: $(head -4 "$work/lost.txt")"
+fi
+if "$PY" "$here/_deckhas.py" "$work/dm_board.pptx" "Appendix" "Nothing has been removed"; then
+  ok "...and the appendix divider says what was moved and that nothing was cut"
+else
+  bad "the appendix divider explains itself" "no such slide"
 fi
 
 echo
