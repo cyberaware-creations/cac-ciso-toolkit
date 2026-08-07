@@ -832,7 +832,23 @@ def _metrics_headline(a):
             # A trend is not a band, so this figure carries the worst status
             # among the metrics that are moving the wrong way, not a severity
             # invented from the direction of travel.
-            ("metrics moving the wrong way", len(worsening), sev_of(worsening))]
+            ("metrics moving the wrong way", len(worsening), sev_of(worsening)),
+            # The population, which this producer alone was not supplying.
+            #
+            # `_risk_headline` states the rule two hundred lines up — "a total without its
+            # denominator is the false precision this pack refuses everywhere else" — and
+            # posture, risk, exceptions and incident all follow it. Metrics did not, so a
+            # pack carried "3 metrics past a threshold" with nothing anywhere saying
+            # whether that was three of four or three of forty.
+            #
+            # It reads worst on an empty register, where the two figures above are both
+            # zero and a board slide says the metrics programme is healthy when what it
+            # means is that nobody has recorded a metric. That is the same failure
+            # `nist-csf` suppresses its coverage figure to avoid, and it went unseen here
+            # because every fixture in this suite is populated.
+            #
+            # A population takes no sev, per the note in `_exceptions_headline`.
+            ("metrics tracked", (a.get("counts") or {}).get("metrics", len(by_id)))]
 
 
 def _exceptions_headline(a):
