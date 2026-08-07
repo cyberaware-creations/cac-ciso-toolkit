@@ -250,6 +250,64 @@ def check_maker_name(root="."):
     return True
 
 
+def check_skill_coverage(root="."):
+    """Every shipped skill must be named in the user-facing description of every manifest.
+
+    The manifests advertised three skills for five releases while the repository shipped
+    seven, and it took an external tester to notice. Nothing was invalid — the JSON parsed,
+    the versions agreed, CI was green — so no guard here had anything to say about it. That
+    is the shape of the failure: a description is prose, prose drifts from the product
+    silently, and the only reader who finds out is the one deciding whether to install.
+
+    Matching on the skill's DIRECTORY NAME rather than on any prose summary of it. A
+    description that names `incident-materiality` has said the thing a marketplace search
+    can find; one that says "we also handle disclosure" has not, and a check that accepted
+    the second would pass on text that mentions no skill at all.
+
+    An empty scan is an error, on the same reasoning as every guard above it.
+    """
+    import pathlib
+    base = pathlib.Path(root)
+    skills = sorted(p.parent.name for p in base.glob("skills/*/SKILL.md"))
+    if not skills:
+        print("ERROR: no skills were found to check against the manifests; the glob "
+              "stopped matching and this check is no longer checking anything.")
+        return False
+
+    # field path -> the blob a reader actually sees. Listed individually: a walk of every
+    # string in the file would pass on a keyword array and prove nothing.
+    targets = [
+        (".claude-plugin/plugin.json", ("description",)),
+        (".codex-plugin/plugin.json", ("description",)),
+        (".codex-plugin/plugin.json", ("interface", "longDescription")),
+        (".claude-plugin/marketplace.json", ("plugins", 0, "description")),
+    ]
+    problems = []
+    for rel, path in targets:
+        try:
+            node = json.loads((base / rel).read_text(encoding="utf-8"))
+            for key in path:
+                node = node[key]
+        except (OSError, ValueError, KeyError, IndexError, TypeError) as exc:
+            problems.append("{}:{} could not be read ({})".format(
+                rel, ".".join(str(k) for k in path), exc))
+            continue
+        absent = [s for s in skills if s not in node]
+        if absent:
+            problems.append("{}:{} never names {}".format(
+                rel, ".".join(str(k) for k in path), ", ".join(absent)))
+    if problems:
+        print("ERROR: shipped skills missing from a user-facing description:")
+        for p in problems:
+            print("         {}".format(p))
+        print("       A skill nobody can find in the marketplace listing ships to nobody. "
+              "Name it, or remove the skill.")
+        return False
+    print("coverage: {} shipped skills, each named in all {} manifest descriptions.".format(
+        len(skills), len(targets)))
+    return True
+
+
 PALETTE_NAMES = frozenset({
     "INK", "INK_RAISED", "INK_LINE", "LIME", "LIME_DIM", "PATINA", "PATINA_H",
     "PATINA_TEXT", "SLATE", "WB", "WB_SURF", "WB_LINE", "MUTED", "text_on",
@@ -617,6 +675,46 @@ def self_test():
         ok(check_vendored(str(nocanon)) is False,
            "an unreadable canonical fails with a reason")
 
+        # -- every shipped skill is named in every manifest description --
+        def _cov_tree(name, skills, described):
+            r = Path(tmp) / name
+            for s in skills:
+                (r / "skills" / s).mkdir(parents=True, exist_ok=True)
+                (r / "skills" / s / "SKILL.md").write_text("# %s\n" % s, encoding="utf-8")
+            blob = "Skills: " + ", ".join(described) + "."
+            (r / ".claude-plugin").mkdir(parents=True, exist_ok=True)
+            (r / ".codex-plugin").mkdir(parents=True, exist_ok=True)
+            (r / ".claude-plugin" / "plugin.json").write_text(
+                json.dumps({"description": blob}), encoding="utf-8")
+            (r / ".codex-plugin" / "plugin.json").write_text(
+                json.dumps({"description": blob,
+                            "interface": {"longDescription": blob}}), encoding="utf-8")
+            (r / ".claude-plugin" / "marketplace.json").write_text(
+                json.dumps({"plugins": [{"description": blob}]}), encoding="utf-8")
+            return r
+
+        ok(check_skill_coverage(str(_cov_tree(
+            "cov-all", ["risk-register", "board-pack"],
+            ["risk-register", "board-pack"]))) is True,
+           "a description naming every shipped skill passes")
+
+        # The reported defect, reproduced: the manifests describe a subset of what ships.
+        ok(check_skill_coverage(str(_cov_tree(
+            "cov-short", ["risk-register", "board-pack", "business-context"],
+            ["risk-register", "board-pack"]))) is False,
+           "a description that omits a shipped skill fails")
+
+        # And the vacuity hole this shares with every guard above it.
+        ok(check_skill_coverage(str(_cov_tree("cov-none", [], ["risk-register"]))) is False,
+           "no skills found fails instead of passing vacuously")
+
+        # A manifest that cannot be read is a reported problem, not a traceback.
+        broken = _cov_tree("cov-broken", ["risk-register"], ["risk-register"])
+        (broken / ".claude-plugin" / "plugin.json").write_text("{ not json",
+                                                               encoding="utf-8")
+        ok(check_skill_coverage(str(broken)) is False,
+           "an unreadable manifest fails with a reason")
+
         # -- bump-on-change, needs a real repo --
         repo = Path(tmp) / "repo"
         repo.mkdir()
@@ -824,6 +922,7 @@ def main(argv):
     passed = check_vendored(root) and passed
     passed = check_maker_name(root) and passed
     passed = check_import_time_palette(root) and passed
+    passed = check_skill_coverage(root) and passed
     if base is not None:
         passed = check_bump(base, root) and passed
     return 0 if passed else 1

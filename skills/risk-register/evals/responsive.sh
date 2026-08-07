@@ -42,6 +42,7 @@ MX="$repo/skills/metrics-register"
 XR="$repo/skills/exceptions-register"
 IM="$repo/skills/incident-materiality"
 BP="$repo/skills/board-pack"
+BC="$repo/skills/business-context"
 PORT="${CDP_PORT:-9333}"
 export CDP_PORT="$PORT"
 
@@ -184,6 +185,25 @@ done
   --html "$work/bp_pack.html" --no-pptx) >/dev/null || {
     echo "responsive: FIXTURE FAILED — render_pack errored"; exit 1; }
 
+# The crosswalk report. Three lenses of a wide table — the widest tabular page in the
+# suite — and the one shipped renderer this browser suite had never opened. Its own
+# end-to-end eval covers the data and the licensing gate; neither of those is a resolved
+# layout, and a resolved layout is the only place a width or contrast defect exists.
+"$PY" "$CSF/scripts/profile_analysis.py" analyze "$work/p.csfp" \
+  --crosswalk iso-27001-2022 --crosswalk cis-8.1 --crosswalk 800-53-r5 \
+  > "$work/xw.json" || {
+    echo "responsive: FIXTURE FAILED — crosswalk analyze errored"; exit 1; }
+(cd "$CSF/renderers" && "$PY" render_crosswalk.py --in "$work/xw.json" \
+  --out "$work/csf_xw.html" --offline) >/dev/null || {
+    echo "responsive: FIXTURE FAILED — render_crosswalk errored"; exit 1; }
+
+# business-context framing. A short page, which is exactly why it is here: the pages that
+# fail at 320px are the ones nobody expected to. It carries a blockquote of board-room
+# prose and a revenue figure that must not wrap into nonsense.
+(cd "$BC/renderers" && "$PY" render_context.py --in "$BC/examples/example-org.biz" \
+  --out "$work/bc_framing.html" --offline) >/dev/null || {
+    echo "responsive: FIXTURE FAILED — render_context errored"; exit 1; }
+
 # A second CSF pair, deliberately below the scope threshold. The first fixture seeds
 # ratings across every Function, so it renders the headline path only — the scope
 # guard, the four-way evidence bar and the by-source cards would never be drawn.
@@ -301,7 +321,61 @@ pages=("$work/render_board.html" "$work/render_dashboard.html" "$work/render_rep
        "$work/mx_exec.html" "$work/mx_ops.html"
        "$work/xr_board.html" "$work/xr_inv.html"
        "$work/im_board.html" "$work/im_ws.html"
-       "$work/bp_pack.html")
+       "$work/bp_pack.html"
+       "$work/csf_xw.html" "$work/bc_framing.html")
+
+# Every shipped renderer must have produced one of the pages above.
+#
+# `render_crosswalk.py` was missing from this suite for four releases and was found by an
+# external tester rather than here; `render_context.py` would have been the next one, and
+# it shipped hours ago. That is the failure the CI file names about globbed evals, in the
+# other direction: a hand-maintained list nobody checks against reality stops matching it
+# silently.
+#
+# So the list is declared and then checked against the filesystem. What this proves is
+# that no shipped renderer is UNACCOUNTED FOR — a new one fails this suite until somebody
+# points it at a fixture and names it here. What it cannot prove is that each entry's page
+# really came from that renderer; that is carried by the FIXTURE FAILED guards above,
+# every one of which aborts the run if its render command errors.
+covered=(
+  "risk-register/render_board"          "risk-register/render_dashboard"
+  "risk-register/render_report"
+  "nist-csf/render_executive"           "nist-csf/render_operational"
+  "nist-csf/render_crosswalk"
+  "metrics-register/render_executive"   "metrics-register/render_operational"
+  "exceptions-register/render_board"    "exceptions-register/render_inventory"
+  "incident-materiality/render_board"   "incident-materiality/render_worksheet"
+  "board-pack/render_pack"
+  "business-context/render_context"
+)
+shipped=""
+for rp in "$repo"/skills/*/renderers/render_*.py; do
+  shipped="$shipped $(basename "$(dirname "$(dirname "$rp")")")/$(basename "$rp" .py)"
+done
+missing=""
+for s in $shipped; do
+  hit=""
+  for c in "${covered[@]}"; do [ "$c" = "$s" ] && hit=1; done
+  [ -n "$hit" ] || missing="$missing $s"
+done
+stale=""
+for c in "${covered[@]}"; do
+  hit=""
+  for s in $shipped; do [ "$c" = "$s" ] && hit=1; done
+  [ -n "$hit" ] || stale="$stale $c"
+done
+if [ -n "$missing" ]; then
+  echo "responsive: FIXTURE FAILED — shipped renderer(s) this suite never opens:$missing"
+  echo "            Build a page from each, add it to \`pages\`, and name it in \`covered\`."
+  echo "            A renderer this suite does not open is one whose layout nobody measured."
+  exit 1
+fi
+if [ -n "$stale" ]; then
+  echo "responsive: FIXTURE FAILED — \`covered\` names renderer(s) that no longer ship:$stale"
+  exit 1
+fi
+echo "coverage: ${#pages[@]} pages, from all ${#covered[@]} shipped renderers"
+
 fails=0
 echo
 for vw in 320 375 768 1265; do
