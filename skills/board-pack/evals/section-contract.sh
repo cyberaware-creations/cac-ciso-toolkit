@@ -22,7 +22,7 @@ repo="$(cd "$here/../../.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=42
+EXPECTED_CHECKS=46
 checks=0
 fails=0
 
@@ -379,6 +379,54 @@ while IFS= read -r line; do
     FAIL*) bad "${line#FAIL }" "offending ids listed above" ;;
   esac
 done < "$work/honesty.txt"
+
+# --- the `vendor` section, added within contractVersion 1 ---------------------
+#
+# Additive: the version was NOT bumped, on the precedent already in assemble_pack.py above
+# ENVELOPE_KEYS. The load-bearing pair is the last two checks — a NEW section must validate,
+# and every sidecar written before it existed must still validate unchanged. Checking only
+# the first would pass a change that quietly broke five shipped producers.
+cat > "$work/vendor.board.json" <<'JSON'
+{"section": "vendor",
+ "executiveSummary": "Three production dependencies sit with one provider.",
+ "arrangements": {"VA-001": "The plant historian runs on Contoso, and we have never tested leaving."},
+ "decisions": ["Fund a second region, or accept single-provider dependency for a further year."],
+ "asOf": "2026-06-30"}
+JSON
+if "$PY" - "$repo" "$work/vendor.board.json" <<'PYEOF' >"$work/vend.out" 2>"$work/vend.err"
+import importlib.util, json, sys
+spec = importlib.util.spec_from_file_location(
+    "ap", sys.argv[1] + "/skills/board-pack/scripts/assemble_pack.py")
+ap = importlib.util.module_from_spec(spec); spec.loader.exec_module(ap)
+raw = json.load(open(sys.argv[2], encoding="utf-8"))
+ap.validate_section("vendor", raw, sys.argv[2])
+print(ap.CONTRACT_VERSION)
+print(",".join(ap.SECTION_KEYS["vendor"]))
+print(",".join(ap.SECTION_ORDER["board"]))
+PYEOF
+then
+  ok "a vendor sidecar validates against the contract"
+else
+  bad "a vendor sidecar validates against the contract" "$(cat "$work/vend.err")"
+fi
+ver=$(sed -n 1p "$work/vend.out")
+key=$(sed -n 2p "$work/vend.out")
+ord=$(sed -n 3p "$work/vend.out")
+if [ "$ver" = "1" ]; then
+  ok "the contract version is still 1 — every sidecar ever written still validates"
+else
+  bad "the contract version is still 1" "got $ver, which refuses every existing sidecar"
+fi
+if [ "$key" = "arrangements" ]; then
+  ok "the item key is 'arrangements', named for what the section is about"
+else
+  bad "the vendor item key is 'arrangements'" "got '$key'"
+fi
+if [ "$ord" = "posture,risk,vendor,metrics,exceptions,incident" ]; then
+  ok "and vendor sits directly after risk: what we carry, then who we depend on for it"
+else
+  bad "vendor sits directly after risk in the board order" "got '$ord'"
+fi
 
 echo
 if [ "$checks" -ne "$EXPECTED_CHECKS" ]; then
