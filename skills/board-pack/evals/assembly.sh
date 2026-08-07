@@ -22,7 +22,7 @@ skill="$(cd "$here/.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=77
+EXPECTED_CHECKS=80
 checks=0
 fails=0
 ok()  { checks=$((checks + 1)); printf '  ok    %s\n' "$1"; }
@@ -110,6 +110,32 @@ else
   bad "two sections asking about the same record are flagged, not silently merged" \
       "no flag for A-002, which the exceptions and incident sections both name"
 fi
+# An agenda can be wrong as a whole while every ask on it is right — the same failure as the
+# mixed-organisation pack. An external retest read this specimen's ten board asks as a
+# packaging problem; it is a fixture problem, and now the pack says so itself.
+#
+# Derived, not pinned: the count comes from the model and the threshold from the module, so
+# curating the fixture down changes both sides together instead of rotting the check.
+if q 'any("pitched at the board" in w for w in p["provenance"]["warnings"])' | grep -q True; then
+  ok "a pack asking the board for more decisions than a sitting can take says so"
+else
+  bad "a pack with more board asks than a sitting can take says so" \
+      "no warning, and this specimen carries $(q 'len([d for d in p["decisions"] if d["altitude"]=="board"])')"
+fi
+# The other direction. A warning that fires on every pack is a warning nobody reads, so a
+# curated agenda must be silent — which is also the check that would catch a threshold
+# accidentally set to zero.
+variant "$work/thin.manifest.json" 'm["sections"] = [e for e in m["sections"]
+  if e["section"] in ("posture", "risk")]
+m.pop("throughLine", None)'
+"$PY" "$A" assemble "$work/thin.manifest.json" --out "$work/thin.json" >/dev/null 2>&1
+thin_board=$("$PY" -c 'import json,sys
+p = json.load(open(sys.argv[1]))
+print(len([d for d in p["decisions"] if d["altitude"] == "board"]))' "$work/thin.json")
+thin_warn=$("$PY" -c 'import json,sys
+p = json.load(open(sys.argv[1]))
+print(any("pitched at the board" in w for w in p["provenance"]["warnings"]))' "$work/thin.json")
+eq "a pack inside the sitting convention ($thin_board asks) stays silent" "False" "$thin_warn"
 
 # --- 12-15. THE placeholder pair ----------------------------------------------
 # Both directions, because a check that only looks for absence passes over an empty file.
@@ -119,6 +145,18 @@ if grep -q 'class="ph"' "$work/full.html"; then
   bad "a fully-translated pack renders NO placeholder" "found one"
 else
   ok "a fully-translated pack renders NO placeholder"
+fi
+# The crowded-agenda warning must be on the page and the slide, not only in the JSON. The
+# provenance page is where a reader looks to find out what to distrust about a pack; a
+# warning that reached the model and stopped there is invisible to every human who gets one.
+if grep -q "pitched at the board" "$work/full.html" \
+   && "$PY" -c 'import sys, zipfile
+z = zipfile.ZipFile(sys.argv[1])
+t = b"".join(z.read(n) for n in z.namelist() if n.startswith("ppt/slides/slide"))
+sys.exit(0 if b"pitched at the board" in t else 1)' "$work/full.pptx"; then
+  ok "the crowded-agenda warning reaches both the document and the deck"
+else
+  bad "the crowded-agenda warning reaches both deliverables" "absent from the HTML or the deck"
 fi
 variant "$work/bare.manifest.json" 'm.pop("throughLine", None)
 for e in m["sections"]: e.pop("translations", None)'
