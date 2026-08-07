@@ -22,7 +22,7 @@ skill="$(cd "$here/.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=52
+EXPECTED_CHECKS=58
 checks=0
 fails=0
 ok()  { checks=$((checks + 1)); printf '  ok    %s\n' "$1"; }
@@ -843,6 +843,62 @@ if [ "$pop_sections" -ge 4 ]; then
   ok "...across all $pop_sections sections that supplied headline figures"
 else
   bad "the denominator check saw a plausible number of sections" "only $pop_sections"
+fi
+
+# --- the applicability profile reaches the producers that read one --------------
+#
+# The pack ran every producer with a fixed argument list, so a `.biz` on disk narrowed the
+# incident worksheet and did nothing to the pack built from the same store. The two then
+# disagreed about which clocks existed for the same incident, which is worse than either
+# answer alone.
+#
+# `context` is optional and absent is the normal case, so the first thing checked is that
+# a pack without one is unchanged.
+ctxm="$work/ctx.manifest.json"
+"$PY" "$here/_ctxmanifest.py" "$M" "$ctxm" \
+  "$skill/../business-context/examples/example-org.biz"
+if "$PY" "$A" assemble "$ctxm" --out "$work/ctx.json" >/dev/null 2>&1; then
+  ok "a manifest naming an applicability profile assembles"
+else
+  bad "a manifest naming an applicability profile assembles" "assemble errored"
+fi
+eq "and the pack records the profile version it was built against (CAC-AP-1 §2.5)" \
+   "FY26 close" \
+   "$("$PY" -c 'import json,sys;print(json.load(open(sys.argv[1])).get("profileVersion",""))' \
+      "$work/ctx.json")"
+# Additive: a pack with no profile carries no key at all, so a renderer can tell
+# "not narrowed" from "narrowed by something" without an empty string meaning both.
+eq "a pack with no profile carries no profileVersion key" "False" \
+   "$("$PY" -c 'import json,sys;print("profileVersion" in json.load(open(sys.argv[1])))' "$J")"
+# The provenance note names WHICH sections read one. A profile that silently narrowed
+# nothing would look identical to one that narrowed everything.
+if "$PY" -c 'import json,sys
+notes = json.load(open(sys.argv[1]))["provenance"]["missing"]
+sys.exit(0 if any("narrowed incident" in n for n in notes) else 1)' "$work/ctx.json"; then
+  ok "the provenance page names which sections read the profile and which did not"
+else
+  bad "the provenance page names which sections read the profile" "no such note"
+fi
+# A producer that does not accept --context is never handed it: it would exit 2 on an
+# unrecognised argument and the whole section would fall off the pack.
+eq "every section still produced its headline figures under a profile" \
+   "$(q 'len({h["section"] for h in p["headlines"]})')" \
+   "$("$PY" -c 'import json,sys
+d=json.load(open(sys.argv[1]));print(len({h["section"] for h in d["headlines"]}))' \
+      "$work/ctx.json")"
+# THE GUARD, SEEN TO FAIL. A profile that cannot be exported is a note, never a refusal:
+# the pack assembles un-narrowed, which is the full question set and the safe direction.
+"$PY" "$here/_ctxmanifest.py" "$M" "$work/bad.manifest.json" no-such-profile.biz
+if "$PY" "$A" assemble "$work/bad.manifest.json" --out "$work/bad.json" >/dev/null 2>&1; then
+  if "$PY" -c 'import json,sys
+notes = json.load(open(sys.argv[1]))["provenance"]["missing"]
+sys.exit(0 if any("profile could not be read" in n for n in notes) else 1)' "$work/bad.json"; then
+    ok "an unreadable profile is a provenance note, not a refused pack"
+  else
+    bad "an unreadable profile is reported on the provenance page" "no note about it"
+  fi
+else
+  bad "an unreadable profile still assembles the pack" "assemble refused outright"
 fi
 
 echo

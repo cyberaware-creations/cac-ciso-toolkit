@@ -454,9 +454,18 @@ def _provenance(pack: dict) -> str:
     notes = prov["missing"] + prov["warnings"]
     note_list = ("".join(f"<li>{esc(n)}</li>" for n in notes)
                  or "<li>Nothing was missing.</li>")
+    # CAC-AP-1 §2.5. Present only when a profile was applied — an absent line is the
+    # honest rendering of a pack that narrowed nothing, and a reader a year from now needs
+    # to know which perimeter the questions inside were asked against.
+    profile = pack.get("profileVersion")
+    profile_block = (
+        f'<h3>Applicability profile</h3><p class="muted">Assembled against profile '
+        f'<strong>{esc(profile)}</strong>. Sections that read a profile asked only the '
+        f'questions it declares apply, and every question they skipped is recorded in '
+        f'that section with who declared it and when.</p>' if profile else "")
     return (f'<div class="page">{_band("Provenance")}<h2>Provenance</h2>'
             f'<p class="sub">What this pack was built from, and what was not there.</p>'
-            f'<h3>Sources</h3><dl>{sources}</dl>'
+            f'<h3>Sources</h3><dl>{sources}</dl>{profile_block}'
             f'<h3>Noted</h3><ul class="list">{note_list}</ul>'
             f'<div class="note"><strong>How to read a gap here</strong>'
             f'<p>A section with no sidecar renders a marked placeholder rather than an '
@@ -620,9 +629,13 @@ def build_pptx(pack: dict, path: str) -> None:
 
     prov = pack["provenance"]
     notes = prov["missing"] + prov["warnings"]
+    profile = pack.get("profileVersion")
+    profile_line = ([("Assembled against applicability profile %s." % profile, 1100,
+                      True, PX.INK, False)] if profile else [])
     deck.add("Provenance",
              [("What this pack was built from, and what was not there.", 1200, False,
                PX.MUTED, False)]
+             + profile_line
              + [(n, 1100, False, PX.INK, True) for n in (notes or ["Nothing was missing."])],
              eyebrow=eyebrow)
     deck.write(path)
