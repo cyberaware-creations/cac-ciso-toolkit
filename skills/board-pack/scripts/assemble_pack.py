@@ -696,6 +696,16 @@ def _metrics_escalations(a):
     return list(a.get("escalations") or [])
 
 
+def _exceptions_escalations(a):
+    """The escalations exceptions-register derived — it owns the acceptance clock.
+
+    Third producer, third subjectKind vocabulary (`acceptance` / `exception`). The pack
+    still knows nothing about any of them: it orders by severity and prints what it was
+    handed, which is the whole claim §1.3 makes.
+    """
+    return list(a.get("escalations") or [])
+
+
 def _posture_headline(a):
     # No sev on either figure. A gap is a distance from a Target, and this skill
     # is explicit that a low coverage figure may be a deliberately low Target
@@ -787,7 +797,8 @@ PRODUCERS = {
                 "escalations": _metrics_escalations},
     "exceptions": {"skill": "exceptions-register", "script": "scripts/exceptions_register.py",
                    "argv": ["analyze", "{store}", "--today", "{asOf}"],
-                   "headline": _exceptions_headline, "figures": _exceptions_figures},
+                   "headline": _exceptions_headline, "figures": _exceptions_figures,
+                   "escalations": _exceptions_escalations},
     "incident": {"skill": "incident-materiality", "script": "scripts/incident_analysis.py",
                  "argv": ["analyze", "{store}", "--today", "{asOf}",
                           "--now", "{asOf}T00:00:00+00:00"],

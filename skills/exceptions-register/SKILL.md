@@ -99,6 +99,35 @@ Active records only — closed ones stay in the store and the change log, so the
 a view rather than a deletion. Overdue and expired items **are** included: hiding them would
 be the one thing worse than not having an inventory.
 
+### What the register raises without being asked
+
+This skill owns the acceptance clock, so it is the one entitled to say a clock has run out.
+`analyze` carries escalations in the suite-wide `CAC-EL-1 §1.3` shape, which `board-pack`
+aggregates beside a crossed risk band and a breached metric without knowing anything about
+any of the three:
+
+| trigger | fires when | severity |
+|---|---|---|
+| `expired` | past the expiry date — **no current approval covers it** | `critical` |
+| `revalidation-overdue` | past the re-validation date, approval still live | `high` |
+
+**The severities are the reverse of what the band order suggests, and that is the point.**
+`expired` is critical because the approval itself has lapsed: the organisation is carrying a
+deviation nobody currently endorses. `revalidation-overdue` is high — the approval stands and
+what has slipped is the *review* of it. One is an unapproved exposure, the other an unreviewed
+approval, and the first is worse.
+
+**`revalidation-due` is deliberately not a trigger.** A record inside its due window is on
+schedule, and escalating a deadline nobody has missed teaches a reader to ignore the list by
+the second quarter. Due is the attention list; overdue is an escalation.
+
+`subjectKind` is `acceptance` or `exception` rather than one word for both, because a board
+reads them differently: an accepted risk is a decision somebody made, a control exception is a
+rule somebody is not following.
+
+Escalations are **derived on every run, never stored, never a history event** — and nothing
+here blocks. An expired record still exports, still renders, still counts.
+
 ## From the risk register
 
 ```bash

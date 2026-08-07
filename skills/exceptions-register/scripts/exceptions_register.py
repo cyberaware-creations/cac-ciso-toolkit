@@ -432,6 +432,81 @@ def status_band(rec: dict, today: str, due_window_days: int) -> str:
     return STATUS_CURRENT
 
 
+# --- Escalation (contract CAC-EL-1 §1.3) --------------------------------------
+#
+# Derived, stateless, never written to the store, never a history event. This register owns
+# the acceptance clock, so it is the skill entitled to say a clock has run out — and the only
+# one. Everybody else carries a read-only marker and flags it.
+#
+# Two triggers, both about a clock that has already lapsed:
+#
+#   expired               past its expiry date — nobody's approval covers it any more
+#   revalidation-overdue  past its re-validation date, approval still live
+#
+# `revalidation-due` is deliberately NOT a trigger. A record inside its due window is on
+# schedule, and escalating a deadline that has not yet been missed teaches a reader to
+# ignore the list by the second quarter. Due is the attention list; overdue is an escalation.
+#
+# Severity is the reverse of what the band order suggests, and that is the considered part.
+# `expired` is critical because the approval itself has lapsed: the organisation is carrying
+# a deviation nobody currently endorses. `revalidation-overdue` is high — the approval still
+# stands, and what has slipped is the review of it. One is an unapproved exposure; the other
+# is an unreviewed approval, and the first is worse.
+
+ESCALATION_SEVERITY_ORDER = ["critical", "high", "medium"]
+
+
+def escalations(store: dict, today: str) -> list[dict]:
+    """Every escalation this register warrants, in the CAC-EL-1 §1.3 shape.
+
+    `subjectKind` is `acceptance` or `exception` — the record's own kind rather than one
+    word for both, because a board reads them differently: an accepted risk is a decision
+    somebody made, and a control exception is a rule somebody is not following.
+    """
+    window = int((store.get("settings") or {}).get("dueWindowDays")
+                 or DEFAULT_DUE_WINDOW_DAYS)
+    out = []
+    for kind, records in (("acceptance", store["acceptances"]),
+                          ("exception", store["exceptions"])):
+        for rec in records:
+            band = status_band(rec, today, window)
+            if band == STATUS_EXPIRED:
+                expiry = rec.get("expiryDate")
+                days = days_between(expiry, today) if expiry else None
+                out.append({
+                    "subjectRef": rec["id"], "subjectKind": kind,
+                    "trigger": "expired", "severity": "critical",
+                    "since": expiry,
+                    "evidence": {
+                        "from": expiry, "to": today,
+                        "baseline": rec.get("approver") or "",
+                        "detail": (f"{rec['title']} expired {expiry}"
+                                   + (f", {days} days ago" if days else "")
+                                   + " and is still on the register — no current approval "
+                                     "covers it"),
+                    },
+                })
+            elif band == STATUS_OVERDUE:
+                reval = rec.get("revalidationDate")
+                days = -days_between(today, reval) if reval else None
+                out.append({
+                    "subjectRef": rec["id"], "subjectKind": kind,
+                    "trigger": "revalidation-overdue", "severity": "high",
+                    "since": reval,
+                    "evidence": {
+                        "from": reval, "to": today,
+                        "baseline": rec.get("approver") or "",
+                        "detail": (f"{rec['title']} was due for re-validation {reval}"
+                                   + (f", {days} days ago" if days else "")
+                                   + " — the approval stands but nobody has re-checked the "
+                                     "reasoning"),
+                    },
+                })
+    out.sort(key=lambda e: (ESCALATION_SEVERITY_ORDER.index(e["severity"]),
+                            e["subjectRef"]))
+    return out
+
+
 def derive(store: dict, rec: dict, kind: str, today: str, window: int) -> dict:
     reval = rec.get("revalidationDate")
     expiry = rec.get("expiryDate")
@@ -468,6 +543,11 @@ def analyze(store: dict, today: str) -> dict:
         "today": today,
         "dueWindowDays": window,
         "records": rows,
+        # Beside `attention`, not inside it. The attention lists are a review agenda; this
+        # is what should not have waited for a review. Consumers read it and never re-derive
+        # it — this register owns the clock, so nothing downstream is entitled to a second
+        # opinion about whether one has run out.
+        "escalations": escalations(store, today),
         "attention": {
             "overdue": [r["id"] for r in active if r["band"] == STATUS_OVERDUE],
             "due": [r["id"] for r in active if r["band"] == STATUS_DUE],
@@ -643,6 +723,73 @@ def _cmd_self_test(_args):
         eq(out["attention"]["due"], ["X-001"], "the due list")
         eq(out["attention"]["overdue"], [], "nothing overdue yet")
         eq(out["attention"]["unlinked"], [], "both records carry a risk link")
+
+        # --- escalation (CAC-EL-1 §1.3) --------------------------------------
+        # A record inside its due window is on schedule. Escalating a deadline nobody has
+        # missed yet is how a list stops being read.
+        eq(escalations(store, "2026-07-31"), [],
+           "a record inside its due window escalates nothing")
+
+        def _rec(rid, reval, expiry, closed=False):
+            return {"id": rid, "title": f"{rid} title", "approver": "CFO",
+                    "justification": "j", "acceptedDate": "2026-01-01",
+                    "revalidationDate": reval, "expiryDate": expiry,
+                    "status": "closed" if closed else "active",
+                    "riskIds": [], "csfSubcategoryIds": [], "incidentIds": []}
+
+        def _store(acc=(), exc=()):
+            s = new_store("Fixture Co")
+            s["acceptances"] = list(acc)
+            s["exceptions"] = list(exc)
+            return s
+
+        # Overdue re-validation: the approval stands, the review of it has slipped.
+        over = _store(acc=[_rec("A-100", "2026-01-15", "2027-01-01")])
+        eq([(e["trigger"], e["severity"], e["subjectKind"])
+            for e in escalations(over, "2026-07-31")],
+           [("revalidation-overdue", "high", "acceptance")],
+           "a missed re-validation escalates as high")
+
+        # Expired outranks it, and is worse: nobody's approval covers the deviation now.
+        exp = _store(acc=[_rec("A-101", "2026-01-15", "2026-06-01")])
+        eq([(e["trigger"], e["severity"]) for e in escalations(exp, "2026-07-31")],
+           [("expired", "critical")],
+           "an expired record escalates as critical, and only once")
+
+        # A closed record escalates nothing. Closing is a human act, and the clock on a
+        # record somebody deliberately ended is not still running.
+        eq(escalations(_store(acc=[_rec("A-102", "2020-01-01", "2020-06-01", closed=True)]),
+                       "2026-07-31"), [],
+           "a closed record escalates nothing, however old its dates")
+
+        # subjectKind distinguishes the two record types: an accepted risk is a decision
+        # somebody made, a control exception is a rule somebody is not following.
+        both = _store(acc=[_rec("A-103", "2026-01-15", "2027-01-01")],
+                      exc=[_rec("X-103", "2026-01-15", "2027-01-01")])
+        eq(sorted(e["subjectKind"] for e in escalations(both, "2026-07-31")),
+           ["acceptance", "exception"],
+           "acceptances and exceptions carry their own subjectKind")
+
+        # The §1.3 shape, and worst-first ordering across both record types.
+        mixed = _store(acc=[_rec("A-200", "2026-01-15", "2027-01-01")],
+                       exc=[_rec("X-100", "2026-01-15", "2026-06-01")])
+        got = escalations(mixed, "2026-07-31")
+        # subjectKind is asserted on BOTH branches. Checking it only where records are
+        # overdue leaves the expired branch free to hardcode one kind, and an expired
+        # control exception reported as an accepted risk is precisely the confusion the
+        # two words exist to prevent.
+        eq([(e["severity"], e["subjectRef"], e["subjectKind"]) for e in got],
+           [("critical", "X-100", "exception"), ("high", "A-200", "acceptance")],
+           "escalations sort worst-first, and each keeps its own kind on either branch")
+        eq(sorted(got[0]), ["evidence", "severity", "since", "subjectKind", "subjectRef",
+                            "trigger"],
+           "every escalation carries the six contract keys")
+        eq(sorted(got[0]["evidence"]), ["baseline", "detail", "from", "to"],
+           "and its evidence names the comparison that fired it")
+
+        # And it reaches analyze(), where board-pack reads it.
+        eq(len(analyze(mixed, "2026-07-31")["escalations"]), 2,
+           "analyze carries the escalation list")
 
         # --- the refusals. This is the product. -----------------------------------
         save_store(path, store)
