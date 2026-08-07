@@ -101,6 +101,44 @@ CLOCK_FILED = "filed"
 CLOCK_STATES = (CLOCK_NA, CLOCK_NOT_STARTED, CLOCK_ANCHOR_MISSING, CLOCK_DUE, CLOCK_OVERDUE,
                 CLOCK_FILED)
 
+# --- Escalation policy (CAC-EL-1 §1.3) ----------------------------------------
+#
+# What escalates here is narrower than anywhere else in the suite, and the narrowness is the
+# design. This engine emits no verdict, so an escalation may only ever report one of three
+# facts about the store: a DEADLINE THAT PASSED, an ANCHOR THAT IS ABSENT, or a RECORD THAT
+# MOVED. None of the three says an incident is material, and none says a determination was
+# wrong.
+#
+# Deliberately NOT escalated, each for a reason worth keeping:
+#
+#   * Elapsed days with no determination. Item 1.05 requires the determination "without
+#     unreasonable delay" and names no number of days. `derive` reports the elapsed distance
+#     and declines to judge it; an escalation would BE that judgment — manufacturing the
+#     standard the rule declines to set, then producing a dated, discoverable record of the
+#     day this organisation supposedly crossed it.
+#   * A window that is DUE. Inside the window is on schedule. Due is the attention list and
+#     overdue is the escalation — the same line exceptions-register draws between
+#     `revalidation-due` and `revalidation-overdue`.
+#   * Unassessed factors. Already reported as completeness. A gap in the worksheet is not a
+#     clock that ran out.
+#   * Anything counting `bearing` factors. That is a score wearing different clothes, and the
+#     moment one exists somebody reads 4-of-6 as a threshold.
+#
+# Note what is missing from the defaults: a number. Every other register in the suite tunes an
+# escalation with a count or a window. The only quantities this one could tune are the ones
+# the SEC and DORA already set, and they are not this file's to move.
+ESCALATION_DEFAULTS = {
+    "windowOverdue": True,
+    "anchorMissing": True,
+    "supersededDetermination": True,
+}
+ESCALATION_SEVERITY_ORDER = ["critical", "high", "medium"]
+
+# The two states in which the organisation has settled on an answer. `assessing` and
+# `not-yet-determinable` say in as many words that the work is still running, so facts landing
+# after them are the process working rather than a record moving underneath a conclusion.
+SETTLED_DETERMINATIONS = ("material", "not-material")
+
 
 class Refusal(Exception):
     """A mutation the engine declines to perform.
@@ -688,6 +726,152 @@ def derive(inc: dict, today: str, now_iso: str, holidays) -> dict:
     }
 
 
+def _escalation_policy(store: dict) -> dict:
+    policy = dict(ESCALATION_DEFAULTS)
+    policy.update((store.get("settings") or {}).get("escalation") or {})
+    return policy
+
+
+def _factors_as_of(inc: dict, at: datetime) -> dict:
+    """Latest assessment per factor key as the record stood at `at`.
+
+    Compared on the recording timestamp `ts`, never on any date a human supplied. `determinedAt`
+    is deliberately back-datable — it is the Item 1.05 anchor and often records a decision made
+    before it was typed in — so measuring "what did the record say when this was written" against
+    it would compare two different clocks. Both `ts` values come from `now_ts()`.
+    """
+    out = {}
+    for f in inc.get("factors") or []:
+        if f.get("ts") and parse_ts(f["ts"]) <= at:
+            out[f["key"]] = f
+    return out
+
+
+def escalations(store: dict, today: str, now_iso: str) -> list:
+    """Every escalation this workspace warrants, in the CAC-EL-1 §1.3 shape.
+
+    `subjectKind` is always `incident` — unlike exceptions-register, which distinguishes an
+    accepted risk from a control exception, there is one kind of object here.
+
+    Derived on every run, never stored, never a history event, and nothing below blocks: an
+    overdue window still renders, still exports, still counts. The clocks are read from
+    `derive`, not recomputed, so an escalation can never disagree with the worksheet beside it
+    about whether a deadline passed.
+    """
+    policy = _escalation_policy(store)
+    holidays = holidays_of(store)
+    out = []
+    for inc in store["incidents"]:
+        if inc.get("status") == "closed":
+            continue
+        row = derive(inc, today, now_iso, holidays)
+        iid = inc["id"]
+
+        if policy.get("windowOverdue"):
+            for c in row["clocks"]:
+                if c["state"] != CLOCK_OVERDUE:
+                    continue
+                key = "{}:{}".format(c["regime"], c["window"])
+                out.append({
+                    "subjectRef": iid, "subjectKind": "incident",
+                    "trigger": "window-overdue", "severity": "critical",
+                    "since": c["deadline"],
+                    "evidence": {
+                        "from": c["anchor"] or "",
+                        # The "now" this window is measured against, at the window's own
+                        # precision. WINDOW_PRECISION is the table the clocks themselves use;
+                        # reading it here rather than restating it keeps one answer to which
+                        # regime counts days and which counts hours.
+                        "to": today if WINDOW_PRECISION.get(key) == "date" else now_iso,
+                        "baseline": key,
+                        "detail": ("the {} window closed {} and no filing is recorded against "
+                                   "it — {}".format(key, c["deadline"], c["note"])),
+                    },
+                })
+
+        if policy.get("anchorMissing"):
+            absent = [c for c in row["clocks"] if c["state"] == CLOCK_ANCHOR_MISSING]
+            if absent:
+                out.append({
+                    "subjectRef": iid, "subjectKind": "incident",
+                    "trigger": "anchor-missing", "severity": "high",
+                    # The gap has held since the incident was opened; `discoveredAt` is the
+                    # earliest recorded date it can honestly be dated from.
+                    "since": inc["discoveredAt"],
+                    "evidence": {
+                        "from": inc["discoveredAt"], "to": today,
+                        "baseline": ", ".join("{}:{}".format(c["regime"], c["window"])
+                                              for c in absent),
+                        "detail": ("tracked against a regime that counts clock hours with no "
+                                   "anchor timestamp recorded, so no deadline can be computed "
+                                   "— set-anchor the awareness or classification time. This "
+                                   "escalates on sight and deliberately: the initial "
+                                   "notification runs at most 24 hours from awareness, and "
+                                   "there is no interval in which an unrecorded anchor is "
+                                   "comfortable."),
+                    },
+                })
+
+        # The §1.2 lapse, in the only form this skill can honestly detect: a determination the
+        # organisation settled on, and factors that moved on the record after it was written.
+        #
+        # Severity does NOT vary with which way a factor moved, and that is the whole care of
+        # this trigger. Ranking "a factor turned `bearing` after a `not-material` determination"
+        # above the other direction would be the engine grading a legal judgment, and a graded
+        # judgment is discoverable as an exhibit arguing against the organisation's own
+        # conclusion — the exact failure the no-verdict rule exists to prevent. So: one
+        # severity, the assessor's own recorded words quoted back, and a detail line that says
+        # in as many words what this does and does not claim.
+        if policy.get("supersededDetermination"):
+            det = current_determination(inc)
+            if det and det["state"] in SETTLED_DETERMINATIONS and det.get("ts"):
+                at = parse_ts(det["ts"])
+                before, now_f = _factors_as_of(inc, at), current_factors(inc)
+                moved = []
+                for key in FACTOR_KEYS:
+                    cur, was = now_f.get(key), before.get(key)
+                    if cur is None or not cur.get("ts") or parse_ts(cur["ts"]) <= at:
+                        continue
+                    # Compared latest-against-as-of, never entry-by-entry. A factor assessed
+                    # `bearing` → `unknown` → `bearing` after the determination has, on the
+                    # record, not moved — and reporting it twice would make one unchanged
+                    # factor look like two new facts.
+                    if was is not None and was["assessment"] == cur["assessment"]:
+                        continue
+                    moved.append((key, was, cur))
+                if moved:
+                    named = ", ".join(
+                        "{} ({} → {})".format(
+                            key, was["assessment"] if was else "unassessed", cur["assessment"])
+                        for key, was, cur in moved)
+                    out.append({
+                        "subjectRef": iid, "subjectKind": "incident",
+                        "trigger": "determination-superseded", "severity": "high",
+                        "since": min(cur["ts"] for _, _, cur in moved),
+                        "evidence": {
+                            "from": det["determinedAt"], "to": today,
+                            "baseline": det["state"],
+                            "detail": (
+                                "the determination of {!r} recorded on {} by {} has not been "
+                                "revisited, and the record has since moved on {}. This reports "
+                                "that the facts changed after the determination was written, "
+                                "not that the determination was wrong — the judgment is the "
+                                "decider's to make again, or to let stand.".format(
+                                    det["state"], det["determinedAt"], det["decider"], named)),
+                        },
+                    })
+
+    # Worst first, then by incident, then by trigger. The third key currently decides
+    # nothing: the blocks above emit in the order `window-overdue`, `anchor-missing`,
+    # `determination-superseded`, which for a same-severity tie is already alphabetical, and
+    # a stable sort would preserve it anyway. It is here so that reordering those blocks
+    # cannot silently reorder a board pack — deliberately unreachable, and no self-test below
+    # pretends to prove otherwise, because none can.
+    out.sort(key=lambda e: (ESCALATION_SEVERITY_ORDER.index(e["severity"]),
+                            e["subjectRef"], e["trigger"]))
+    return out
+
+
 def analyze(store: dict, today: str, now_iso: str) -> dict:
     holidays = holidays_of(store)
     rows = [derive(inc, today, now_iso, holidays) for inc in store["incidents"]]
@@ -698,6 +882,7 @@ def analyze(store: dict, today: str, now_iso: str) -> dict:
         "now": now_iso,
         "holidays": sorted(holidays),
         "incidents": rows,
+        "escalations": escalations(store, today, now_iso),
         "attention": {
             "overdue": [r["id"] for r in live if r["band"] == BAND_OVERDUE],
             "due": [r["id"] for r in live if r["band"] == BAND_DUE],
@@ -1009,6 +1194,274 @@ def _cmd_self_test(_args):
            "completeness is reported as which factors, not how many")
         ok(not any("bearing" in k.lower() for k in row),
            "and nothing in the derived row counts the bearing assessments")
+
+        # --- escalation (CAC-EL-1 §1.3) ---------------------------------------------
+        #
+        # Built on its own store. The shared one above has accumulated determinations,
+        # filings and a closed incident, and a trigger that fires for the wrong reason in a
+        # busy fixture is indistinguishable from one that works.
+        #
+        # `ts` is stamped explicitly wherever the assertion turns on ordering. Both
+        # `determine` and `assess_factor` stamp `now_ts()`, so in a fixture built inside one
+        # second the determination and the factor after it would share a timestamp and the
+        # supersession test would pass or fail on how fast the machine ran.
+        def _at(entry, ts):
+            entry["ts"] = ts
+            return entry
+
+        def _esc(st, today_, now_=None):
+            return analyze(st, today_, now_ or (today_ + "T00:00:00+00:00"))["escalations"]
+
+        est = new_store("Escalation Co", "CISO")
+        open_incident(est, "Payroll portal breach", "2026-07-06",
+                      regimes=["sec-1.05"], actor="t")
+        _at(determine(est, "I-001", "material", "Export of SSN confirmed.", "GC",
+                      "2026-07-14", actor="t"), "2026-07-14T10:00:00+00:00")
+        eq(business_days_after("2026-07-14", 4), "2026-07-20",
+           "the 8-K deadline this section is pinned against")
+
+        # A window still inside its deadline is the attention list, not an escalation — the
+        # same line exceptions-register draws at `revalidation-due`.
+        eq(_esc(est, "2026-07-16"), [],
+           "a window that is due but not yet past escalates nothing")
+        due = analyze(est, "2026-07-16", "2026-07-16T00:00:00+00:00")
+        eq(due["attention"]["due"], ["I-001"],
+           "and it is still on the attention list, where a live deadline belongs")
+
+        over = _esc(est, "2026-07-22")
+        eq([(e["subjectRef"], e["trigger"], e["severity"]) for e in over],
+           [("I-001", "window-overdue", "critical")], "a passed deadline with no filing")
+        eq(over[0]["since"], "2026-07-20", "dated from the deadline, not from today")
+        eq(over[0]["evidence"]["baseline"], "sec-1.05:8-K",
+           "the baseline names the window, so two windows never merge into one line")
+        eq(over[0]["evidence"]["from"], "2026-07-14",
+           "and `from` is the anchor the deadline was computed from")
+        eq(over[0]["evidence"]["to"], "2026-07-22",
+           "measured against today, because Item 1.05 counts days and not hours")
+        eq(over[0]["subjectKind"], "incident", "one kind of object here, always named")
+        for e in over:
+            eq(sorted(e), sorted(["subjectRef", "subjectKind", "trigger", "severity",
+                                  "since", "evidence"]), "the §1.3 record shape, exactly")
+
+        record_filing(est, "I-001", "sec-1.05:8-K", "2026-07-21", actor="t")
+        eq(_esc(est, "2026-07-22"), [],
+           "and it clears when the filing is recorded — derived, never stored")
+
+        # --- the exclusion that matters most ----------------------------------------
+        # Item 1.05 requires the determination "without unreasonable delay" and names no
+        # number of days. An incident sitting undetermined for a month escalates NOTHING,
+        # however uncomfortable that reads: the alternative is this engine inventing the
+        # threshold the rule declines to set, then writing down the date it was crossed.
+        slow = new_store("Slow Co", "CISO")
+        open_incident(slow, "Undetermined for weeks", "2026-07-01",
+                      regimes=["sec-1.05"], actor="t")
+        eq(_esc(slow, "2026-08-15"), [],
+           "45 days with no determination escalates nothing, and deliberately")
+        row_slow = analyze(slow, "2026-08-15", "2026-08-15T00:00:00+00:00")
+        eq(row_slow["incidents"][0]["daysSinceDiscovery"], 45,
+           "the elapsed distance is still reported — declining to judge is not declining "
+           "to count")
+        eq(row_slow["attention"]["noDetermination"], ["I-001"],
+           "and it is on the attention list, which is where the question belongs")
+
+        # --- anchor-missing ---------------------------------------------------------
+        dor = new_store("DORA Co", "CISO")
+        open_incident(dor, "Payment rail outage", "2026-07-06", regimes=["dora"], actor="t")
+        anc = _esc(dor, "2026-07-07")
+        eq([(e["trigger"], e["severity"], e["evidence"]["baseline"]) for e in anc],
+           [("anchor-missing", "high", "dora:initial")],
+           "a regime counting clock hours with no anchor recorded")
+        eq(anc[0]["since"], "2026-07-06",
+           "dated from discovery — the earliest date the gap can honestly be dated from")
+        set_anchor(dor, "I-001", aware="2026-07-06T06:00:00+00:00", actor="t")
+        eq([e["trigger"] for e in _esc(dor, "2026-07-06", "2026-07-06T10:00:00+00:00")], [],
+           "and it clears the moment an anchor exists")
+        # DORA counts hours, so its overdue evidence must be measured in hours too.
+        late_dora = _esc(dor, "2026-07-07", "2026-07-07T12:00:00+00:00")
+        eq([e["trigger"] for e in late_dora], ["window-overdue"],
+           "24 hours from awareness, passed, with nothing filed")
+        eq(late_dora[0]["evidence"]["to"], "2026-07-07T12:00:00+00:00",
+           "measured against the clock time, because DORA counts hours and not days")
+        eq(late_dora[0]["since"], "2026-07-07T06:00:00+00:00",
+           "and dated from the hour the window closed")
+
+        # --- determination-superseded -----------------------------------------------
+        sup = new_store("Superseded Co", "CISO")
+        open_incident(sup, "Vendor breach", "2026-07-06", regimes=["sec-1.05"], actor="t")
+        _at(assess_factor(sup, "I-001", "data", "unknown", "Exfiltration not confirmed.",
+                          actor="t"), "2026-07-10T09:00:00+00:00")
+        _at(determine(sup, "I-001", "not-material", "No confirmed export.", "GC",
+                      "2026-07-14", actor="t"), "2026-07-14T10:00:00+00:00")
+        eq(_esc(sup, "2026-07-20"), [],
+           "a settled determination with a record that has not moved escalates nothing")
+
+        _at(assess_factor(sup, "I-001", "data", "bearing",
+                          "Forensics confirmed export of 1,940 records.", actor="t"),
+            "2026-07-18T09:00:00+00:00")
+        moved = _esc(sup, "2026-07-20")
+        eq([(e["trigger"], e["severity"]) for e in moved],
+           [("determination-superseded", "high")],
+           "a factor recorded after a settled determination that changed its answer")
+        eq(moved[0]["since"], "2026-07-18T09:00:00+00:00",
+           "dated from the moment the record moved, not from the determination")
+        eq(moved[0]["evidence"]["baseline"], "not-material",
+           "the baseline is the determination the record moved out from under")
+        ok("data (unknown → bearing)" in moved[0]["evidence"]["detail"],
+           "and the detail quotes the assessor's own recorded words, both of them")
+        ok("not that the determination was wrong" in moved[0]["evidence"]["detail"],
+           "with the record carrying its own statement of what it does not claim")
+
+        # The two clocks, kept apart. `determinedAt` is back-datable by design — it is the
+        # Item 1.05 anchor and often records a decision made days before anyone typed it in.
+        # Here the determination is dated the 14th but was WRITTEN on the 18th, after the
+        # forensics factor landed on the 16th. The record therefore already contained that
+        # factor when the determination was made, and nothing has been superseded. Keying
+        # the as-of comparison on `determinedAt` instead of `ts` reverses this answer and
+        # reports a determination as stale on the strength of a fact it was made with.
+        back = new_store("Backdated Co", "CISO")
+        open_incident(back, "Vendor breach", "2026-07-06", regimes=["sec-1.05"], actor="t")
+        _at(assess_factor(back, "I-001", "data", "bearing", "Export confirmed.", actor="t"),
+            "2026-07-16T09:00:00+00:00")
+        _at(determine(back, "I-001", "not-material", "Export confirmed but immaterial.",
+                      "GC", "2026-07-14", actor="t"), "2026-07-18T10:00:00+00:00")
+        ok(back["incidents"][0]["factors"][0]["ts"]
+           < back["incidents"][0]["determinations"][0]["ts"]
+           and back["incidents"][0]["determinations"][0]["determinedAt"]
+           < back["incidents"][0]["factors"][0]["ts"][:10],
+           "the fixture really is back-dated: written after the factor, dated before it")
+        eq(_esc(back, "2026-07-20"), [],
+           "a determination written after a factor is not superseded by it, however it "
+           "is dated")
+
+        # `since` is when the record FIRST moved, so two factors moving on different days
+        # date the escalation from the earlier. With one moved factor min and max agree and
+        # the distinction is untested.
+        two = new_store("Two Factors Co", "CISO")
+        open_incident(two, "Vendor breach", "2026-07-06", regimes=["sec-1.05"], actor="t")
+        _at(determine(two, "I-001", "not-material", "Nothing confirmed.", "GC",
+                      "2026-07-14", actor="t"), "2026-07-14T10:00:00+00:00")
+        _at(assess_factor(two, "I-001", "data", "bearing", "Export confirmed.", actor="t"),
+            "2026-07-16T09:00:00+00:00")
+        _at(assess_factor(two, "I-001", "financial", "bearing", "Costs exceed retention.",
+                          actor="t"), "2026-07-18T09:00:00+00:00")
+        two_esc = _esc(two, "2026-07-20")
+        eq(len(two_esc), 1, "two moved factors are one determination that moved, not two")
+        eq(two_esc[0]["since"], "2026-07-16T09:00:00+00:00",
+           "dated from the first movement, not the most recent one")
+        for part in ("data (unassessed → bearing)", "financial (unassessed → bearing)"):
+            ok(part in two_esc[0]["evidence"]["detail"],
+               f"and both movements are named: {part}")
+
+        # Severity does NOT vary with which way the factor moved. Ranking one direction
+        # above the other would be this engine grading a legal judgment, and a graded
+        # judgment is discoverable as an exhibit arguing against the organisation's own
+        # conclusion. This is the check that fails if somebody later "improves" it.
+        rev = new_store("Reverse Co", "CISO")
+        open_incident(rev, "Vendor breach", "2026-07-06", regimes=["sec-1.05"], actor="t")
+        _at(assess_factor(rev, "I-001", "data", "bearing", "Export suspected.", actor="t"),
+            "2026-07-10T09:00:00+00:00")
+        _at(determine(rev, "I-001", "material", "Assume export.", "GC", "2026-07-14",
+                      actor="t"), "2026-07-14T10:00:00+00:00")
+        _at(assess_factor(rev, "I-001", "data", "no-bearing", "Forensics found no export.",
+                          actor="t"), "2026-07-18T09:00:00+00:00")
+        rev_esc = [e for e in _esc(rev, "2026-07-19")
+                   if e["trigger"] == "determination-superseded"]
+        eq([e["severity"] for e in rev_esc], ["high"],
+           "the same severity whichever way the record moved — the engine grades no "
+           "judgment, in either direction")
+
+        # A factor re-affirmed after the determination has not moved, and a factor that
+        # wandered and came back has not moved either. Both would read as fresh facts if
+        # this compared entry-by-entry instead of latest-against-as-of.
+        same = new_store("Reaffirmed Co", "CISO")
+        open_incident(same, "Vendor breach", "2026-07-06", regimes=["sec-1.05"], actor="t")
+        _at(assess_factor(same, "I-001", "data", "bearing", "Export confirmed.", actor="t"),
+            "2026-07-10T09:00:00+00:00")
+        _at(determine(same, "I-001", "material", "Export confirmed.", "GC", "2026-07-14",
+                      actor="t"), "2026-07-14T10:00:00+00:00")
+        _at(assess_factor(same, "I-001", "data", "unknown", "Vendor retracted the report.",
+                          actor="t"), "2026-07-16T09:00:00+00:00")
+        _at(assess_factor(same, "I-001", "data", "bearing", "Retraction withdrawn.",
+                          actor="t"), "2026-07-18T09:00:00+00:00")
+        eq([e["trigger"] for e in _esc(same, "2026-07-19")], [],
+           "a factor that wandered and came back has not moved, and is not reported twice")
+
+        # An unsettled determination is the work still running, not a record moving under a
+        # conclusion. Facts are supposed to arrive while a team is assessing.
+        for unsettled in ("assessing", "not-yet-determinable"):
+            wip = new_store("WIP Co", "CISO")
+            open_incident(wip, "Under assessment", "2026-07-06", regimes=["sec-1.05"],
+                          actor="t")
+            _at(determine(wip, "I-001", unsettled, "Still working.", "GC", "2026-07-14",
+                          actor="t"), "2026-07-14T10:00:00+00:00")
+            _at(assess_factor(wip, "I-001", "data", "bearing", "Export confirmed.",
+                              actor="t"), "2026-07-18T09:00:00+00:00")
+            eq(_esc(wip, "2026-07-20"), [],
+               f"a {unsettled!r} determination is not superseded by new facts")
+
+        # --- closed, policy, ordering, and the no-verdict guard ---------------------
+        close_incident(sup, "I-001", "Re-determined and disclosed.", actor="t")
+        eq(_esc(sup, "2026-07-20"), [], "a closed incident escalates nothing")
+
+        for key, fixture, today_ in (("windowOverdue", est, "2026-07-22"),
+                                     ("anchorMissing", dor, "2026-07-07"),
+                                     ("supersededDetermination", rev, "2026-07-19")):
+            off = json.loads(json.dumps(fixture))
+            off.setdefault("settings", {})["escalation"] = {key: False}
+            ok(not [e for e in analyze(off, today_, today_ + "T00:00:00+00:00")["escalations"]
+                    if e["trigger"] != "anchor-missing" or key == "anchorMissing"],
+               f"{key} off suppresses its trigger")
+            ok(ESCALATION_DEFAULTS[key] is True, f"{key} is on by default")
+        eq(sorted(ESCALATION_DEFAULTS), ["anchorMissing", "supersededDetermination",
+                                         "windowOverdue"],
+           "three toggles and no numbers — the only quantities that could be tuned here "
+           "are the ones the SEC and DORA already set")
+        ok(not any(isinstance(v, (int, float)) and not isinstance(v, bool)
+                   for v in ESCALATION_DEFAULTS.values()),
+           "and none of them is a threshold this engine invented")
+
+        # Worst first, then by incident, then by trigger — so a pack reading three
+        # producers gets one deterministic order.
+        many = new_store("Many Co", "CISO")
+        open_incident(many, "Second", "2026-07-06", regimes=["dora"], actor="t")
+        open_incident(many, "First", "2026-07-06", regimes=["sec-1.05"], actor="t")
+        _at(determine(many, "I-002", "material", "Material.", "GC", "2026-07-14",
+                      actor="t"), "2026-07-14T10:00:00+00:00")
+        _at(assess_factor(many, "I-002", "data", "bearing", "Export confirmed.", actor="t"),
+            "2026-07-18T09:00:00+00:00")
+        eq([(e["severity"], e["subjectRef"], e["trigger"]) for e in _esc(many, "2026-07-22")],
+           [("critical", "I-002", "window-overdue"),
+            ("high", "I-001", "anchor-missing"),
+            ("high", "I-002", "determination-superseded")],
+           "severity first, then incident, then trigger")
+
+        # Two triggers at the same severity on the SAME incident. This pins the order that
+        # reaches a pack; it does NOT prove the `trigger` sort key, and is not labelled as
+        # though it did. Emission order already matches alphabetical for a same-severity tie
+        # and the sort is stable, so removing that key changes no output and no test here
+        # would catch it. Said plainly rather than dressed up: a check that cannot fail is
+        # worth less than an honest note about why.
+        tie = new_store("Tie Co", "CISO")
+        open_incident(tie, "Payment rail outage", "2026-07-06", regimes=["dora"], actor="t")
+        _at(assess_factor(tie, "I-001", "data", "unknown", "Not confirmed.", actor="t"),
+            "2026-07-10T09:00:00+00:00")
+        _at(determine(tie, "I-001", "not-material", "Nothing confirmed.", "GC",
+                      "2026-07-14", actor="t"), "2026-07-14T10:00:00+00:00")
+        _at(assess_factor(tie, "I-001", "data", "bearing", "Export confirmed.", actor="t"),
+            "2026-07-18T09:00:00+00:00")
+        eq([(e["severity"], e["subjectRef"], e["trigger"]) for e in _esc(tie, "2026-07-20")],
+           [("high", "I-001", "anchor-missing"),
+            ("high", "I-001", "determination-superseded")],
+           "one incident, two triggers: the order that reaches a pack, pinned")
+
+        # The no-verdict guard, run over output that actually carries escalations. The
+        # check above it runs on a store whose escalation list is empty, so on its own it
+        # would pass no matter what this section wrote into a detail line.
+        esc_text = json.dumps(analyze(many, "2026-07-22", "2026-07-22T00:00:00+00:00"))
+        ok(any(e["trigger"] for e in _esc(many, "2026-07-22")),
+           "the no-verdict guard below is reading output that has escalations in it")
+        for word in ("score", "Score", "recommend", "verdict", "unreasonable"):
+            ok(word not in esc_text, f"no {word!r} in an analysis carrying escalations")
 
         # --- links, closing, and the family guard -----------------------------------
         link_incident(store, "I-001", risk_ids=["R-006"], exception_ids=["A-001"], actor="t")

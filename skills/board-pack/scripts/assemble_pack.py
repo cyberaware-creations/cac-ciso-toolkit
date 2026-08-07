@@ -706,6 +706,17 @@ def _exceptions_escalations(a):
     return list(a.get("escalations") or [])
 
 
+def _incident_escalations(a):
+    """The escalations incident-materiality derived — statutory clocks, and only those.
+
+    Fourth producer, and the narrowest of the four by design. This one emits no verdict, so
+    what arrives here is a passed deadline, an absent anchor or a record that moved after a
+    determination — never a judgment about materiality. The pack ranks it beside a crossed
+    risk band and a breached metric and, as with the other three, understands none of them.
+    """
+    return list(a.get("escalations") or [])
+
+
 def _posture_headline(a):
     # No sev on either figure. A gap is a distance from a Target, and this skill
     # is explicit that a low coverage figure may be a deliberately low Target
@@ -802,7 +813,8 @@ PRODUCERS = {
     "incident": {"skill": "incident-materiality", "script": "scripts/incident_analysis.py",
                  "argv": ["analyze", "{store}", "--today", "{asOf}",
                           "--now", "{asOf}T00:00:00+00:00"],
-                 "headline": _incident_headline, "figures": _incident_figures},
+                 "headline": _incident_headline, "figures": _incident_figures,
+                 "escalations": _incident_escalations},
 }
 
 
