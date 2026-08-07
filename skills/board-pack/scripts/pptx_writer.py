@@ -96,6 +96,30 @@ SEV_WORD = {"good": "Good", "medium": "Medium", "high": "High", "critical": "Cri
 # solid block of it would leave nothing readable on top. Hence a third variant rather than
 # one of the first two pressed into a job it was not measured for.
 SEV_MID = {"good": "86BE9C", "medium": "F0DC92", "high": "EEC17E", "critical": "DFA096"}
+
+
+def on_mark(fill: str) -> str:
+    """The text colour a label takes when it sits ON a filled mark.
+
+    Mirrors `cac_graphics._on`. Duplicated rather than imported because this writer runs
+    standalone like every other shipped script, and the palette above is duplicated for the
+    same reason — with `verify()` and the deck-contrast eval as the two things that keep the
+    copies honest.
+
+    It exists because the obvious choice is wrong: a band's SEV_TEXT is measured against
+    WHITE, which is what makes it a text colour, and painting it onto that band's own mid
+    tone put the good segment at 2.62:1. Nothing caught it because the deck had no contrast
+    check at all — see evals/deck-contrast.sh, which is the check that found it.
+    """
+    hexv = fill.lstrip("#")
+    def chan(v):
+        v /= 255.0
+        return v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4
+    r, g, b = (int(hexv[i:i + 2], 16) for i in (0, 2, 4))
+    lum = 0.2126 * chan(r) + 0.7152 * chan(g) + 0.0722 * chan(b)
+    on_dark = (1.05) / (lum + 0.05)
+    on_light = (lum + 0.05) / 0.05
+    return "FFFFFF" if on_dark >= on_light else INK
 # A segment in an otherwise-banded composition that its producer gave no band — `expired`
 # is a lifecycle terminus, not a severity. Neutral, and never one of the four.
 UNASSESSED = "D6D2C7"
@@ -519,7 +543,8 @@ class Deck:
                 shapes.append(_textbox(sid, f"Segment value {sid}", x, bar_y + inch(0.08),
                                        w, inch(0.26),
                                        _para(str(seg["value"]), 1100, True,
-                                             SEV_TEXT[band] if band else MUTED, 1)))
+                                             on_mark(SEV_MID[band]) if band
+                                             else MUTED, 1)))
                 sid += 1
                 shapes.append(_textbox(sid, f"Segment label {sid}", x,
                                        bar_y + bar_h + inch(0.03), w, inch(0.24),
