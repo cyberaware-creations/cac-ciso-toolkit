@@ -81,6 +81,46 @@ rectangle is a rectangle in PowerPoint, Keynote and Google Slides, where an embe
 not — and leaves bullets and bars to the document, because both need an axis this writer would
 only approximate, and half a chart in a deck is worse than a pointer to the page that has it.
 
+## What escalated, and why that is not a decision
+
+Sections raise things on their own. A risk crosses a band between snapshots, an acceptance
+expires and stays on the register, a metric dwells over appetite for two quarters — nobody put
+those on the agenda, and by the time somebody notices, the quarter is over.
+
+The pack collects them into one list across every section, worst first:
+
+```
+CRITICAL  R-007  band-crossed        residual band high -> critical since the last snapshot
+HIGH      R-003  appetite-dwell      over appetite continuously for 212 days, since 2025-12-31
+HIGH      R-010  acceptance-lapsed   acceptance expired 2026-07-15 and is still on the register
+MEDIUM    R-008  sustained-drift     residual exposure worsened across 2 consecutive snapshots
+```
+
+**This is the aggregation no single skill can do**, and it is the reason the contract
+(`CAC-EL-1 §1.3`) fixes one record shape across the suite. Each line was derived by the skill
+that owns that clock and is read here unchanged — the assembler raises none of them, exactly as
+it computes no headline figure. `evals/assembly.sh` proves it the strong way: every record must
+appear **verbatim** in the producer's own output, so an assembler that adjusted a severity on
+the way through fails the suite.
+
+**They are deliberately not in the decisions list.** A decision is board prose from
+`ciso-board-translation`; an escalation is a fact a producer derived. Merging them would put a
+machine-written sentence in the one place this pack promises every sentence came from a human
+translator. So escalations get their own page, before the decisions — a board should see what
+moved on its own before it sees what it is being asked to do about it.
+
+Two consequences worth knowing:
+
+- **Nothing is blocked.** A pack assembles and renders with escalations outstanding; none of
+  them gates anything, and nothing is auto-rescored. Flag, never block.
+- **An empty list is stated, not implied.** "Nothing escalated" is printed, because a pack with
+  no escalations and a pack that could not read any are different states and only one is good
+  news.
+
+Today `risk-register` is the only producer emitting them. The others are *absent* rather than
+empty, which is why this is a per-producer adapter — a skill that escalates nothing and a skill
+that cannot escalate yet are different facts, and the provenance page says which.
+
 ## What it adds
 
 | | |

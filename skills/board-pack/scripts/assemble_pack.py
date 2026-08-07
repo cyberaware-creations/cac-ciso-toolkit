@@ -660,6 +660,32 @@ def _incident_figures(a):
              "series": series, "source": "counts.byBand", "note": note}]
 
 
+# --- Escalations: read from the producers, aggregated, never derived --------------
+#
+# CAC-EL-1 §1.3. An escalation is a derived, stateless determination made by the skill that
+# owns the clock — a crossed band, a lapsed acceptance, a metric past its threshold. This
+# assembler collects them and orders them; it decides nothing about them, on exactly the same
+# terms as every headline figure. A pack that computed an escalation would be a second opinion
+# able to contradict the section printed beside it.
+#
+# Only `risk-register` emits them today. The others are absent rather than empty, which is why
+# this is a per-producer adapter and not a field the collector assumes: a skill that escalates
+# nothing and a skill that cannot escalate yet are different states, and the provenance page
+# says which is which.
+
+ESCALATION_KEYS = ("subjectRef", "subjectKind", "trigger", "severity", "since", "evidence")
+
+
+def _risk_escalations(a):
+    """The escalations risk-register derived. Lifted whole, not re-read field by field.
+
+    Carried verbatim so the record the board sees is the record the producer emitted. Picking
+    it apart here and rebuilding it would be the assembler asserting a shape, and the shape
+    belongs to the contract.
+    """
+    return list(a.get("escalations") or [])
+
+
 def _posture_headline(a):
     # No sev on either figure. A gap is a distance from a Target, and this skill
     # is explicit that a low coverage figure may be a deliberately low Target
@@ -736,9 +762,15 @@ PRODUCERS = {
     "posture": {"skill": "nist-csf", "script": "scripts/profile_analysis.py",
                 "argv": ["analyze", "{store}", "--today", "{asOf}"],
                 "headline": _posture_headline, "figures": _posture_figures},
+    # `--today` matters here and did not before. The escalation triggers that depend on a
+    # date — a lapsed acceptance, a long dwell over appetite — are skipped rather than guessed
+    # when the producer is given no reference date, so a pack assembled without it would
+    # report fewer escalations than the same register reports on the same day. One number,
+    # one answer: the pack dates the producer exactly as it dates every other section.
     "risk": {"skill": "risk-register", "script": "scripts/score_register.py",
-             "argv": ["score", "{store}", "--json"],
-             "headline": _risk_headline, "figures": _risk_figures},
+             "argv": ["score", "{store}", "--json", "--today", "{asOf}"],
+             "headline": _risk_headline, "figures": _risk_figures,
+             "escalations": _risk_escalations},
     "metrics": {"skill": "metrics-register", "script": "scripts/metrics_analysis.py",
                 "argv": ["analyze", "{store}", "--today", "{asOf}"],
                 "headline": _metrics_headline, "figures": _metrics_figures},
@@ -796,7 +828,7 @@ def headline_counts(manifest: dict, sections: list, skills_root: str) -> dict:
     of number from it would double the cost of a pack to no purpose, and would open the
     possibility of the two passes seeing different output.
     """
-    figures, charts, unavailable = [], [], []
+    figures, charts, escalations, unavailable = [], [], [], []
     stores = {e["section"]: e.get("storePath") for e in manifest["sections"]}
     for section in sections:
         name = section["section"]
@@ -809,6 +841,21 @@ def headline_counts(manifest: dict, sections: list, skills_root: str) -> dict:
         if analysis is None:
             unavailable.append(reason)
             continue
+
+        for esc in PRODUCERS[name].get("escalations", lambda _a: [])(analysis):
+            # A record missing a contract key cannot be rendered without the renderer
+            # inventing the gap, so it is reported rather than drawn. This is not the lapse
+            # rule in reverse: §1.2 forbids dropping a *lapsed* item, and a malformed record
+            # is a producer defect, which the provenance page exists to name.
+            missing = [k for k in ESCALATION_KEYS if k not in esc]
+            if missing:
+                unavailable.append(
+                    f"an escalation from {name!r} is missing {', '.join(missing)} and was not "
+                    f"carried; the producer emitted a record the CAC-EL-1 shape does not allow")
+                continue
+            row = dict(esc)
+            row["section"] = name
+            escalations.append(row)
 
         drawn = PRODUCERS[name].get("figures", lambda _a: [])(analysis)
         if name == "metrics" and len(drawn) > MAX_METRIC_BULLETS:
@@ -837,7 +884,19 @@ def headline_counts(manifest: dict, sections: list, skills_root: str) -> dict:
             if sev is not None:
                 figure["sev"] = sev
             figures.append(figure)
-    return {"figures": figures, "charts": charts, "unavailable": unavailable}
+    # One order across every producer, so a board reads the worst thing on the page first
+    # regardless of which skill raised it — which is the point of aggregating them at all.
+    # Severity first, then the section order the audience already fixed, then the subject, so
+    # two runs over one pack list them identically.
+    # SEV_ORDER runs good -> critical, so a higher index is worse and the sort negates it.
+    # An unrecognised severity gets -1, which negates to 1 and lands it after every known
+    # band — visible at the bottom rather than silently first.
+    worst_first = {s: i for i, s in enumerate(SEV_ORDER)}
+    section_rank = {s["section"]: i for i, s in enumerate(sections)}
+    escalations.sort(key=lambda e: (-worst_first.get(e["severity"], -1),
+                                    section_rank.get(e["section"], 99), e["subjectRef"]))
+    return {"figures": figures, "charts": charts, "escalations": escalations,
+            "unavailable": unavailable}
 
 
 def assemble(manifest: dict, skills_root: str = None, with_stores: bool = True) -> dict:
@@ -853,7 +912,7 @@ def assemble(manifest: dict, skills_root: str = None, with_stores: bool = True) 
 
     decisions = consolidate_decisions(ordered, through_line)
 
-    rollup = ({"figures": [], "charts": [],
+    rollup = ({"figures": [], "charts": [], "escalations": [],
                "unavailable": ["store-backed rollups were not requested"]}
               if not with_stores
               else headline_counts(manifest, ordered, skills_root))
@@ -888,6 +947,13 @@ def assemble(manifest: dict, skills_root: str = None, with_stores: bool = True) 
         # a chart is the shape behind it. A renderer that has no way to draw marks can
         # ignore this key entirely and lose nothing it was previously showing.
         "charts": rollup.get("charts") or [],
+        # What the producers raised on their own, in one list across every section — the
+        # aggregation no single skill can do, which is the reason this one exists. Separate
+        # from `decisions` on purpose: a decision is board prose from
+        # ciso-board-translation, and an escalation is a fact a producer derived. Merging
+        # them would put a machine-written sentence in the one place this pack promises
+        # every sentence came from a human translator.
+        "escalations": rollup.get("escalations") or [],
         "provenance": {
             "manifest": manifest.get("manifestPath"),
             "sectionOrder": [s["section"] for s in ordered],
