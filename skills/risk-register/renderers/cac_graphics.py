@@ -11,6 +11,7 @@ Usage:
 import html as _html
 import math as _math
 import sys as _sys
+from datetime import date as _date
 
 # ── Colour contract ────────────────────────────────────────────────────────────
 # RAG — four variants per band.
@@ -556,14 +557,37 @@ def _validate_iso(d, context=""):
 
 def _date_ord(d):
     """
-    ISO date -> approximate day ordinal, for proportional positioning.
-    Accepts YYYY-MM and YYYY-MM-DD.
+    ISO date -> exact day ordinal, for proportional positioning.
+    Accepts YYYY-MM and YYYY-MM-DD; YYYY-MM is read as the first of that month.
+
+    This was `y * 365.25 + (m - 1) * 30.44 + day` — an average year and an average
+    month — and every caller divides differences by a span, so the approximation
+    showed up as a time axis that is not linear in time:
+
+      * Every month rendered the same width. A gantt bar spanning 28-day February
+        came out as long as one spanning 31-day January, which is a chart making a
+        false claim about duration rather than merely a rounding error.
+      * One day at a year boundary rendered 0.41 units where every other day
+        rendered 1.00 — the same interval drawn 2.4x narrower depending only on
+        where December ends.
+      * Worst absolute error on a one-year axis was 1.74 days, about half a percent.
+
+    `toordinal()` is exact, monotone and leap-year correct, and the callers only ever
+    take differences, so nothing depends on the magnitude changing.
+
+    A date that is well-formed but not a real calendar day — 2026-02-30 — now raises
+    instead of positioning somewhere plausible. `_validate_iso` checks shape only, so
+    this is the layer that can catch it, and a mark that silently plots a day that
+    does not exist is the kind of quiet wrongness this file refuses everywhere else.
     """
     parts = [int(p) for p in str(d).split("-")]
     y = parts[0]
     m = parts[1] if len(parts) > 1 else 1
     day = parts[2] if len(parts) > 2 else 1
-    return y * 365.25 + (m - 1) * 30.44 + day
+    try:
+        return _date(y, m, day).toordinal()
+    except ValueError as exc:
+        raise ValueError("%s is not a real calendar date: %s" % (d, exc))
 
 
 def zones_from_threshold(threshold, direction):
@@ -2591,6 +2615,53 @@ def _self_test():
     except TypeError:
         ok("a misspelled keyword is refused, not silently ignored")
 
+    # 57e. the time axis is linear in time.
+    #
+    # Pinned as PROPERTIES rather than as ordinal values, because the values are an
+    # implementation detail and the properties are the contract every date mark relies on:
+    # equal real intervals must render equal, and no interval may render at a different
+    # width because of where a month or a year happens to end.
+    same_day = {_date_ord("2026-06-11") - _date_ord("2026-06-10"),
+                _date_ord("2026-12-31") - _date_ord("2026-12-30"),
+                _date_ord("2027-01-01") - _date_ord("2026-12-31"),
+                _date_ord("2028-02-29") - _date_ord("2028-02-28")}
+    if same_day == {1}:
+        ok("one day is one unit everywhere, including across a year boundary")
+    else:
+        bad("one day is one unit everywhere", "got widths %s" % sorted(same_day))
+    months = [(_date_ord("2026-02-01") - _date_ord("2026-01-01"), 31),
+              (_date_ord("2026-03-01") - _date_ord("2026-02-01"), 28),
+              (_date_ord("2028-03-01") - _date_ord("2028-02-01"), 29),
+              (_date_ord("2026-05-01") - _date_ord("2026-04-01"), 30)]
+    if all(got == want for got, want in months):
+        ok("a month renders its own length, not an average one")
+    else:
+        bad("a month renders its own length", str(months))
+    # The leap day is the case an average-month model cannot get right at all.
+    if _date_ord("2028-03-01") - _date_ord("2028-02-28") == 2:
+        ok("and a leap year has its extra day")
+    else:
+        bad("and a leap year has its extra day",
+            str(_date_ord("2028-03-01") - _date_ord("2028-02-28")))
+    if _date_ord("2026-03") == _date_ord("2026-03-01"):
+        ok("YYYY-MM is the first of that month")
+    else:
+        bad("YYYY-MM is the first of that month", str(_date_ord("2026-03")))
+    # Monotone across every month boundary in a year — the property a sorted axis needs.
+    seq = ["2026-%02d-%02d" % (m, d) for m in range(1, 13) for d in (1, 28)]
+    if all(_date_ord(a) < _date_ord(b) for a, b in zip(seq, seq[1:])):
+        ok("ordinals increase monotonically through a year")
+    else:
+        bad("ordinals increase monotonically through a year", "not sorted")
+    try:
+        _date_ord("2026-02-30")
+        bad("an impossible date is refused, not positioned", "accepted 2026-02-30")
+    except ValueError as e:
+        if "not a real calendar date" in str(e):
+            ok("an impossible date is refused, not positioned")
+        else:
+            bad("an impossible date is refused, not positioned", str(e))
+
     # 57d. the page shell.
     set_brand()
     if chrome() == _CHROME_CAC:
@@ -2660,8 +2731,8 @@ def _self_test():
             bad("whiteLabel refuses a non-boolean", str(e))
 
     print()
-    if checks != 105:
-        print(f"self-test: ran {checks} checks, expected 105")
+    if checks != 111:
+        print(f"self-test: ran {checks} checks, expected 111")
         _sys.exit(1)
     if fails:
         print(f"self-test: {fails} of {checks} checks FAILED")
