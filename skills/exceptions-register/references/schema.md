@@ -58,9 +58,45 @@ approved, re-validated periodically, and eventually closed or expired.
   "csfSubcategoryIds": ["ID.RA-01"],
   "incidentIds": [],
   "sourceRiskRef": "R-006",
+  "magnitude": {
+    "value": 12,
+    "unit": "residual exposure",
+    "band": "medium",
+    "measuredAt": "2026-04-01",
+    "source": "risk-register"
+  },
   "notes": ""
 }
 ```
+
+## `magnitude` — what the acceptance was accepted against
+
+Optional, and `null` on a record that was never quantified. Present, it makes
+`revalidate` refuse a renewal whose number nobody has re-measured since the last review.
+
+| field | meaning |
+|---|---|
+| `value` | the number. Required if the block exists at all — a magnitude with no value is refused |
+| `unit` | what it counts, e.g. `residual exposure`. Renders bare if unset, and says so |
+| `band` | the band that value sat in when measured, if the source had one |
+| `measuredAt` | `YYYY-MM-DD`, or `null`. A null date is treated as **stale**, not as fresh |
+| `source` | where the number came from — `risk-register` for imported records |
+
+**A record with no `magnitude` is never refused.** This register stands alone without a
+quantified risk register; requiring a quantity it was never given would make an unquantified
+register unusable rather than more rigorous.
+
+**Staleness names no interval.** A magnitude is stale when it was measured *before the last
+review* — the record's last `{kind}-revalidated` event, or its `acceptedDate` if it has never
+been re-validated. Measured on the review date itself counts as fresh: a number taken that day
+was taken for that review. There is deliberately no configurable window, because no standard
+sets one and this register does not invent numbers.
+
+The derived flags `remeasureRequired` and `remeasureReason` (`undated` /
+`older-than-last-review`) are reported per record and, like everything else here, never stored.
+`remeasureRequired` reads true for most of a record's life by design — each review must stand
+on a measurement taken since the last one — which is why the `remeasureNeeded` attention list
+narrows to records whose review is also due.
 
 ## Exception shape
 
@@ -79,6 +115,7 @@ approved, re-validated periodically, and eventually closed or expired.
   "riskIds": ["R-007"],
   "csfSubcategoryIds": ["PR.AA-01"],
   "incidentIds": [],
+  "magnitude": null,
   "notes": ""
 }
 ```
@@ -162,8 +199,12 @@ Computed on demand, never written:
 
 - status band, for both object types
 - days until or since `revalidationDate` and `expiryDate`
-- the attention lists: overdue, due, expired, no-compensating-control, unlinked
+- the attention lists: overdue, due, expired, needs-re-measurement, no-compensating-control,
+  unlinked
 - inventory rollups and counts
+- `remeasureRequired`, `remeasureReason` and `lastReviewedOn` — all three read out of the
+  record's own history on demand. `lastReviewedOn` is deliberately not stored on the record:
+  it is already in the change log, and a second copy is a second thing that can disagree
 
 `status` on the record itself holds only `active` or `closed` — a fact about what a human
 did, not a derivation about where a date sits.
