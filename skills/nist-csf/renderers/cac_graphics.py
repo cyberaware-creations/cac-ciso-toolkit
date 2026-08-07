@@ -256,7 +256,22 @@ _CHROME_FLOORS = (
     ("lime", "inkRaised", 4.5),     # 13.24
     ("limeDim", "ink", 4.5),        # 6.80  — secondary text is still text
     ("limeDim", "inkRaised", 4.5),  # 6.19
-    ("patina", "ink", 3.0),         # 6.14  — a rule and a kicker, not body copy
+    # The floor here was 3.0, and the comment beside it read "a rule and a kicker, not body
+    # copy" — half right, and wrong where it counts. The rule is graphical and 3.0 suits it;
+    # THE KICKER IS TEXT. `.band .kicker` is set at 11px/700, and bold 11px is normal-size
+    # text under WCAG rather than large, so it owes 4.5:1.
+    #
+    # CAC's own patina clears 6.14, so nothing in this repo ever exposed it. The brand
+    # example documented in six SKILL.md files lands at 4.13 — above the old floor, below
+    # what the page needs — so the tool accepted the palette and every branded page shipped
+    # a kicker under AA. Only a palette falling between the two thresholds could reveal it,
+    # and this table is where a pairing's severity is decided, so this table was the defect.
+    #
+    # One floor for the pair, not two: `patina` on `ink` is a single colour pairing however
+    # the page spends it, and 4.5 is the stricter of its two uses.
+    ("patina", "ink", 4.5),         # 6.14  — the kicker is text; the rule rides along
+    # patinaHover stays at 3.0, deliberately. It appears in exactly one place — the second
+    # stop of the spark's gradient — which carries no text and no information.
     ("patinaHover", "ink", 3.0),    # 5.06
     ("slate", "surface", 4.5),      # 5.19
     ("slate", "bg", 4.5),           # 4.72
@@ -2823,7 +2838,7 @@ def _self_test():
     # ACTIVE palette, so testing the brand against those asks whether it equals itself and is
     # true for every client override — written that way first, and it silently handed CAC
     # chrome to every client. This pins the fix: a client ink must move the derived steps.
-    client = apply_chrome({"ink": "#101820", "patina": "#B5651D", "bg": "#FAF7F2"})
+    client = apply_chrome({"ink": "#101820", "patina": "#C0701F", "bg": "#FAF7F2"})
     if client["ink"] == "#101820" and client["inkRaised"] not in (_CHROME_CAC["inkRaised"],
                                                                   "#101820"):
         ok("a client ink moves the derived steps off both the CAC value and the ink itself")
@@ -2854,6 +2869,29 @@ def _self_test():
             ok("a brand the library accepts can still be refused by the shell")
         else:
             bad("a brand the library accepts can still be refused by the shell", str(e))
+    # The kicker pairing, which shipped accepted and under AA. `#B5651D` on `#101820` is
+    # 4.13:1 — it cleared the old 3.0 floor and failed the 4.5 the rendered kicker owes.
+    # This exact palette was the example in six SKILL.md files AND the fixture three checks
+    # above, so it was being exercised constantly and asserted about in every way except
+    # the one that mattered. Pinned by value: a floor that drifts back to 3.0 has to fail
+    # here rather than go quiet again.
+    try:
+        apply_chrome({"ink": "#101820", "patina": "#B5651D", "bg": "#FAF7F2"})
+        bad("a patina that fails the kicker is refused", "accepted at 4.13:1")
+    except BrandError as e:
+        if "patina on ink" in str(e):
+            ok("a patina that fails the kicker is refused, naming the pairing")
+        else:
+            bad("a patina that fails the kicker is refused", str(e))
+    # The other direction. Without this, every check above passes on a floor of 21:1, which
+    # would refuse every brand including CAC's own.
+    try:
+        apply_chrome({"ink": "#101820", "patina": "#C0701F", "bg": "#FAF7F2"})
+        ok("...and one that clears it at 4.75:1 is accepted")
+    except BrandError as e:
+        bad("a patina clearing the kicker floor is accepted", str(e))
+    set_brand()
+
     if brand()["ink"] == DEFAULT_BRAND["ink"]:
         ok("and a refused shell restores the previous brand, never half-applying one")
     else:
@@ -2882,8 +2920,8 @@ def _self_test():
             bad("whiteLabel refuses a non-boolean", str(e))
 
     print()
-    if checks != 119:
-        print(f"self-test: ran {checks} checks, expected 119")
+    if checks != 121:
+        print(f"self-test: ran {checks} checks, expected 121")
         _sys.exit(1)
     if fails:
         print(f"self-test: {fails} of {checks} checks FAILED")
