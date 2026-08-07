@@ -204,6 +204,32 @@ done
   --out "$work/bc_framing.html" --offline) >/dev/null || {
     echo "responsive: FIXTURE FAILED — render_context errored"; exit 1; }
 
+# The same pages again UNDER A CLIENT BRAND, using the exact JSON block the SKILL.md files
+# tell a user to write.
+#
+# Every page above is the CAC palette, so for five releases the browser measured one
+# palette and the `--brand` path was measured by nobody. The shell's contrast floor is not
+# a substitute: it is a MODEL of what the page sets, and the page is the truth. When those
+# two disagree the floor wins silently, which is exactly what happened — the floor scored
+# `patina on ink` as a 3:1 graphical rule while the rendered kicker is 11px/700 text owing
+# 4.5:1, so the documented brand was accepted at 4.13:1 and every branded page shipped
+# under AA.
+#
+# Keeping the fixture identical to the documented block is the point. A brand invented here
+# would test the code and not the advice, and the advice is what a client actually pastes.
+cat > "$work/brand.json" <<'BRANDJSON'
+{"ink": "#101820", "muted": "#5A4436", "patina": "#C0701F", "bg": "#FAF7F2",
+ "measure": "#8A4B12", "measureTrack": "#EFE0D2", "patinaText": "#8A4B12",
+ "wordmark": "Northwind Group", "mark": "Northwind", "whiteLabel": true}
+BRANDJSON
+(cd "$MX/renderers" && "$PY" render_executive.py --in "$work/mx.json" \
+  --translations "$MX/examples/example-translations.json" \
+  --out "$work/mx_exec_brand.html" --brand "$work/brand.json" --offline) >/dev/null || {
+    echo "responsive: FIXTURE FAILED — branded metrics render_executive errored"; exit 1; }
+(cd "$IM/renderers" && "$PY" render_worksheet.py --in "$work/im.json" \
+  --out "$work/im_ws_brand.html" --brand "$work/brand.json" --offline) >/dev/null || {
+    echo "responsive: FIXTURE FAILED — branded incident render_worksheet errored"; exit 1; }
+
 # A second CSF pair, deliberately below the scope threshold. The first fixture seeds
 # ratings across every Function, so it renders the headline path only — the scope
 # guard, the four-way evidence bar and the by-source cards would never be drawn.
@@ -322,7 +348,8 @@ pages=("$work/render_board.html" "$work/render_dashboard.html" "$work/render_rep
        "$work/xr_board.html" "$work/xr_inv.html"
        "$work/im_board.html" "$work/im_ws.html"
        "$work/bp_pack.html"
-       "$work/csf_xw.html" "$work/bc_framing.html")
+       "$work/csf_xw.html" "$work/bc_framing.html"
+       "$work/mx_exec_brand.html" "$work/im_ws_brand.html")
 
 # Every shipped renderer must have produced one of the pages above.
 #
