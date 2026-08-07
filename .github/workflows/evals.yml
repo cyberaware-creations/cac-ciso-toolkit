@@ -6,17 +6,27 @@ name: evals
 
 on:
   push:
-    # Feature branches are listed because `pull_request` stopped firing this workflow —
-    # repo-wide, not for one branch: a brand-new branch with a fresh PR did not trigger it
-    # either, while CodeQL fired on the same events throughout. Until that is fixed at
-    # source, `push` is the only event that both runs this suite and produces a check suite
-    # GitHub links to a PR. `workflow_dispatch` does not: its runs go green on the commit
-    # while the PR reports the same checks missing, which is a worse failure than not
-    # running at all, because it looks like success.
+    # No branch filter, deliberately.
     #
-    # This also does something worth keeping regardless — a branch gets validated when it is
-    # pushed rather than when someone opens a PR.
-    branches: [main, 'feat/**', 'fix/**']
+    # This once read `branches: [main, 'feat/**', 'fix/**']`, because `pull_request` had
+    # stopped firing this workflow repo-wide and `push` was the only event that both ran the
+    # suite and produced a check suite GitHub would link to a PR. (`workflow_dispatch` does
+    # not: its runs go green on the commit while the PR reports the same checks missing,
+    # which is worse than not running at all because it looks like success.)
+    #
+    # `pull_request` fires again — every PR since 2026-07-27 carries a run from it — so the
+    # prefix list is no longer load-bearing. It is removed rather than extended because a
+    # list of prefixes is a list that falls out of date silently: `docs/**` was already
+    # missing from it, so a docs branch was validated only once a PR existed, and the next
+    # `chore/**` or `release/**` branch would have been missed the same way. A filter whose
+    # failure mode is "quietly checks less" is worse than no filter.
+    #
+    # Keeping `push` as well as `pull_request` is deliberate: a branch is validated when it
+    # is pushed rather than when somebody remembers to open a PR.
+    #
+    # Tags are excluded so cutting a release does not fire a second identical run over the
+    # commit that main just validated.
+    tags-ignore: ['**']
   pull_request:
   workflow_dispatch:
 
