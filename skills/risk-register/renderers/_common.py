@@ -212,8 +212,82 @@ VELOCITY_MARK = {"improving": "▼", "worsening": "▲", "steady": "→", "new":
 # These are arrows drawn *as text* on the light workbench, so they take the text
 # ramp, not the fill ramp. Patina as text is 2.9:1 — the ink-on-patina button is
 # fine, patina-on-workbench is not.
-VELOCITY_COLOR = {"improving": BAND_TEXT["low"], "worsening": BAND_TEXT["critical"],
-                  "steady": SLATE, "new": PATINA_TEXT}
+def _rebuild_derived() -> None:
+    """Recompute everything downstream of the chrome primitives.
+
+    Called at import and again by apply_brand(). One definition, invoked twice: a second
+    copy of this map is a second thing that can disagree about what "steady" looks like.
+
+    BAND and BAND_TEXT are deliberately NOT rebuilt. They come from the library's RAG ramp,
+    which does not move under a client brand — status colour is a contract with the reader,
+    not a thing the client buying the report gets to restyle.
+    """
+    global VELOCITY_COLOR, BAND_ON
+    VELOCITY_COLOR = {"improving": BAND_TEXT["low"], "worsening": BAND_TEXT["critical"],
+                      "steady": SLATE, "new": PATINA_TEXT}
+    BAND_ON = {b: text_on(c) for b, c in BAND.items()}
+
+# Bound here so the name exists for anything that reads it during the rest of this module's
+# import; _rebuild_derived() is invoked further down, once every value it reads is defined.
+VELOCITY_COLOR = {}
+
+
+# --- Client brand override ----------------------------------------------------
+#
+# The chart marks followed a client brand long before the page around them did: the graphics
+# library floors what it can see, and this shell — a dark band, light text on it, a lifted
+# sub-header — lived here as literals. A brand that reached the charts and left the page in
+# CAC colours is a worse result than no override at all, because only one half of it looks
+# deliberate.
+#
+# `G.chrome()` now owns the shell and floors the pairings the library cannot see. This binds
+# what that returns onto the names the CSS below already interpolates.
+_BRAND_BINDINGS = {
+    "INK": "ink", "INK_RAISED": "inkRaised", "INK_LINE": "inkLine",
+    "LIME": "lime", "LIME_DIM": "limeDim",
+    "PATINA": "patina", "PATINA_H": "patinaHover", "PATINA_TEXT": "patinaText",
+    "SLATE": "slate", "WB": "bg", "WB_SURF": "surface", "WB_LINE": "line",
+    "MUTED": "muted",
+}
+# Snapshotted at import, and restored verbatim when no brand is supplied. Not recomputed from
+# `G.chrome()`, deliberately: a couple of these values were tuned in this file and differ
+# slightly from the library's, and rebuilding the default from the library would change what
+# an unbranded page renders. Restoring the literal shipped values makes "no --brand renders
+# exactly what it always did" true by construction rather than by inspection.
+_BRAND_DEFAULTS = {n: globals()[n] for n in _BRAND_BINDINGS if n in globals()}
+
+
+def apply_brand(path: str = "") -> None:
+    """Rebind this module's shell from a client brand file, or restore the CAC one.
+
+    Raises `SystemExit` with the reason on a bad file or a refused palette. A renderer that
+    fell back to CAC colours after a failed override would hand a client a document that
+    looks finished and is not the one they asked for.
+    """
+    if not path:
+        globals().update(_BRAND_DEFAULTS)
+        G.set_brand()
+        _rebuild_derived()
+        return
+    try:
+        with open(path, encoding="utf-8") as fh:
+            raw = json.load(fh)
+    except OSError as exc:
+        raise SystemExit("--brand %s: %s" % (path, exc))
+    except ValueError as exc:
+        raise SystemExit("--brand %s is not valid JSON: %s" % (path, exc))
+    if not isinstance(raw, dict):
+        raise SystemExit("--brand %s must contain a JSON object, got %s"
+                         % (path, type(raw).__name__))
+    try:
+        shell = G.apply_chrome(raw)
+    except G.BrandError as exc:
+        raise SystemExit("--brand %s was refused:\n%s" % (path, exc))
+    g = globals()
+    for name, key in _BRAND_BINDINGS.items():
+        if name in g:
+            g[name] = shell[key]
+    _rebuild_derived()
 
 
 def esc(s) -> str:
@@ -255,7 +329,16 @@ def text_on(fill: str) -> str:
 
 # Precomputed so the dashboard's inline JS can be handed the same answers rather
 # than reimplementing the rule and drifting from it.
+# Recomputed by _rebuild_derived(): text_on() reads INK, so a client brand changes which
+# of ink/limestone/white reads best on a RAG fill. The FILLS do not move — status colour is
+# a contract with the reader — but the text sitting on them has to stay legible against
+# whichever ink is in play.
 BAND_ON = {b: text_on(c) for b, c in BAND.items()}
+
+# Invoked here, not beside the function: it reads text_on() and BAND, both defined above
+# this line. The first attempt called it right after the def — which is above text_on() —
+# and every renderer in this skill failed to import.
+_rebuild_derived()
 
 
 def chip(band: str) -> str:
@@ -373,6 +456,10 @@ def parse_args(argv: list[str], description: str, default_out: str) -> argparse.
     p.add_argument("--translations", metavar="FILE",
                    help="board-language sidecar from the ciso-board-translation skill; "
                         "omitted means board narrative is shown as a labelled placeholder")
+    p.add_argument("--brand", metavar="FILE",
+                   help="client brand JSON — ink, patina, bg, measure, wordmark, "
+                        "whiteLabel. Refused rather than approximated if any pairing "
+                        "falls below its contrast floor")
     p.add_argument("--offline", action="store_true",
                    help="omit the Google Fonts links so the file makes no external request; "
                         "falls back to the system font stack")
@@ -571,6 +658,10 @@ class Context:
 
     def __init__(self, args: argparse.Namespace):
         self.args = args
+        # Applied before anything renders. Every CSS block below is an f-string evaluated at
+        # call time, so rebinding the module palette here reaches all of them — but only if
+        # it happens before the first one is built.
+        apply_brand(getattr(args, "brand", "") or "")
         self.offline = bool(getattr(args, "offline", False))
         self.today = args.today
         # Band width for confirmation age. Reporting furniture only: nothing in this
@@ -1485,7 +1576,14 @@ def gfx_legend(counts: dict = None) -> str:
 # already the header lockup and `.legend` is already the trend key, so copying the
 # names verbatim would have silently restyled the chrome of both dashboards. Same
 # rules, same values, names that do not collide.
-MARK_CSS = f"""
+def mark_css() -> str:
+    """The chrome and mark stylesheet, built when it is asked for.
+
+    Was a module-level constant, an f-string evaluated at import — before apply_brand() has
+    run — so every colour in it was frozen at the CAC palette and a --brand override reached
+    the charts while leaving this chrome unbranded.
+    """
+    return f"""
 .cacband{{background:{INK};color:{LIME};border-radius:10px;padding:14px 18px;
   margin:20px 0 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap}}
 .cacband .lockup{{font-family:'Space Grotesk','Manrope',system-ui,sans-serif;

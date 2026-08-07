@@ -250,6 +250,91 @@ def check_maker_name(root="."):
     return True
 
 
+PALETTE_NAMES = frozenset({
+    "INK", "INK_RAISED", "INK_LINE", "LIME", "LIME_DIM", "PATINA", "PATINA_H",
+    "PATINA_TEXT", "SLATE", "WB", "WB_SURF", "WB_LINE", "MUTED", "text_on",
+})
+# Names allowed to hold a palette value at module level: the primitives themselves, the
+# brand plumbing, and the placeholder a rebuild function fills in later.
+PALETTE_PLUMBING = frozenset({"_BRAND_BINDINGS", "_BRAND_DEFAULTS"})
+# Bindings that come from the library's RAG ramp, which does not move under a client brand:
+# status colour is a contract with the reader, not a thing the client restyles.
+PALETTE_FIXED = frozenset({"BAND", "BAND_TEXT"})
+
+
+def check_import_time_palette(root="."):
+    """No shipped renderer may bake a palette value into a module-level constant.
+
+    This is the bug that made `--brand` a half-feature four separate times: a stylesheet, a
+    chrome block, a fill map and a chip-text map, each an f-string or dict evaluated at
+    import — which is before any brand is applied — so an override reached the charts and
+    left the page around them in CAC colours. Every one of them was invisible until a page
+    was rendered twice and diffed.
+
+    The rule is therefore structural: if a module-level assignment reads a palette name, it
+    froze that value at import. Build it in a function instead, and call the function.
+
+    The names in PALETTE_ALLOWED are the exceptions, and they are exceptions for one reason:
+    each is either a primitive definition or is reassigned by a `_rebuild_derived()` that
+    `apply_brand` calls. Adding a name here without that reassignment reopens the hole.
+    """
+    import ast
+    import pathlib
+    base = pathlib.Path(root)
+    scanned, offenders = 0, []
+    for path in sorted(base.glob("skills/*/renderers/*.py")):
+        if path.name == "cac_graphics.py":
+            continue
+        scanned += 1
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+        except (OSError, SyntaxError):
+            continue
+        rebuilt = set()
+        for node in tree.body:
+            if isinstance(node, ast.FunctionDef) and node.name == "_rebuild_derived":
+                for inner in ast.walk(node):
+                    if isinstance(inner, ast.Global):
+                        rebuilt.update(inner.names)
+        for node in tree.body:                      # module level only, by construction
+            if not isinstance(node, ast.Assign):
+                continue
+            targets = {t.id for t in node.targets if isinstance(t, ast.Name)}
+            if targets & (PALETTE_NAMES | PALETTE_PLUMBING | PALETTE_FIXED):
+                continue
+            # A name reassigned by this module's _rebuild_derived() is fine: the binding
+            # below is only there so the name exists during the rest of the import, and
+            # apply_brand() recomputes it. Verified against the actual `global` statement
+            # rather than taken on trust from a hand-maintained list — an allow-list nobody
+            # checks is how the exemption outlives the thing that justified it.
+            if targets & rebuilt:
+                continue
+            used = {n.id for n in ast.walk(node.value)
+                    if isinstance(n, ast.Name) and n.id in PALETTE_NAMES}
+            used |= {n.attr for n in ast.walk(node.value)
+                     if isinstance(n, ast.Attribute) and n.attr in PALETTE_NAMES}
+            if used:
+                offenders.append((path.relative_to(base).as_posix(), node.lineno,
+                                  ", ".join(sorted(targets)) or "<assignment>",
+                                  ", ".join(sorted(used))))
+    if not scanned:
+        print("ERROR: no shipped renderers were scanned for import-time palette use; the "
+              "glob stopped matching and this check is no longer checking anything.")
+        return False
+    if offenders:
+        print("ERROR: {} module-level assignment(s) freeze a palette value at import:".format(
+            len(offenders)))
+        for f, n, tgt, used in offenders:
+            print("         {}:{}  {} reads {}".format(f, n, tgt, used))
+        print("       Build it inside a function and call the function at render time. A "
+              "value bound at import is bound before --brand is applied, so it ships CAC "
+              "colours on a client's page.")
+        return False
+    print("chrome: {} shipped renderers, none freezes a palette value at import.".format(
+        scanned))
+    return True
+
+
 def _git(args, root="."):
     # Decoded as UTF-8 rather than by locale: with --name-only -z below, a non-ASCII
     # path arrives as raw bytes, and a C-locale runner would otherwise fail to decode
@@ -738,6 +823,7 @@ def main(argv):
     passed = check_consistency(root)
     passed = check_vendored(root) and passed
     passed = check_maker_name(root) and passed
+    passed = check_import_time_palette(root) and passed
     if base is not None:
         passed = check_bump(base, root) and passed
     return 0 if passed else 1

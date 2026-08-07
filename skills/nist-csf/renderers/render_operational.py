@@ -476,7 +476,15 @@ def action_plan(ctx: c.Context) -> str:
             f'</tr></thead><tbody>{"".join(rows)}</tbody></table></div></section>')
 
 
-CSS = f"""
+def css() -> str:
+    """The page stylesheet, built when it is asked for.
+
+    This was a module-level constant, an f-string evaluated at import — which is before
+    `_common.apply_brand()` has run, so every colour in it was frozen at the CAC palette and
+    a `--brand` override reached the charts while leaving the page around them unbranded.
+    Half a client's palette looks like a mistake in a way that none of it does not.
+    """
+    return f"""
 .toggle{{margin-bottom:10px}}
 .toggle button{{background:{c.PATINA};color:{c.text_on(c.PATINA)};border:0;border-radius:8px;
   padding:7px 13px;font:inherit;font-size:13px;font-weight:600;cursor:pointer}}
@@ -525,7 +533,7 @@ th[data-sort]:hover{{color:{c.INK}}}
 .flag{{display:inline-block;background:#7C3A32;color:#fff;border-radius:4px;
   padding:1px 6px;font-size:10.5px;font-weight:700;margin-left:6px}}
 .subhead{{font-size:14px;margin:0 0 8px}}
-""" + c.EVIDENCE_CSS + """
+""" + c.evidence_css() + """
 .srccard{margin-bottom:10px}
 .srchead{font-weight:700;font-family:'Space Grotesk',sans-serif;font-size:15px}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
@@ -598,7 +606,7 @@ def main(argv):
             + playbook(ctx) + action_plan(ctx) + "</main>"
             + f'<footer>{c.esc(ctx.footer(ctx.overlay.get("provenance", "")))}</footer>'
             + f"<script>{JS}</script>")
-    c.write(ctx, c.page(f'{p.get("name", "CSF Profile")} — Coverage', CSS, body, ctx.offline))
+    c.write(ctx, c.page(f'{p.get("name", "CSF Profile")} — Coverage', css(), body, ctx.offline))
     return 0
 
 
