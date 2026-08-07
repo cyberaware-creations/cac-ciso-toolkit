@@ -440,23 +440,51 @@ for e in esc:
 # The assembler must not have invented any of it: every record has to appear, verbatim, in
 # the producer's own output. This is the escalation twin of the headline check above, and it
 # is what makes "the pack computes nothing" checkable rather than asserted.
-rr = os.path.join(skill, "..", "risk-register")
-store = os.path.join(rr, "examples", "example-register-v2.rr")
-if os.path.exists(store):
-    out = subprocess.run([sys.executable, os.path.join(rr, "scripts", "score_register.py"),
-                          "score", store, "--json", "--today", pack["asOf"]],
-                         capture_output=True, text=True)
+# Every producer that emits escalations, not just the first one. Scoping this to `risk`
+# would have let the second producer through unchecked, which is the shape of gap that
+# appears the moment a contract gains its second implementer.
+SOURCES = [
+    ("risk", "risk-register", "score_register.py",
+     ["score", "{store}", "--json", "--today", "{asOf}"], "example-register-v2.rr"),
+    ("metrics", "metrics-register", "metrics_analysis.py",
+     ["analyze", "{store}", "--today", "{asOf}"], "example-metrics.mtr"),
+]
+checked_sections = set()
+for section, skill_dir, script, argv, fixture in SOURCES:
+    root = os.path.join(skill, "..", skill_dir)
+    store = os.path.join(root, "examples", fixture)
+    if not os.path.exists(store):
+        problems.append("the %s example is missing; its provenance went unchecked" % section)
+        continue
+    cmd = [sys.executable, os.path.join(root, "scripts", script)] + [
+        a.replace("{store}", store).replace("{asOf}", pack["asOf"]) for a in argv]
+    out = subprocess.run(cmd, capture_output=True, text=True)
     produced = {json.dumps(x, sort_keys=True)
                 for x in (json.loads(out.stdout).get("escalations") or [])}
+    checked_sections.add(section)
+    carried = {json.dumps({k: v for k, v in e.items() if k != "section"}, sort_keys=True)
+               for e in esc if e.get("section") == section}
     for e in esc:
-        if e.get("section") != "risk":
+        if e.get("section") != section:
             continue
         bare = {k: v for k, v in e.items() if k != "section"}
         if json.dumps(bare, sort_keys=True) not in produced:
             problems.append("%s is not verbatim from the producer — the pack altered or "
                             "invented it" % e["subjectRef"])
-else:
-    problems.append("the risk-register example is missing; provenance went unchecked")
+    # And the other direction. Checking only that what arrived is genuine cannot see a
+    # producer that stopped contributing at all: unwire an adapter and the pack simply
+    # carries fewer, which reads as a calmer quarter. Every record the producer emits has
+    # to reach the pack.
+    for missing in sorted(produced - carried):
+        problems.append("%s emitted an escalation the pack did not carry: %s"
+                        % (section, json.loads(missing).get("subjectRef")))
+
+# Every section that escalated must have been checked against its producer. Without this,
+# adding a third producer and forgetting to list it above would pass silently.
+for e in esc:
+    if e.get("section") not in checked_sections:
+        problems.append("%s escalated from %r, which no provenance source covers"
+                        % (e["subjectRef"], e.get("section")))
 print("\n".join(problems))
 PY
 )
