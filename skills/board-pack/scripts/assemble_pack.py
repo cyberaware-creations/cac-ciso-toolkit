@@ -946,7 +946,11 @@ def _incident_escalations(a):
 # is impossible to hide, which is why they reach the provenance page, the incident section
 # and the deck rather than only the JSON.
 
-CONFLICT_KEYS = ("battery", "flag", "regime", "sentence")
+# `regime` is NOT required. It is a regulatory concept and not every conflict is regulatory:
+# `nist-csf` reports a disagreement about whether an assessment lens applies, which has no
+# regime at all. Requiring one would have made every posture conflict "malformed" and dropped
+# it into a provenance note — a guard rejecting the very records it exists to carry.
+CONFLICT_KEYS = ("battery", "flag", "sentence")
 
 
 def _incident_conflicts(a):
@@ -961,6 +965,16 @@ def _incident_conflicts(a):
         for conflict in (inc.get("context") or {}).get("conflicts") or []:
             rows.append(dict(conflict, id=inc.get("id") or ""))
     return rows
+
+
+def _posture_conflicts(a):
+    """Applicability conflicts nist-csf reported about its own assessment lenses.
+
+    Store-level rather than per-record: a Profile applies an overlay once, so there is no
+    record to name. The `id` is left empty and the renderers show a dash — the alternative
+    is inventing an identifier for a thing that does not have one.
+    """
+    return [dict(c, id="") for c in (a.get("context") or {}).get("conflicts") or []]
 
 
 def _posture_headline(a):
@@ -1054,7 +1068,9 @@ def _incident_headline(a):
 PRODUCERS = {
     "posture": {"skill": "nist-csf", "script": "scripts/profile_analysis.py",
                 "argv": ["analyze", "{store}", "--today", "{asOf}"],
-                "headline": _posture_headline, "figures": _posture_figures},
+                "context": True,
+                "headline": _posture_headline, "figures": _posture_figures,
+                "conflicts": _posture_conflicts},
     # `--today` matters here and did not before. The escalation triggers that depend on a
     # date — a lapsed acceptance, a long dwell over appetite — are skipped rather than guessed
     # when the producer is given no reference date, so a pack assembled without it would
@@ -1225,6 +1241,15 @@ def headline_counts(manifest: dict, sections: list, skills_root: str) -> dict:
                     % (", ".join(takers), ", ".join(deaf),
                        "does" if len(deaf) == 1 else "do",
                        "its" if len(deaf) == 1 else "their"))
+            else:
+                # The list emptied. Every section reads a profile now, and the branch above
+                # stopped firing — which removed the note ENTIRELY, so a pack assembled
+                # against a profile said nothing at all about having been narrowed. The
+                # milestone silently deleted the record of itself.
+                unavailable.append(
+                    "the applicability profile narrowed every section in this pack (%s); "
+                    "none asked a question the profile had ruled out"
+                    % ", ".join(takers))
 
     for section in sections:
         name = section["section"]
@@ -1313,7 +1338,7 @@ def headline_counts(manifest: dict, sections: list, skills_root: str) -> dict:
     # reader needs to act on it, and it is stated FIRST because it outranks the accounting
     # of which sections read a profile.
     if conflicts:
-        regimes = sorted({c["regime"] for c in conflicts})
+        regimes = sorted({c.get("regime") or c["battery"] for c in conflicts})
         flags = sorted({c["flag"] for c in conflicts})
         unavailable.insert(0, (
             "the applicability profile and this pack's own records DISAGREE about %s: %d "

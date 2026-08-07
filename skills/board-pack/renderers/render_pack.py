@@ -378,7 +378,7 @@ def _conflicts(conflicts: list) -> str:
     rows = ""
     for c in conflicts:
         rows += (f'<tr><td class="mono">{esc(c.get("id") or "—")}</td>'
-                 f'<td class="mono">{esc(c["regime"])}</td>'
+                 f'<td class="mono">{esc(c.get("regime") or "—")}</td>'
                  f'<td class="mono">{esc(c["flag"])}</td>'
                  f'<td>{esc(c["sentence"])}</td></tr>')
     n = len(conflicts)
@@ -582,7 +582,11 @@ def build_pptx(pack: dict, path: str) -> None:
     conflicts = pack.get("contextConflicts") or []
     if conflicts:
         n = len(conflicts)
-        regimes = ", ".join(sorted({c["regime"] for c in conflicts}))
+        # Not every conflict is about a regulatory regime — a posture conflict is
+        # about an assessment lens. Fall back to the battery, which every conflict
+        # has, rather than printing an empty list of regimes.
+        regimes = ", ".join(sorted({c.get("regime") or c["battery"]
+                                    for c in conflicts}))
         paras = [(f"{n} record{'' if n == 1 else 's'} {'is' if n == 1 else 'are'} tracked "
                   f"against {regimes}, which the applicability profile declares does not "
                   f"apply. The clocks were computed anyway.", 1250, True, PX.SEV_TEXT.get(
