@@ -6,27 +6,38 @@ name: evals
 
 on:
   push:
-    # No branch filter, deliberately.
+    # The prefix list is REQUIRED, and that is a finding rather than a preference.
     #
-    # This once read `branches: [main, 'feat/**', 'fix/**']`, because `pull_request` had
-    # stopped firing this workflow repo-wide and `push` was the only event that both ran the
-    # suite and produced a check suite GitHub would link to a PR. (`workflow_dispatch` does
-    # not: its runs go green on the commit while the PR reports the same checks missing,
-    # which is worse than not running at all because it looks like success.)
+    # It was here originally because `pull_request` had stopped firing this workflow
+    # repo-wide, leaving `push` as the only event that both ran the suite and produced a
+    # check suite GitHub links to a PR. `pull_request` fires again, so the list looked
+    # obsolete, and it was replaced with `tags-ignore: ['**']` — no branch filter, every
+    # branch covered, no prefix list to fall out of date.
     #
-    # `pull_request` fires again — every PR since 2026-07-27 carries a run from it — so the
-    # prefix list is no longer load-bearing. It is removed rather than extended because a
-    # list of prefixes is a list that falls out of date silently: `docs/**` was already
-    # missing from it, so a docs branch was validated only once a PR existed, and the next
-    # `chore/**` or `release/**` branch would have been missed the same way. A filter whose
-    # failure mode is "quietly checks less" is worse than no filter.
+    # That configuration fires on NOTHING. Not on a `docs/**` branch, and not on `main`:
+    # the merge that introduced it produced CodeQL check-runs on the main head and no evals
+    # run at all, while CodeQL fired on the same push. Reading the documentation, `push`
+    # with only `tags-ignore` should match every branch. It does not here.
     #
-    # Keeping `push` as well as `pull_request` is deliberate: a branch is validated when it
-    # is pushed rather than when somebody remembers to open a PR.
+    # So the list stays and is extended instead, because a list that is checked beats a
+    # filter that silently matches nothing. `docs/**` is added — its absence was the actual
+    # gap: a docs branch was validated only once a PR existed. ADD A PREFIX HERE when a new
+    # one comes into use; there is no wildcard that works.
     #
-    # Tags are excluded so cutting a release does not fire a second identical run over the
-    # commit that main just validated.
-    tags-ignore: ['**']
+    # A trigger change IS testable before it merges: GitHub reads this file from the ref
+    # being pushed, not from the default branch. The branch that restored this list got a
+    # push run from `fix/**` while main still carried the broken config, which settles it.
+    #
+    # That is worth stating because the obvious wrong conclusion was drawn first. When the
+    # filterless version produced no run on a `chore/**` branch, the reading was "GitHub
+    # decides which branches to watch from the default branch, so this cannot be tested
+    # yet". It was not that. The branch was carrying the broken config itself, and the test
+    # had already returned the right answer — it was the diagnosis that was wrong, and the
+    # change was merged on the strength of it.
+    #
+    # So: push a branch with the new prefix and look for a push run. If none appears, the
+    # filter does not work. Do not merge and check afterwards.
+    branches: [main, 'feat/**', 'fix/**', 'docs/**']
   pull_request:
   workflow_dispatch:
 
