@@ -14,7 +14,11 @@ description: >-
   incident still under assessment has no window open — and the DORA initial,
   intermediate and final report windows in clock hours. Keeps every determination
   as an appended record, so the "what did we know and when did we decide"
-  sequence survives. Use when asked whether an incident is material, whether it
+  sequence survives. Optionally reads an applicability profile from
+  business-context, so Item 1.05 is asked only of a listed entity and the DORA
+  windows only of a DORA-scoped one — with every narrowed question recorded on
+  the page naming who declared it and when, and a declaration on the incident
+  itself always outranking the organisation profile. Use when asked whether an incident is material, whether it
   has to be disclosed, when the 8-K clock starts or how much of it is left, to
   record a determination or a disclosure decision, to track DORA reporting
   windows, or to draft an audit-committee incident update. Not for
@@ -136,6 +140,61 @@ Anchors are **timestamps**, not dates: DORA counts hours where the SEC counts bu
 A bare date is refused rather than read as midnight — a deadline that looks exact and is
 invented is worse than a visible gap, so a missing anchor reports `anchor-missing`.
 
+## Workflow C — narrow the questions to the organisation (CAC-AP-1)
+
+Two of this skill's question sets apply only to some organisations: **SEC Item 1.05** to a
+registrant, and the **DORA report windows** to a DORA-scoped entity. `business-context` owns
+that declaration; this skill reads it.
+
+```bash
+python3 ../business-context/scripts/business_context.py export context.biz > profile.json
+python3 $E analyze incidents.inc --context profile.json --out analysis.json
+```
+
+**`--context` is optional and absent is the normal case.** Without it this engine behaves
+exactly as it always has, byte for byte — the narrowing is additive and nothing about it
+appears in an un-narrowed run.
+
+**The subject outranks the profile.** An incident at a listed subsidiary of a private group
+still gets the Item 1.05 battery, declared on the incident itself:
+
+```bash
+python3 $E declare-context incidents.inc --id I-003 --flag listedEntity --value true \
+    --by "General Counsel" --on 2026-07-22 \
+    --basis "The affected entity is the US subsidiary whose shares are admitted to trading."
+```
+
+`--by` and `--basis` are required, for the same reason `business-context` requires them: a
+declaration that narrows what a disclosure record asks and cannot say why is worse than no
+declaration, because absence asks everything. **`--value null` is not `false`** — it records
+that the question was put to this incident and nobody could answer it, and it does not
+override the organisation profile.
+
+**Every narrowed battery is on the page**, with who declared it and when:
+
+> *SEC Item 1.05 disclosure window — not assessed. Organisation profile: `listedEntity:
+> false`, declared 2026-03-02 by General Counsel — Privately held; no securities admitted to
+> trading.*
+
+A disclosure record that silently omits a question is worse than one that asks it: an auditor
+cannot otherwise tell a battery that was correctly out of scope from one nobody got to.
+
+**A disagreement is reported, never resolved.** An incident tracked against `sec-1.05` while
+the profile says the organisation is not listed keeps its window and raises a conflict. The
+profile keeps the default question set proportionate; it does not overrule an assessor who
+opened a clock.
+
+**The revenue base flows into the financial factor as a stated figure**, and nothing divides
+by it. Item 1.05 sets no percentage, so a computed one would be this tool manufacturing the
+standard the rule declines to set. It appears on the worksheet, where the judgment is made,
+and never on the committee page, which circulates. Enforced by
+`../business-context/evals/no-derived-materiality.sh`.
+
+`determine --context profile.json` freezes the profile version and the batteries it did not
+ask into the determination record (§2.5), so a reader a year later can tell which perimeter
+the judgment was made against. The full contract is
+`../business-context/references/applicability-contract.md`.
+
 `initial` is the **earlier** of classification + 4h and awareness + 24h. `intermediate` runs
 72h from the initial notification actually filed, and `final` one month from the intermediate
 — each anchored on the previous filing, so a missed initial produces no phantom deadline.
@@ -248,6 +307,13 @@ engine does not apply the next-working-day allowance.
 **This is a preparedness and defensibility tool, not a scare tactic.** The board-safety eval
 fails the render if any board-facing view reads as fear framing.
 
+**`board-pack` does not yet pass the profile through.** It runs `analyze` itself with a fixed
+argument list, so a pack assembles against the **un-narrowed** analysis even when a `.biz`
+exists. Nothing is wrong in the pack — the un-narrowed run is the full question set, which is
+the safe direction — but the narrowed worksheet and the pack will show different clock rows for
+the same incident, and the pack's provenance page names no profile version. Wiring `--context`
+through the manifest is the obvious next step and is deliberately not done here.
+
 ## Rendering under a client brand
 
 Every renderer takes `--brand FILE`:
@@ -279,9 +345,11 @@ ink, muted, background, patina, and the steps derived from them — moves.
 | `references/schema.md` | the `.inc` store, append-only histories, bands, derived list |
 | `references/materiality-factors.md` | the six factors, the aggregation rule, why there is no score, receipts and their limits |
 | `references/disclosure-clocks.md` | Item 1.05 business-day math, DORA hour windows, clock states, every limit |
+| `../business-context/references/applicability-contract.md` | CAC-AP-1, normative — what `--context` implements |
 
 Verify the engine with `python3 scripts/incident_analysis.py self-test`, the clocks with
-`evals/disclosure-clock.sh`, and the guardrails with `evals/board-safety.sh`.
+`evals/disclosure-clock.sh`, the guardrails with `evals/board-safety.sh`, and the
+applicability contract with `evals/applicability.sh`.
 
 ---
 

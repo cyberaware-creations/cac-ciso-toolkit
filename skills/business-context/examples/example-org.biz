@@ -1,0 +1,343 @@
+{
+  "schemaVersion": 1,
+  "family": "business-context",
+  "meta": {
+    "orgName": "Northwind Manufacturing",
+    "preparedBy": "R. Calder, CISO",
+    "scopeNote": "Group security programme, FY26. One legal entity; the Dublin subsidiary is in the same perimeter.",
+    "fiscalYearEnd": "2026-12-31",
+    "asOf": "2026-08-07"
+  },
+  "settings": {
+    "reviewCadenceDays": 365
+  },
+  "profile": {
+    "listedEntity": {
+      "value": false,
+      "declaredBy": "General Counsel",
+      "declaredOn": "2026-03-02",
+      "basis": "Privately held; no securities admitted to trading. Reconfirmed at the FY26 audit."
+    },
+    "doraScope": {
+      "value": true,
+      "declaredBy": "General Counsel",
+      "declaredOn": "2026-01-20",
+      "basis": "Dublin subsidiary authorised as a payment institution, November 2025."
+    },
+    "nydfsScope": {
+      "value": false,
+      "declaredBy": "General Counsel",
+      "declaredOn": "2026-03-02",
+      "basis": "No New York licensed activity; US sales run through the Delaware entity."
+    },
+    "aiInUse": {
+      "value": false,
+      "declaredBy": "R. Calder",
+      "declaredOn": "2026-06-30",
+      "basis": "No models in production. Legal ops trialled a contract assistant in May and did not proceed."
+    },
+    "otPresent": {
+      "value": true,
+      "declaredBy": "Head of Engineering",
+      "declaredOn": "2026-02-11",
+      "basis": "Two plants run Siemens S7 lines on a segmented VLAN."
+    },
+    "regulatedDataHeld": {
+      "value": true,
+      "declaredBy": "DPO",
+      "declaredOn": "2026-02-11",
+      "basis": "Employee health records under occupational health; card data is tokenised at the PSP."
+    }
+  },
+  "context": {
+    "segments": [
+      "Industrial controls (OEM)",
+      "Aftermarket services",
+      "Dublin payments entity"
+    ],
+    "crownJewels": [
+      {
+        "system": "CRM (Salesforce)",
+        "enables": "every renewal conversation and the whole aftermarket pipeline",
+        "atStake": "the client contact and contract data that 60% of group revenue renews through",
+        "declaredBy": "R. Calder",
+        "declaredOn": "2026-08-07",
+        "basis": "FY26 planning workshop"
+      },
+      {
+        "system": "Plant historian (Dublin)",
+        "enables": "production scheduling across both lines",
+        "atStake": "a day of lost output is roughly a week of aftermarket margin, and the DORA reporting clock starts",
+        "declaredBy": "Head of Engineering",
+        "declaredOn": "2026-08-07",
+        "basis": "FY26 planning workshop"
+      }
+    ],
+    "strategicGoals": [
+      "Close the Dublin authorisation year without a supervisory finding",
+      "Move aftermarket contracting onto the new CRM by Q3"
+    ],
+    "boardTolerance": [
+      {
+        "quote": "We will not accept a \"material\" outage in the payments rail — not for a quarter's savings. On the plants, we can live with a day; we cannot live with a week.",
+        "declaredBy": "Chair, FY26 Q2 board",
+        "declaredOn": "2026-05-19"
+      }
+    ],
+    "obligations": [
+      "Three OEM contracts carry a 4-hour notification clause on any confirmed data incident",
+      "Dublin entity owes DORA initial notification within 4 hours of classification"
+    ],
+    "revenue": {
+      "exact": 412000000.0,
+      "currency": "EUR",
+      "fiscalYear": "FY26",
+      "declaredBy": "CFO",
+      "declaredOn": "2026-08-07",
+      "basis": "FY26 audited consolidated accounts, filed March 2026"
+    }
+  },
+  "history": [
+    {
+      "event": "flag-declared",
+      "target": "listedEntity",
+      "ts": "2026-08-07T05:28:02+00:00",
+      "why": "Privately held; no securities admitted to trading. Reconfirmed at the FY26 audit.",
+      "detail": {
+        "from": null,
+        "to": false,
+        "declaredBy": "General Counsel",
+        "declaredOn": "2026-03-02"
+      }
+    },
+    {
+      "event": "flag-declared",
+      "target": "doraScope",
+      "ts": "2026-08-07T05:28:02+00:00",
+      "why": "Dublin subsidiary authorised as a payment institution, November 2025.",
+      "detail": {
+        "from": null,
+        "to": true,
+        "declaredBy": "General Counsel",
+        "declaredOn": "2026-01-20"
+      }
+    },
+    {
+      "event": "flag-declared",
+      "target": "nydfsScope",
+      "ts": "2026-08-07T05:28:02+00:00",
+      "why": "No New York licensed activity; US sales run through the Delaware entity.",
+      "detail": {
+        "from": null,
+        "to": false,
+        "declaredBy": "General Counsel",
+        "declaredOn": "2026-03-02"
+      }
+    },
+    {
+      "event": "flag-declared",
+      "target": "aiInUse",
+      "ts": "2026-08-07T05:28:02+00:00",
+      "why": "No models in production. Legal ops trialled a contract assistant in May and did not proceed.",
+      "detail": {
+        "from": null,
+        "to": false,
+        "declaredBy": "R. Calder",
+        "declaredOn": "2026-06-30"
+      }
+    },
+    {
+      "event": "flag-declared",
+      "target": "otPresent",
+      "ts": "2026-08-07T05:28:02+00:00",
+      "why": "Two plants run Siemens S7 lines on a segmented VLAN.",
+      "detail": {
+        "from": null,
+        "to": true,
+        "declaredBy": "Head of Engineering",
+        "declaredOn": "2026-02-11"
+      }
+    },
+    {
+      "event": "flag-declared",
+      "target": "regulatedDataHeld",
+      "ts": "2026-08-07T05:28:02+00:00",
+      "why": "Employee health records under occupational health; card data is tokenised at the PSP.",
+      "detail": {
+        "from": null,
+        "to": true,
+        "declaredBy": "DPO",
+        "declaredOn": "2026-02-11"
+      }
+    },
+    {
+      "event": "crown-jewel-added",
+      "target": "CRM (Salesforce)",
+      "ts": "2026-08-07T05:28:02+00:00",
+      "why": "the client contact and contract data that 60% of group revenue renews through",
+      "detail": {
+        "enables": "every renewal conversation and the whole aftermarket pipeline"
+      }
+    },
+    {
+      "event": "crown-jewel-added",
+      "target": "Plant historian (Dublin)",
+      "ts": "2026-08-07T05:28:02+00:00",
+      "why": "a day of lost output is roughly a week of aftermarket margin, and the DORA reporting clock starts",
+      "detail": {
+        "enables": "production scheduling across both lines"
+      }
+    },
+    {
+      "event": "segments-added",
+      "target": "Industrial controls (OEM)",
+      "ts": "2026-08-07T05:28:02+00:00"
+    },
+    {
+      "event": "segments-added",
+      "target": "Aftermarket services",
+      "ts": "2026-08-07T05:28:02+00:00"
+    },
+    {
+      "event": "segments-added",
+      "target": "Dublin payments entity",
+      "ts": "2026-08-07T05:28:02+00:00"
+    },
+    {
+      "event": "strategicGoals-added",
+      "target": "Close the Dublin authorisation year without a supervisory fi",
+      "ts": "2026-08-07T05:28:02+00:00"
+    },
+    {
+      "event": "strategicGoals-added",
+      "target": "Move aftermarket contracting onto the new CRM by Q3",
+      "ts": "2026-08-07T05:28:02+00:00"
+    },
+    {
+      "event": "obligations-added",
+      "target": "Three OEM contracts carry a 4-hour notification clause on an",
+      "ts": "2026-08-07T05:28:02+00:00"
+    },
+    {
+      "event": "obligations-added",
+      "target": "Dublin entity owes DORA initial notification within 4 hours ",
+      "ts": "2026-08-07T05:28:02+00:00"
+    },
+    {
+      "event": "board-tolerance-recorded",
+      "target": "Chair, FY26 Q2 board",
+      "ts": "2026-08-07T05:28:02+00:00",
+      "why": "We will not accept a \"material\" outage in the payments rail — not for a quarter's savings. On the plants, we can live wi"
+    },
+    {
+      "event": "revenue-set",
+      "target": "FY26",
+      "ts": "2026-08-07T05:28:02+00:00",
+      "why": "FY26 audited consolidated accounts, filed March 2026",
+      "detail": {
+        "currency": "EUR"
+      }
+    },
+    {
+      "event": "reviewed",
+      "target": "FY26 close",
+      "ts": "2026-08-07T05:28:03+00:00",
+      "why": "Annual profile review with the GC, the CFO and the Head of Engineering. Dublin authorisation confirmed in scope for DORA; AI re-confirmed as not in production."
+    }
+  ],
+  "snapshots": [
+    {
+      "label": "FY26 close",
+      "ts": "2026-08-07T05:28:03+00:00",
+      "why": "Annual profile review with the GC, the CFO and the Head of Engineering. Dublin authorisation confirmed in scope for DORA; AI re-confirmed as not in production.",
+      "profile": {
+        "listedEntity": {
+          "value": false,
+          "declaredBy": "General Counsel",
+          "declaredOn": "2026-03-02",
+          "basis": "Privately held; no securities admitted to trading. Reconfirmed at the FY26 audit."
+        },
+        "doraScope": {
+          "value": true,
+          "declaredBy": "General Counsel",
+          "declaredOn": "2026-01-20",
+          "basis": "Dublin subsidiary authorised as a payment institution, November 2025."
+        },
+        "nydfsScope": {
+          "value": false,
+          "declaredBy": "General Counsel",
+          "declaredOn": "2026-03-02",
+          "basis": "No New York licensed activity; US sales run through the Delaware entity."
+        },
+        "aiInUse": {
+          "value": false,
+          "declaredBy": "R. Calder",
+          "declaredOn": "2026-06-30",
+          "basis": "No models in production. Legal ops trialled a contract assistant in May and did not proceed."
+        },
+        "otPresent": {
+          "value": true,
+          "declaredBy": "Head of Engineering",
+          "declaredOn": "2026-02-11",
+          "basis": "Two plants run Siemens S7 lines on a segmented VLAN."
+        },
+        "regulatedDataHeld": {
+          "value": true,
+          "declaredBy": "DPO",
+          "declaredOn": "2026-02-11",
+          "basis": "Employee health records under occupational health; card data is tokenised at the PSP."
+        }
+      },
+      "context": {
+        "segments": [
+          "Industrial controls (OEM)",
+          "Aftermarket services",
+          "Dublin payments entity"
+        ],
+        "crownJewels": [
+          {
+            "system": "CRM (Salesforce)",
+            "enables": "every renewal conversation and the whole aftermarket pipeline",
+            "atStake": "the client contact and contract data that 60% of group revenue renews through",
+            "declaredBy": "R. Calder",
+            "declaredOn": "2026-08-07",
+            "basis": "FY26 planning workshop"
+          },
+          {
+            "system": "Plant historian (Dublin)",
+            "enables": "production scheduling across both lines",
+            "atStake": "a day of lost output is roughly a week of aftermarket margin, and the DORA reporting clock starts",
+            "declaredBy": "Head of Engineering",
+            "declaredOn": "2026-08-07",
+            "basis": "FY26 planning workshop"
+          }
+        ],
+        "strategicGoals": [
+          "Close the Dublin authorisation year without a supervisory finding",
+          "Move aftermarket contracting onto the new CRM by Q3"
+        ],
+        "boardTolerance": [
+          {
+            "quote": "We will not accept a \"material\" outage in the payments rail — not for a quarter's savings. On the plants, we can live with a day; we cannot live with a week.",
+            "declaredBy": "Chair, FY26 Q2 board",
+            "declaredOn": "2026-05-19"
+          }
+        ],
+        "obligations": [
+          "Three OEM contracts carry a 4-hour notification clause on any confirmed data incident",
+          "Dublin entity owes DORA initial notification within 4 hours of classification"
+        ],
+        "revenue": {
+          "exact": 412000000.0,
+          "currency": "EUR",
+          "fiscalYear": "FY26",
+          "declaredBy": "CFO",
+          "declaredOn": "2026-08-07",
+          "basis": "FY26 audited consolidated accounts, filed March 2026"
+        }
+      }
+    }
+  ],
+  "createdAt": "2026-08-07T05:28:02+00:00",
+  "updatedAt": "2026-08-07T05:28:03+00:00"
+}

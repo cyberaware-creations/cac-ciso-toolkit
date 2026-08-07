@@ -107,11 +107,20 @@ def main(argv=None) -> int:
     client = ctx.meta.get("clientName") or "Incident update"
     shown = [r for r in ctx.incidents if r["band"] != "closed"] or ctx.incidents
     as_of = ctx.tr.as_of or ctx.today
+    # CAC-AP-1 §2.5, and no more than that. This page names the profile version the
+    # assessment was narrowed by, so a reader can go and read the perimeter in force. It
+    # deliberately does NOT carry the revenue base: that figure belongs in the worksheet,
+    # where the judgment is made and the denominator has to be honest. This page circulates,
+    # and everything `business-context` renders for circulation bands revenue rather than
+    # naming it.
+    apc = ctx.a.get("context") or {}
+    prov = (f' · applicability profile {C.esc(apc["profileVersion"] or "unreviewed")}'
+            if apc else "")
     body = (
         C.band("Cyber Aware Creations", "Audit committee")
         + f'<h1>Cybersecurity incident update — {C.esc(client)}</h1>'
         f'<p class="sub">{len(shown)} incident{"s" if len(shown) != 1 else ""} '
-        f'in this period · as at {C.esc(as_of)}</p>'
+        f'in this period · as at {C.esc(as_of)}{prov}</p>'
         + summary_block(ctx)
         + ctx.legal_block()
         + f'<div class="note"><strong>Aligned to what is said publicly</strong>'

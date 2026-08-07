@@ -128,6 +128,30 @@ jobs:
       - name: Board-safety (incident), on the floor
         run: PY="$(command -v python3)" ./skills/incident-materiality/evals/board-safety.sh
 
+      # business-context, and the applicability contract it owns. The clause worth CI time
+      # is §2.2: a flag that is absent and one whose value is `null` must BOTH ask, and the
+      # wrong implementation is `if not declared:` — which reads correctly, passes every
+      # other test anyone writes, and silently narrows every assessment in the suite with
+      # nothing on any rendered page to show it happened.
+      - name: Business-context engine self-test, on the floor
+        run: python3 ./skills/business-context/scripts/business_context.py self-test
+
+      # The guardrail on the revenue base. Listed because it runs the guard against a
+      # deliberately poisoned copy: if `_derivedcheck` ever stops seeing a division by
+      # revenue, this fails rather than continuing to report a clean bill.
+      - name: No derived materiality, on the floor
+        run: PY="$(command -v python3)" ./skills/business-context/evals/no-derived-materiality.sh
+
+      - name: Board-safety (business-context), on the floor
+        run: PY="$(command -v python3)" ./skills/business-context/evals/board-safety.sh
+
+      # CAC-AP-1 across the file boundary — a profile decided in one skill and honoured by
+      # another that must not import it. It also pins the additive guarantee: a profile that
+      # narrows nothing leaves the analysis byte-identical, so `--context` cannot become a
+      # flag that quietly changed the output of every run that never passes it.
+      - name: Applicability contract (incident), on the floor
+        run: PY="$(command -v python3)" ./skills/incident-materiality/evals/applicability.sh
+
       # metrics-register: the engine's own parity discipline, then the derivations through
       # the real CLI. Polarity is the case both exist for — a lower-better metric that
       # RISES is slipping, and the naive implementation reports it as an improvement,
