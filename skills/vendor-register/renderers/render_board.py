@@ -66,11 +66,41 @@ def _cards(ctx) -> str:
     return "".join(cards) or "<p>No live arrangements are recorded.</p>"
 
 
+def _text_of(decision):
+    """A decision is `{"text": ..., "altitude": ...}`, or a bare string from an older sidecar.
+
+    Both forms are read. The object form is what `ciso-board-translation` emits today, and a
+    renderer that stringified it printed a raw Python dict where a board decision should have
+    been — a P1 that actually shipped across this suite. Bare strings still work, because every
+    sidecar written before the object form existed is still a valid document.
+    """
+    if isinstance(decision, dict):
+        return str(decision.get("text") or "")
+    return str(decision or "")
+
+
 def _decisions(ctx) -> str:
+    """Board asks, then management actions — separated, because they are not the same request.
+
+    A board votes on the first list. Mixing the second into it pads the agenda with things
+    nobody in the room is being asked to decide.
+    """
     if not ctx.tr.decisions:
         return _placeholder()
-    items = "".join("<li>%s</li>" % C.esc(d) for d in ctx.tr.decisions)
-    return "<ul>%s</ul>" % items
+    board = [d for d in ctx.tr.decisions
+             if not (isinstance(d, dict) and d.get("altitude") == "management")]
+    mgmt = [d for d in ctx.tr.decisions
+            if isinstance(d, dict) and d.get("altitude") == "management"]
+    out = ""
+    if board:
+        out += "<ul>%s</ul>" % "".join(
+            "<li>%s</li>" % C.esc(_text_of(d)) for d in board)
+    else:
+        out += _placeholder()
+    if mgmt:
+        out += ("<h2>Management actions — not for board decision</h2><ul>%s</ul>"
+                % "".join("<li>%s</li>" % C.esc(_text_of(d)) for d in mgmt))
+    return out
 
 
 def build(ctx) -> str:

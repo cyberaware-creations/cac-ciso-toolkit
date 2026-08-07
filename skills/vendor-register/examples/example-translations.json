@@ -10,7 +10,17 @@
     "VA-005": "Replacement warehouse routing, opened when the Tailspin arrangement was retired in March. The predecessor's data return and deletion are closed and recorded against it. This one has not yet been traced to a workflow."
   },
   "decisions": [
-    "Fund a tested failover for the plant historian, or record the board's acceptance that the group's single production dependency has an untested exit for a further year.",
-    "Direct that no arrangement stays untraced past one quarter — two of five currently are, and an untraced dependency is one nobody can size."
+    {
+      "text": "Fund a tested failover for the plant historian, or record the board's acceptance that the group's single production dependency has an untested exit for a further year.",
+      "altitude": "board"
+    },
+    {
+      "text": "Direct that no arrangement stays untraced past one quarter — two of five currently are, and an untraced dependency is one nobody can size.",
+      "altitude": "board"
+    },
+    {
+      "text": "Name an owner for the two untraced arrangements and have them declare what each one supports, so the next review can size them.",
+      "altitude": "management"
+    }
   ]
 }

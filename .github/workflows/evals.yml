@@ -242,6 +242,12 @@ jobs:
       - name: No vendor score, on the floor
         run: PY="$(command -v python3)" ./skills/vendor-register/evals/no-vendor-score.sh
 
+      - name: Board-safety (vendor), on the floor
+        run: PY="$(command -v python3)" ./skills/vendor-register/evals/board-safety.sh
+
+      - name: Decisions render (vendor), on the floor
+        run: PY="$(command -v python3)" ./skills/vendor-register/evals/decisions-render.sh
+
       # The five decisions-render guards. Each one pins the same shipped P1: the
       # sidecar carries decisions as {"text":..., "altitude":...} objects, the board
       # renderers stringified them, and every board pack printed a raw Python dict

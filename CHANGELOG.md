@@ -46,6 +46,15 @@ rather than asserted. Plan 1 of two; the assessment layer follows.
   page, where RAG is reserved for what needs a decision. `untraced` is neutral on both and
   always carries its word.
 
+- **`decisions-render.sh` found a live defect on its first run**, before this skill had ever
+  shipped. `ciso-board-translation` emits decisions as `{"text", "altitude"}` objects and the
+  board renderer stringified them, printing a raw Python dict where a board decision belongs —
+  the same P1 that shipped across this suite once before. Fixed, and the renderer now separates
+  board asks from management actions rather than listing both as things to vote on.
+- **`board-safety.sh`** inherits the confidence and catastrophizing checks every producer here
+  carries and adds one this skill needs: **no scoring vocabulary on a page**. `no-vendor-score`
+  proves nothing *computes* a score; this proves nothing *says* one.
+
 Supporting changes:
 
 - `business-context` crown jewels may declare `criticality` and `dependsOn`. Optional and
