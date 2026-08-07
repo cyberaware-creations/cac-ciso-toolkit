@@ -539,6 +539,11 @@ const DB=__DATA__;const BAND=__BAND__;const BL=__BANDLABEL__;const BAND_ON=__BAN
 // Injected, not inlined: this block is a plain string, so a colour written here would
 // survive --brand and print CAC green on a client's page.
 const VELCOLOR=__VELCOLOR__;
+// The matrix draws ZONES, so it takes the zone tones — the same ones G.heat_matrix
+// uses for this grid on the board page. Chips elsewhere stay on BAND, which is the
+// saturated fill, because a chip IS a status mark rather than a region of the score
+// space. Two different jobs, two different tones, one grid either way.
+const BAND_MID=__BANDMID__;const BAND_MID_ON=__BANDMIDON__;
 const size=DB.settings.matrixSize;const appetite=DB.settings.appetite;
 const BAND_ORDER=["low","medium","high","critical"];
 const THRESH={5:{low:1,medium:5,high:10,critical:15},4:{low:1,medium:4,high:8,critical:12},
@@ -581,8 +586,8 @@ function renderGrid(){let h='<table class="matrix">';
   for(let lik=1;lik<=size;lik++){const b=bandOf(lik*impact);
    const n=inRange.filter(r=>inCell(r,lik,impact)).length;
    const s=sel&&sel[0]===lik&&sel[1]===impact?" sel":(sel?" dim":"");
-   const fg=BAND_ON[b];
-   h+=`<td class="cell${s}" style="background:${BAND[b]};color:${fg}" onclick="pick(${lik},${impact})">${n||""}</td>`;}
+   const fg=BAND_MID_ON[b];
+   h+=`<td class="cell${s}" style="background:${BAND_MID[b]};color:${fg}" onclick="pick(${lik},${impact})">${n||""}</td>`;}
   h+="</tr>";}
  h+='<tr><td class="ax"></td>';for(let l=1;l<=size;l++)h+=`<td class="ax">${l}</td>`;
  h+="</tr></table>";document.getElementById("grid").innerHTML=h;
@@ -655,7 +660,9 @@ def render(ctx: C.Context) -> str:
               .replace("__BANDLABEL__", json.dumps(C.BAND_LABEL))
               .replace("__BANDON__", json.dumps(C.BAND_ON))
               .replace("__BAND__", json.dumps(C.BAND))
-              .replace("__VELCOLOR__", json.dumps(C.VELOCITY_COLOR)))
+              .replace("__VELCOLOR__", json.dumps(C.VELOCITY_COLOR))
+              .replace("__BANDMIDON__", json.dumps(C.BAND_MID_ON))
+              .replace("__BANDMID__", json.dumps(C.BAND_MID)))
     client = C.esc(m.get("clientName") or "")
     title_tail = " · " + client if client else ""
     note = C.provisional_note(ctx.live)

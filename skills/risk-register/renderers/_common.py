@@ -84,6 +84,21 @@ RISK_SEV = {"low": "good", "medium": "medium", "high": "high", "critical": "crit
 # adrift is an oversight, not a decision, and the fix is to stop restating the table.
 BAND = {band: G._RAG[sev]["fill"] for band, sev in RISK_SEV.items()}
 BAND_TEXT = {band: G._RAG[sev]["text"] for band, sev in RISK_SEV.items()}
+# The zone tone, for a REGION of the score space rather than a mark that IS status. A
+# likelihood x impact cell is a zone: it says "anything landing here scores this band", the
+# same claim a bullet's zone bands make, and the colour contract gives both `mid`.
+#
+# `G.heat_matrix` has always drawn the SVG matrix this way. The HTML matrices in
+# render_report and render_dashboard used `fill` instead, so the same grid arrived in two
+# saturations depending on which page a reader opened. That is what this exists to end.
+#
+# `mid` is the weaker of the two on separability -- medium against high is dE 13.3, under
+# the 15 floor, where `fill` manages 28.4 -- and the stronger on legibility: every band
+# takes ink at 8.2:1 or better, against `fill` where `good` scrapes 4.56:1 and `critical`
+# alone needs white. The trade is taken deliberately and it is the same trade the library
+# already took, mitigated the same way: every occupied cell prints its count, so colour is
+# never asked to carry the number on its own.
+BAND_MID = {band: G._RAG[sev]["mid"] for band, sev in RISK_SEV.items()}
 
 
 def sev(band_name: str) -> str:
@@ -222,10 +237,11 @@ def _rebuild_derived() -> None:
     which does not move under a client brand — status colour is a contract with the reader,
     not a thing the client buying the report gets to restyle.
     """
-    global VELOCITY_COLOR, BAND_ON
+    global VELOCITY_COLOR, BAND_ON, BAND_MID_ON
     VELOCITY_COLOR = {"improving": BAND_TEXT["low"], "worsening": BAND_TEXT["critical"],
                       "steady": SLATE, "new": PATINA_TEXT}
     BAND_ON = {b: text_on(c) for b, c in BAND.items()}
+    BAND_MID_ON = {b: text_on(c) for b, c in BAND_MID.items()}
 
 # Bound here so the name exists for anything that reads it during the rest of this module's
 # import; _rebuild_derived() is invoked further down, once every value it reads is defined.
@@ -334,6 +350,7 @@ def text_on(fill: str) -> str:
 # a contract with the reader — but the text sitting on them has to stay legible against
 # whichever ink is in play.
 BAND_ON = {b: text_on(c) for b, c in BAND.items()}
+BAND_MID_ON = {b: text_on(c) for b, c in BAND_MID.items()}
 
 # Invoked here, not beside the function: it reads text_on() and BAND, both defined above
 # this line. The first attempt called it right after the def — which is above text_on() —
