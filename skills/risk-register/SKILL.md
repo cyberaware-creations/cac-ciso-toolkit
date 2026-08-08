@@ -315,8 +315,9 @@ tells the board story the same way — and it's the part a blank prompt can't re
 
 ## Guardrails
 
-- **Not affiliated with NIST.** Aligns to NISTIR 8286r1 and 8286A r1 (February 2025 revisions —
-  the 2022 originals are superseded and differ substantively), SP 800-30 Rev. 1 and CSF 2.0 — not
+- **Not affiliated with NIST.** Aligns to NISTIR 8286r1 and 8286A r1 (both **finalised 18
+  December 2025** — February 2025 was their initial public draft, not the revision; the earlier
+  editions are withdrawn and differ substantively), SP 800-30 Rev. 1 and CSF 2.0 — not
   endorsed by NIST. Say so; never imply certification. Where this suite's format is its own rather
   than NIST's, it says so: see the if-then note above.
 - **Structure, not data exfiltration.** Everything runs locally on the risks the user provides. Never

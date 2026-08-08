@@ -310,6 +310,81 @@ def check_skill_coverage(root="."):
     return True
 
 
+# A bare `NISTIR 8286` names a document that no longer exists: every part of the series has
+# been revised or withdrawn, and the parts differ substantively. A citation must say WHICH.
+# Sub-part letters and revision markers are what make it specific.
+#
+# `the IR 8286 series` is allowed, and the exemption is not a loophole: naming the family AS a
+# family is specific, and NIST writes it that way itself — 8286C r1 says "The IR 8286 series
+# stresses the importance of recording and acting upon positive risk," which this repo quotes.
+# A check that flagged a verbatim quotation of the source would be teaching the wrong lesson.
+#
+# The revision marker may be attached (`8286r1`) or spaced (`8286A r1`), so the lookahead
+# tolerates the space. Getting that wrong in either direction is silent: too tight and it
+# flags every correct citation, too loose and it flags none.
+_IR8286_BARE = re.compile(
+    r"\b(?:NIST\s*IR|NISTIR|IR)\s*8286(?!\s*(?:[A-D]\b|[A-D]?\s*r\s*\d|series\b))", re.I)
+# Shipped prose that carries no file extension. NOTICE held a bare citation and an
+# extension-keyed scan never looked at it — the same shape as the guard that read three files
+# of five and reported "not zero".
+_CITATION_NAMES = ("NOTICE", "LICENSE", "README")
+# Files that quote the history on purpose, and the shipped data that must record what a
+# withdrawn edition said.
+_IR8286_EXEMPT = ("CHANGELOG.md", "docs/", "research/", "tools/check-versions.py")
+
+
+def check_citation_specificity(root="."):
+    """No shipped text may cite NISTIR 8286 without saying which part and revision.
+
+    This is the third time these strings have been swept up by hand. v0.43.0 repointed
+    twenty references and announced that "every NISTIR 8286 reference now points at the
+    February 2025 revisions"; two bare ones survived in README.md and the Codex manifest,
+    outside `skills/` where the sweep looked, and a third in NOTICE. All three were true
+    statements about a document that has been superseded twice — and the announcement was
+    read, reasonably, as meaning the job was finished.
+
+    A sweep is a one-time act. This is the check that makes it a property. It matches on
+    absence of a sub-part or revision marker, because that is exactly what distinguishes a
+    citation a reader can retrieve from one that names a family of five documents with
+    different content and different dates.
+    """
+    import pathlib
+    base = pathlib.Path(root)
+    scanned, problems = 0, []
+    for path in sorted(base.rglob("*")):
+        rel = path.relative_to(base).as_posix()
+        if not path.is_file():
+            continue
+        if (path.suffix.lower() not in (".md", ".py", ".json", ".sh")
+                and path.name not in _CITATION_NAMES):
+            continue
+        if rel.startswith(".git/") or "__pycache__" in rel:
+            continue
+        if any(rel == e or rel.startswith(e) for e in _IR8286_EXEMPT):
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        scanned += 1
+        for n, line in enumerate(text.splitlines(), 1):
+            if _IR8286_BARE.search(line):
+                problems.append("{}:{}: {}".format(rel, n, line.strip()[:110]))
+    if not scanned:
+        print("ERROR: the citation scan read no files; its glob stopped matching.")
+        return False
+    if problems:
+        print("ERROR: NISTIR 8286 cited without a part or revision:")
+        for p in problems:
+            print("         {}".format(p))
+        print("       Every part of the 8286 series has been revised or withdrawn and they "
+              "differ substantively. Name the one you mean: 8286r1, 8286A r1, 8286B, "
+              "8286C r1, 8286D.")
+        return False
+    print("citations: {} shipped files, no bare NISTIR 8286 reference.".format(scanned))
+    return True
+
+
 PALETTE_NAMES = frozenset({
     "INK", "INK_RAISED", "INK_LINE", "LIME", "LIME_DIM", "PATINA", "PATINA_H",
     "PATINA_TEXT", "SLATE", "WB", "WB_SURF", "WB_LINE", "MUTED", "text_on",
@@ -779,6 +854,46 @@ def self_test():
         ok(check_skill_coverage(str(broken)) is False,
            "an unreadable manifest fails with a reason")
 
+        # -- citation specificity, both directions --
+        #
+        # Registered as cases rather than trusted, because a citation matcher fails
+        # silently in both directions: too tight and every correct cite goes red until
+        # somebody deletes the check, too loose and it greenlights the bare strings it
+        # exists to catch. Each string below either actually shipped, or is one the first
+        # draft of this pattern got wrong.
+        for _text, _want in (
+                ("NISTIR 8286 event-statement risks", True),      # README.md, v0.43.0-v0.45.0
+                ("aligns to NISTIR 8286, SP 800-30", True),       # NOTICE, same window
+                ("with NISTIR 8286 event statements", True),      # Codex manifest, same
+                ("NIST IR 8286 is withdrawn", True),
+                ("see IR 8286 for detail", True),
+                ("NISTIR 8286r1 and 8286A r1", False),
+                ("NIST IR 8286A r1 section 2.2", False),
+                ("NIST IR 8286Ar1", False),                       # attached revision marker
+                ("NIST IR 8286D", False),
+                # NIST's own words, quoted in positive-risk.md. A check that flagged a
+                # verbatim quotation of the source would be teaching the wrong lesson.
+                ("The IR 8286 series stresses the importance", False),
+        ):
+            ok(bool(_IR8286_BARE.search(_text)) is _want,
+               "citation matcher {} {!r}".format("flags" if _want else "allows", _text[:42]))
+
+        cite = Path(tmp) / "cite"
+        (cite / "skills").mkdir(parents=True)
+        (cite / "skills" / "a.md").write_text("aligns to NISTIR 8286A r1\n", encoding="utf-8")
+        ok(check_citation_specificity(str(cite)) is True,
+           "a tree whose only cite names a part passes")
+        # NOTICE carries no file extension, and the first draft of this scan keyed on
+        # extension alone -- so it skipped the very file holding a bare citation and
+        # reported success. Same shape as a guard reading three files of five.
+        (cite / "NOTICE").write_text("aligns to NISTIR 8286, SP 800-30\n", encoding="utf-8")
+        ok(check_citation_specificity(str(cite)) is False,
+           "a bare cite in extensionless NOTICE is read, not skipped")
+        empty = Path(tmp) / "cite-empty"
+        empty.mkdir()
+        ok(check_citation_specificity(str(empty)) is False,
+           "a citation scan that read no files fails instead of passing vacuously")
+
         # -- bump-on-change, needs a real repo --
         repo = Path(tmp) / "repo"
         repo.mkdir()
@@ -1021,6 +1136,7 @@ def main(argv):
     passed = check_maker_name(root) and passed
     passed = check_import_time_palette(root) and passed
     passed = check_skill_coverage(root) and passed
+    passed = check_citation_specificity(root) and passed
     if base is not None:
         passed = check_bump(base, root) and passed
         passed = check_changelog(base, root) and passed

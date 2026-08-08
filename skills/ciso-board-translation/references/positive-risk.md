@@ -12,11 +12,23 @@ NIST's term is **positive risk**, and that is the term this suite uses. It is be
 "upside" or "enablement" because it keeps the concept inside risk language instead of importing
 sales language, which is the failure mode the whole element has to be designed against.
 
-NIST IR 8286C r1 (February 2025) tracks opportunity **alongside** threats, describing *"a
-balanced approach to considering, measuring, and managing the uncertainty of all types in
-pursuit of the enterprise mission."* Its examples are concrete rather than aspirational —
-machine learning that increases research throughput, high-availability work that improves
-customer satisfaction.
+NIST IR 8286C r1 (December 2025) tracks opportunity **alongside** threats: *"The IR 8286 series
+stresses the importance of recording and acting upon positive risk."* Its examples are concrete
+rather than aspirational — machine-learning technology that significantly increases the
+throughput of the enterprise research team, high-availability services that lift availability
+from 93.4 % to 99.1 % and market share by 3 %.
+
+**Do not quote 8286C r1 as calling for "a balanced approach" to all uncertainty.** That phrase
+sits in the document's closing observation that managing positive risk *"is a field of interest
+that is new to many readers and merits further exploration"* — and that the topic itself is an
+opportunity **for the risk community** to create *"a more balanced approach to considering,
+measuring, and managing the uncertainty of all types of risk in pursuit of the enterprise
+mission."* That is an aspiration for the field, not a description of what the standard does.
+
+An earlier version of this file quoted that sentence as the latter, dated the document February
+2025, and dropped two words from the quotation. All three were caught by reading the source
+instead of the note about the source. This file exists to stop the suite claiming more of a
+reference than the reference says; it does not get an exemption.
 
 ## The grounding rule — the whole point
 
@@ -111,8 +123,13 @@ the failure mode most contained. Register-level positive risk waits until somebo
 ## Sources
 
 - NIST CSF 2.0 Core, `GV.RM-07` — bundled at `skills/nist-csf/references/nist-csf-2.0-core.json`
-- [NIST IR 8286r1 — Integrating Cybersecurity and Enterprise Risk Management](https://nvlpubs.nist.gov/nistpubs/ir/2025/NIST.IR.8286r1.pdf) (February 2025)
-- [NIST IR 8286A r1 — Identifying and Estimating Cybersecurity Risk](https://nvlpubs.nist.gov/nistpubs/ir/2025/NIST.IR.8286Ar1.pdf) (February 2025)
-- [NIST IR 8286C r1 — Staging Cybersecurity Risks for Enterprise Risk Management](https://nvlpubs.nist.gov/nistpubs/ir/2025/NIST.IR.8286Cr1.pdf) (February 2025 — supersedes the 2022 edition)
+- [NIST IR 8286r1 — Integrating Cybersecurity and Enterprise Risk Management](https://nvlpubs.nist.gov/nistpubs/ir/2025/NIST.IR.8286r1.pdf) (final, 18 December 2025)
+- [NIST IR 8286A r1 — Identifying and Estimating Cybersecurity Risk](https://nvlpubs.nist.gov/nistpubs/ir/2025/NIST.IR.8286Ar1.pdf) (final, 18 December 2025)
+- [NIST IR 8286C r1 — Staging Cybersecurity Risks for Enterprise Risk Management](https://nvlpubs.nist.gov/nistpubs/ir/2025/NIST.IR.8286Cr1.pdf) (final, 18 December 2025 — supersedes the 2022 edition)
+
+**February 2025 was the initial public draft of all three, not the revision.** The finals landed
+on 18 December 2025 and are what these links now serve. 8286B and 8286D are different: those
+*were* finalised on 26 February 2025 and carry no `r1`. Anything in this repo still dated
+"February 2025 revisions" is describing a draft.
 
 *A Cyber Aware Creation · Not affiliated with NIST. Not legal advice.*
