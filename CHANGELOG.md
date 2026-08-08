@@ -21,6 +21,82 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.46.0 — 2026-08-08
+
+**The citations.** Two backlog items about references that named a source without identifying
+it — and, found while checking them, three wrong statements about sources this suite quotes.
+
+### The doctrine the board layer rests on had no citation (BL-63)
+
+*Caremark*, *TSC Industries* and *Basic v. Levinson* were named across nine files with **no
+reporter, no court and no year** — in the same file that cites its supporting cases to a full
+standard. `NOTICE` promises references "with their stated limits intact"; the README calls them
+"sourced regulatory receipts".
+
+Every citation below was **verified against the reporter before it was written down**, not
+reproduced from memory, and each against two independent sources:
+
+| Case | Cite | Verified against |
+|---|---|---|
+| *In re Caremark Int'l Inc. Derivative Litig.* | 698 A.2d 959 (Del. Ch. 1996), C.A. No. 13670, Allen, Ch. | CourtListener; Penn Carey Law Delaware Corporation Law Resource Center |
+| *Stone v. Ritter* | 911 A.2d 362 (Del. 2006), No. 93, 2006 | CourtListener, two independent queries |
+| *TSC Indus., Inc. v. Northway, Inc.* | 426 U.S. 438 (1976), No. 74-1471 | CourtListener; Cornell LII |
+| *Basic Inc. v. Levinson* | 485 U.S. 224 (1988), No. 86-279 | CourtListener; Cornell LII |
+
+**Two substantive corrections came with them.** *Stone v. Ritter* is the operative modern
+statement of the oversight standard, so **citing *Caremark* alone is incomplete** — it names the
+doctrine without the standard a court applies. And ***Basic* is now cited for materiality only**:
+its fraud-on-the-market presumption has been narrowed by later authority, and an unqualified cite
+claims more than the case still carries.
+
+**Two cases in the research dossier were deliberately not added.** *Marchand v. Barnhill* supports
+a "mission critical" framing that appears nowhere in this repo. *Zuckerberg* would have required
+asserting that *Sorenson* applied it — a claim about a case this pass did not read. Adding either
+would have been the defect this item exists to fix, in a new place.
+
+### Three wrong statements about NIST sources, found while fixing two strings (BL-114)
+
+The item was two bare `NISTIR 8286` references in README.md and the Codex manifest. A third was
+in `NOTICE`. Repointing them meant re-reading the standard, and the standard had moved.
+
+**IR 8286 r1, 8286A r1 and 8286C r1 were finalised on 18 December 2025.** February 2025 was their
+*initial public draft*, not the revision. Two places in this repo called them "the February 2025
+revisions", and v0.43.0's release note said every 8286 reference now pointed at them. That note
+was describing drafts. (8286B and 8286D are different: those *were* finalised
+26 February 2025 and carry no `r1`.)
+
+**`positive-risk.md` misquoted 8286C r1 and mis-attributed the quote.** It had NIST "describing
+*a balanced approach to considering, measuring, and managing the uncertainty of all types in
+pursuit of the enterprise mission*". The document says *"a **more** balanced approach … the
+uncertainty of all types **of risk** in pursuit of the enterprise mission"* — two words dropped
+from a quotation — and says it in a closing note that positive risk *"is a field of interest that
+is new to many readers and merits further exploration"*, describing an aspiration **for the risk
+community**, not the standard's own method. Replaced with a sentence that says what was meant and
+is actually in the document: *"The IR 8286 series stresses the importance of recording and acting
+upon positive risk."*
+
+**The load-bearing §2.2 claim survived.** `risk-register/SKILL.md` says 8286A r1 §2.2 prescribes
+four scenario elements and no template. Checked against the December final: *"cybersecurity risk
+identification is composed of four necessary inputs — parts A through D … Combining these elements
+into a risk scenario helps to provide the full context of a potential loss event."* Asset, threat,
+vulnerability, impact; no template. It holds.
+
+### `citations:` — a new check, because this is the third sweep
+
+`check-versions.py` now fails any shipped file citing NISTIR 8286 without a part or revision.
+v0.43.0 swept twenty references and announced the job done; three survived where the sweep did not
+look. A sweep is an act, and this makes it a property.
+
+The matcher is registered in the self-test in **both directions** — a citation pattern fails
+silently either way, and one that reddens correct cites gets deleted. It allows *"the IR 8286
+series"*, which is how NIST refers to the family in the sentence this repo now quotes.
+
+Its first draft keyed on file extension and so **skipped `NOTICE` entirely** — the one file
+holding a bare citation — while reporting success. Precisely the shape v0.45.0's GP-1.7 was
+written for, one layer over. Self-test 36 → 46.
+
+---
+
 ## v0.45.0 — 2026-08-08
 
 **The guard machinery — four guards were provably blind, and the document defining the standard

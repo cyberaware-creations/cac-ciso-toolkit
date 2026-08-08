@@ -12,8 +12,14 @@ recommends. Three reasons, and the third is the one that matters:
 
 1. **Materiality is a legal standard, not an arithmetic.** The test is whether there is a
    substantial likelihood that a reasonable investor would consider the information important
-   (*TSC Industries v. Northway*; applied to contingent events in *Basic v. Levinson*). Nothing
-   in that test decomposes into weighted factors.
+   (*TSC Indus., Inc. v. Northway, Inc.*, 426 U.S. 438 (1976); applied to contingent events in
+   *Basic Inc. v. Levinson*, 485 U.S. 224 (1988)). Nothing in that test decomposes into weighted
+   factors.
+
+   **Cite *Basic* for materiality only.** The same decision also established the
+   fraud-on-the-market presumption of reliance, which later Supreme Court authority has
+   narrowed. That is a separate question from the materiality standard, and an unqualified
+   citation claims more of the case than this tool needs — or than the case still carries.
 2. **A score invites the wrong defence.** "The tool scored it 3.2, below our threshold" is not a
    defensible position. "Our General Counsel determined it was not material on 14 July, on this
    recorded basis, having assessed these six factors" is.
@@ -167,9 +173,11 @@ in-scope EU financial entities only; classification as *major* is itself a crite
 this tool does not make; and the windows are counted in clock hours, not business days. See
 `disclosure-clocks.md`.
 
-**Delaware oversight (*Caremark* line)** — a board that can show it received information about a
-material incident and acted on it is far better placed than one that cannot. **Limit:** this is a
-reason to keep a good record, not an obligation with a deadline.
+**Delaware oversight (the *Caremark* line)** — *In re Caremark Int'l Inc. Derivative Litig.*,
+698 A.2d 959 (Del. Ch. 1996), as restated in *Stone v. Ritter*, 911 A.2d 362 (Del. 2006). A board
+that can show it received information about a material incident and acted on it is far better
+placed than one that cannot. **Limit:** this is a reason to keep a good record, not an obligation
+with a deadline — and the liability threshold *Stone* fixed is bad faith, not imperfection.
 
 Never imply a filing duty that is not there. The most common way to do that by accident is to
 describe the four-business-day window without saying that it starts at the **determination**, and

@@ -56,8 +56,9 @@ assessed and which have not — completeness — and never how many came back `b
 
 Three reasons, and the third is the one that matters:
 
-1. **Materiality is a legal standard, not an arithmetic.** *TSC Industries v. Northway* does
-   not decompose into weighted factors.
+1. **Materiality is a legal standard, not an arithmetic.** *TSC Indus., Inc. v. Northway, Inc.*,
+   426 U.S. 438 (1976), does not decompose into weighted factors. Full citations, and the limit
+   on citing *Basic*, are in `references/materiality-factors.md`.
 2. **A score invites the wrong defence.** *"The tool scored it 3.2, below our threshold"* is
    not a defensible position. *"Our General Counsel determined it not material on 14 July, on
    this recorded basis, having assessed these six factors"* is.
