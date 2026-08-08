@@ -5,7 +5,7 @@ we run, what it touches, what it is exposed to, what is evidenced, what changed 
 quiet when the question is about model quality, bias, accepting a residual, scoring a risk, or
 regulatory scope.
 
-**Status: scored 2026-08-08 against v0.41.0 — 11 of 13 scoreable; four cases re-run against v0.42.0, now 14/15 with one case unusable as written.**
+**Status: scored 2026-08-08 against v0.41.0 — 11 of 13 scoreable; four cases re-run against v0.42.0, then 14/15 with one case unusable as written; A14 fixed at cause and re-scored at v0.42.3 — 15/15.**
 
 Routing mode (no `ALLOWED_TOOLS`), fifteen fresh `claude -p` sessions, $8.16, ~55s a case.
 
@@ -105,6 +105,22 @@ boundary in the NOT list.
 This is a prediction rather than a re-specification, and it can fail: **if A14 still lands on
 `ai-register` after this, the description was not the cause** and the case is genuinely ambiguous
 — which is worth knowing, and is the opposite of a ratchet.
+
+**The prediction held. A14 re-scored PASS**, to `business-context`, in a run whose commit does not
+contain the change. The answer cites the new clause back almost verbatim, which is about as direct
+as causal evidence gets in a routing test: *"`ai-register` says the same in its own boundaries: it
+inventories and assesses security, it does not determine regulatory scope."* It then leads with
+CAC-AP-1 §2.2 — *"Not declared ≠ not in scope … absence asks everything"* — refuses to reason from
+*you look like an organisation that deploys AI systems* to *you are a deployer under Art. 26*, and
+ends where the design says it should: **nobody has written down whether you are in scope, and that
+absence is the finding.**
+
+**That makes it 15/15**, with no case now recorded as unusable.
+
+A2, A4 and A6 were re-run alongside it to check the narrowed description pushed nothing out — the
+new deployment, the exposure question and the base-model change all still route here. A2 came back
+`error_max_turns` on the first attempt, was **not** folded into the total, and passed on a re-run.
+Four cases plus one retry, $3.16.
 
 ## What the run actually establishes
 

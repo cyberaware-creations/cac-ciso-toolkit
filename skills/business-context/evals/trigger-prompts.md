@@ -35,7 +35,8 @@ Route each prompt cold, with no prior context, and record the skill chosen. A pr
 the skill that will eventually *consume* the fact is a failure, not a near miss: the fact never
 gets recorded, and the consuming skill has nothing to cite.
 
-**Status: scored 2026-08-08 against v0.42.0 — 12/15. B4 fixed and re-scored at v0.42.2 — 13/15.**
+**Status: scored 2026-08-08 against v0.42.0 — 12/15. B4 fixed and re-scored at v0.42.2 — 13/15.
+B6 and B7 re-scored at v0.42.3 against expectations widened in an earlier commit — 15/15.**
 Routing mode, fifteen fresh `claude -p` sessions, $8.40, ~52s a case.
 
 All six cases written to reach a *different* skill reached it — `risk-register`,
@@ -123,6 +124,19 @@ the §2.3 mechanism working, not a near miss.
 arrives. B6 can no longer tell the profile side from the consumer side; it now proves only that
 the question does not escape to `risk-register` or `nist-csf`. B7 keeps more teeth — `ai-register`
 is a live wrong answer for a prompt that names an AI model, and the pipe list still rules it out.
+
+**Both re-scored PASS at v0.42.3.** B6 went to `incident-materiality` again, B7 to
+`vendor-register` again — the same two skills as before, now against expectations that say the
+contract runs both ways. 2/2, $1.11. Neither answer changed in substance, which is the point: the
+skills were right and the checklist was asserting something the design does not.
+
+Both answers argue the contract rather than reciting it. B6 refuses to let the conversation itself
+narrow anything: *"Saying it here doesn't narrow anything. The engine reads a declared flag from
+`business-context`, and a missing flag means 'not declared,' never 'does not apply.'"* B7 names the
+§2.3 direction and what a wrongly-suppressed battery would leave behind: *"`ask` would print a §2.4
+sentence naming whoever declared 'no AI internally' as the reason this vendor wasn't asked about
+its model. An assessor reading that page sees a person's name attached to a claim they didn't make
+about a system they weren't asked about."*
 
 ## Refresh the plugin first
 

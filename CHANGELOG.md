@@ -53,6 +53,18 @@ Also corrects a drift between `ai-register`'s case table and its `prompts.tsv` �
 to `ai-register|risk-register` before the second run and the table, which is the pre-registered
 expectation, still said `risk-register`.
 
+**All three re-scored PASS, and the A14 prediction held.** `business-context` reaches **15/15** and
+`ai-register` reaches **15/15**, both in a commit that does not contain the change. A14's answer
+cites the new clause back almost word for word — *"`ai-register` says the same in its own
+boundaries: it inventories and assesses security, it does not determine regulatory scope"* — which
+is about as direct as causal evidence gets in a routing test. A2, A4 and A6 ran alongside it to
+check the narrowed description pushed nothing out; A2 returned `error_max_turns`, was not folded
+into any total, and passed on a re-run. Seven cases plus one retry, $4.27.
+
+**Every routing checklist in the suite is now at full marks except two cases**, both of which are
+prompts rather than skills: `attention-surface` T6, whose *"give me a digest"* has no security
+referent, and `ai-register` A1, which reads two ways and has passed two runs of three.
+
 ## v0.42.2 — 2026-08-08
 
 **T3 and B4 were the same defect in two skills, and one of them had an engine gap behind it.**
