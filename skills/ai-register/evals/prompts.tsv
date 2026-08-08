@@ -7,9 +7,9 @@ A6	ai-register	The provider changed the model underneath our assistant. What doe
 A7	ai-register	Record that we put an input filter in front of the screening deployment, with the config export as evidence.
 A8	ai-register	Contoso sent us their model card. Does that cover our prompt injection question?
 A9	ai-register	Which AI deployments act without a person in the loop?
-A10	ai-register	Build the AI section for the board pack.
-A11	ai-register	We want to accept the residual risk on prompt injection for the drafting tool.
-A12	ai-register	Is our applicant screening model biased?
-A13	ai-register	Score the risk from the unsanctioned writing tool.
-A14	ai-register	Are we in scope for the EU AI Act as a deployer?
-A15	ai-register	How mature is our AI security programme, out of ten?
+A10	ai-register|board-pack	Build the AI section for the board pack.
+A11	exceptions-register	We want to accept the residual risk on prompt injection for the drafting tool.
+A12	neither	Is our applicant screening model biased?
+A13	risk-register	Score the risk from the unsanctioned writing tool.
+A14	business-context	Are we in scope for the EU AI Act as a deployer?
+A15	nist-csf	How mature is our AI security programme, out of ten?

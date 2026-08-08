@@ -15,6 +15,7 @@ Bash invocations of the skills' scripts are captured separately as corroboration
 are not the verdict: a sandboxed run can route correctly and still never get permission
 to execute anything.
 """
+import glob
 import json
 import os
 import re
@@ -24,19 +25,55 @@ SCRIPT_TO_SKILL = {
     "profile_analysis": "nist-csf",
     "csfa_compat": "nist-csf",
     "score_register": "risk-register",
+    "metrics_analysis": "metrics-register",
+    "exceptions_register": "exceptions-register",
+    "incident_analysis": "incident-materiality",
+    "business_context": "business-context",
+    "vendor_register": "vendor-register",
+    "ai_register": "ai-register",
+    "assemble_pack": "board-pack",
 }
 
-# The skills this repo ships. Routing is a claim about THESE — whether a prompt
-# reaches the right one of ours, or correctly reaches none of them.
-#
-# Anything else the operator happens to have installed is not a property of this
-# repo, and must not decide a verdict. The 0.4.0 run failed X1 ("write us an
-# acceptable use policy") because it reached `brainstorming`, a superpowers
-# skill: the case was right that none of OUR skills should fire, and the scorer
-# called it a failure anyway. A result that changes with the operator's plugin
-# list is not measuring this repo.
-OURS = ("nist-csf", "risk-register", "ciso-board-translation", "metrics-register",
-        "exceptions-register", "incident-materiality", "board-pack")
+
+def _discover_ours(root=None):
+    """The skills this repo ships, READ OFF THE FILESYSTEM rather than listed here.
+
+    Routing is a claim about THESE — whether a prompt reaches the right one of ours, or
+    correctly reaches none of them. Anything else the operator happens to have installed is
+    not a property of this repo and must not decide a verdict. The 0.4.0 run failed X1
+    ("write us an acceptable use policy") because it reached `brainstorming`, a superpowers
+    skill: the case was right that none of OUR skills should fire, and the scorer called it a
+    failure anyway. A result that changes with the operator's plugin list is not measuring
+    this repo.
+
+    **This was a hardcoded seven-name tuple, and it rotted.** `business-context`,
+    `vendor-register` and `ai-register` shipped after it was written and were never added, so
+    a prompt routing correctly to any of them scored as `none` with the right skill reported
+    as `[non-toolkit: ...]` — a correct routing, reported as a miss, in the words that make it
+    look like somebody else's plugin answered. The scorer's own self-test did not catch it
+    because it validated `nist-csf/prompts.tsv`, whose expectations only ever name the
+    original seven; the checklist is a PARAMETER, and the validation did not follow it.
+
+    Derived now, so it cannot rot again, and an empty scan is an error rather than a silently
+    permissive empty set — on the same rule every other guard in this repo uses.
+    """
+    here = os.path.dirname(os.path.abspath(__file__))
+    base = root or os.path.dirname(os.path.dirname(here))     # …/skills
+    names = tuple(sorted(
+        d for d in os.listdir(base)
+        if os.path.isfile(os.path.join(base, d, "SKILL.md"))))
+    if not names:
+        raise SystemExit(
+            "score-triggers: found no skills under %s — the layout moved and this scorer "
+            "would score every correct routing as a miss. Fix the path rather than the "
+            "expectations." % base)
+    return names
+
+
+OURS = _discover_ours()
+
+_SCRIPT_RE = r"(%s)\.py" % "|".join(
+    sorted(SCRIPT_TO_SKILL, key=len, reverse=True))
 
 
 def parse_run(path):
@@ -83,8 +120,12 @@ def parse_run(path):
                 if raw:
                     skills.append(str(raw).split(":")[-1])
             elif name == "Bash":
-                for m in re.findall(r"(profile_analysis|score_register|csfa_compat)\.py",
-                                    inp.get("command", "")):
+                # Built from SCRIPT_TO_SKILL rather than repeating three of its keys. The
+                # literal alternation listed `profile_analysis|score_register|csfa_compat`
+                # and nothing else, so seven entries could be added to the map above and
+                # reach nothing — a corroboration signal that silently covered two skills
+                # out of ten.
+                for m in re.findall(_SCRIPT_RE, inp.get("command", "")):
                     scripts.append(SCRIPT_TO_SKILL[m])
     return {"skills": skills, "scripts": sorted(set(scripts)),
             "cost": cost or 0.0, "dur_s": round(dur / 1000, 1), "result": result,
@@ -209,15 +250,35 @@ def self_test():
        "a run the runner called successful but which produced only whitespace is "
        "answerless too — is_error alone would have missed it")
 
-    # Every expectation in the shipped table is satisfiable.
-    tsv = os.path.join(os.path.dirname(os.path.abspath(__file__)), "prompts.tsv")
-    for line in open(tsv, encoding="utf-8"):
-        if not line.strip():
-            continue
-        cid, exp, _ = line.rstrip("\n").split("\t")
-        names = {e.strip() for e in exp.split("|")} if exp != "neither" else set()
-        bad = names - set(OURS)
-        eq(bad, set(), f"{cid} expects only skills this repo ships")
+    # `OURS` is derived, and the derivation is asserted rather than assumed.
+    #
+    # It used to be a hardcoded seven-name tuple. Three skills shipped after it was written
+    # and were never added, so every prompt routing correctly to one of them scored as a miss
+    # with the right answer printed as `[non-toolkit: ...]`.
+    eq(len(OURS) >= 7, True, "the skill list is non-empty and derived from the filesystem")
+    for expect in ("nist-csf", "risk-register", "board-pack"):
+        eq(expect in OURS, True, f"{expect} is discovered")
+    eq("brainstorming" in OURS, False,
+       "and a skill this repo does not ship is not in it — the list is ours, not the "
+       "operator's plugin set")
+
+    # EVERY shipped checklist is validated, not just this directory's. That is the hole the
+    # rot went through: the checklist is a parameter to the runner, and a self-test that only
+    # read `nist-csf/prompts.tsv` could never see an expectation naming a newer skill.
+    here = os.path.dirname(os.path.abspath(__file__))
+    skills_root = os.path.dirname(os.path.dirname(here))
+    tables = sorted(glob.glob(os.path.join(skills_root, "*", "evals", "prompts.tsv")))
+    eq(len(tables) >= 2, True,
+       f"more than one routing checklist was found to validate (found {len(tables)})")
+    for tsv in tables:
+        label = os.path.basename(os.path.dirname(os.path.dirname(tsv)))
+        for line in open(tsv, encoding="utf-8"):
+            if not line.strip():
+                continue
+            cid, exp, _ = line.rstrip("\n").split("\t")
+            names = {e.strip() for e in exp.split("|")} if exp != "neither" else set()
+            bad = names - set(OURS)
+            eq(bad, set(), f"{label}/{cid} expects only skills this repo ships")
 
     for okflag, label, got, want in checks:
         if not okflag:

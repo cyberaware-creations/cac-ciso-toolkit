@@ -4,10 +4,45 @@ Confirms the skill fires on **the arrangement and what is known about it** — w
 how critical that dependency is, what the agreement commits them to, whether we could leave —
 and stays quiet when the question is about scoring, accepting, disclosing or phrasing.
 
-**Status: not yet run.** These fifteen cases are written and shipped; no routing pass has been
-scored against them. That is recorded rather than left blank, because a checklist with an
-invented score is worse than one that admits it has not been exercised — and the sibling
-checklists all carry a real number from a real run. Score it before relying on it.
+**Status: scored 2026-08-08 against v0.41.0 — 13/15.** Routing mode (no `ALLOWED_TOOLS`),
+fifteen fresh `claude -p` sessions, $8.27, ~50s a case.
+
+All ten `V` cases were written to reach this skill and nine did. All five `Y` cases were written
+to reach a *different* skill, and four did — `exceptions-register`, `incident-materiality`,
+`ciso-board-translation` and `nist-csf` each took the case written for it. That second half is
+the load-bearing one: a checklist that only proves a skill fires proves the easy direction.
+
+Scored with `score-triggers.py` **after** fixing a defect in it that would have invalidated this
+run entirely — its list of "our" skills was hardcoded and predated this skill, so every correct
+routing here would have scored as `none` with `vendor-register` reported as somebody else's
+plugin. See `skills/ai-register/evals/trigger-prompts.md` for the detail.
+
+## The two that failed
+
+**V6 — "Does our MSA with Fabrikam actually commit them to a breach notification window?"**
+Expected `vendor-register`, got no skill at all. **This is a real miss and the most useful
+result in the run.** It is almost word-for-word the `contract-terms.incident-notice` question
+this skill generates, and the skill is exactly what turns "I can't read the contract" into "here
+is the question to send, and here is the clause to look for". Instead the session searched Drive
+and Dropbox for the file, was blocked, and declined to guess — sound behaviour, wrong route. The
+answer even reasoned about typical notification windows unaided, which is the freelancing the
+skill exists to replace. Worth a `description` change: the current one leads on *recording* an
+arrangement, and this prompt is about *interrogating* one already recorded.
+
+**Y1 — "Give me a risk score for our hosting provider and tell me if it is within appetite."**
+Expected `risk-register`, got `vendor-register`. Scored as a fail and recorded as one, but the
+expectation is arguably the thing that is wrong: the answer refused the number and explained
+that this register emits none by design, which is precisely what should happen. "Within
+appetite" is `risk-register` vocabulary and the provider is `vendor-register`'s subject, so the
+honest pre-registration is `vendor-register|risk-register`. Left as a recorded fail rather than
+quietly widened — the next run is where that changes.
+
+## What the run establishes
+
+Adding an arrangement, tracing criticality, finding what is overdue, recording an exercised
+exit, logging a subprocessor, and the questions-still-open path all reached this skill. Nothing
+in the `V` set leaked into `ai-register`, and nothing in the `A` set leaked here — the two
+registers share vocabulary and this was the confusion both checklists were written to catch.
 
 ## How to run
 

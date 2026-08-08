@@ -21,6 +21,42 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.41.1 — 2026-08-08
+
+**The routing checklists are scored, and the scorer that scores them was broken.**
+
+`vendor-register` 13/15, `ai-register` 11 of 13 scoreable. Both shipped at 0.39.0 and 0.41.0
+marked *"Status: not yet run"*; both now carry a real number from a real run against v0.41.0,
+with the caveats, because on this run the caveats are the more useful half.
+
+- **`score-triggers.py` held a hardcoded seven-name list of "our" skills**, written before
+  `business-context`, `vendor-register` and `ai-register` existed. A prompt routing *correctly*
+  to any of the three scored as `none` with the right skill printed as `[non-toolkit: …]` — a
+  correct routing reported as a miss, in the words that make it look like another plugin
+  answered. Caught on the first case, run alone before committing to the other twenty-nine.
+  Its own self-test could not see it: it validated `nist-csf/prompts.tsv`, whose expectations
+  only name the original seven, and the checklist is a PARAMETER the validation never followed.
+  The list is derived from the filesystem now, an empty scan raises, and the self-test walks
+  every `skills/*/evals/prompts.tsv`. Same rot in the Bash corroboration regex, which listed
+  three script names literally; built from `SCRIPT_TO_SKILL` now, and that map covers all ten.
+- **`ai-register/evals/prompts.tsv` contradicted its own `trigger-prompts.md`**, shipped in the
+  same commit: every row transcribed as expecting `ai-register`, including the five whose whole
+  purpose is that the skill must *not* fire. Corrected against the table, which is the
+  pre-registered expectation. A14 and A15 are excluded from the count — the table said "not this
+  skill", the scorer has no vocabulary for that, and both were re-specified after seeing where
+  they went, which is fitting the test to the result.
+- **Two fails recorded as fails rather than quietly widened.** `V6` — *"does our MSA commit them
+  to a breach notification window"* — reached no skill at all, though it is almost word-for-word
+  the `contract-terms.incident-notice` question `vendor-register` generates; the session
+  reasoned about typical notification windows unaided, which is the freelancing the skill exists
+  to replace. `A13` fired `ai-register`, which opened with the no-score refusal and named
+  `risk-register`; the expectation is probably what is wrong, and the next run is where that
+  changes.
+
+No engine behaviour changed. Evals, their expectations and their documentation only.
+
+---
+
 ## v0.41.0 — 2026-08-08
 
 **`ai-register`, skill #10.** A security inventory of the AI the organisation runs. Not an AI
