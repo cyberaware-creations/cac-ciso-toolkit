@@ -1767,6 +1767,7 @@ def analyze(store: dict, today: str = "", context: dict = None) -> dict:
     today = today or utc_today()
     entity = check_one_organisation(store)
     scale = store["settings"]["criticalityScale"]
+    grace = int(store["settings"].get("evidenceGraceDays") or 365)
 
     live = [r for r in store["arrangements"] if not r.get("retired")]
     by_level = {}
@@ -1799,6 +1800,21 @@ def analyze(store: dict, today: str = "", context: dict = None) -> dict:
             "retired": bool(rec.get("retired")),
             "priorArrangementRef": rec.get("priorArrangementRef") or "",
         })
+        # The assessment layer, per arrangement. Counts, never a rating: how many questions
+        # are open is a fact about the work left, and turning it into a severity would be the
+        # vendor score arriving through a side door.
+        if not rec.get("retired"):
+            asked = ask(store, rec["id"], context, today=today)
+            rows[-1]["openQuestions"] = asked["open"]
+            rows[-1]["reConfirmQuestions"] = asked["reConfirm"]
+            rows[-1]["skippedBatteries"] = len(asked["skipped"])
+            rows[-1]["openProposals"] = len(open_proposals(rec))
+            by_status = {}
+            for ev in (rec.get("evidence") or []):
+                st = evidence_status(ev, today, grace)
+                by_status[st] = by_status.get(st, 0) + 1
+            rows[-1]["evidence"] = {"total": len(rec.get("evidence") or []),
+                                    "byStatus": by_status}
 
     esc = escalations(store, today)
     out = {
@@ -1815,6 +1831,9 @@ def analyze(store: dict, today: str = "", context: dict = None) -> dict:
             "byCriticality": {k: len(v) for k, v in sorted(by_level.items())},
         },
         "arrangements": rows,
+        "openQuestions": sum(r.get("openQuestions", 0) for r in rows),
+        "reConfirmQuestions": sum(r.get("reConfirmQuestions", 0) for r in rows),
+        "openProposals": sum(r.get("openProposals", 0) for r in rows),
         "escalations": esc,
         "notes": [],
     }
