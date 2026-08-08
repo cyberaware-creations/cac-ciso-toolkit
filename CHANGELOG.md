@@ -21,6 +21,81 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.45.0 — 2026-08-08
+
+**The guard machinery — four guards were provably blind, and the document defining the standard
+disagreed with the standard.** Both are the same failure: something that surveys a set asserted
+only that the set was non-empty.
+
+### Four guards were not reading the file most likely to carry the defect (BL-97)
+
+Every static half walks `scripts/*.py` and `renderers/*.py`, prints the count it read, and the
+guard asserted that count was **at least one**. Five scan helpers excluded `renderers/_common.py`
+alongside `cac_graphics.py`, under a comment that only ever justified the brand file.
+`cac_graphics.py` is vendored byte-identical from `tools/` and guarded there. `_common.py` is
+500 lines of board-visible prose — the placeholder, the caveat, the *Not legal advice* footer —
+and is the likeliest place in a skill that somebody adds the sentence a guard forbids.
+
+The scans read **three files of five** and said so truthfully, in a sentence whose only claim was
+"not zero". Nothing caught it because **every registered mutation plants into `scripts/`**, so
+the exclusion was never once exercised.
+
+Mutation-tested before and after: planting each guard's own registered defect into its
+`renderers/_common.py` **passed** `no-regime-dates`, `no-closed-state`, `no-ai-score` and
+`no-vendor-score`. All four now fail it.
+
+The backlog item named one guard. The same three-line exclusion appears in five helpers, so all
+five are fixed — `attention-surface` has no `renderers/` directory yet, which makes its copy
+latent rather than live, and a trap for the day it grows one.
+
+### GP-1.7 — a scan asserts what it read, and the registry asserts what exists
+
+The one-line fix would have been silent the next time somebody narrowed a glob, so it is now a
+rule with a check behind it. Each guard recomputes the expected file list **from the filesystem**
+and asserts the scan read all of it. The recomputation is in the guard, not the helper: a helper
+that both narrows its glob and reports what it should have read proves nothing. Verified by
+re-adding the exclusion and watching the guard go red — *"it read 3 of 4"*.
+
+Second half of the same rule, applied to the document: `prove-guards.sh` now compares the
+registry table in `guard-proof-standard.md` against the guards it discovers, and fails on either
+mismatch.
+
+### The guard-proof standard was two minors stale (BL-100)
+
+`tools/guard-proof-standard.md` — the document CAC-GP-1 is *defined* in — said **"eight guards,
+sixteen halves"** while the runner asserted 9 / 18, and `outcome-framing.sh` was missing from the
+registry table entirely. `tools/README.md` carried two more wrong counts in a single paragraph,
+including *"seven guards across three skills"*.
+
+The counts are now **removed from the prose rather than corrected**. They live in
+`EXPECTED_GUARDS` and `EXPECTED_HALVES`, which are asserted, and the run prints them. `Status: in
+force as of v0.41.3` became `In force since: v0.41.3` — a version claiming currency rots, a
+version marking a starting point does not.
+
+The new registry check found the `outcome-framing.sh` omission on its first run, before the doc
+was touched.
+
+### CAC-LE-1 has a home (BL-100, second half)
+
+`tools/lint-evals.py` shipped in v0.43.1 introducing a second maintainer standard, wired into CI,
+documented nowhere. Now `tools/eval-lint-standard.md`, a sibling to the guard-proof standard
+rather than a section inside it — the two answer different questions, and renaming the older file
+would break every link into it. Cross-referenced both ways. BL-121's candidate second rule (a
+captured probe whose emptiness is read as a verdict) has a place to land.
+
+### An eval label claimed a property it did not test (BL-96)
+
+`section-contract.sh` printed *"an opportunity is carried when it cites a declared goal"*. The
+assertions are presence-only: `{"cites": "goal:g"}` accepted, `{}` and `{"cites": "   "}` refused.
+Nothing resolves the reference — `goal:no-such-goal` is accepted today. Anyone auditing C-2 from
+the green ticks was told the grounding rule was under test when only non-emptiness was.
+
+The label now says what it asserts, and the gap is **pinned as an assertion** rather than left as
+an absence: the suite now proves an unresolvable citation is accepted. Grounding it is BL-95; when
+that lands, this assertion fails and the label has to be rewritten alongside it.
+
+---
+
 ## v0.44.0 — 2026-08-08
 
 **The risk-register write path — four defects around `response.cost`, and they were not

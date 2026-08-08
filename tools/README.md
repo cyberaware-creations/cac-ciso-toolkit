@@ -213,10 +213,28 @@ Every guard in the suite must FAIL when the defect it forbids is present. This p
 each run, against a fresh copy, in both directions — clean must pass first, then mutated must
 fail — from mutations registered as data in `skills/*/evals/guard-proofs/*.json`.
 
-It lives here rather than in a skill because it is about the repo's own invariants and covers
-seven guards across three skills. See `guard-proof-standard.md` for the rules and the registry.
+It lives here rather than in a skill because it is about the repo's own invariants, and it spans
+every skill that has a guard. See `guard-proof-standard.md` for the rules and the registry —
+which the runner checks against the guards on disk, so the table cannot go stale in silence.
+
+No count is written here. This paragraph carried three of them — *"seven guards across three
+skills"*, *"eight guards, sixteen halves"* — and all three were wrong at the same time, in the
+file that explains a tool whose entire subject is checks that stop checking. The numbers live in
+`EXPECTED_GUARDS` and `EXPECTED_HALVES`, which are asserted, and the run prints them.
 
 ```bash
-./tools/prove-guards.sh              # all eight guards, sixteen halves
+./tools/prove-guards.sh              # every guard, every half, both directions
 ./tools/prove-guards.sh no-ai-score  # one guard
+```
+
+## `lint-evals.py` — CAC-LE-1
+
+An eval script may not call a harness helper it does not define. Under `set -u` without `set -e`
+— the house convention in these suites — an unrecognised command is a silent no-op, so a check
+written with `ok`/`bad` in a suite that declares `chk` never registers, never fails, and the
+suite prints `all checks passed`. See `eval-lint-standard.md`.
+
+```bash
+python3 ./tools/lint-evals.py --self-test  # the matcher, in both directions
+python3 ./tools/lint-evals.py              # every discovered suite
 ```

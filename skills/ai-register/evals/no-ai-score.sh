@@ -95,11 +95,18 @@ if [ "$rc" -eq 0 ]; then
 else
   bad "no shipped .py computes a score internally" "$(cat "$work/s.err")"
 fi
+# GP-1.7 — the scan asserts WHICH files it read, not merely that it read some. "Not zero"
+# passed for months while `_common.py` was excluded: three files of five, and every registered
+# mutant planted into `scripts/`, so the exclusion was never exercised. `want` is recomputed
+# here from the filesystem rather than taken from the helper, so narrowing the helper's glob or
+# growing its exclusion list fails instead of quietly shrinking a number nobody reads.
 count=${scanned#scanned }
-if [ "${count:-0}" -ge 1 ] 2>/dev/null; then
-  ok "and the static scan actually read $count shipped file(s), not zero"
+want=$(ls "$skill"/scripts/*.py "$skill"/renderers/*.py 2>/dev/null | grep -vc '/cac_graphics\.py$')
+if [ "${count:-0}" -eq "${want:-0}" ] && [ "${want:-0}" -ge 1 ] 2>/dev/null; then
+  ok "and the scan read all $count shipped file(s) — every script and renderer but the brand file"
 else
-  bad "the static scan read at least one file" "it read none, so it proved nothing"
+  bad "the static scan covers every shipped .py" \
+      "it read ${count:-0} of ${want:-0} — a file this guard is supposed to watch is unread"
 fi
 
 # --- the guard's own teeth ----------------------------------------------------
