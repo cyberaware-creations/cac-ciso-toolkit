@@ -27,7 +27,7 @@ skill="$(cd "$here/.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=8
+EXPECTED_CHECKS=10
 checks=0
 fails=0
 ok()  { checks=$((checks + 1)); printf '  ok    %s\n' "$1"; }
@@ -109,6 +109,20 @@ else
   bad "the loader refuses what it cannot attribute" "$(cat "$work/r.err")"
 fi
 
+# --- the vocabulary, probed against phrasings it must and must not catch ------
+#
+# An audit found the first version chasing VERBS, and verbs leak: it matched `applies from` and
+# missed `apply from` — one letter of subject-verb agreement — plus `take effect on` and
+# `begin`. All three are what a well-meaning author actually writes. The list leads with nouns
+# now, and the ten phrasings are registered in the probe so the leak cannot reopen.
+out=$("$PY" "$here/_regimescan.py" --vocab-probe 2>"$work/v.err")
+rc=$?
+if [ "$rc" -eq 0 ]; then
+  ok "the vocabulary catches every registered phrasing, and none of the negatives ($out)"
+else
+  bad "the vocabulary catches what it claims to" "$(cat "$work/v.err")"
+fi
+
 # --- the guard's own teeth ----------------------------------------------------
 mkdir -p "$work/mutant/scripts"
 cp "$A" "$work/mutant/scripts/ai_register.py"
@@ -122,6 +136,22 @@ if "$PY" "$here/_regimescan.py" --static "$work/mutant" >/dev/null 2>&1; then
       "it passed a string reading 'This regulation applies from <year>'"
 else
   ok "the static half fails on a planted regulatory date"
+fi
+
+# And on one the ORIGINAL vocabulary let through. This mutant exists because the first version
+# of the guard would have passed it: no named regime, no `regulation`, and a verb in the plural.
+mkdir -p "$work/mutant2/scripts"
+cp "$A" "$work/mutant2/scripts/ai_register.py"
+cat >> "$work/mutant2/scripts/ai_register.py" <<'PYEOF'
+
+
+HELPFUL = "Deployer obligations begin 2 December 2027 for high-risk systems."
+PYEOF
+if "$PY" "$here/_regimescan.py" --static "$work/mutant2" >/dev/null 2>&1; then
+  bad "the static half fails on a phrasing the first vocabulary missed" \
+      "it passed 'Deployer obligations begin <date>' — the leak the audit found is open again"
+else
+  ok "...and on 'obligations begin <date>', which the first vocabulary let through"
 fi
 
 "$PY" -c '
