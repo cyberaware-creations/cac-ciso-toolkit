@@ -4,7 +4,8 @@ description: >-
   Build, score, maintain, and report a NIST-aligned cybersecurity risk register
   that persists in a local file and tracks how risk changes over time. Turns
   messy inputs (a CSF gap export, an assessment, rough notes, or a conversation)
-  into properly-worded risks (NISTIR 8286 event statements), deterministic
+  into properly-worded risks (event statements in the CAC house format, carrying NISTIR
+  8286A r1's scenario elements), deterministic
   Likelihood×Impact scoring and banding (SP 800-30), risk-appetite flagging
   (CSF 2.0 GV.RM), an append-only change log with rationale, named review
   snapshots, and reporting — heat matrix, themes, trend, and operational and
@@ -29,8 +30,14 @@ language a board acts on.
 A register earns its keep only if these are true, and each is where people usually fail:
 
 1. **Risks are written as events, not topics.** "Phishing" is a topic. "If employees are targeted by
-   credential-harvesting phishing, then stolen passwords enable account takeover" is a risk. NISTIR
-   8286 wants this if-then framing because you can't score or treat a topic. Always draft it for them.
+   credential-harvesting phishing, then stolen passwords enable account takeover" is a risk. The
+   reason is that you cannot score or treat a topic — a topic has no likelihood and nothing to
+   estimate an impact against. If-then is the **CAC house format**, and it carries the scenario
+   elements NISTIR 8286A r1 §2.2 prescribes: asset, threat, vulnerability, impact. **NIST does not
+   prescribe the template** — 8286A r1 asks for the four elements combined into a scenario, and
+   8286r1's own example is cause-and-effect prose. Earlier releases of this file said "8286 wants
+   this if-then framing", which claimed more of the source than the source says. Always draft it
+   for them.
 2. **Scoring is deterministic.** Two people scoring the same risk must get the same band — so banding
    is done by the script, never by eye. See [Scoring](#scoring-always-use-the-script).
 3. **It's a living record, not a snapshot.** The value compounds through change tracking: what moved,
@@ -61,7 +68,7 @@ reports to the board). Most sessions are one or the other. Workflow B is in
 ```
 - [ ] 1. Set up: `init` — client, assessor, matrix size (default 5×5), appetite (default medium)
 - [ ] 2. Intake risks — from a CSF gap CSV (run the import) or elicited in conversation
-- [ ] 3. Draft each risk as a NISTIR 8286 event statement (`set-text` for imported ones);
+- [ ] 3. Draft each risk as an if-then event statement (`set-text` for imported ones);
          set owner, category, theme, response
 - [ ] 4. Assign inherent + residual likelihood × impact (1..matrixSize)
 - [ ] 5. Score with scripts/score_register.py — never band by hand
@@ -298,8 +305,10 @@ tells the board story the same way — and it's the part a blank prompt can't re
 
 ## Guardrails
 
-- **Not affiliated with NIST.** Aligns to NISTIR 8286, SP 800-30 Rev. 1, CSF 2.0 — not endorsed by
-  NIST. Say so; never imply certification.
+- **Not affiliated with NIST.** Aligns to NISTIR 8286r1 and 8286A r1 (February 2025 revisions —
+  the 2022 originals are superseded and differ substantively), SP 800-30 Rev. 1 and CSF 2.0 — not
+  endorsed by NIST. Say so; never imply certification. Where this suite's format is its own rather
+  than NIST's, it says so: see the if-then note above.
 - **Structure, not data exfiltration.** Everything runs locally on the risks the user provides. Never
   suggest uploading a client's register anywhere.
 - **Append-only history.** Never rewrite or delete past history events — that's what keeps the log

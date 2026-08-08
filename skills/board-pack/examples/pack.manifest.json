@@ -30,6 +30,16 @@
       "section": "incident",
       "store": "../../incident-materiality/examples/example-incident.inc",
       "translations": "../../incident-materiality/examples/example-translations.json"
+    },
+    {
+      "section": "vendor",
+      "store": "../../vendor-register/examples/example-vendors.vnd",
+      "translations": "../../vendor-register/examples/example-translations.json"
+    },
+    {
+      "section": "ai",
+      "store": "../../ai-register/examples/example-ai.air",
+      "translations": "../../ai-register/examples/example-translations.json"
     }
   ]
 }

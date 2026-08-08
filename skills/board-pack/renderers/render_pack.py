@@ -54,9 +54,17 @@ NOT_LEGAL = ("Not legal advice. The incident record structures and documents a m
 PLACEHOLDER = ("Not supplied. Compose this with the ciso-board-translation skill and re-run "
                "the assembler — this pack does not write board prose.")
 
+# A second copy of the assembler's SECTION_TITLE, because a skill directory has to run on
+# its own. `vendor` and `ai` were added to the assembler's map and not to this one, so every
+# heading naming them on both deliverables read as the bare key — "vendor", "ai" — on a board
+# page whose whole claim is that it was written for a board. Nothing failed; it just looked
+# unfinished, and no eval assembled a section that would have shown it.
+# section-contract.sh asserts the two maps agree, so the next section cannot drift the same way.
 SECTION_TITLE = {
     "posture": "Framework posture",
     "risk": "Risk",
+    "vendor": "Third parties",
+    "ai": "Artificial intelligence",
     "metrics": "Metrics",
     "exceptions": "Accepted risks and exceptions",
     "incident": "Incidents",
@@ -65,6 +73,7 @@ ITEM_LABEL = {
     "risks": "Risks", "themes": "Themes", "gaps": "Outcomes short of target",
     "metrics": "Metrics", "acceptances": "Accepted risks", "exceptions": "Exceptions",
     "incidents": "Incidents",
+    "arrangements": "Arrangements", "deployments": "Deployments",
 }
 
 
@@ -129,6 +138,19 @@ h1{{font-size:30px}} h2{{font-size:21px;margin-top:0}} h3{{font-size:16px;margin
   background:{LIME};color:{MUTED};font-size:11.5px;font-weight:600}}
 ol.decisions{{margin:8px 0 0;padding-left:22px}}
 ol.decisions li{{margin:0 0 12px}}
+/* Positive risk (GV.RM-07). Patina on the rule, never a RAG fill: the brand system is
+   explicit that patina does not signal "safe", and an opportunity is not a low-severity risk.
+   The heading carries the word, as every coloured thing in this suite must.
+
+   The heading is INK, not patina. Patina is #2FA98C and measures 2.93:1 on white — the
+   responsive suite caught it at 16px/700 the first time this block rendered, which is the
+   contrast floor doing exactly its job. The block's identity is carried by the patina rule
+   down its left edge, which is a mark rather than text and has no ratio to meet, and by the
+   heading's own word. Colour never carries meaning alone here anyway. */
+h3.opp-h{{color:{INK}}}
+ol.opps{{margin:8px 0 0;padding-left:22px;border-left:2px solid {PATINA};
+  padding-top:2px;padding-bottom:2px}}
+ol.opps li{{margin:0 0 12px}}
 .from{{color:{MUTED};font-size:12.5px;display:block;margin-top:3px}}
 dl{{margin:6px 0 0}} dt{{font-weight:600;margin-top:10px}}
 dd{{margin:2px 0 0 0;color:{INK}}}
@@ -325,6 +347,48 @@ def _decision_items(decisions: list) -> str:
         for d in decisions)
 
 
+def evidence_text(evidence) -> str:
+    """`evidence` as a sentence, whichever shape the producer emits.
+
+    CAC-EL-1 §1.3 fixes the six KEYS an escalation carries. **It does not fix the type of
+    `evidence`**, and the producers legitimately differ: `risk-register`, `metrics-register`
+    and `exceptions-register` emit a structured delta — `{from, to, baseline, detail}` —
+    because a band crossing is a movement and both ends of it are the fact, while
+    `vendor-register` and `ai-register` emit a finished sentence.
+
+    Both call sites here assumed the dict. A pack carrying a `vendor` or `ai` section
+    assembled cleanly and then died in the renderer with `'str' object has no attribute
+    'get'` — before writing either deliverable, so a PowerPoint-only request was blocked by
+    the HTML path it never asked for. Two sections shipped at v0.41.0 and v0.42.0 could not
+    reach a page.
+
+    `attention-surface` hit the same shape on its first live run against all seven producers
+    and fixed it the same way: one function, not a check at each call site. That the defect
+    recurred in a second consumer is the argument for the function existing at all — and for
+    the eval below it, which renders a vendor-only, an AI-only and a seven-section pack to
+    BOTH deliverables rather than trusting that the five-section fixture covers them.
+    """
+    if isinstance(evidence, dict):
+        detail = str(evidence.get("detail") or "").strip()
+        moved = ""
+        if evidence.get("from") not in (None, "") and evidence.get("to") not in (None, ""):
+            moved = "%s -> %s" % (evidence["from"], evidence["to"])
+        baseline = str(evidence.get("baseline") or "").strip()
+        bits = [b for b in (detail, moved,
+                            ("against %s" % baseline) if baseline else "") if b]
+        if not bits:
+            # An EMPTY dict is empty evidence, and renders as nothing — there is no shape
+            # question to report. A dict with keys this function does not recognise is
+            # different: say so, and name them, rather than printing the object. A reader
+            # who sees `{'from': 12}` on a board page cannot tell a shape change from a
+            # data problem, and neither can the person they ask.
+            if not evidence:
+                return ""
+            return "(structured evidence with no `detail`: %s)" % ", ".join(sorted(evidence))
+        return "%s%s" % (bits[0], (" (%s)" % "; ".join(bits[1:])) if bits[1:] else "")
+    return str(evidence or "")
+
+
 def _escalations(escalations: list) -> str:
     """What the producers raised on their own, across every section.
 
@@ -342,7 +406,7 @@ def _escalations(escalations: list) -> str:
                 'sustained drift, a long dwell over appetite, or a lapsed acceptance.</p>')
     rows = ""
     for e in escalations:
-        ev = e.get("evidence") or {}
+        ev = evidence_text(e.get("evidence"))
         colour = G._sev_colour(e["severity"], "text")
         rows += (
             f'<tr><td><span class="sevdot" style="background:{colour}"></span>'
@@ -350,7 +414,7 @@ def _escalations(escalations: list) -> str:
             f'<td class="mono">{esc(e["subjectRef"])}</td>'
             f'<td>{esc(SECTION_TITLE.get(e.get("section"), e.get("section", "")))}</td>'
             f'<td class="mono">{esc(e["trigger"])}</td>'
-            f'<td>{esc(ev.get("detail") or "")}'
+            f'<td>{esc(ev)}'
             f'<span class="from">since {esc(e.get("since") or "—")}</span></td></tr>')
     return (f'<table class="esc"><thead><tr><th>Severity</th><th>Ref</th><th>Section</th>'
             f'<th>Trigger</th><th>What fired it</th></tr></thead><tbody>{rows}</tbody></table>'
@@ -488,7 +552,40 @@ def _section_page(section: dict, charts: list = ()) -> str:
     figs = _figures_for(section["section"], charts)
     return (f'<div class="page">{_band(title)}<h2>{esc(title)}</h2>'
             f'<p class="sub">{esc(section["itemCount"])} items{as_of}</p>'
-            f'{summary}{legal}{figs}{body}</div>')
+            f'{summary}{legal}{figs}{body}{_opportunities(section)}</div>')
+
+
+def _opportunities(section: dict) -> str:
+    """Positive risk, in its own block, after the items and before the decisions.
+
+    That sequence is the argument: *here is the exposure, here is what it costs us, here is
+    what good would unlock, here is the decision.* CSF 2.0 `GV.RM-07` asks that strategic
+    opportunities be characterised and **included in** cybersecurity risk discussions; IR
+    8286C r1 tracks opportunity **alongside** threats. Both describe a distinct item, and both
+    are the reason this is a block rather than a clause: an optimistic tail welded onto a loss
+    statement reads as softening the loss, which teaches a board to discount the section.
+    `outcome-framing.sh` fails a sidecar that tries it.
+
+    **Patina, never RAG green.** The brand system is explicit that patina never signals
+    "safe", and an opportunity is not a low-severity risk — it is a different kind of
+    statement, so it takes the chrome colour and carries its word, as the graphics standard
+    requires of every coloured thing in this suite.
+
+    **Absent renders nothing.** No heading, no "none identified" placeholder. A placeholder
+    would manufacture pressure to fill it, and a section with nothing to cite is the correct
+    output rather than an incomplete one.
+    """
+    entries = section.get("opportunities") or []
+    if not entries:
+        return ""
+    rows = "".join(
+        f'<li>{esc(e["text"])}'
+        f'<span class="from">cites {esc(e["cites"])} · {esc(e.get("gvsc") or "GV.RM-07")}'
+        f'</span></li>' for e in entries)
+    return (f'<h3 class="opp-h">Positive risk</h3>'
+            f'<p class="sub">What good would unlock, each against a goal or dependency the '
+            f'business itself declared. An entry with nothing to cite is not written.</p>'
+            f'<ol class="opps">{rows}</ol>')
 
 
 def _provenance(pack: dict) -> str:
@@ -622,14 +719,51 @@ def build_pptx(pack: dict, path: str, mode: str = "full") -> None:
                PX.INK if tl else PX.MUTED, False)],
              eyebrow=eyebrow)
 
+    # Declared here rather than beside the management actions, because board mode now moves
+    # two kinds of slide and both have to reach the same list. See the escalation block below.
+    appendix = []
+
     if pack["headlines"]:
         # Tiles rather than bullets, so a figure can carry the band its producer
         # declared. A figure with no band renders in ink and takes no rule and no
         # band word -- the deck decides severity exactly as little as the HTML does.
-        deck.figures("This quarter, in figures", pack["headlines"],
-                     eyebrow=eyebrow,
-                     note="Every figure was computed by the skill that owns it and "
-                          "read here unchanged. The pack calculates nothing.")
+        #
+        # In board mode only the first tile page stays in the core; the rest move to the
+        # appendix, on the same rule as the escalation continuations. Seventeen headlines
+        # across seven producers is three tile slides, and a board core is not the place for
+        # the second and third — the through-line and the section summaries already carry the
+        # story those tiles support. Moved, never dropped: the full deck is unchanged and the
+        # appendix divider says so.
+        note = ("Every figure was computed by the skill that owns it and read here "
+                "unchanged. The pack calculates nothing.")
+        if mode != "board":
+            deck.figures("This quarter, in figures", pack["headlines"],
+                         eyebrow=eyebrow, note=note)
+        else:
+            # Page one stays in the core, the rest move to the appendix — the rule already
+            # applied to the escalation list, applied to the other block that grows with the
+            # number of producers. Seventeen headlines across seven is three tile slides, and
+            # a board core is not the place for the second and third: the through-line and
+            # the section summaries already carry the story those tiles support.
+            #
+            # Paged HERE rather than by passing a slice, and titled with the SAME suffix the
+            # full deck uses, because `_deckhas.py --lost` compares text runs: a core page
+            # titled "This quarter, in figures" where the full deck says "…(1)" drops three
+            # title runs and reads, correctly, as content lost. Moves-never-drops has to hold
+            # for the titles too.
+            per_page = PX.Deck.FIG_COLS * PX.Deck.FIG_ROWS
+            pages = [pack["headlines"][i:i + per_page]
+                     for i in range(0, len(pack["headlines"]), per_page)]
+            for n, page in enumerate(pages, start=1):
+                title = ("This quarter, in figures" if len(pages) == 1
+                         else "This quarter, in figures (%d)" % n)
+                if n == 1:
+                    deck.figures(title, page, eyebrow=eyebrow, note=note)
+                else:
+                    # As TILES, not text rows: a tile writes its value as its own run, so
+                    # "19" re-rendered as "AI deployments tracked: 19" would lose the bare
+                    # run. Same content, same rendering, different place.
+                    appendix.append(("figures", title, page))
 
     # The band compositions, as native shapes. Only the mixes: a bullet needs a zone axis and
     # a bar needs a scale, and both are marks the SVG library draws properly and this writer
@@ -650,14 +784,32 @@ def build_pptx(pack: dict, path: str, mode: str = "full") -> None:
             more = "" if len(escalated) <= 5 else f" ({i // 5 + 1})"
             paras = []
             for e in chunk:
-                ev = e.get("evidence") or {}
+                # Same shape rule as the HTML path, through the same function — see
+                # evidence_text(). The deck was the second call site that assumed a dict,
+                # and it is only reachable after the HTML path, which is why one crash hid
+                # two.
+                ev = evidence_text(e.get("evidence"))
                 # Severity in the band's TEXT colour, never its fill: this is a light slide,
                 # and the fills measure 1.5-2.6:1 there. verify() enforces it.
                 paras.append((f"{e['severity'].upper()}  {e['subjectRef']}  ·  "
                               f"{e['trigger']}", 1250, True,
                               PX.SEV_TEXT.get(e["severity"], PX.INK), False))
-                paras.append((ev.get("detail") or "", 1050, False, PX.MUTED, False))
-            deck.add(f"What escalated{more}", paras, eyebrow=eyebrow)
+                paras.append((ev, 1050, False, PX.MUTED, False))
+            title = f"What escalated{more}"
+            # In board mode the FIRST page stays in the core and the continuations move to the
+            # appendix. Escalations arrive sorted worst-first by the assembler, so page one is
+            # the worst five and moving pages two onward is not a judgement about which matter
+            # — it is the same MOVES-NEVER-DROPS rule already applied to item detail, applied
+            # to the other list that grows without limit.
+            #
+            # It became necessary when the specimen went from five sections to seven: 28
+            # escalations is six slides, and a board core of 23 is not a board core. Nothing
+            # about a board sitting's attention got longer because the product gained two
+            # producers, so the deck is what has to give, not the length rule.
+            if mode == "board" and i >= 5:
+                appendix.append(("text", title, paras))
+            else:
+                deck.add(title, paras, eyebrow=eyebrow)
     else:
         deck.add("What escalated",
                  [("Nothing escalated. No section reported a band crossing, a sustained "
@@ -683,8 +835,8 @@ def build_pptx(pack: dict, path: str, mode: str = "full") -> None:
     #
     # In board mode they move to the appendix on the same reasoning taken one step further:
     # they are not for board decision at all, so they are not core to a board meeting. They
-    # are still in the file, in full.
-    appendix = []
+    # are still in the file, in full. (`appendix` is declared above the figures, because the
+    # escalation continuations reach it first.)
     for i in range(0, len(management_asks), 5):
         chunk = management_asks[i:i + 5]
         more = "" if len(management_asks) <= 5 else f" ({i // 5 + 1})"
@@ -693,7 +845,7 @@ def build_pptx(pack: dict, path: str, mode: str = "full") -> None:
                     "stays on the decision slides.", 1000, False, PX.MUTED, False)])
         title = f"Management actions — not for board decision{more}"
         if mode == "board":
-            appendix.append((title, rows))
+            appendix.append(("text", title, rows))
         else:
             deck.add(title, rows, eyebrow=eyebrow)
 
@@ -710,6 +862,22 @@ def build_pptx(pack: dict, path: str, mode: str = "full") -> None:
         if section["section"] == "incident":
             paras.append((NOT_LEGAL, 1000, False, PX.MUTED, False))
         deck.add(title, paras, eyebrow=eyebrow)
+        # Positive risk reaches the deck too, on its own slide and NEVER inside the item
+        # detail — the same separation the HTML keeps, for the same reason. A figure or a
+        # sentence that reaches one deliverable and not the other means two readers of "the
+        # same pack" saw different things, and this pack's oldest rule is that they must not.
+        #
+        # It stays in the core in board mode. It is short, it is board-altitude by
+        # construction (it cites a goal the business declared), and moving it to the appendix
+        # would quietly make the loss-framed half of the pack the only half a board reads.
+        opportunities = section.get("opportunities") or []
+        if opportunities:
+            deck.add(f"{title} — positive risk",
+                     [("What good would unlock, each against a declared goal.",
+                       1000, False, PX.MUTED, False)]
+                     + [(f"{e['text']}  ·  cites {e['cites']}", 1150, False, PX.INK, True)
+                        for e in opportunities],
+                     eyebrow=eyebrow)
         for key, items in section["items"].items():
             if not items:
                 continue
@@ -727,7 +895,7 @@ def build_pptx(pack: dict, path: str, mode: str = "full") -> None:
                 part = "" if len(entries) <= 4 else f" ({i // 4 + 1})"
                 rows = [(f"{k}: {v}", 1150, False, PX.INK, True) for k, v in chunk]
                 if mode == "board":
-                    appendix.append((heading + part, rows))
+                    appendix.append(("text", heading + part, rows))
                 else:
                     deck.add(heading + part, rows, eyebrow=eyebrow)
 
@@ -748,11 +916,21 @@ def build_pptx(pack: dict, path: str, mode: str = "full") -> None:
     # of wondering whether it was cut.
     if appendix:
         deck.section("Appendix",
-                     "Item detail and management actions, moved out of the main sequence. "
+                     "Item detail, management actions, and escalations beyond the first "
+                     "five — which arrive worst-first, so the five in the main sequence are "
+                     "the five that matter most. "
                      "Nothing has been removed — this is the same content the full deck "
                      "carries inline.")
-        for title, rows in appendix:
-            deck.add(title, rows, eyebrow=eyebrow)
+        for kind, title, payload in appendix:
+            # A moved figures page is re-rendered AS TILES. `_deckhas.py --lost` compares the
+            # text runs in the two decks, and a tile writes its value as its own run — so
+            # re-rendering "19" as "AI deployments tracked: 19" drops the bare run and reads,
+            # correctly, as content lost. Same content, same rendering, different place: that
+            # is what MOVES-NEVER-DROPS means.
+            if kind == "figures":
+                deck.figures(title, payload, eyebrow=eyebrow)
+            else:
+                deck.add(title, payload, eyebrow=eyebrow)
     deck.write(path)
 
 

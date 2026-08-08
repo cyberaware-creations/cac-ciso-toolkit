@@ -199,6 +199,55 @@ failure:
   benchmarks, and a decision at the end. A placeholder left visible in the
   dashboard is a better outcome than a fabricated sentence.
 
+### The fifth element — positive risk, and it is optional
+
+CSF 2.0 asks for one thing this suite had no element for:
+
+> **`GV.RM-07`** — Strategic opportunities (i.e., positive risks) are characterized and are
+> included in organizational cybersecurity risk discussions
+
+A sidecar may carry an `opportunities` array. It is optional, additive, and **absent is the
+correct output for most sections most of the time.**
+
+```json
+"opportunities": [
+  {"text": "A tested exit on the plant historian is what makes the Dublin renewal negotiable.",
+   "cites": "goal:Close the Dublin authorisation year without a supervisory finding",
+   "gvsc": "GV.RM-07"}
+]
+```
+
+**Three rules, and the first is the whole point:**
+
+1. **It must cite a declared goal or crown-jewel dependency from `business-context`.** No
+   citation, no entry — **refused by the assembler**, not warned. *"Better security helps the
+   business move faster"* is unfalsifiable, and this skill already says overclaiming costs more
+   credibility than silence. That applies here exactly as it applies to a regulatory claim.
+2. **Never blended into a risk sentence.** Its own array, its own block. An optimistic tail on a
+   loss statement reads as softening the loss and teaches a board to discount the section.
+   `outcome-framing.sh` fails a sidecar that tries, naming the sentence and the word.
+3. **Write nothing rather than something.** There is no "none identified" placeholder, because a
+   box on a board page manufactures pressure to fill it — which is how this becomes marketing
+   copy. A section with nothing to cite writes no array and renders no block.
+
+The full argument, both worked examples, and why this was correct to omit until
+`business-context` shipped: `references/positive-risk.md`.
+
+### Two things now checked rather than trusted
+
+`board-pack/evals/outcome-framing.sh` enforces what this file has always asked for and nothing
+tested:
+
+- **every item sentence carries a consequence** — a connective *and* a consequence noun,
+  clearing an 80% floor per section, with one miss always tolerated;
+- **every `decisions[]` entry ends on a decision** — a leading decision verb or an explicit
+  `or` fork. No floor on this one; it is unambiguous.
+
+The vocabulary is data, in `references/consequence-vocabulary.json`. An occasional false
+negative is expected and is not a defect: the check names the sentence it rejected, and **adding
+a word to the vocabulary is the intended response**. It tests that a required element is
+present. It has no opinion about whether the prose is good, and it must never grow one.
+
 ## When to pull each reference
 
 Keep this file lean and reach for depth only when the task needs it. One level

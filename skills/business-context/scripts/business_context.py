@@ -32,6 +32,7 @@ Standard library only. Subcommands:
   set-revenue  <file.biz> --exact 412000000 --currency USD --fiscal-year FY26 --by .. --basis ..
   review       <file.biz> --label 'FY27 planning' --why '...'
   show         <file.biz> [--json] [--render-revenue band|exact]
+  archetype    <file.biz> [--json]        depth advice, never scope
   applies      <file.biz> --skill incident [--subject-declares listedEntity=true]
   export       <file.biz> --context [--out FILE]
   escalations  <file.biz> [--today YYYY-MM-DD] [--json]
@@ -421,6 +422,109 @@ def revenue_band(exact) -> str:
     return REVENUE_LADDER[-1][1]
 
 
+
+# --- The archetype layer: depth, never scope ----------------------------------
+#
+# A release test held sector, jurisdictions, regulatory scope, AI, OT, data, cloud, vendors and
+# concentration constant, moved ONLY revenue (USD 5m -> USD 50bn) and headcount (1-50 ->
+# 100,000+), and got byte-for-byte identical applicability objects back.
+#
+# That is correct and must stay correct. **Size does not create a legal obligation.** A
+# Fortune 100 and an SMB with the same declared facts owe the same duties, and a profile that
+# invented an exemption for a small company would be doing precisely what CAC-AP-1 exists to
+# stop.
+#
+# But it did mean the toolkit had nothing to say about size at all, and size genuinely changes
+# how much assurance is proportionate. So: a second, explicitly NON-REGULATORY layer. It reads
+# only declared size facts, returns advice about DEPTH — evidence, cadence, role separation,
+# metrics breadth, third-party coverage, AI governance, pack density — and travels in its own
+# payload key. `archetype-advisory.sh` asserts it never reaches the applicability decision.
+#
+# §2.2 applies to it in its own register: no size declared means `undeclared`, which recommends
+# the FULL depth. A tool that read a missing revenue figure as "probably small" would recommend
+# a thin programme to whoever had not got round to filling in the form.
+
+ARCHETYPE_ORDER = ("undeclared", "small", "midmarket", "large", "enterprise")
+
+
+def archetypes_path() -> str:
+    return os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                        "references", "archetypes.json")
+
+
+def load_archetypes(path: str = "") -> dict:
+    """The dataset, refusing one that could not do its job."""
+    try:
+        with open(path or archetypes_path(), encoding="utf-8") as fh:
+            data = json.load(fh)
+    except FileNotFoundError:
+        raise Refusal("no archetype dataset at %s" % (path or archetypes_path()))
+    except ValueError as exc:
+        raise Refusal("the archetype dataset is not valid JSON: %s" % exc)
+    by_id = {a["id"]: a for a in (data.get("archetypes") or []) if a.get("id")}
+    missing = [k for k in ARCHETYPE_ORDER if k not in by_id]
+    if missing:
+        raise Refusal("the archetype dataset is missing %s — a broken dataset would return "
+                      "advice for a band nobody defined" % ", ".join(missing))
+    data["byId"] = by_id
+    return data
+
+
+def _band_from(value, table: dict) -> str:
+    """Which archetype a declared band string falls in, or "" for unrecognised.
+
+    Unrecognised contributes NOTHING rather than being coerced. `headcountBand` is a free
+    declaration, not an enum — this skill owns no org-size scale any more than it owns a
+    criticality scale — and guessing which end of the ladder an unfamiliar string belongs on
+    is exactly the inference the suite refuses everywhere else.
+    """
+    text = str(value or "").strip().lower()
+    if not text:
+        return ""
+    for name in ARCHETYPE_ORDER[1:]:
+        if any(text == str(v).strip().lower() for v in table.get(name) or []):
+            return name
+    return ""
+
+
+def declared_headcount(store: dict):
+    """The headcount band as declared, whichever shape the flag was written in."""
+    raw = (store.get("profile") or {}).get("headcountBand")
+    if isinstance(raw, dict):
+        return raw.get("value")
+    return raw
+
+
+def archetype_for(store: dict, data: dict = None) -> dict:
+    """The depth advice for this organisation's declared size. Never its scope.
+
+    The HIGHER of the two declared bands wins. A 40-person company turning over USD 2bn is not
+    a small organisation, and neither is a 30,000-person company on thin margins — so taking
+    the higher band lets an unusual size fact raise the recommended depth instead of averaging
+    away against the other one.
+    """
+    data = data or load_archetypes()
+    rev = store["context"].get("revenue")
+    from_revenue = _band_from(revenue_band(rev["exact"]) if rev else "",
+                              data.get("revenueBands") or {})
+    from_headcount = _band_from(declared_headcount(store),
+                                data.get("headcountBands") or {})
+    seen = [b for b in (from_revenue, from_headcount) if b]
+    chosen = max(seen, key=ARCHETYPE_ORDER.index) if seen else "undeclared"
+    entry = dict(data["byId"][chosen])
+    entry["basis"] = {
+        "fromRevenue": from_revenue or None,
+        "fromHeadcount": from_headcount or None,
+        "rule": ("the higher of the two declared bands" if len(seen) == 2
+                 else "the one size fact on record" if len(seen) == 1
+                 else "nothing declared, so the full depth is recommended — absence asks "
+                      "more, exactly as it does for a profile flag"),
+    }
+    entry["appliesTo"] = "depth of assurance only"
+    entry["neverAffects"] = ["applicability", "materiality", "any question set"]
+    return entry
+
+
 def set_revenue(store: dict, exact, currency: str, fiscal_year: str,
                 by: str, basis: str) -> dict:
     if exact is None or str(exact).strip() == "":
@@ -721,6 +825,12 @@ def context_payload(store: dict) -> dict:
         # problem; see `revenue_band` and D-2.
         "revenue": (json.loads(json.dumps(rev)) if rev else None),
         "crownJewels": json.loads(json.dumps(store["context"].get("crownJewels") or [])),
+        # ADVICE, in its own key, deliberately outside `applicability` rather than inside it.
+        # A consumer that read this as scope would be inventing an exemption for a small
+        # company, which is the one thing CAC-AP-1 exists to prevent. `archetype-advisory.sh`
+        # asserts the two never touch, and asserts that moving ONLY the size facts leaves
+        # every applicability decision byte-identical.
+        "archetype": archetype_for(store),
     }
 
 
@@ -983,6 +1093,28 @@ def _cmd_self_test(_args) -> int:
            "and an empty store SAYS nothing is recorded rather than omitting the heading")
         ok(any("different fact" in ln for ln in empty),
            "...naming the distinction, because unrecorded is not the same as unsaid")
+
+        # --- the archetype layer: depth, never scope -----------------------------
+        # The one rule most likely to be broken by someone being helpful: a store with no
+        # size declared must get the FULL depth, not the smallest band. See
+        # evals/archetype-advisory.sh for the A/B that keeps it out of applicability.
+        bare = archetype_for(new_store("Nobody Ltd"))
+        eq(bare["id"], "undeclared", "no size declared yields `undeclared`, never `small`")
+        ok("absence asks" in bare["basis"]["rule"],
+           "...and says why, in the words CAC-AP-1 uses for a missing flag")
+        ok(bool(bare["evidenceDepth"] and bare["thirdPartyCoverage"]),
+           "...carrying real advice rather than an empty band")
+        eq(archetype_for(new_store("X"))["appliesTo"], "depth of assurance only",
+           "every archetype states what it is for")
+        big = new_store("Odd Ltd")
+        set_revenue(big, exact=2e9, currency="USD", fiscal_year="FY26", by="C", basis="b")
+        declare_flag(big, "headcountBand", "1-50", by="D", basis="b")
+        eq(archetype_for(big)["id"], "large",
+           "the higher of two declared bands wins, so an unusual size fact raises depth")
+        odd = new_store("Weird Ltd")
+        declare_flag(odd, "headcountBand", "a few hundred-ish", by="D", basis="b")
+        eq(archetype_for(odd)["basis"]["fromHeadcount"], None,
+           "an unrecognised band contributes nothing rather than being coerced")
 
         # --- T5: revenue, and the ladder --------------------------------------
         # Every boundary belongs to the band ABOVE it. A ladder whose edges fall the other
@@ -1463,6 +1595,34 @@ def _cmd_export(args) -> int:
     return 0
 
 
+def _cmd_archetype(args) -> int:
+    store = load(args.store)
+    a = archetype_for(store)
+    if args.json:
+        print(json.dumps(a, indent=2, ensure_ascii=False))
+        return 0
+    print("%s — %s" % (store["meta"]["orgName"] or "(unnamed)", a["title"]))
+    print("  %s" % a["meaning"])
+    print("  basis: %s (revenue: %s; headcount: %s)"
+          % (a["basis"]["rule"], a["basis"]["fromRevenue"] or "not declared",
+             a["basis"]["fromHeadcount"] or "not declared"))
+    print()
+    for key, label in (("evidenceDepth", "evidence"), ("reviewCadence", "cadence"),
+                       ("roleSeparation", "roles"), ("metricsBreadth", "metrics"),
+                       ("thirdPartyCoverage", "third parties"),
+                       ("aiGovernanceDepth", "AI"), ("boardPackDensity", "board pack")):
+        if a.get(key):
+            print("  %-14s %s" % (label + ":", a[key]))
+    for key in ("watchFor", "whyNotSmallest"):
+        if a.get(key):
+            print("\n  %s" % a[key])
+    print("\n  This is ADVICE ABOUT DEPTH and nothing else. It changes no question set, no "
+          "regulatory\n  scope and no materiality threshold: two organisations with the same "
+          "declared facts owe\n  the same duties whatever their size. Run `applies` for what "
+          "actually applies to you.")
+    return 0
+
+
 def _cmd_escalations(args) -> int:
     store = load(args.store)
     recs = escalations(store, args.today or "")
@@ -1563,6 +1723,12 @@ def build_parser() -> argparse.ArgumentParser:
                          "the only export this command has")
     sp.add_argument("--out", default="")
     sp.set_defaults(fn=_cmd_export)
+
+    sp = sub.add_parser("archetype",
+                        help="depth advice for the declared size — never scope")
+    sp.add_argument("store")
+    sp.add_argument("--json", action="store_true")
+    sp.set_defaults(fn=_cmd_archetype)
 
     sp = sub.add_parser("escalations", help="what this store raises without being asked")
     sp.add_argument("store")

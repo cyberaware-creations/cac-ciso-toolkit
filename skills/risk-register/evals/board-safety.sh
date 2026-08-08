@@ -403,6 +403,35 @@ PY
 # its own terms — the page carries four other marks, and their fills ARE meant to be saturated.
 chk M1 "one grid, one palette, at all three sites" "$("$PY" "$here/_gridpalette.py" "$work" "$repo")"
 
+
+# --- C-1: the sentences carry a consequence, the decisions decide -------------
+#
+# Appended rather than woven in, so every check above is untouched. This suite has always
+# tested for ABSENCE — no confidence vocabulary, no reworded score. Nothing tested for
+# PRESENCE, and "Patch compliance fell to 88%." passed all of it: a named thing, no
+# consequence, no ask.
+#
+# The scan lives once, under board-pack, because nine copies of a linguistic rule would drift
+# into nine slightly different rules. See board-pack/evals/outcome-framing.sh for the full
+# argument and the mutation proofs; this is the per-producer call.
+_scan="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../board-pack/evals" && pwd)/_outcomescan.py"
+_sidecar=""
+for _cand in "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"/references/example-translations.json \
+             "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"/examples/example-translations.json \
+             "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"/examples/pack.board.json; do
+  [ -f "$_cand" ] && _sidecar="$_cand" && break
+done
+if [ -z "$_sidecar" ]; then
+  # business-context is framing rather than a section, so it ships no translations sidecar.
+  # Asserted rather than skipped: the day it gains one, this fails and somebody wires it in.
+  ok "no board sidecar in this skill, so there is no board prose here to check"
+elif "$PY" "$_scan" "$_sidecar" >/dev/null 2>"${TMPDIR:-/tmp}/cac-outcome.$$.err"; then
+  ok "every board sentence carries a consequence and every decision decides (C-1)"
+else
+  bad "every board sentence carries a consequence and every decision decides (C-1)" \
+      "$("$PY" "$_scan" "$_sidecar" 2>&1 >/dev/null | grep '^  FAIL' | head -3 | tr '\n' ' ')"
+fi
+
 echo
 if [ "$fails" -eq 0 ]; then
   echo "board-safety: all checks passed"
