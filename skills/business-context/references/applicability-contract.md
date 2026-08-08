@@ -117,7 +117,8 @@ each consuming skill, read as data. **No skill imports another.**
     }
   },
   "revenue": {"exact": 412000000.0, "currency": "EUR", "fiscalYear": "FY26", "...": "..."},
-  "crownJewels": [{"system": "...", "enables": "...", "atStake": "..."}]
+  "crownJewels": [{"system": "...", "enables": "...", "atStake": "...",
+                   "criticality": "high", "dependsOn": ["..."]}]
 }
 ```
 

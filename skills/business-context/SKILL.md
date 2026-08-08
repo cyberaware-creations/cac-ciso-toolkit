@@ -98,6 +98,28 @@ and a business consequence — the join `ciso-board-translation` otherwise has t
 every single time. `--at-stake` is required for that reason: a system with `--enables` and
 nothing at stake is an asset inventory row.
 
+A crown jewel may also carry `--criticality` and `--depends-on`, both optional:
+
+```bash
+--crown-jewel "Plant historian (Dublin)" --enables "production scheduling across both lines" \
+  --at-stake "a day of lost output is roughly a week of aftermarket margin" \
+  --criticality high --depends-on "SCADA gateway"
+```
+
+These are the top of a criticality walk a consumer runs — `vendor-register` traces from a
+third-party arrangement, through a component, to the workflow it ultimately supports. They live
+here because that is what they are: statements about what the organisation cannot lose, not
+about any vendor.
+
+**Neither key exists unless declared**, so a `.biz` written before they did loads and exports
+byte-identically. A missing level means *not declared* and never *not critical* — §2.2 applies
+to this field exactly as to a profile flag, and a consumer reading absence as the bottom of its
+scale would silently downgrade every system nobody has got to yet.
+
+**The level is recorded as given and never checked**, because this skill owns no scale. The
+consumer that has one compares and reports a disagreement rather than coercing the value;
+validating here would mean deciding what a criticality level is allowed to be for everybody.
+
 The **board tolerance is stored verbatim**, never paraphrased on write. `risk-register` owns the
 appetite band; this owns the sentence the band was derived from.
 

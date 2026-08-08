@@ -225,6 +225,29 @@ jobs:
       - name: Board-safety (exceptions), on the floor
         run: PY="$(command -v python3)" ./skills/exceptions-register/evals/board-safety.sh
 
+      # The third-party register. The engine self-test carries the criticality walk; the
+      # no-vendor-score guard is listed separately because it is the one check that stops
+      # this skill turning into every other third-party tool, and it has two halves that
+      # catch different things — an emitted key named like a score, and a score computed
+      # internally and renamed.
+      #
+      # Listed individually, like everything else here: a loop over evals/*.sh goes green
+      # the day someone renames a directory.
+      - name: Vendor engine self-test, on the floor
+        run: python3 ./skills/vendor-register/scripts/vendor_register.py self-test
+
+      - name: Criticality walk and the D-10 colour split, on the floor
+        run: PY="$(command -v python3)" ./skills/vendor-register/evals/criticality.sh
+
+      - name: No vendor score, on the floor
+        run: PY="$(command -v python3)" ./skills/vendor-register/evals/no-vendor-score.sh
+
+      - name: Board-safety (vendor), on the floor
+        run: PY="$(command -v python3)" ./skills/vendor-register/evals/board-safety.sh
+
+      - name: Decisions render (vendor), on the floor
+        run: PY="$(command -v python3)" ./skills/vendor-register/evals/decisions-render.sh
+
       # The five decisions-render guards. Each one pins the same shipped P1: the
       # sidecar carries decisions as {"text":..., "altitude":...} objects, the board
       # renderers stringified them, and every board pack printed a raw Python dict

@@ -61,6 +61,11 @@ SECTION_KEYS = {
     "posture": ("gaps",),
     "metrics": ("metrics",),
     "exceptions": ("acceptances", "exceptions"),
+    # Named for what the section is ABOUT, per the contract's own rule. Not "vendors": the
+    # register is contract-centric, because one provider commonly holds several arrangements
+    # at different criticalities and a vendor-keyed section would force one line per company
+    # for facts that differ per agreement.
+    "vendor": ("arrangements",),
     "incident": ("incidents",),
 }
 
@@ -77,16 +82,25 @@ DEPRECATED_ALIASES = {"posture": {"subcategories": "gaps"}}
 ENVELOPE_KEYS = ("section", "executiveSummary", "decisions", "asOf", "contractVersion",
                  "boundTo")
 
+# Both orderings are a JUDGEMENT, written down as chosen rather than left to look defaulted.
 SECTION_ORDER = {
     # The frame first, then what we carry, how it moves, what we accepted, what happened.
-    "board": ("posture", "risk", "metrics", "exceptions", "incident"),
+    # `vendor` sits directly after `risk`: here is the exposure we carry, and here is who we
+    # depend on to carry it. Placing third parties after metrics would put two sections
+    # between a dependency and the risk it belongs to.
+    "board": ("posture", "risk", "vendor", "metrics", "exceptions", "incident"),
     # An audit committee convened to examine controls, exceptions and incidents. That leads.
-    "audit-committee": ("incident", "exceptions", "risk", "posture", "metrics"),
+    # `vendor` follows `risk` here too, for the same reason, and ahead of posture because an
+    # audit committee asks about outsourced dependencies before framework coverage.
+    "audit-committee": ("incident", "exceptions", "risk", "vendor", "posture", "metrics"),
 }
 
 SECTION_TITLE = {
     "posture": "Framework posture",
     "risk": "Risk",
+    # Named for the relationship, not the register. A board does not convene to discuss a
+    # vendor register; it discusses what the organisation depends on other people for.
+    "vendor": "Third parties",
     "metrics": "Metrics",
     "exceptions": "Accepted risks and exceptions",
     "incident": "Incidents",
@@ -1187,6 +1201,30 @@ def _exceptions_headline(a):
              "critical" if overdue else None)]
 
 
+def _vendor_headline(a):
+    counts = a.get("counts") or {}
+    by = counts.get("byCriticality") or {}
+    untraced = int(by.get("untraced", 0)) + int(by.get("unclassified", 0))
+    # Deliberately NOT a share, a coverage percentage or any single figure standing for the
+    # third-party estate. This register refuses to score a vendor, and a pack that derived
+    # one from its counts would put the number back that the skill exists without.
+    return [("third-party arrangements", counts.get("live")),
+            # Untraced is a real, crossed threshold in this register's terms: nobody can say
+            # what these arrangements hold up. That is a question, and questions about
+            # dependencies are what a board is for.
+            ("whose criticality is untraced or unassigned", untraced,
+             "critical" if untraced else None)]
+
+
+def _vendor_figures(a):
+    by = (a.get("counts") or {}).get("byCriticality") or {}
+    return [{"label": level, "value": int(n)} for level, n in sorted(by.items())]
+
+
+def _vendor_escalations(a):
+    return list(a.get("escalations") or [])
+
+
 def _incident_headline(a):
     att = a.get("attention") or {}
     due = att.get("due") or []
@@ -1227,6 +1265,13 @@ PRODUCERS = {
     # never assumed: passing the flag to a producer that does not take it makes its
     # analyze exit 2, and the whole section would drop off the pack with a note about an
     # unrecognised argument — strictly worse than not narrowing at all.
+    "vendor": {"skill": "vendor-register", "script": "scripts/vendor_register.py",
+               "argv": ["analyze", "{store}", "--today", "{asOf}", "--json"],
+               # Reads a profile: the criticality walk traces into the crown jewels the
+               # payload carries, and with no profile every arrangement derives `untraced`.
+               "context": True,
+               "headline": _vendor_headline, "figures": _vendor_figures,
+               "escalations": _vendor_escalations},
     "incident": {"skill": "incident-materiality", "script": "scripts/incident_analysis.py",
                  "argv": ["analyze", "{store}", "--today", "{asOf}",
                           "--now", "{asOf}T00:00:00+00:00"],
