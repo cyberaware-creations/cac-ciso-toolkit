@@ -1733,6 +1733,280 @@ def escalations(store: dict, today: str = "") -> list:
     return out
 
 
+# --- Regimes as dated data ----------------------------------------------------
+#
+# **This ships with no regime content, and that is a decision rather than an unfinished job.**
+# The mechanism is here, the gate that keeps it honest is here, and `references/regimes.json`
+# carries an empty list.
+#
+# The reason is the one `vendor-register`'s `references/overlays.md` gives at length. A regime
+# obligation is the only thing this skill would say that is about what a THIRD PARTY — a
+# regulator — requires of the reader. Every other claim here is about their own register: what
+# they recorded, what they checked, what is overdue. Asserting an obligation the tool cannot
+# cite to primary text is worse than staying quiet, because a reader cannot tell a checked
+# claim from a plausible one and will act on both.
+#
+# Two things make the AI case sharper than the third-party one:
+#
+#   1. `aiRole` is the decisive gate. Much of what these regimes say is addressed to PROVIDERS
+#      of AI systems, and a firm that buys and deploys one is usually a deployer. Conflating
+#      the two fills a register with obligations that are real and are somebody else's — and
+#      the reader cannot tell, because they read exactly like the ones that apply.
+#   2. Much of the rest is not security work. Notice, disclosure, appeal rights, human review,
+#      accessibility: real duties owned by legal, HR or the product function. An overlay that
+#      lists them without saying whose they are implies the security team will discharge them,
+#      which is how a duty ends up owned by nobody.
+#
+# So every obligation must name its `owningFunction` and its `source`, and `register_regime`
+# refuses one that does not. **No regulatory date is compiled into prose anywhere in this
+# skill** — dates live in `regimes.json` behind an `asOf`, because a citation with no version
+# is a claim about an unknown text. `evals/no-regime-dates.sh` holds that line.
+
+AI_ROLES = ("deployer", "provider")
+
+REGIMES = []
+"""Populated from `references/regimes.json`, which ships empty. See the note above."""
+
+
+def regimes_path() -> str:
+    return os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                        "references", "regimes.json")
+
+
+def load_regimes(path: str = "") -> dict:
+    """Read the regime dataset. Every obligation in it is validated on the way in."""
+    path = path or regimes_path()
+    try:
+        with open(path, encoding="utf-8") as fh:
+            data = json.load(fh)
+    except FileNotFoundError:
+        raise Refusal("no regime dataset at %s" % path)
+    except json.JSONDecodeError as exc:
+        raise Refusal("%s is not valid JSON (line %d, column %d): %s"
+                      % (path, exc.lineno, exc.colno, exc.msg))
+    if not str(data.get("asOf") or "").strip():
+        raise Refusal(
+            "%s has no `asOf`.\n"
+            "  Regulations are amended. A dataset with no date is a claim about an unknown "
+            "version of every text in it." % path)
+    out = {"datasetVersion": data.get("datasetVersion") or "",
+           "sourceStatus": data.get("sourceStatus") or "",
+           "asOf": data["asOf"], "note": data.get("note") or "", "regimes": []}
+    for regime in (data.get("regimes") or []):
+        register_regime(regime, into=out["regimes"])
+    return out
+
+
+def register_regime(regime: dict, into=None) -> dict:
+    """Add a regime, refusing anything it cannot attribute or hand to somebody.
+
+    The gate is the point, and it is annoying in exactly the right places: whoever adds regime
+    content has to have read the text, named the article, and decided who at the firm owns the
+    duty. Each of those is real work, and each is the piece that gets skipped.
+    """
+    rid = str(regime.get("id") or "").strip()
+    if not rid:
+        raise Refusal("a regime needs an id")
+    if not str(regime.get("flag") or "").strip():
+        raise Refusal(
+            "regime %r needs a `flag`: the profile key that selects it.\n"
+            "  A regime that is always on is not an overlay, it is an assertion that every "
+            "reader is in scope for it." % rid)
+    role = str(regime.get("aiRole") or "").strip()
+    if role not in AI_ROLES:
+        raise Refusal(
+            "regime %r needs an `aiRole` of %s.\n"
+            "  It is the decisive gate. Much of what these regimes say is addressed to "
+            "PROVIDERS of AI systems, and a firm that buys and deploys one is usually a "
+            "deployer. Without the distinction a register fills with obligations that are "
+            "real and are somebody else's." % (rid, " or ".join(AI_ROLES)))
+    for ob in (regime.get("obligations") or []):
+        oid = str(ob.get("id") or "").strip() or "?"
+        if not str(ob.get("source") or "").strip():
+            raise Refusal(
+                "regime %r, obligation %r has no `source`.\n"
+                "  Every obligation must cite the article or section it comes from, checked "
+                "against the regulation or the supervisory text — not a summary, a vendor "
+                "explainer or a consultancy note — with the date it was checked. A tool "
+                "asserting an obligation it cannot cite does not ship: a reader cannot tell a "
+                "checked claim from a plausible one, and will act on both." % (rid, oid))
+        if not str(ob.get("owningFunction") or "").strip():
+            raise Refusal(
+                "regime %r, obligation %r has no `owningFunction`.\n"
+                "  Notice, disclosure, appeal rights, human review and accessibility are real "
+                "duties and they are not security work. An overlay that lists them without "
+                "saying whose they are implies the security team will discharge them, which "
+                "is how a duty ends up owned by nobody." % (rid, oid))
+    if into is None:
+        target = REGIMES
+    elif isinstance(into, tuple):
+        raise Refusal("pass a mutable list to register a regime at runtime")
+    else:
+        target = into
+    target.append(regime)
+    return regime
+
+
+def regimes_for(context: dict = None, role: str = "", regimes=None) -> list:
+    """The regimes a profile turns on, for the role the organisation declared.
+
+    Absence never enables one. A regime applies because somebody declared the flag, not
+    because nothing said otherwise — the one place CAC-AP-1 §2.2's "absence asks more"
+    inverts, and deliberately: asking a reader a provider's questions because nobody said they
+    were not one would be inventing a regulator's interest in them.
+    """
+    profile = ((context or {}).get("profile") or {})
+    active = []
+    for regime in (REGIMES if regimes is None else regimes):
+        entry = profile.get(regime["flag"])
+        value = entry.get("value") if isinstance(entry, dict) else entry
+        if value is not True:
+            continue
+        if role and regime.get("aiRole") != role:
+            continue
+        active.append(regime)
+    return active
+
+
+# --- The nist-csf signal (D-3) ------------------------------------------------
+#
+# `nist-csf` already asks one scoping question: are the AI-use focus areas of the Cyber AI
+# Profile overlay applied to this Profile? Today it asks that of a human with nothing to hand.
+# This gives the question EVIDENCE, and nothing else.
+#
+# Counts only. No ratings, no priorities, and no recommendation about which focus areas to
+# enable. The signal informs; `nist-csf` still asks, and with no signal it behaves exactly as
+# it did. The failure being avoided is one skill quietly deciding another's scope: a "you
+# should enable secure and defend" that reads as an answer makes the question ceremonial.
+
+def export_signal(store: dict, today: str = "") -> dict:
+    """What this register knows, as counts, for `nist-csf`'s scoping question."""
+    today = today or utc_today()
+    live = [r for r in store["deployments"] if not r.get("retired")]
+    by_system = {s.get("id"): s for s in store["systems"]}
+
+    def sysof(rec):
+        return by_system.get(rec.get("systemRef")) or {}
+
+    return {
+        "family": FAMILY,
+        "export": "signal",
+        "asOf": today,
+        "organisation": store["meta"].get("orgName") or "",
+        "counts": {
+            "deployments": len(live),
+            "generative": sum(1 for r in live if sysof(r).get("genAI")),
+            "acts": sum(1 for r in live if r.get("autonomy") == "acts"),
+            "consequentialDecisions": sum(
+                1 for r in live
+                if r.get("consequentialDecision")
+                or (r.get("autonomy") in AUTONOMY
+                    and autonomy_rank(r["autonomy"]) >= autonomy_rank("decides"))),
+            "unsanctioned": sum(1 for r in live
+                                if sysof(r).get("sanction") == "unsanctioned"),
+        },
+        "note": ("Counts of what is recorded, as at the date above. Evidence for a scoping "
+                 "question, not an answer to it: which focus areas a Profile applies is a "
+                 "judgement, and it stays where it is made."),
+    }
+
+
+# --- The findings bridge ------------------------------------------------------
+#
+# One-way, to `risk-register`, through the import path the third-party bridge already uses —
+# not a third one. This skill never scores: findings are scored once, there, under L×I with an
+# appetite to judge them against.
+#
+# **A finding is a requirement a named person recorded as NOT met.** Deliberately narrow, and
+# the same narrowing `vendor-register` makes:
+#
+#   - It is a CHECKED fact with a name and a date on it, which is what makes it a defensible
+#     candidate risk rather than a generated one.
+#   - Escalations are NOT exported, though several describe real exposure. They are derived
+#     and stateless, recomputed every run, so exporting them would mint a new candidate every
+#     time the clock moved — and `board-pack` already aggregates escalations.
+#   - **An uncontrolled attack class is not a finding.** It is a fact about something with no
+#     closed state, and a risk HAS a closed state. Exporting one would defeat the rule this
+#     whole skill is built on, one hop removed and out of sight.
+
+FINDING_SCORING_KEYS = ("likelihood", "impact", "score", "severity", "rating", "band",
+                        "exposure", "priority")
+"""Keys the payload must never contain. Asserted rather than remembered."""
+
+
+def export_findings(store: dict, today: str = "") -> dict:
+    """Requirements recorded as not met, in the `risk-register` import shape.
+
+    Idempotent on `sourceRef`, which is the deployment PLUS the requirement rather than the
+    deployment alone: one deployment can fail three requirements and each is its own
+    candidate, so keying on the deployment would collapse them into one and lose two.
+    """
+    today = today or utc_today()
+    rows = []
+    for rec in store["deployments"]:
+        if rec.get("retired"):
+            continue
+        system = next((s for s in store["systems"] if s.get("id") == rec.get("systemRef")), {})
+        conf = ((rec.get("criticality") or {}).get("confirmed") or {})
+        classes = sorted(cls for cls, entry in (rec.get("exposure") or {}).items()
+                         if not entry.get("noLongerDerived"))
+        # "Contoso Contoso Assist" is what naive concatenation produces, and a board reader
+        # notices it before they notice the finding.
+        provider = str(system.get("provider") or "").strip()
+        sysname = str(system.get("name") or "").strip()
+        name = sysname if sysname.lower().startswith(provider.lower() or "\0") \
+            else ("%s %s" % (provider, sysname)).strip()
+        for req in (rec.get("requirements") or []):
+            if req.get("met"):
+                continue
+            if not str(req.get("checkedBy") or "").strip():
+                # Not a finding: nobody is recorded as having looked. Exporting it would put
+                # an unattributed claim into a register whose whole discipline is refusing one.
+                continue
+            rows.append({
+                "family": FAMILY,
+                "sourceRef": "%s:%s:%s" % (FAMILY, rec["id"],
+                                           str(req.get("requirement") or "")),
+                "sourceDeploymentRef": rec["id"],
+                "title": "%s (%s): %s not evidenced"
+                         % (name or rec["id"], rec.get("purpose") or "unstated purpose",
+                            req.get("requirement")),
+                "description": ("AI deployment %s — %s, using %s, autonomy %s — %r was "
+                                "checked and recorded as not met."
+                                % (rec["id"], rec.get("purpose") or "an unstated purpose",
+                                   name or "an unnamed system",
+                                   rec.get("autonomy") or "undeclared",
+                                   req.get("requirement"))),
+                "vendor": system.get("provider") or "",
+                "services": rec.get("purpose") or "",
+                "owner": rec.get("owner") or "",
+                "autonomy": rec.get("autonomy") or "",
+                # The criticality AND the scale it was assigned under. A level read a year
+                # later means nothing without it.
+                "criticality": conf.get("value") or criticality_of(rec),
+                "criticalityScaleVersion": conf.get("scaleVersion") or "",
+                "criticalityConfirmed": bool(conf.get("value")),
+                "nistaml": classes,
+                "evidenceRef": req.get("evidenceRef") or req.get("evidence") or "",
+                "checkedBy": req.get("checkedBy") or "",
+                "checkedOn": req.get("checkedOn") or "",
+                "gvsc": sorted({g for b in BATTERIES
+                                if str(req.get("requirement") or "").startswith(b["id"] + ".")
+                                for g in b.get("gvsc") or []}),
+                "arrangementRef": system.get("arrangementRef") or "",
+            })
+    return {
+        "family": FAMILY,
+        "export": "findings",
+        "asOf": today,
+        "organisation": store["meta"].get("orgName") or "",
+        "findings": rows,
+        "note": ("Candidate risks. This register does not score: no likelihood, no impact, no "
+                 "band. risk-register scores them once, there, against an appetite. Attack "
+                 "classes are NOT exported — a class has no closed state, and a risk does."),
+    }
+
+
 # --- Context ------------------------------------------------------------------
 
 def load_context(path: str) -> dict:
@@ -2373,6 +2647,91 @@ def _cmd_self_test(_args):
         ok(any("no applicability profile was supplied" in n for n in out["notes"]),
            "an analysis with no profile says so on its face")
 
+        # --- T12: regimes as dated data ---------------------------------------
+        data = load_regimes()
+        eq(data["regimes"], [],
+           "the shipped regime dataset is EMPTY — the mechanism ships, the content does not")
+        ok(data["asOf"], "and it still carries an asOf, because a dataset with no date is a "
+                         "claim about an unknown version of every text in it")
+        pool = []
+        refuses(lambda: register_regime({"id": "x"}, into=pool),
+                "a regime with no flag is refused", "not an overlay")
+        refuses(lambda: register_regime({"id": "x", "flag": "f"}, into=pool),
+                "a regime with no aiRole is refused", "usually a deployer")
+        refuses(lambda: register_regime(
+            {"id": "x", "flag": "f", "aiRole": "auditor"}, into=pool),
+            "and an aiRole outside deployer/provider is refused")
+        refuses(lambda: register_regime(
+            {"id": "x", "flag": "f", "aiRole": "deployer",
+             "obligations": [{"id": "o1", "requirement": "do the thing",
+                              "owningFunction": "Legal"}]}, into=pool),
+            "an obligation with no source is refused", "cannot tell a checked claim")
+        refuses(lambda: register_regime(
+            {"id": "x", "flag": "f", "aiRole": "deployer",
+             "obligations": [{"id": "o1", "requirement": "do the thing",
+                              "source": "Article 1, as checked against the text"}]}, into=pool),
+            "and one with no owningFunction is refused", "owned by nobody")
+        eq(pool, [], "and none of those refusals registered anything")
+        good = register_regime(
+            {"id": "example", "flag": "exampleScope", "aiRole": "deployer",
+             "obligations": [{"id": "o1", "requirement": "do the thing",
+                              "owningFunction": "Legal",
+                              "source": "Article 1, checked against the text"}]}, into=pool)
+        eq(len(pool), 1, "a complete regime registers — the gate is not refusing everything")
+        # Absence never enables a regime. This is where §2.2 deliberately inverts.
+        eq(regimes_for({}, regimes=pool), [],
+           "a profile that says nothing enables NO regime — absence never invents a "
+           "regulator's interest in somebody")
+        on = {"profile": {"exampleScope": {"value": True, "declaredBy": "GC",
+                                           "declaredOn": "2026-03-01"}}}
+        eq(len(regimes_for(on, regimes=pool)), 1, "a declared flag turns it on")
+        eq(regimes_for(on, role="provider", regimes=pool), [],
+           "and the role gate excludes a deployer regime from a provider's questions")
+        eq(len(regimes_for(on, role="deployer", regimes=pool)), 1, "...and includes it there")
+        eq(good["aiRole"], "deployer", "the registered regime keeps its role")
+
+        # --- T13: the nist-csf signal -----------------------------------------
+        sig = export_signal(store, today="2026-08-01")
+        eq(sig["export"], "signal", "export-signal declares what it is")
+        eq(sorted(sig["counts"]),
+           ["acts", "consequentialDecisions", "deployments", "generative", "unsanctioned"],
+           "and carries exactly five counts")
+        ok(all(isinstance(v, int) for v in sig["counts"].values()),
+           "every one of them an integer count of things that exist")
+        ok(not any(k in json.dumps(sig).lower()
+                   for k in ("priority", "recommend", "\"rating\"")),
+           "with no rating, no priority and no recommendation — it informs, it does not answer")
+
+        # --- T14: the findings bridge -----------------------------------------
+        record_requirement(store, "D-002", "monitoring.output-retention",
+                           "the DPA, clause 8 — silent on retention", met=False, by="DPO")
+        payload = export_findings(store, today="2026-08-01")
+        eq(payload["export"], "findings", "export-findings declares what it is")
+        eq(len(payload["findings"]), 1, "one requirement recorded not met is one finding")
+        row = at(payload["findings"], 0, "sourceRef", "")
+        eq(row, "ai-register:D-002:monitoring.output-retention",
+           "keyed on the deployment AND the requirement, so three failures are three rows")
+        ok(at(payload["findings"], 0, "nistaml"),
+           "the finding carries the exposure classes derived for its deployment")
+        eq(at(payload["findings"], 0, "criticalityScaleVersion"), "v1",
+           "and the scale version the criticality was assigned under")
+        # THE property. No number crosses this bridge.
+        keys = {k for f in payload["findings"] for k in f}
+        eq(sorted(keys & set(FINDING_SCORING_KEYS)), [],
+           "and the payload carries no likelihood, impact, score, band or severity")
+        # An escalation is not a finding, and neither is an uncontrolled class.
+        ok(any(e["trigger"] == "attack-class-uncontrolled"
+               for e in escalations(store, "2026-08-01")),
+           "the register does have uncontrolled attack classes")
+        eq(len(payload["findings"]), 1,
+           "...and not one of them crossed the bridge — a class has no closed state, "
+           "and a risk does")
+        # Nobody looked = not a finding.
+        find_deployment(store, "D-002")["requirements"].append(
+            {"requirement": "monitoring.degradation", "met": False, "checkedBy": ""})
+        eq(len(export_findings(store, today="2026-08-01")["findings"]), 1,
+           "a requirement marked not met by nobody is not exported")
+
     finally:
         shutil.rmtree(work, ignore_errors=True)
 
@@ -2614,6 +2973,51 @@ def _cmd_analyze(args) -> int:
     return 0
 
 
+def _write_json(payload: dict, out: str) -> None:
+    if not out:
+        print(json.dumps(payload, indent=2, ensure_ascii=False))
+        return
+    with open(out, "w", encoding="utf-8") as fh:
+        json.dump(payload, fh, indent=2, ensure_ascii=False)
+        fh.write("\n")
+    print("Wrote %s" % out, file=sys.stderr)
+
+
+def _cmd_export_signal(args) -> int:
+    store = load(args.store)
+    _write_json(export_signal(store, today=args.today), args.out)
+    print("  Counts only. nist-csf still asks which focus areas apply; this is evidence for "
+          "that question, not an answer to it.", file=sys.stderr)
+    return 0
+
+
+def _cmd_export_findings(args) -> int:
+    store = load(args.store)
+    payload = export_findings(store, today=args.today)
+    _write_json(payload, args.out)
+    print("  %d finding(s). Import with `score_register.py import-findings`, which scores "
+          "them once, there." % len(payload["findings"]), file=sys.stderr)
+    return 0
+
+
+def _cmd_regimes(args) -> int:
+    data = load_regimes(args.file)
+    print("regime dataset %s, as at %s" % (data["datasetVersion"] or "(unversioned)",
+                                           data["asOf"]))
+    if not data["regimes"]:
+        print("  No regimes ship. %s" % data["note"])
+        return 0
+    for regime in data["regimes"]:
+        print("  %s  flag %s  role %s  %d obligation(s)"
+              % (regime["id"], regime["flag"], regime["aiRole"],
+                 len(regime.get("obligations") or [])))
+        for ob in (regime.get("obligations") or []):
+            print("    %s — owned by %s\n      source: %s"
+                  % (ob.get("requirement") or ob.get("id"), ob["owningFunction"],
+                     ob["source"]))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="ai_register.py",
                                 description=__doc__.split("\n")[0])
@@ -2763,6 +3167,20 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--out", default="")
     sp.add_argument("--json", action="store_true")
     sp.set_defaults(fn=_cmd_analyze)
+
+    sp = store_arg(sub.add_parser("export-signal"))
+    sp.add_argument("--today", default="")
+    sp.add_argument("--out", default="")
+    sp.set_defaults(fn=_cmd_export_signal)
+
+    sp = store_arg(sub.add_parser("export-findings"))
+    sp.add_argument("--today", default="")
+    sp.add_argument("--out", default="")
+    sp.set_defaults(fn=_cmd_export_findings)
+
+    sp = sub.add_parser("regimes")
+    sp.add_argument("--file", default="")
+    sp.set_defaults(fn=_cmd_regimes)
 
     sub.add_parser("self-test").set_defaults(fn=_cmd_self_test)
     return p
