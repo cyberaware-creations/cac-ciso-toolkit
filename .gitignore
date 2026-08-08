@@ -6,3 +6,10 @@ __pycache__/
 # you happened to grant in this checkout; it is nobody else's business and it is
 # one `git add -A` away from being published.
 .claude/
+
+# Renderer output. Both deliverables are written next to the renderer when it is run from
+# its own directory, which every eval and every manual check does. Two of them reached the
+# repo in v0.43.0 on a `git add -A`, referenced by nothing and reviewed by nobody, and the
+# .pptx then showed up as a binary diff on the next unrelated change.
+skills/*/renderers/board-pack.pptx
+skills/*/renderers/board-pack.html

@@ -555,6 +555,25 @@ def _section_page(section: dict, charts: list = ()) -> str:
             f'{summary}{legal}{figs}{body}{_opportunities(section)}</div>')
 
 
+def _cites_display(cites: str) -> str:
+    """`goal:Close the Dublin year` -> `goal: Close the Dublin year`.
+
+    The section contract stores a citation as `goal:<declared goal>` or
+    `crown-jewel:<system>` — a tagged value, written the way a machine reads it. That string
+    was being printed onto a board slide verbatim, so a reader saw `goal:Close the Dublin
+    authorisation year`, which looks like a typo rather than a field name.
+
+    Only the separator is touched. The tag and the declared goal are the business's own
+    words and are printed back unaltered — a citation is a receipt, and a renderer that
+    tidied its wording would be editing the thing being cited. A citation with no tag is
+    passed through untouched rather than guessed at.
+    """
+    tag, sep, value = (cites or "").partition(":")
+    if not sep or not value.strip() or " " in tag:
+        return cites
+    return "%s: %s" % (tag, value.strip())
+
+
 def _opportunities(section: dict) -> str:
     """Positive risk, in its own block, after the items and before the decisions.
 
@@ -580,8 +599,8 @@ def _opportunities(section: dict) -> str:
         return ""
     rows = "".join(
         f'<li>{esc(e["text"])}'
-        f'<span class="from">cites {esc(e["cites"])} · {esc(e.get("gvsc") or "GV.RM-07")}'
-        f'</span></li>' for e in entries)
+        f'<span class="from">cites {esc(_cites_display(e["cites"]))} · '
+        f'{esc(e.get("gvsc") or "GV.RM-07")}</span></li>' for e in entries)
     return (f'<h3 class="opp-h">Positive risk</h3>'
             f'<p class="sub">What good would unlock, each against a goal or dependency the '
             f'business itself declared. An entry with nothing to cite is not written.</p>'
@@ -872,12 +891,20 @@ def build_pptx(pack: dict, path: str, mode: str = "full") -> None:
         # would quietly make the loss-framed half of the pack the only half a board reads.
         opportunities = section.get("opportunities") or []
         if opportunities:
-            deck.add(f"{title} — positive risk",
-                     [("What good would unlock, each against a declared goal.",
-                       1000, False, PX.MUTED, False)]
-                     + [(f"{e['text']}  ·  cites {e['cites']}", 1150, False, PX.INK, True)
-                        for e in opportunities],
-                     eyebrow=eyebrow)
+            # The citation gets its own muted line rather than a mid-dot clause welded to the
+            # end of the sentence, which is what `.from { display:block }` already does in the
+            # HTML. Inline, it collided with the bullet glyph: a slide read as a dot, a
+            # sentence, another dot and a tag, so the citation looked like an unfinished
+            # fragment rather than the receipt it is. Two deliverables, one treatment — the
+            # rule stated four lines up applies to how a thing is set, not only to whether
+            # it appears.
+            body = [("What good would unlock, each against a declared goal.",
+                     1000, False, PX.MUTED, False)]
+            for e in opportunities:
+                body.append((e["text"], 1150, False, PX.INK, True))
+                body.append((f"cites {_cites_display(e['cites'])}",
+                             950, False, PX.MUTED, False))
+            deck.add(f"{title} — positive risk", body, eyebrow=eyebrow)
         for key, items in section["items"].items():
             if not items:
                 continue

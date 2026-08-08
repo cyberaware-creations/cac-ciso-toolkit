@@ -324,6 +324,17 @@ jobs:
       - name: Guard proofs (CAC-GP-1), on the floor
         run: PY="$(command -v python3)" ./tools/prove-guards.sh
 
+      # CAC-LE-1. A check that was never registered cannot fail. `board-safety.sh` in
+      # risk-register gained an outcome-framing check written with `ok`/`bad` in a suite that
+      # declares `chk`; both arms were `command not found`, the failure counter never moved,
+      # and the suite printed "all checks passed" and exited 0. Same class as the guard proofs
+      # above, one layer down: this asserts the harness itself still counts.
+      - name: Eval harness lint (CAC-LE-1) self-test, on the floor
+        run: python3 ./tools/lint-evals.py --self-test
+
+      - name: Eval harness lint (CAC-LE-1), on the floor
+        run: python3 ./tools/lint-evals.py
+
       # The five decisions-render guards. Each one pins the same shipped P1: the
       # sidecar carries decisions as {"text":..., "altitude":...} objects, the board
       # renderers stringified them, and every board pack printed a raw Python dict

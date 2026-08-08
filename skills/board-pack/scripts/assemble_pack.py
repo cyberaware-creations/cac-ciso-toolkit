@@ -905,6 +905,55 @@ def _worst(sevs):
 
 FIGURE_KINDS = ("bar", "band-mix", "bullet")
 
+# The keys every figure carries regardless of kind. `kind` chooses the mark, `title` names it
+# on the page, and `source` is the producer field the numbers came from — the printed receipt
+# for "the pack computes nothing".
+REQUIRED_FIGURE_KEYS = ("kind", "title", "source")
+
+
+def _figure_contract_breach(fig):
+    """What is wrong with this figure, or None if nothing is.
+    Checked at the point of collection, and this is the lesson from the defect that made it
+    necessary. `vendor` and `ai` returned bare `{label, value}` series points where a figure
+    was expected. `_figure` in the renderer dispatches on `kind` and returns an empty string
+    for anything it does not recognise, so the charts did not fail — they vanished. The
+    headline numbers still printed, so the pack looked complete, and the only way to notice
+    was to count figure captions against model entries by hand.
+    A missing chart is exactly the failure this pack refuses everywhere else: the silent one.
+    A breach is therefore named on the provenance page like every other thing that could not
+    be drawn, rather than being allowed to disappear between two layers that each believed
+    the other had checked.
+    """
+    if not isinstance(fig, dict):
+        return "it is not an object"
+    missing = [k for k in REQUIRED_FIGURE_KEYS if not fig.get(k)]
+    if missing:
+        return "it is missing " + ", ".join(missing)
+    if fig["kind"] not in FIGURE_KINDS:
+        return ("its kind %r is not one of %s"
+                % (fig["kind"], ", ".join(FIGURE_KINDS)))
+    if fig["kind"] in ("bar", "band-mix"):
+        series = fig.get("series")
+        if not isinstance(series, list) or not series:
+            return "it is a %s carrying no series" % fig["kind"]
+        for point in series:
+            if not isinstance(point, dict) or "label" not in point or "value" not in point:
+                return "one of its series points is missing a label or a value"
+    elif fig["kind"] == "bullet":
+        if fig.get("value") is None or not fig.get("threshold"):
+            return "it is a bullet with no value or no threshold"
+    return None
+
+
+def _scale_label(level):
+    """Capitalise for the page without rewriting the word the organisation declared.
+
+    `str.capitalize()` lowercases the tail, which would turn a declared scale member like
+    `IT-critical` into `It-critical`. A criticality scale is the customer's vocabulary and
+    the pack prints it back, not a normalised version of it.
+    """
+    return level[:1].upper() + level[1:] if level else level
+
 # A board pack is a document, not a dashboard. Past this many bullets the metrics page
 # stops being read and starts being flipped past. What is dropped is named on the
 # provenance page — a silent cap reads as "this is all of them".
@@ -986,10 +1035,16 @@ def _exceptions_figures(a):
     # is true whether or not a closed record happens to exist this quarter, and a note that
     # appeared only when the excluded count was non-zero would make its own absence
     # meaningful — a reader would have to know the rule to read the silence.
+    #
+    # Phrased as two independent clauses rather than one sentence with a slot in it. The
+    # slotted version produced "Active records only. No closed records not shown." on the
+    # commonest case of all — a register with nothing closed — because the fixed tail
+    # "not shown" collided with a substitution that was itself a negative. A double negative
+    # on a board figure reads as unfinished at best and as the opposite of the truth at worst.
     closed = (a.get("counts") or {}).get("closed") or 0
-    fig["note"] = ("Active records only. %s not shown."
-                   % ("No closed records" if not closed else
-                      "%d closed record%s" % (closed, "" if closed == 1 else "s")))
+    fig["note"] = ("Active records only. There are no closed records." if not closed else
+                   "Active records only. %d closed record%s not shown."
+                   % (closed, " is" if closed == 1 else "s are"))
     return [fig]
 
 
@@ -1017,10 +1072,14 @@ def _incident_figures(a):
     # Same rule as the exceptions mix, and here it matters more: this partitions the *open*
     # incidents, so it sums to `open` while the headline beside it counts every incident in
     # the period. Both counts come from the producer; neither is a subtraction.
+    # Same double-negative trap as the exceptions note, and the same fix. This one was not in
+    # the test report only because the specimen happens to carry a closed incident; on an
+    # empty quarter it read "No closed incidents not shown."
     closed = (a.get("counts") or {}).get("closed") or 0
-    note = ("Open incidents only; bands with none are not drawn. %s not shown."
-            % ("No closed incidents" if not closed else
-               "%d closed incident%s" % (closed, "" if closed == 1 else "s")))
+    note = ("Open incidents only; bands with none are not drawn. "
+            + ("There are no closed incidents." if not closed else
+               "%d closed incident%s not shown."
+               % (closed, " is" if closed == 1 else "s are")))
     return [{"kind": "band-mix", "title": "Open incidents by band",
              "series": series, "source": "counts.byBand", "note": note}]
 
@@ -1303,8 +1362,35 @@ def _vendor_headline(a):
 
 
 def _vendor_figures(a):
+    """Live arrangements by criticality — a measure, and deliberately never a band-mix.
+
+    `bar`, not `band-mix`, and the distinction is the whole argument. A band-mix earns RAG
+    colour because the producer declared its bands *as severities*; criticality is a declared
+    scale of how much depends on an arrangement, and this register refuses to rate a vendor.
+    Painting the segments red-through-green would put the vendor score back on the page
+    through the chart, which is precisely the number the skill exists without.
+
+    Ordered by the scale the producer declares, never alphabetically — a scale sorted into
+    `critical, important, routine` reads as ranked when it is not, and `vendor_register.py`
+    raises rather than rank `untraced`. `untraced` (the walk ran and could not finish) and
+    `unclassified` (it has not run) are states rather than members of the scale, so they are
+    drawn after it and never sorted into it.
+    """
     by = (a.get("counts") or {}).get("byCriticality") or {}
-    return [{"label": level, "value": int(n)} for level, n in sorted(by.items())]
+    if not by:
+        return []
+    on_scale = [lvl for lvl in (a.get("scale") or []) if lvl in by]
+    off_scale = [lvl for lvl in sorted(by) if lvl not in on_scale]
+    series = [{"label": _scale_label(lvl), "value": int(by[lvl])}
+              for lvl in on_scale + off_scale]
+    return [{"kind": "bar", "title": "Third-party arrangements by criticality",
+             "series": series, "source": "counts.byCriticality",
+             # No sev on any segment, for the reason above. The note says why the last two
+             # sit apart rather than leaving a reader to assume they are the bottom of the
+             # scale — which is the exact misreading `untraced` was designed to prevent.
+             "note": "Live arrangements only. Criticality is a declared scale, not a rating; "
+                     "no arrangement is scored. Untraced and unclassified are states rather "
+                     "than levels on that scale and are never ordered into it."}]
 
 
 def _vendor_escalations(a):
@@ -1333,8 +1419,37 @@ def _ai_headline(a):
 
 
 def _ai_figures(a):
+    """Live deployments by declared autonomy — informs, recommends, decides, acts.
+
+    `bar` for the same reason as `_vendor_figures`: autonomy is an ordered scale, not a
+    severity, and `acts` is not a red band. What a deployment is allowed to do on its own is
+    the single most useful thing a board can be shown about an AI estate, and it is a fact
+    about the deployment rather than a judgement about it.
+
+    Empty levels are drawn, unlike the incident mix, and the difference is deliberate. There
+    the empty bands were noise; here a zero is the answer to the question the board is
+    actually asking. `acts: 0` and `acts` missing from the chart are very different
+    statements, and only one of them is true.
+
+    The producer emits the scale in `AUTONOMY` order, which is the order it is drawn in — a
+    scale reordered by size stops being a scale.
+    """
     by = (a.get("counts") or {}).get("byAutonomy") or {}
-    return [{"label": level, "value": int(n)} for level, n in by.items() if n]
+    # Nothing declared anywhere: no shape to draw, and four zero bars would imply an estate
+    # was assessed for autonomy when none of it was.
+    if not any(by.values()):
+        return []
+    series = [{"label": _scale_label(level), "value": int(n)} for level, n in by.items()]
+    return [{"kind": "bar", "title": "AI deployments by autonomy",
+             "series": series, "source": "counts.byAutonomy",
+             # Which population is being split, stated on the figure — the rule
+             # `_exceptions_figures` sets out. A deployment whose autonomy nobody declared is
+             # counted by no level here, so this mix can legitimately total less than the
+             # `AI deployments tracked` headline beside it, and a reader is told that rather
+             # than left to find it with arithmetic.
+             "note": "Live deployments only. Autonomy is what a deployment is permitted to do "
+                     "without a person, not a severity. A deployment with no autonomy "
+                     "declared appears at no level here."}]
 
 
 def _ai_escalations(a):
@@ -1603,6 +1718,13 @@ def headline_counts(manifest: dict, sections: list, skills_root: str) -> dict:
                 f"All of them remain in the metrics section.")
             drawn = drawn[:MAX_METRIC_BULLETS]
         for fig in drawn:
+            breach = _figure_contract_breach(fig)
+            if breach:
+                unavailable.append(
+                    f"a figure from {name!r} does not meet the chart contract — {breach} — "
+                    f"so it is not drawn. The numbers in that section are unaffected; the "
+                    f"chart that would have shown their shape is missing.")
+                continue
             fig["section"] = name
             charts.append(fig)
 
@@ -2513,8 +2635,20 @@ def _cmd_self_test(_args):
             total = (analysis.get("counts") or {}).get(total_key)
             eq(sum(s["value"] for s in figs[0]["series"]), total,
                f"the {name} mix sums to the {total_key!r} count it partitions")
-            ok("note" in figs[0] and "not shown" in figs[0]["note"],
+            note = figs[0].get("note") or ""
+            closed = (analysis.get("counts") or {}).get("closed") or 0
+            ok("closed" in note,
                f"and the {name} mix names the population it leaves out")
+            # This used to assert the literal "not shown", which passed while the sentence it
+            # was checking read "Active records only. No closed records not shown." The count
+            # was right and always had been; the English was not, and a substring test cannot
+            # tell the difference. So the two cases are asserted apart, and the double
+            # negative is asserted against directly.
+            ok(("not shown" in note) if closed else ("not shown" not in note),
+               f"and the {name} mix note is written for the case it is in "
+               f"({'some closed' if closed else 'none closed'})")
+            ok(not re.search(r"\bno\b(?:(?!\.).)*\bnot shown\b", note, re.I),
+               f"and the {name} mix note carries no double negative")
 
         missing_store = os.path.join(work, "nope.csfp")
         analysis, reason = run_producer("posture", missing_store, "2026-07-26", root)

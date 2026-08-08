@@ -22,12 +22,40 @@ skill="$(cd "$here/.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=84
+EXPECTED_CHECKS=86
 checks=0
 fails=0
 ok()  { checks=$((checks + 1)); printf '  ok    %s\n' "$1"; }
 bad() { checks=$((checks + 1)); fails=$((fails + 1)); printf '  FAIL  %s\n         %s\n' "$1" "$2"; }
 eq()  { if [ "$2" = "$3" ]; then ok "$1"; else bad "$1" "expected '$2', got '$3'"; fi; }
+
+# --- probe: a captured comparison that CRASHED must not read as "nothing to report" -------
+#
+# Most checks below run an inline Python comparison, capture its stdout, and treat an empty
+# capture as "no problems found". Command substitution discards the exit status, so a Python
+# traceback produced exactly the same empty string as a clean run — and the suite printed OK,
+# counted the check, and exited zero.
+#
+# That is not a hypothetical. The v0.43.0 chart comparison raised `KeyError: 'title'` on two
+# malformed figure adapters, printed a traceback to the terminal, and reported
+# "every chart in the model is drawn". The defect it was written to catch was in front of it
+# and it passed. A test that cannot fail is worse than a missing test, because the missing one
+# does not appear in the pass count.
+#
+# So the status is read explicitly and a crash is turned into a problem string, which every
+# call site already knows how to fail on. The traceback is quoted into the failure rather than
+# left on the terminal for someone to notice.
+probe() {  # probe <argv...>  — the Python script arrives on stdin, as before
+  local out status
+  out="$("$PY" - "$@" 2>"$work/probe.err")"
+  status=$?
+  if [ "$status" -ne 0 ]; then
+    printf 'THE CHECK ITSELF FAILED — python exited %s and its output cannot be trusted: %s' \
+           "$status" "$(tr '\n' ' ' <"$work/probe.err" | tail -c 400)"
+    return 0
+  fi
+  printf '%s' "$out"
+}
 
 A="$skill/scripts/assemble_pack.py"
 export FLAT="$work/flat.board.json"
@@ -246,7 +274,7 @@ then ok "the placeholder reaches the PPTX too, not only the HTML"
 else bad "the placeholder reaches the PPTX too, not only the HTML" "absent from every slide"; fi
 
 # --- 16-20. the .pptx is a sound OPC container --------------------------------
-res=$("$PY" - "$skill" "$work/full.pptx" <<'PY'
+res=$(probe "$skill" "$work/full.pptx" <<'PY'
 import sys, os
 sys.path.insert(0, os.path.join(sys.argv[1], "scripts"))
 import pptx_writer as P
@@ -286,7 +314,7 @@ else bad "every deck carries the footer" "absent"; fi
 # wrong one and not knowing. Found by actually opening the deck: the section summary and its
 # item slides both resolved to the section name, because that section's only item map is
 # named after the section.
-res=$("$PY" - "$work/full.pptx" <<'PY'
+res=$(probe "$work/full.pptx" <<'PY'
 import re, sys, zipfile
 zf = zipfile.ZipFile(sys.argv[1])
 titles = []
@@ -304,7 +332,7 @@ else bad "no two slides in the deck share a title" "duplicated: $res"; fi
 # --- 21-23. the assembler consumes and never derives --------------------------
 # A figure in the pack that no producer computed would be the assembler doing a producer's
 # job. Compare each headline against the producer's own analysis output.
-res=$("$PY" - "$skill" "$J" <<'PY'
+res=$(probe "$skill" "$J" <<'PY'
 import json, subprocess, sys, os
 skill, packfile = sys.argv[1], sys.argv[2]
 root = os.path.dirname(skill)
@@ -344,7 +372,7 @@ PY
 )
 # The count is asserted separately, so this check can never again pass by having
 # done no work. An empty `res` means "no problems" only if something was checked.
-n_compared=$("$PY" - "$skill" "$J" <<'PY'
+n_compared=$(probe "$skill" "$J" <<'PY'
 import json, sys, os
 skill, packfile = sys.argv[1], sys.argv[2]
 sys.path.insert(0, os.path.join(skill, "scripts"))
@@ -369,7 +397,7 @@ eq "the asOf drift across sections is surfaced, not smoothed over" "True" \
 # Both directions, deliberately. Checking only that each drawn figure exists in the model
 # would pass a renderer that silently dropped half of them — which is how the small-multiples
 # clipping shipped. Checking only the reverse would pass a renderer that invented one.
-fig_res=$("$PY" - "$J" "$work/full.html" <<'PY'
+fig_res=$(probe "$J" "$work/full.html" <<'PY'
 import html as H, json, re, sys
 pack = json.load(open(sys.argv[1]))
 doc = open(sys.argv[2], encoding="utf-8").read()
@@ -407,12 +435,36 @@ else
       "${fig_res:-only $n_charts charts present; expected at least 5}"
 fi
 
+# --- every section that can be charted IS charted ------------------------------
+#
+# The check above is a consistency check: model and page must agree. Consistency is not
+# presence, and that gap is exactly what shipped in v0.43.0. `vendor` and `ai` returned bare
+# `{label, value}` series points instead of figures; the renderer dispatches on `kind` and
+# returns an empty string for anything it does not recognise, so both charts vanished. Model
+# and page still agreed — about a pack with no third-party and no AI figure in it — and every
+# check here passed. The headline numbers were untouched, so the pack read as complete.
+#
+# So: name the population. All seven sections of the shipped specimen produce a figure, and
+# the assertion is that set, not a count. A count would go green again the moment one section
+# gained a second chart while another lost its only one.
+eq "every section of the specimen contributes at least one figure" \
+   "$(q 'sorted({s["section"] for s in p["sections"]})')" \
+   "$(q 'sorted({c["section"] for c in p.get("charts") or []})')"
+
+# And the other half of it: the assembler now REJECTS a figure that does not meet the chart
+# contract, and says so on the provenance page rather than dropping it. That is the right
+# behaviour — a named absence beats a silent one — but it would also let the defect above
+# recur while every check stayed green, because a rejected chart is a consistent chart.
+# On a clean specimen nothing may be rejected.
+eq "no figure was rejected by the chart contract" "[]" \
+   "$(q '[m for m in p["provenance"]["missing"] + p["provenance"]["warnings"] if "chart contract" in m]')"
+
 # Every segment the model carries has to survive the trip to the page. Checking the model's
 # own arithmetic is not enough — the model can be perfectly consistent while the renderer
 # drops a segment on the way, which is exactly how the small-multiples clipping shipped: the
 # data was right and the picture was missing a cell. So this reads the values back out of the
 # rendered SVG and compares them to the series they were drawn from.
-seg_res=$("$PY" - "$J" "$work/full.html" <<'PY'
+seg_res=$(probe "$J" "$work/full.html" <<'PY'
 import html as H, json, re, sys
 pack = json.load(open(sys.argv[1]))
 doc = open(sys.argv[2], encoding="utf-8").read()
@@ -446,7 +498,7 @@ fi
 # A band-mix is a partition, so its segments have to sum to the population it names. This is
 # the property that lets a chart sit beside a headline without contradicting it, and it is
 # checked against the real producer output rather than a fixture.
-mix_res=$("$PY" - "$J" <<'PY'
+mix_res=$(probe "$J" <<'PY'
 import json, sys
 pack = json.load(open(sys.argv[1]))
 totals = {(f["section"], f["label"]): f["value"] for f in pack["headlines"]}
@@ -479,7 +531,7 @@ fi
 # whole placeholder pair above exists to enforce for prose, applied to marks: a figure that
 # reaches one deliverable and not the other means two readers of "the same pack" saw
 # different things.
-deck_res=$("$PY" - "$J" "$work/full.pptx" <<'PY'
+deck_res=$(probe "$J" "$work/full.pptx" <<'PY'
 import json, re, sys, zipfile
 pack = json.load(open(sys.argv[1]))
 z = zipfile.ZipFile(sys.argv[2])
@@ -514,7 +566,7 @@ fi
 # have derived any of this. An assembler that recomputed an escalation would be a second
 # opinion able to contradict the section printed beside it, which is the failure the
 # "computes nothing" rule exists to prevent.
-esc_res=$("$PY" - "$J" "$work/full.html" "$work/full.pptx" "$skill" <<'PY'
+esc_res=$(probe "$J" "$work/full.html" "$work/full.pptx" "$skill" <<'PY'
 import json, os, re, subprocess, sys, zipfile
 pack = json.load(open(sys.argv[1]))
 doc = open(sys.argv[2], encoding="utf-8").read()
@@ -650,7 +702,7 @@ for e in m["sections"]:
         e.pop("translations", None)'
 if "$PY" "$A" assemble "$work/inc.manifest.json" --out "$work/inc.pack.json" \
      >/dev/null 2>"$work/inc.err"; then
-  inc_res=$("$PY" - "$work/inc.pack.json" <<'PY'
+  inc_res=$(probe "$work/inc.pack.json" <<'PY'
 import json, sys
 esc = [e for e in (json.load(open(sys.argv[1])).get("escalations") or [])
        if e.get("section") == "incident"]
@@ -719,7 +771,7 @@ fi
 # above must have RUN and answered with an escalations key, even when the answer is an empty
 # list. Without this, unwiring an adapter whose example happens to escalate nothing is
 # indistinguishable from the calm quarter it would look like.
-asked_res=$("$PY" - "$skill" "$(q 'p["asOf"]')" <<'PY'
+asked_res=$(probe "$skill" "$(q 'p["asOf"]')" <<'PY'
 import json, os, subprocess, sys
 skill, as_of = sys.argv[1], sys.argv[2]
 SOURCES = [("risk", "risk-register", "score_register.py",
@@ -870,7 +922,7 @@ fi
 # Both halves are asserted: that a breach figure arrives banded, and that a
 # population figure arrives with none. Checking only the first would pass an
 # assembler that painted every figure critical.
-sev_probe=$("$PY" - "$J" <<'PYEOF'
+sev_probe=$(probe "$J" <<'PYEOF'
 import json, sys
 figs = json.load(open(sys.argv[1]))["headlines"]
 
