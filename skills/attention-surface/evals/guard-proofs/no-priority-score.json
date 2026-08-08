@@ -1,0 +1,21 @@
+{
+  "guard": "skills/attention-surface/evals/no-priority-score.sh",
+  "forbids": "a computed priority — the fourth opinion this surface refuses to have",
+  "note": "Thirty triggers arrive here, each carrying a severity its producer computed and can defend. One number ordering them all would be three lines, would sort beautifully, and would be this skill's own opinion about what matters — the only voice in the room with no register behind it.",
+  "mutations": [
+    {
+      "half": "static",
+      "why": "a severity multiplied by an age, under any name",
+      "file": "skills/attention-surface/scripts/attention_surface.py",
+      "find": "def item_key(item: dict) -> str:",
+      "replace": "def attention_priority(item, today):\n    age = days_between(item[\"since\"], today)\n    return (3 - severity_rank(item[\"severity\"])) * age\n\n\ndef item_key(item: dict) -> str:"
+    },
+    {
+      "half": "behavioural",
+      "why": "a priority key reaching the emitted review under a COMPUTED name, which the static dict-key scan cannot see",
+      "file": "skills/attention-surface/scripts/attention_surface.py",
+      "find": "        \"sources\": snapshot[\"sources\"],",
+      "replace": "        \"sources\": snapshot[\"sources\"],\n        \"priority\" + \"Score\": len(snapshot[\"items\"]),"
+    }
+  ]
+}
