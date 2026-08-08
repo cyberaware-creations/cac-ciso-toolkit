@@ -519,6 +519,7 @@ python3 skills/board-pack/scripts/assemble_pack.py self-test               # con
 ./skills/attention-surface/evals/clusters.sh           # nothing vanishes: unmapped, unread, malformed
 
 ./tools/prove-guards.sh                             # CAC-GP-1: every guard fails when its defect is present
+python3 tools/lint-evals.py                         # CAC-LE-1: no suite calls a harness helper it never defined
 ./skills/exceptions-register/evals/board-safety.sh
 ./skills/incident-materiality/evals/board-safety.sh
 ./skills/business-context/evals/board-safety.sh

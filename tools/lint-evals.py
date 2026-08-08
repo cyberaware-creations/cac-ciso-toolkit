@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """CAC-LE-1 — an eval script may not call a harness helper it does not define.
 
+The standard is written up in tools/eval-lint-standard.md; this is its implementation.
+
 Why this exists, and it is not a style rule.
 
 `skills/risk-register/evals/board-safety.sh` gained an outcome-framing check written with

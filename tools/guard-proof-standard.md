@@ -2,18 +2,24 @@
 
 **Applies to:** every skill in `cac-ciso-toolkit`
 **Implemented by:** `tools/prove-guards.sh`, run in CI on the 3.9 floor
-**Status:** in force as of v0.41.3
+**In force since:** v0.41.3 — GP-1.7 added in v0.45.0
+**Sibling standard:** [CAC-LE-1](eval-lint-standard.md), the eval-harness lint
+
+*"Since", not "as of", deliberately. The line here read `as of v0.41.3` and was two minors
+behind within a fortnight. A version that claims currency rots; one that marks a starting point
+does not. The same reasoning took the guard counts out of the prose below and left them in the
+one place that asserts them.*
 
 ---
 
 ## The problem, stated exactly
 
-The suite has eight guards. Each exists because a specific defect would otherwise look like a
-feature, and each is unusually well written — `no-closed-state.sh` explains in its own header
-why somebody will eventually reach for the change it forbids, and runs a behavioural and a
-static half because either alone is escapable.
+The suite's guards each exist because a specific defect would otherwise look like a feature,
+and each is unusually well written — `no-closed-state.sh` explains in its own header why
+somebody will eventually reach for the change it forbids, and runs a behavioural and a static
+half because either alone is escapable.
 
-Six of the eight also record that they were mutation-tested. For example:
+Most of them also record that they were mutation-tested. For example:
 
 > *Mutation-tested. `exposure["mitigated"] = True` fails the static half; writing the same key
 > into the store fails the behavioural half. A guard never seen to fail is not known to work.*
@@ -103,6 +109,33 @@ anybody not checking whether the injection landed. GP-1.5 exists because that al
 Listed individually in `.github/workflows/evals.yml`, for the reason that file already gives
 about globs.
 
+### GP-1.7 A scan asserts what it read, and the registry asserts what exists
+
+Two halves of one rule: **a guard that surveys a set must assert the set, not its non-emptiness.**
+
+*The file set.* Every static half walks `scripts/*.py` and `renderers/*.py` and prints the count
+it read, and each guard asserted that count was **at least one** — real anti-vacuity, and not
+enough. Five scan helpers excluded `renderers/_common.py` alongside `cac_graphics.py`, under a
+comment that only ever justified the brand file. `cac_graphics.py` is vendored byte-identical
+from `tools/` and guarded there; `_common.py` is 500 lines of board-visible prose — the
+placeholder, the caveat, the *Not legal advice* footer — and is the likeliest place in the skill
+that somebody adds the sentence the guard forbids. The scans read three files of five and said
+so, truthfully, in a sentence whose only claim was "not zero".
+
+Nothing caught it because **every registered mutation planted into `scripts/`**, so the exclusion
+was never once exercised. Four live guards were provably blind: planting each guard's own
+registered defect into its `_common.py` passed all four.
+
+Each guard now recomputes the expected file list from the filesystem and asserts the scan read
+**all** of it. The recomputation is deliberately in the guard rather than the helper — a helper
+that both narrows its glob and reports what it should have read proves nothing.
+
+*The registry.* Same rule applied to this document. `prove-guards.sh` now compares the table
+below against the guards it discovers and fails on either mismatch. That table said *"eight
+guards, sixteen halves"* for two minor versions after the ninth landed, with `outcome-framing.sh`
+missing from it entirely — harmless to the runner, and the exact failure this standard exists to
+name. When the check was written it found that omission on its first run.
+
 ---
 
 ## Registry
@@ -117,8 +150,12 @@ about globs.
 | `no-ai-score.sh` | `ai-register` | a computed AI risk score | behavioural · static |
 | `no-regime-dates.sh` | `ai-register` | a regulatory date in prose; an uncited obligation | static · dataset |
 | `no-priority-score.sh` | `attention-surface` | a computed priority ordering the escalations | static · behavioural |
+| `outcome-framing.sh` | `board-pack` | a board sentence with no consequence; a decisions entry that decides nothing | consequence-floor · decision-hard-rule |
 
-Eight guards, sixteen halves, each proved in both directions on every run.
+Every guard above, both halves, proved in both directions on every run. **The table is checked,
+not maintained by memory** — `prove-guards.sh` fails if a guard on disk is missing a row, or a
+row names a guard that is gone (GP-1.7). No count is written here on purpose: the numbers live
+in `EXPECTED_GUARDS` and `EXPECTED_HALVES`, where they are asserted rather than described.
 
 **`evidence-tiers.sh` was the reason to do this first.** Every other guard had at least been
 proved once; that one carried no such record, and it protects the rule most exposed to

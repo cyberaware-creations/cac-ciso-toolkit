@@ -555,8 +555,18 @@ except ap.Refusal:
     pass
 else:
     raise AssertionError("accepted an opportunity with no text")
+
+# 5. What this does NOT check, pinned so the label above stays honest. The assembler tests
+#    that `cites` is non-empty; it never resolves the reference. `goal:no-such-goal` is
+#    accepted today, and the refusal message names the format without anything enforcing it.
+#    Grounding the reference against a declared goal in `business-context` is BL-95. When it
+#    lands, this assertion fails — which is the point: the check and the sentence describing
+#    it have to move together, and the previous label claimed the grounding rule was under
+#    test when only presence was.
+got = ap.validate_opportunities([{"text": "t", "cites": "goal:no-such-goal"}], "x")
+assert got and got[0]["cites"] == "goal:no-such-goal", got
 ' "$BP/scripts/assemble_pack.py" "$work" 2>"$work/opp.err"; then
-  ok "an opportunity is carried when it cites a declared goal, and REFUSED when it does not"
+  ok "an opportunity is carried when its cites field is filled, and REFUSED when it is blank or missing"
 else
   bad "an uncited opportunity is refused at the assembler" "$(tail -3 "$work/opp.err")"
 fi
