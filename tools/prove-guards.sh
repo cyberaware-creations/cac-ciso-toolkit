@@ -158,6 +158,36 @@ PYEOF
   done
 done
 
+# GP-1.7 (second half) — the registry documents exactly the guards that exist.
+#
+# The counts above are asserted in code, so they cannot drift. The registry table in
+# `guard-proof-standard.md` is prose, and it drifted immediately: it read "eight guards,
+# sixteen halves" for two minor versions after the ninth landed, and `outcome-framing.sh` was
+# absent from the table altogether. Nothing broke — which is the problem. The document a
+# maintainer reads to learn the rule disagreed with the rule, and no run said so.
+if [ ${#only[@]} -eq 0 ]; then
+  registry=$("$PY" - "$repo/tools/guard-proof-standard.md" "${guards[@]}" <<'PYEOF'
+import pathlib, re, sys
+doc = pathlib.Path(sys.argv[1])
+if not doc.exists():
+    print("tools/guard-proof-standard.md is missing"); raise SystemExit(0)
+listed = set(re.findall(r"^\|\s*`([a-z0-9-]+\.sh)`", doc.read_text(encoding="utf-8"), re.M))
+found = {pathlib.Path(g).name for g in sys.argv[2:]}
+if not listed:
+    print("the registry table has no rows — its format moved and this checked nothing")
+elif found - listed:
+    print("guard(s) missing from the registry table: %s" % ", ".join(sorted(found - listed)))
+elif listed - found:
+    print("registry row(s) with no guard on disk: %s" % ", ".join(sorted(listed - found)))
+PYEOF
+)
+  if [ -n "$registry" ]; then
+    fail_line "guard-proof-standard.md documents every guard" "$registry"
+  else
+    pass_line "the registry documents exactly the ${#guards[@]} guards that exist"
+  fi
+fi
+
 echo
 if [ ${#only[@]} -eq 0 ]; then
   if [ "$guards_seen" -ne "$EXPECTED_GUARDS" ]; then

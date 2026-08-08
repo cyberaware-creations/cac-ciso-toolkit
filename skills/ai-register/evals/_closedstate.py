@@ -153,9 +153,12 @@ class Scan(ast.NodeVisitor):
 
 def static(root):
     root = pathlib.Path(root)
+    # `cac_graphics.py` is vendored byte-identical from tools/ and guarded there — the one
+    # documented exclusion. `_common.py` sat beside it under that same comment, which only ever
+    # justified the brand file, while `_common.py` is where board-visible prose lives. The count
+    # printed below is asserted by the guard, so narrowing this list again fails (GP-1.7).
     files = [p for p in sorted(root.glob("scripts/*.py")) + sorted(root.glob("renderers/*.py"))
-             # Vendored byte-identical from tools/ and guarded there.
-             if p.name not in ("cac_graphics.py", "_common.py")]
+             if p.name != "cac_graphics.py"]
     if not files:
         print("scanned 0", flush=True)
         print("no shipped .py was scanned — the glob stopped matching, so this guard "
