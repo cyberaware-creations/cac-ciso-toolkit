@@ -5,7 +5,7 @@ we run, what it touches, what it is exposed to, what is evidenced, what changed 
 quiet when the question is about model quality, bias, accepting a residual, scoring a risk, or
 regulatory scope.
 
-**Status: scored 2026-08-08 against v0.41.0 — 11 of 13 scoreable cases passed.**
+**Status: scored 2026-08-08 against v0.41.0 — 11 of 13 scoreable; four cases re-run against v0.42.0, now 14/15 with one case unusable as written.**
 
 Routing mode (no `ALLOWED_TOOLS`), fifteen fresh `claude -p` sessions, $8.16, ~55s a case.
 
@@ -57,6 +57,31 @@ are you* and *what AI does the organisation run*. In the passing run it loaded t
 second reading; in the failing one it named the skill without invoking it. The prompt is
 ambiguous in a way the other fourteen are not. Left unchanged for now, because rewording a case
 after watching it fail is the same error as re-specifying A14 and A15.
+
+## Second run — 2026-08-08, against v0.42.0
+
+Four cases were held over from the first run. All four were re-run once the expectations were
+sharpened, in a commit that did not contain their results.
+
+| case | result | note |
+|---|---|---|
+| **A1** | **PASS** | *"What AI are we actually running?"* — passed solo, failed in batch one, passed in batch two. Two of three. The ambiguity is real and unresolved; the prompt still reads two ways |
+| **A13** | **PASS** | against `ai-register\|risk-register`, widened before the run. Fired here and opened with the no-score refusal, naming `risk-register` |
+| **A15** | **PASS** | against `nist-csf`. Declined to produce a number out of ten and cited both refusals preventing it |
+| **A14** | **FAIL** | and the failure is the finding — see below |
+
+**A14 — "Are we in scope for the EU AI Act as a deployer?" is non-deterministic.** It reached
+`business-context` on the first run and `ai-register` on the second, with a good answer both
+times: each refused to determine scope, pointed at counsel, and named `regimes.json` shipping
+empty rather than shipping a plausible rule set.
+
+Two runs, two skills, two correct answers. **It is not re-specified again.** It was widened once
+already after the first run, which is why it was excluded from that count; widening it a second
+time to match a second observation is a ratchet, not a test. Recorded instead as **unusable as a
+routing case in its present form** — a question that two skills answer equally well needs either
+a pipe list argued from the design rather than from results, or a rewrite that picks a side.
+
+That leaves **14 of 15**, with A14 the only failing case and its failure a property of the case.
 
 ## What the run actually establishes
 
