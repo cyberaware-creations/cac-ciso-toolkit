@@ -1,0 +1,104 @@
+{
+  "id": "organisation-archetypes",
+  "datasetVersion": "1",
+  "asOf": "2026-08-08",
+
+  "whatThisIs": "A NON-REGULATORY depth layer. It reads the size facts the organisation has already declared — revenue band and headcount band — and returns guidance about HOW MUCH programme is proportionate: evidence depth, review cadence, role separation, metrics breadth, third-party coverage, AI governance depth, board-pack density. Nothing more.",
+
+  "whatThisIsNot": "It is NOT applicability, and it must never become applicability. A release test held sector, jurisdictions, regulatory scope, AI, OT, data, cloud, vendors and concentration constant and moved only revenue (USD 5m -> USD 50bn) and headcount (1-50 -> 100,000+). The applicability objects came back byte-for-byte identical, and that is CORRECT: size does not create a legal obligation. A Fortune 100 and an SMB with the same declared facts owe the same duties. What differs is how much assurance is proportionate to run against them — and that is advice, not scope.",
+
+  "theRuleThisEncodes": "CAC-AP-1 §2.2 says absence asks more, and this layer obeys the same discipline in its own register: an organisation that has declared no size gets `undeclared`, which asks for the FULL depth rather than the smallest. A tool that read a missing revenue figure as 'probably small' would quietly recommend a thin programme to whoever had not got round to filling the form.",
+
+  "neverAutomatic": [
+    "It never sets or clears a profile flag.",
+    "It never appears in the `applicability` block of the CAC-AP-1 payload, and `archetype-advisory.sh` asserts that it does not.",
+    "It never touches materiality. The revenue base is a denominator for a human judgement; an archetype is not a threshold and cannot become one.",
+    "It never narrows a question set. A skill that skipped a battery because the organisation is small would be inventing an exemption nobody declared."
+  ],
+
+  "howTheBandIsChosen": "The HIGHER of the two declared bands wins. A 40-person company turning over USD 2bn is not a small organisation, and neither is a 30,000-person company on thin margins. Taking the higher band means a size fact that is unusual for its peer group raises the recommended depth rather than averaging away.",
+
+  "archetypes": [
+    {
+      "id": "undeclared",
+      "title": "Size not declared",
+      "meaning": "Neither revenue nor headcount is on record. The full depth is recommended, on the same rule CAC-AP-1 §2.2 applies to a profile flag: absence asks more.",
+      "evidenceDepth": "Ask for the audited artifact or the signed commitment. A questionnaire closes nothing.",
+      "reviewCadence": "Quarterly for critical, annual for the rest, until size is declared.",
+      "roleSeparation": "Assume none is in place and ask who holds each of: risk owner, control owner, approver.",
+      "metricsBreadth": "The full catalogue.",
+      "thirdPartyCoverage": "Every arrangement traced. An untraced dependency is a question, not a low one.",
+      "aiGovernanceDepth": "Full battery on every deployment.",
+      "boardPackDensity": "Full pack.",
+      "whyNotSmallest": "A missing revenue figure is not evidence of a small company; it is evidence that nobody filled in the form. Reading it as 'small' would recommend a thin programme to precisely the organisation least likely to notice."
+    },
+    {
+      "id": "small",
+      "title": "Small organisation",
+      "meaning": "Under roughly USD 50m or 250 people. Security is usually somebody's second job, and the constraint is attention rather than budget.",
+      "evidenceDepth": "Audited artifact or signed commitment where a requirement must be SATISFIED; elsewhere, record the open question and its date rather than manufacturing assurance.",
+      "reviewCadence": "Annual, with a named trigger for out-of-cycle review.",
+      "roleSeparation": "One person may hold several roles — but the roles are still NAMED, and an approver may not approve their own exception.",
+      "metricsBreadth": "Three to five metrics that would change a decision. A catalogue nobody updates is worse than four numbers somebody defends.",
+      "thirdPartyCoverage": "Trace the arrangements that support a crown jewel. Record the rest as untraced rather than assessing them thinly.",
+      "aiGovernanceDepth": "Inventory everything; run the full battery on deployments that decide or act.",
+      "boardPackDensity": "Short pack. Escalations, decisions, and one figure per section.",
+      "watchFor": "Concentration. A small organisation's single provider is a bigger dependency than a large one's, and the register's criticality trace is the only place that shows."
+    },
+    {
+      "id": "midmarket",
+      "title": "Mid-market organisation",
+      "meaning": "Roughly USD 50m–1bn, or 250–5,000 people. Usually the first point at which the programme has to work without the person who built it in the room.",
+      "evidenceDepth": "Tiered evidence enforced. Re-validate an artifact when it ages past its stated period.",
+      "reviewCadence": "Semi-annual overall; quarterly for critical arrangements and deployments.",
+      "roleSeparation": "Risk owner, control owner and approver are three names. The approver is outside the delivery line.",
+      "metricsBreadth": "Eight to fifteen, each with a target and a threshold somebody set on purpose.",
+      "thirdPartyCoverage": "Every arrangement traced or explicitly untraced; exit tested for the critical ones.",
+      "aiGovernanceDepth": "Full battery at `recommends` and above; inventory and exposure derivation for everything.",
+      "boardPackDensity": "Full pack, board deck mode.",
+      "watchFor": "The gap between what the register says and what the operating model actually does. This is the band where the two most often diverge."
+    },
+    {
+      "id": "large",
+      "title": "Large organisation",
+      "meaning": "Roughly USD 1bn–10bn, or 5,000–50,000 people. Several security functions, several systems of record, and an internal audit function that will read this.",
+      "evidenceDepth": "Tiered, dated, and re-validated on a cadence. An expired artifact escalates rather than lapsing quietly.",
+      "reviewCadence": "Quarterly, with monthly attention review on the operational surface.",
+      "roleSeparation": "Full separation, plus an independent challenge on the criticality assignments themselves.",
+      "metricsBreadth": "Full catalogue, segmented so a group figure cannot hide a division.",
+      "thirdPartyCoverage": "Every arrangement traced, exit tested, subprocessors recorded, concentration measured.",
+      "aiGovernanceDepth": "Full battery on every deployment; shadow-AI discovery run on a cadence, not on report.",
+      "boardPackDensity": "Full pack plus the audit-committee ordering.",
+      "watchFor": "Aggregation hiding a division. A rolled-up figure that cannot be walked back to its source is a figure an audit committee will not accept."
+    },
+    {
+      "id": "enterprise",
+      "title": "Enterprise / group",
+      "meaning": "Above roughly USD 10bn, or 50,000 people. Multiple legal entities, multiple perimeters, and the near-certainty that two parts of the group describe the same fact differently.",
+      "evidenceDepth": "Tiered and independently verified. A group assertion is not evidence for a subsidiary.",
+      "reviewCadence": "Quarterly at group, on the subsidiary's own cadence beneath it.",
+      "roleSeparation": "Full separation at every entity, and a named owner for the reconciliation BETWEEN entities.",
+      "metricsBreadth": "Full catalogue with entity segmentation and a stated normalisation method.",
+      "thirdPartyCoverage": "Group-wide, with fourth parties and shared-provider concentration explicit.",
+      "aiGovernanceDepth": "Full battery, per entity, with the group's own declaration never overriding a subsidiary's subject-level fact (CAC-AP-1 §2.3).",
+      "boardPackDensity": "Full pack per entity, plus a group view that names its disagreements rather than resolving them.",
+      "watchFor": "One perimeter presented as the group's. The applicability profile conflict check exists for exactly this, and at this size it fires for real reasons."
+    }
+  ],
+
+  "revenueBands": {
+    "note": "Read from the banded revenue the store already renders. The exact figure is never used here — an archetype is a coarse judgement and does not need a precise input, and using the exact figure would put it one step from becoming a threshold.",
+    "small": ["<10m", "10-50m"],
+    "midmarket": ["50-100m", "100-250m", "250-500m", "500m-1bn"],
+    "large": ["1-5bn"],
+    "enterprise": [">5bn"]
+  },
+
+  "headcountBands": {
+    "note": "Matched loosely against the declared `headcountBand` string, because it is a free declaration rather than an enum — this skill does not own an org-size scale any more than it owns a criticality scale. An unrecognised value contributes NOTHING rather than being coerced, and if it is the only size fact on record the answer is `undeclared`.",
+    "small": ["1-50", "51-250", "1-250", "under 250", "<250"],
+    "midmarket": ["251-1000", "1001-5000", "250-5000", "251-5,000"],
+    "large": ["5001-20000", "20001-50000", "5,001-50,000", "5000-50000"],
+    "enterprise": ["50001-100000", "100000+", "100,000+", "50,000+", ">50000"]
+  }
+}

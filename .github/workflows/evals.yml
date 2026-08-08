@@ -187,6 +187,13 @@ jobs:
       - name: No derived materiality, on the floor
         run: PY="$(command -v python3)" ./skills/business-context/evals/no-derived-materiality.sh
 
+      # The archetype layer is ADVICE ABOUT DEPTH, never scope. A release test proved the
+      # separation held once, by hand; this runs the same A/B on every push, because "a small
+      # organisation probably does not need the AI battery" is one plausible line away at any
+      # time and would be an exemption nobody declared.
+      - name: Archetype advises depth and never scope, on the floor
+        run: PY="$(command -v python3)" ./skills/business-context/evals/archetype-advisory.sh
+
       - name: Board-safety (business-context), on the floor
         run: PY="$(command -v python3)" ./skills/business-context/evals/board-safety.sh
 

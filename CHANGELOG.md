@@ -89,11 +89,32 @@ prescribes a four-part scenario and no template, and 8286r1's own example is cau
 prose. If-then stays — a topic cannot be scored — as the CAC house format carrying 8286A r1's
 scenario elements. Documentation only; no behaviour changed.
 
+### The archetype layer — depth, never scope
+
+The same A/B test that found the applicability objects byte-identical across a USD 5m and a USD
+50bn organisation was **right to call that safe**: size does not create a legal obligation. It
+also meant the toolkit had nothing to say about size, and size genuinely changes how much
+assurance is proportionate.
+
+`business-context archetype` now returns advice on seven dimensions — evidence depth, review
+cadence, role separation, metrics breadth, third-party coverage, AI governance depth, board-pack
+density — in its own `--context` payload key, never inside `applicability`. Absence asks **more**
+(no size declared recommends the full depth, not the smallest), the higher of the two declared
+bands wins, and an unrecognised headcount string contributes nothing rather than being coerced.
+
+`archetype-advisory.sh` runs the release test's own A/B on every push, because "a small
+organisation probably does not need the AI battery" is one plausible line away at any time and
+would be an exemption nobody declared.
+
 ### Also
 
 `render_context.py` no longer claims a "five-value enum"; the Codex short description names all
 eleven skills; and both manifests gained thirteen vendor keywords, without which the one skill a
 reader would search for as "TPRM" was unfindable.
+
+**Not done, and named rather than quietly skipped:** the empty `screenshots` list in the Codex
+manifest. Choosing what a listing shows is a design judgement about positioning, and inventing
+one here would put binary assets in the repo that nobody had reviewed.
 
 ## v0.42.3 — 2026-08-08
 
