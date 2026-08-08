@@ -21,6 +21,38 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.42.3 — 2026-08-08
+
+**The three remaining red cases were expectations, not skills — and one of them turned out not to
+be.** All three are changed here, before the run that scores them, so no number in this release is
+argued from the change that produced it.
+
+**B6 and B7 become pipe lists, argued from CAC-AP-1 rather than from where they landed.** B6 →
+`business-context|incident-materiality`: the applicability profile is a **contract between two
+skills**, so *"which questions apply to us for an incident"* has two correct doors by
+construction — §2.4 has the consumer embed the skip sentence, which only makes sense if the
+consumer is a place the question can arrive. B7 → `business-context|vendor-register`: §2.3's
+subject-outranks-profile rule is carried by `applies --subject-declares`, called by the **subject
+register**, because that is what knows about the subject. What each widening costs is written
+down too: B6 can no longer tell the profile side from the consumer side.
+
+**A14 was not widened, and that is the finding.** *"Are we in scope for the EU AI Act as a
+deployer?"* had reached two skills on two runs with a good answer each time, and a pipe list would
+have made the case agree with whatever happened — by contradicting the checklist's own stated
+boundary, which is that `ai-register` *stays quiet on regulatory scope*. The side was already
+picked. So the cause is fixed instead, on the pattern T3, B4 and V6 set: the description claimed
+only that the skill "does not perform conformity assessment" — much narrower and more technical
+than *does not decide whether the AI Act applies to you* — while `references/scope.md` and the
+empty `regimes.json` carried the real boundary where a routing decision never reads it. It now
+names regulatory scope alongside bias, spells out the roles (deployer, provider, importer), says
+the determination is declared in the applicability profile on legal advice, and repeats it in the
+NOT list. **That is a prediction that can fail**: if A14 still lands on `ai-register`, the
+description was not the cause.
+
+Also corrects a drift between `ai-register`'s case table and its `prompts.tsv` — A13 was widened
+to `ai-register|risk-register` before the second run and the table, which is the pre-registered
+expectation, still said `risk-register`.
+
 ## v0.42.2 — 2026-08-08
 
 **T3 and B4 were the same defect in two skills, and one of them had an engine gap behind it.**

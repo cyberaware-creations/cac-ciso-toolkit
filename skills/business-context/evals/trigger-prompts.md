@@ -98,6 +98,32 @@ directions. Two skills, one correct answer, and an expectation that names only o
 Both should become pipe lists **before** the next run, on the precedent set for A13 and Y1 —
 argued on their own terms, and changed in a commit that does not also contain their result.
 
+### Widened at v0.42.3, argued from the contract rather than from the result
+
+Done, and the argument has to stand without reference to where either case landed or it is a fit
+to the outcome. Changed in `prompts.tsv` and set out here **before** the run that scores them.
+
+**B6 → `business-context|incident-materiality`.** CAC-AP-1 is a **contract between two skills**,
+not a feature of one. The profile computes the narrowing; the consumer owns the question set
+being narrowed and reads the profile through `--context`. *"Which questions apply to us for an
+incident"* therefore has two correct doors by construction: `applies --skill incident` answers it
+from the profile side, and `incident-materiality` answers it from the set side, having read the
+same profile. §2.4 settles it — every skipped battery carries its reason as a sentence **the
+consumer embeds**, which only makes sense if the consumer is a place the question can legitimately
+arrive. An expectation naming one door asserts the other half of the contract is a wrong turn.
+
+**B7 → `business-context|vendor-register`.** §2.3 says a subject-level declaration outranks the
+org-level profile **in both directions**, and the mechanism that carries it is
+`applies --subject-declares` — called by the **subject register**, because the subject register is
+what knows about the subject. A vendor arrangement that uses AI *is* a subject declaration, and
+the skill holding the arrangement is the one that has it to declare. `vendor-register` firing is
+the §2.3 mechanism working, not a near miss.
+
+**Neither widening is free**, and it is worth writing down what each costs before the number
+arrives. B6 can no longer tell the profile side from the consumer side; it now proves only that
+the question does not escape to `risk-register` or `nist-csf`. B7 keeps more teeth — `ai-register`
+is a live wrong answer for a prompt that names an AI model, and the pipe list still rules it out.
+
 ## Refresh the plugin first
 
 ```bash
