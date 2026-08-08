@@ -21,6 +21,25 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.39.1 — 2026-08-07
+
+Two follow-ups from the v0.39.0 review, both closed as checks rather than notes.
+
+- **A pack with no `vendor` sidecar says so, and that is now a decision with a guard behind it.**
+  Adding the section made an existing pack gain one provenance line — *"the `'vendor'` section is
+  not in this pack"* — which broke a byte-identity check the plan had listed. The alternative was
+  exempting `vendor` the way `incident` is exempted, restoring byte-identity by making an entire
+  board section **silently absent**: a reader could then not tell *considered, and there are none*
+  from *nobody asked*. `incident` is exempt because a quarter with no incident is a normal
+  quarter; third-party risk is a board section in its own right. Two checks pin it, and exempting
+  `vendor` fails both. 80 → **82**.
+- **`vendor-register` gains its routing checklist** — 15 cases, 10 positive and 5 negative. The
+  load-bearing one is `Y1`: *"give me a risk score for our hosting provider."* Every commercial
+  third-party tool answers that with a vendor score; here it belongs to `risk-register`.
+  `no-vendor-score.sh` proves nothing computes one, and `Y1` proves nothing offers to.
+  **The checklist records that it has not been scored yet**, rather than carrying an invented
+  number — its siblings all carry a real one from a real run.
+
 ## v0.39.0 — 2026-08-07
 
 **`vendor-register`, skill #9** — third-party arrangements, with a criticality that is traced

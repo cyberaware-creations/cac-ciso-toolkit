@@ -48,6 +48,24 @@ vendor-keyed section would force one line per company for facts that differ per 
 additive: every sidecar ever written omits it and still validates, and a version bump would
 refuse all of them to gain nothing. Same reasoning as `boundTo`.
 
+**A pack with no `vendor` sidecar gains one provenance line, and that is a decision.** Adding
+the section meant an existing pack started reporting *"the `'vendor'` section is not in this
+pack"* — which broke a byte-identity check the implementation plan had listed, and the
+difference was that single line: sections, decisions, headlines and escalations were all
+unchanged.
+
+The alternative was exempting `vendor` the way `incident` is exempted. That would have restored
+byte-identity by making an entire board section **silently absent**, so a reader could not tell
+*third parties were considered and there are none* from *nobody asked* — the CAC-AP-1 §2.2
+failure wearing different clothes.
+
+`incident` is exempt because a quarter with no incident is a normal quarter, and it carries its
+own warning saying exactly that. Third-party risk is a board section in its own right, so its
+absence reads like a missing `risk` or `posture` section, which is what it is.
+
+Pinned by two checks in `evals/assembly.sh`: the note must be present on the shipped specimen,
+and `incident` must remain the only exemption. Exempting `vendor` fails both.
+
 `exceptions` is the one section with two item maps, because an acceptance and an exception are
 different objects with one lifecycle. A section may carry both, either, or neither.
 
