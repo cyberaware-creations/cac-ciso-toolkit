@@ -851,6 +851,148 @@ def evidence_status(ev: dict, today: str = "", grace: int = 365) -> str:
     return "in-grace" if age <= int(grace) else "expired"
 
 
+# --- The Layer A / Layer B boundary -------------------------------------------
+#
+# THE safety property of this whole feature, and worth stating before the code.
+#
+# Layer A is the reading layer: agentic, living in SKILL.md. It ingests artifacts, works out
+# what they appear to cover, and PROPOSES — every proposal citing a passage or a document
+# reference. Layer B is this file: deterministic, and the only thing that can mark a
+# requirement satisfied, which it does only when a named person says so.
+#
+# The failure this prevents is specific. A model reading a trust page and ticking requirements
+# produces a register full of green derived from marketing copy — worse than an empty register,
+# because it LOOKS FINISHED. Nobody re-checks a page of ticks.
+#
+# Two refusals hold the line, and neither is a convention:
+#   1. `propose` refuses without a citation. A proposal with no citation is an opinion.
+#   2. `propose` refuses to cite T3 or T4 evidence AT ALL. Those tiers generate questions and
+#      never propose satisfaction, and this is the single most important refusal in the file.
+#
+# `evals/proposal-boundary.sh` proves no code path gets around either.
+
+def propose(store: dict, aid: str, requirement: str, evidence_ref: str, citation: str,
+            note: str = "", by: str = "") -> dict:
+    """Layer A's output: a reading, with its receipt. Satisfies nothing.
+
+    A proposal is stored `proposed` and never touches a requirement's satisfied state. That
+    separation is the whole point — see `assess`, which is the only thing that closes anything.
+    """
+    if not str(requirement or "").strip():
+        raise Refusal("--requirement names what this proposal claims to cover")
+    if not str(citation or "").strip():
+        raise Refusal(
+            "--citation is required: the passage or document reference this reading rests on.\n"
+            "  A proposal with no citation is an opinion. The person who confirms it has to be "
+            "able to go and read the same thing.")
+    rec = find_arrangement(store, aid)
+    ev = find_evidence(rec, evidence_ref)
+    if ev["tier"] not in SATISFYING_TIERS:
+        raise Refusal(
+            "%s is %s (%s), which can never satisfy a requirement.\n"
+            "  Only %s can — an audited artifact or a contractual commitment. A vendor "
+            "assertion or a public page is genuinely useful for working out what to ASK, and "
+            "is never a reason to stop asking. Ingest it, let it generate questions, and "
+            "propose against something that was independently looked at or actually signed."
+            % (evidence_ref, ev["tier"], TIER_LABEL[ev["tier"]], " or ".join(SATISFYING_TIERS)))
+    entry = {
+        "id": _next_sub_id(rec, "proposals", "PR", PROPOSAL_ID_RE),
+        "requirement": requirement.strip(),
+        "evidenceRef": evidence_ref,
+        "citation": citation.strip(),
+        "note": str(note or "").strip(),
+        "status": "proposed",
+        "proposedOn": utc_today(),
+        "proposedBy": str(by or "").strip(),
+    }
+    rec.setdefault("proposals", []).append(entry)
+    append_history(store, "proposed", aid, by, why=entry["requirement"],
+                   detail={"proposalId": entry["id"], "evidenceRef": evidence_ref})
+    return entry
+
+
+def find_proposal(rec: dict, pid: str) -> dict:
+    for pr in (rec.get("proposals") or []):
+        if pr.get("id") == pid:
+            return pr
+    known = ", ".join(x.get("id", "?") for x in (rec.get("proposals") or [])) or "none"
+    raise Refusal("no proposal %r on %s (known: %s)" % (pid, rec["id"], known))
+
+
+def assess(store: dict, aid: str, by: str, on: str = "", confirm=None, reject=None,
+           why: str = "", note: str = "") -> dict:
+    """Layer B: a named person rules on proposals, and the assessment clock resets.
+
+    This is the act that writes the `assessments` list `_last_assessed` has been reading since
+    v0.39.1 — the clock existed with nothing able to reset it, and this closes that seam.
+
+    Refuses without `--by`. An unattributed assessment is exactly what this boundary exists to
+    prevent, and it is what an assessor will ask for first.
+
+    Rejected proposals are RETAINED, excluded from the working view and present on export.
+    Keeping one records that a claim was examined and not accepted, which is worth having under
+    examination; deleting it would leave no trace that anybody looked.
+    """
+    if not str(by or "").strip():
+        raise Refusal(
+            "--by is required: the name of the person making this assessment.\n"
+            "  Derivation and reading both propose; only a person confirms. An assessment with "
+            "nobody's name on it cannot be defended by pointing at the tool that produced it.")
+    reject = list(reject or [])
+    if reject and not str(why or "").strip():
+        raise Refusal(
+            "--reject needs --why.\n"
+            "  A rejected reading is retained on the record, and a rejection with no reason "
+            "tells a later reader nothing about whether to try again.")
+    rec = find_arrangement(store, aid)
+    on = check_date(on, "--on") if on else utc_today()
+    confirmed_ids, rejected_ids = [], []
+    for pid in list(confirm or []):
+        pr = find_proposal(rec, pid)
+        ev = find_evidence(rec, pr["evidenceRef"])
+        # Belt and braces. `propose` already refuses these tiers, so a T3 reaching here means
+        # a proposal was written some other way — and this is the last gate before a tick.
+        if ev["tier"] not in SATISFYING_TIERS:
+            raise Refusal(
+                "%s cites %s, which is %s and can never satisfy a requirement."
+                % (pid, pr["evidenceRef"], TIER_LABEL[ev["tier"]]))
+        pr["status"] = "confirmed"
+        pr["confirmedBy"] = by.strip()
+        pr["confirmedOn"] = on
+        # The audit trail IS the point: what was satisfied, by which artifact, on whose word,
+        # citing what. A bare `met: true` is the thing this register exists not to produce.
+        rec.setdefault("requirements", []).append({
+            "requirement": pr["requirement"],
+            "met": True,
+            "evidenceRef": pr["evidenceRef"],
+            "citation": pr["citation"],
+            "checkedOn": on,
+            "checkedBy": by.strip(),
+            "viaProposal": pid,
+        })
+        confirmed_ids.append(pid)
+    for pid in reject:
+        pr = find_proposal(rec, pid)
+        pr["status"] = "rejected"
+        pr["rejectedBy"] = by.strip()
+        pr["rejectedOn"] = on
+        pr["rejectedWhy"] = why.strip()
+        rejected_ids.append(pid)
+    entry = {"on": on, "by": by.strip(), "confirmed": confirmed_ids,
+             "rejected": rejected_ids, "note": str(note or "").strip()}
+    rec.setdefault("assessments", []).append(entry)
+    append_history(store, "assessed", aid, by,
+                   why=note or ("%d confirmed, %d rejected"
+                                % (len(confirmed_ids), len(rejected_ids))),
+                   detail={"confirmed": confirmed_ids, "rejected": rejected_ids})
+    return entry
+
+
+def open_proposals(rec: dict) -> list:
+    """The working view: what is still awaiting a person. Rejections are kept, not shown."""
+    return [pr for pr in (rec.get("proposals") or []) if pr.get("status") == "proposed"]
+
+
 # --- Lifecycle acts -----------------------------------------------------------
 
 def test_exit(store: dict, aid: str, tested: str, why: str, on: str = "",
@@ -1308,6 +1450,19 @@ def _cmd_self_test(_args):
         if actual != expected:
             fails.append("%s: expected %r, got %r" % (label, expected, actual))
 
+    def at(seq, index, key, default="<missing>"):
+        """Read seq[index][key] without ever raising.
+
+        Written after the third mutation test in this file was caught by an IndexError or a
+        KeyError rather than by a named check. A crash inside the self-test aborts the run and
+        throws away the summary, so a broken guard reads as a silent pass in exactly the
+        situation the guard exists for.
+        """
+        try:
+            return seq[index][key]
+        except (IndexError, KeyError, TypeError):
+            return default
+
     def refuses(fn, label, needle=""):
         checks[0] += 1
         try:
@@ -1643,7 +1798,7 @@ def _cmd_self_test(_args):
         eq(len(expired), 1, "but one holding up a satisfied requirement escalates")
         # Indexed defensively: a broken `evidence_status` empties this list, and an
         # IndexError here would kill the run's summary and hide how much else broke.
-        ok("period ended" in (expired[0]["evidence"] if expired else ""),
+        ok("period ended" in str(at(expired, 0, "evidence")),
            "and the record says what expired and when")
 
         # --- P2 T3/T4: batteries and their narrowing --------------------------
@@ -1712,6 +1867,85 @@ def _cmd_self_test(_args):
         ok(all(x.get("declaredBy") is not None and "declaredOn" in x
                for x in batteries_for(bt, bt_store, profile_no_ai)["skipped"]),
            "every skip record carries a declarer and a date (§2.4)")
+
+        # --- P2 T5/T6/T7: the Layer A / Layer B boundary ----------------------
+        pb = new_store("Boundary Ltd")
+        add_vendor(pb, "Contoso Cloud")
+        pbr = add_arrangement(pb, "V-001", "hosting", "CTO", supports="CRM",
+                              starts_on="2026-01-01")
+        classify(pb, "VA-001", ctx, confirm="moderate", by="D. Galleyne")
+        soc2 = ingest(pb, "VA-001", "soc2-type2", "T1", "auditor PDF",
+                      scope="the hosting platform", period_start="2025-01-01",
+                      period_end="2025-12-31")
+        trust = ingest(pb, "VA-001", "trust-page", "T3", "their trust centre")
+        pbpath = os.path.join(work, "pb.vnd")
+        save(pbpath, pb)
+        before = open(pbpath, "rb").read()
+
+        refuses(lambda: propose(pb, "VA-001", "encryption at rest", soc2["id"], ""),
+                "propose with no citation is refused", "is an opinion")
+        # THE refusal. A trust page can never propose satisfaction.
+        refuses(lambda: propose(pb, "VA-001", "encryption at rest", trust["id"],
+                                "their trust centre says AES-256"),
+                "propose citing a T3 is REFUSED outright", "never satisfy a requirement")
+        refuses(lambda: propose(pb, "VA-001", "", soc2["id"], "s 4.2"),
+                "propose with no requirement is refused")
+        eq(open(pbpath, "rb").read(), before, "and no refusal touched the file")
+
+        pr = propose(pb, "VA-001", "encryption at rest", soc2["id"],
+                     "SOC 2 section IV, control CC6.7, tested no exceptions",
+                     by="reading layer")
+        eq(pr["status"], "proposed", "a valid proposal is stored as proposed")
+        # THE test that matters. Layer A has written, and nothing is satisfied.
+        eq([r for r in (pbr.get("requirements") or []) if r.get("met")], [],
+           "and NOTHING is satisfied by it — the reading layer cannot close anything")
+        eq(len(open_proposals(pbr)), 1, "it sits in the working view awaiting a person")
+
+        refuses(lambda: assess(pb, "VA-001", "", confirm=[pr["id"]]),
+                "assess with no --by is refused", "nobody's name on it")
+        refuses(lambda: assess(pb, "VA-001", "D. Galleyne", reject=[pr["id"]]),
+                "--reject with no --why is refused", "tells a later reader nothing")
+        eq([r for r in (pbr.get("requirements") or []) if r.get("met")], [],
+           "and a refused assessment satisfies nothing either")
+
+        act = assess(pb, "VA-001", "D. Galleyne", on="2026-06-30", confirm=[pr["id"]],
+                     note="FY26 H1 review")
+        met = [r for r in pbr["requirements"] if r.get("met")]
+        eq(len(met), 1, "a confirmed proposal satisfies its requirement")
+        eq(at(met, 0, "evidenceRef"), soc2["id"], "...naming the evidence that satisfied it")
+        ok(str(at(met, 0, "citation")).startswith("SOC 2 section IV"), "...and the citation")
+        eq(at(met, 0, "checkedBy"), "D. Galleyne", "...and the person who confirmed it")
+        eq(open_proposals(pbr), [], "and it leaves the working view")
+
+        # THE SEAM PLAN 1 LEFT OPEN. `_last_assessed` has been reading this list since
+        # v0.39.1 with nothing able to write to it; `assess` is the act that resets the clock.
+        eq(_last_assessed(pbr), "2026-06-30", "assess writes the assessments list")
+        pb["arrangements"][0]["exit"]["testedOn"] = "2026-06-30"
+        trig = {e["trigger"] for e in escalations(pb, "2026-07-01")}
+        ok("assessment-overdue" not in trig,
+           "...and clears assessment-overdue, closing the seam Plan 1 built the clock for")
+
+        # A rejected proposal is retained, hidden from the working view, present on export.
+        pr2 = propose(pb, "VA-001", "penetration testing cadence", soc2["id"],
+                      "SOC 2 section III mentions annual testing", by="reading layer")
+        assess(pb, "VA-001", "D. Galleyne", on="2026-07-01", reject=[pr2["id"]],
+               why="the report describes the vendor's own testing, not an independent test")
+        eq(open_proposals(pbr), [], "a rejected proposal leaves the working view")
+        kept = [x for x in pbr["proposals"] if x["status"] == "rejected"]
+        eq(len(kept), 1, "but is RETAINED — that a claim was examined and refused is a record")
+        ok(at(kept, 0, "rejectedWhy", ""), "with the reason it was refused")
+
+        # unconfirmed-proposals: a stack of readings must never read as an assessment.
+        pr3 = propose(pb, "VA-001", "backup restoration testing", soc2["id"],
+                      "SOC 2 section IV CC7.4", by="reading layer")
+        pr3["proposedOn"] = "2026-07-02"
+        eq(any(e["trigger"] == "unconfirmed-proposals"
+               for e in escalations(pb, "2026-07-20")), False,
+           "proposals inside the window escalate nothing")
+        stale = [e for e in escalations(pb, "2026-09-01")
+                 if e["trigger"] == "unconfirmed-proposals"]
+        eq(len(stale), 1, "beyond it, exactly one record — not one per proposal")
+        ok("1 proposal" in str(at(stale, 0, "evidence")), "naming how many are waiting")
 
         # --- T14: the consolidation guard -------------------------------------
         multi = new_store("Group Plc")
@@ -1846,6 +2080,28 @@ def _cmd_ingest(args) -> int:
     if ev["tier"] not in SATISFYING_TIERS:
         print("  %s closes nothing. It records context and generates questions."
               % ev["tier"])
+    return 0
+
+
+def _cmd_propose(args) -> int:
+    store = load(args.store)
+    pr = propose(store, args.arrangement, args.requirement, args.evidence, args.citation,
+                 note=args.note, by=args.by)
+    save(args.store, store)
+    print("%s  %s  proposed: %s" % (args.arrangement, pr["id"], pr["requirement"]))
+    print("  cites %s — %s" % (pr["evidenceRef"], pr["citation"]))
+    print("  NOTHING is satisfied by this. A named person confirms it with `assess`.")
+    return 0
+
+
+def _cmd_assess(args) -> int:
+    store = load(args.store)
+    act = assess(store, args.arrangement, args.by, on=args.on, confirm=args.confirm,
+                 reject=args.reject, why=args.why, note=args.note)
+    save(args.store, store)
+    print("%s  assessed %s by %s — %d confirmed, %d rejected"
+          % (args.arrangement, act["on"], act["by"],
+             len(act["confirmed"]), len(act["rejected"])))
     return 0
 
 
@@ -2004,6 +2260,27 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--retrieved", default="", help="required with --url")
     sp.add_argument("--by", default="")
     sp.set_defaults(fn=_cmd_ingest)
+
+    sp = store_arg(sub.add_parser("propose"))
+    sp.add_argument("--arrangement", required=True)
+    sp.add_argument("--requirement", default="")
+    sp.add_argument("--evidence", default="", help="the EV- id this reading rests on")
+    sp.add_argument("--citation", default="",
+                    help="the passage or document reference. Required: a proposal with no "
+                         "citation is an opinion.")
+    sp.add_argument("--note", default="")
+    sp.add_argument("--by", default="")
+    sp.set_defaults(fn=_cmd_propose)
+
+    sp = store_arg(sub.add_parser("assess"))
+    sp.add_argument("--arrangement", required=True)
+    sp.add_argument("--by", default="", help="required: only a named person confirms")
+    sp.add_argument("--on", default="")
+    sp.add_argument("--confirm", action="append", default=[], help="a PR- id. Repeatable.")
+    sp.add_argument("--reject", action="append", default=[], help="a PR- id. Repeatable.")
+    sp.add_argument("--why", default="", help="required with --reject")
+    sp.add_argument("--note", default="")
+    sp.set_defaults(fn=_cmd_assess)
 
     sp = store_arg(sub.add_parser("review-requirements"))
     sp.add_argument("--arrangement", required=True)
