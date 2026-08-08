@@ -47,6 +47,16 @@ hold, not over files, code, git history or a session transcript.
 
 Both skills gain a SKILL.md section answering the question in order, on the pattern V6 set.
 
+**Both re-scored PASS**, in a commit that does not contain the fix. `attention-surface` goes to
+**11/12** and `business-context` to **13/15**. T9, T10 and B9–B14 were re-run alongside them to
+check the widening pulled nothing in — all nine still route to the skill each was written for.
+Ten cases, $5.95.
+
+Both re-scored answers name the trap in their own words. T3: *"I deliberately did not diff files,
+git history, or this session; that's the wrong reading of the question."* B4: *"'On file' here
+means this register. I didn't search Drive, Notion, or a mailbox — a document hunt answers a
+different question."*
+
 ## v0.42.1 — 2026-08-08
 
 **Every routing checklist in the suite now carries a real number from a real run.** The last two
