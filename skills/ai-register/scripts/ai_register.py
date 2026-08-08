@@ -37,6 +37,18 @@ Standard library only. Subcommands:
   deploy            <store.air> --system S-001 --purpose '..' --owner '..' --autonomy informs
   classify          <store.air> --deployment D-001 [--context ctx.json]
                                 [--confirm LEVEL --by NAME]
+  map-exposure      <store.air> --deployment D-001
+  record-control    <store.air> --deployment D-001 --class NISTAML.02 --control '..'
+                                --evidence '..' --on YYYY-MM-DD
+  declare           <store.air> --deployment D-001 --flag regulatedDataHeld --value true
+                                --by NAME
+  ingest            <store.air> --deployment D-001 --kind model-card --tier T3 --source '..'
+  propose           <store.air> --deployment D-001 --requirement KEY --evidence EV-001
+                                --citation '..'
+  assess            <store.air> --deployment D-001 --by NAME [--confirm PR-001]
+  record-requirement <store.air> --deployment D-001 --requirement KEY --evidence '..'
+                                [--not-met] --by NAME
+  ask               <store.air> --deployment D-001 [--context ctx.json] [--json]
   analyze           <store.air> [--today YYYY-MM-DD] [--context ctx.json] [--out FILE]
   self-test
 
@@ -390,6 +402,15 @@ def deploy(store: dict, system_ref: str, purpose: str, owner: str, autonomy: str
         "purpose": purpose.strip(),
         "owner": owner.strip(),
         "autonomy": autonomy,
+        # Who said so, and when. A battery skipped because the autonomy is below a threshold
+        # is a narrowing, and CAC-AP-1 §2.4 wants every narrowing to name its declarer and its
+        # date — otherwise a reader cannot tell "we judged this out of scope" from "nobody
+        # asked". These carry that through to the skip record.
+        "autonomyDeclaredBy": str(by or "").strip(),
+        "autonomyDeclaredOn": utc_today(),
+        # CAC-AP-1 §2.3. A declaration here outranks the org profile in both directions, and
+        # absence is not a declaration — an empty dict means nothing has been narrowed.
+        "declares": {},
         "dataClasses": [str(x).strip() for x in (data_classes or []) if str(x or "").strip()],
         "connectedResources": [str(x).strip() for x in (connected_resources or [])
                                if str(x or "").strip()],
@@ -772,6 +793,762 @@ def accept_exposure(*_args, **_kwargs):
         "and a re-validation act. Reference the deployment id from the acceptance.")
 
 
+# --- Batteries: what gets asked, and what narrows it --------------------------
+#
+# Mirrored from `vendor-register`'s shape — `{id, gvsc, nistaml, appliesWhen, questions[]}` —
+# because the two registers are read by the same person and an auditor comparing them should
+# not have to learn which one narrows how. The CAC-AP-1 rules are unchanged: absence applies
+# the battery, a subject-level declaration outranks the profile in both directions, and every
+# skip carries the flag, the declarer and the date.
+#
+# EVERY question asks for evidence with a date, never an attestation. "Do you test for prompt
+# injection?" is worthless — everybody answers yes. "What is the most recent dated adversarial
+# test of THIS deployment, and what did it find?" has a discoverable answer, a date, and
+# degrades honestly when the answer is "none". `evals/questions.sh` fails the attestation
+# shapes, so this is enforced rather than remembered.
+#
+# The set is deliberately small. The valuable output is not a question bank; it is what the
+# provider's own documentation left open, which means the set has to be short enough that
+# subtracting from it produces something a person will actually send.
+#
+# Each battery names the NISTAML classes its questions bear on, so a reader can see the line
+# from an attack class to the thing being asked about it. `nistamlDerived` gates a battery on
+# a class the engine DERIVED — the questions follow the exposure rather than re-deriving it,
+# which means there is still exactly one place that decides what a deployment is exposed to.
+
+BATTERIES = (
+    {
+        "id": "inventory",
+        "gvsc": ["ID.AM-02", "GV.SC-04"],
+        "nistaml": ["05"],
+        "appliesWhen": {},
+        "questions": (
+            {"id": "provenance",
+             "ask": "What dated record states which model this deployment calls, at which "
+                    "version, and when was it last checked against what is actually "
+                    "configured?"},
+            {"id": "change-notice",
+             "ask": "What dated commitment or configuration tells us BEFORE the model behind "
+                    "this deployment changes, and when did it last do so?"},
+        ),
+    },
+    {
+        "id": "access-and-data",
+        "gvsc": ["PR.AA-05", "PR.DS-01"],
+        "nistaml": ["03"],
+        "appliesWhen": {},
+        "questions": (
+            {"id": "entitlements",
+             "ask": "What dated evidence shows which identities and resources this deployment "
+                    "can reach, and when was that list last reviewed?"},
+            {"id": "training-use",
+             "ask": "What dated commitment or configuration evidence shows whether our inputs "
+                    "are used to train, fine-tune or otherwise improve the provider's model?"},
+        ),
+    },
+    {
+        "id": "adversarial-testing",
+        "gvsc": ["ID.RA-01", "ID.IM-02"],
+        "nistaml": ["02", "04"],
+        # Gated on a RECORDED ATTRIBUTE of the system, not on a declaration. See
+        # `_battery_applies`: a profile cannot narrow this away, and that is deliberate.
+        "appliesWhen": {"genAI": True},
+        "questions": (
+            {"id": "red-team",
+             "ask": "What is the most recent dated adversarial test of THIS deployment — "
+                    "prompt injection, jailbreak, exfiltration through its own output — and "
+                    "what did it find?"},
+            {"id": "untrusted-input",
+             "ask": "What dated evidence shows what happens when content the organisation "
+                    "does not control reaches this deployment's context, and who produced it?"},
+        ),
+    },
+    {
+        "id": "monitoring",
+        "gvsc": ["DE.CM-09"],
+        "nistaml": ["01", "02"],
+        "appliesWhen": {},
+        "questions": (
+            {"id": "output-retention",
+             "ask": "What dated record shows this deployment's inputs and outputs are "
+                    "retained, for how long, and who can read them?"},
+            {"id": "degradation",
+             "ask": "What dated evidence shows how we would know this deployment had started "
+                    "behaving differently, and when that last happened?"},
+        ),
+    },
+    {
+        "id": "supply-chain",
+        "gvsc": ["GV.SC-07", "ID.RA-09"],
+        "nistaml": ["05"],
+        # Follows the derived exposure. If NISTAML.05 applies, these questions are live.
+        "appliesWhen": {"nistamlDerived": "NISTAML.05"},
+        "questions": (
+            {"id": "provider-assurance",
+             "ask": "What is the most recent independent assurance report covering the service "
+                    "that runs this model, what period does it cover, and what did it exclude?"},
+            {"id": "arrangement-link",
+             "ask": "Which arrangement in the third-party register covers this provider, and "
+                    "what dated document commits them to telling us about a security incident?"},
+        ),
+    },
+    {
+        "id": "autonomy-controls",
+        "gvsc": ["PR.AA-05"],
+        "nistaml": ["02"],
+        # `decides` and above. A deployment that only informs has a person between its output
+        # and any consequence, and asking these of it produces paperwork rather than answers.
+        "appliesWhen": {"autonomyAtLeast": "decides"},
+        "questions": (
+            {"id": "human-review",
+             "ask": "What dated evidence shows what a person can see, and can override, before "
+                    "this deployment's output takes effect?"},
+            {"id": "blast-radius",
+             "ask": "What dated record bounds what this deployment can do to the resources it "
+                    "reaches, and when was that boundary last tested rather than documented?"},
+        ),
+    },
+    {
+        "id": "regulated-data",
+        "gvsc": ["PR.DS-01", "GV.SC-05"],
+        "nistaml": ["03"],
+        # A CAC-AP-1 flag, declarable on the deployment or on the org profile. `regulatedDataHeld`
+        # is a `business-context` known flag, not a word invented here.
+        "appliesWhen": {"flag": "regulatedDataHeld"},
+        "questions": (
+            {"id": "class-boundary",
+             "ask": "What dated evidence shows which regulated data classes can reach this "
+                    "deployment, and what stops the ones that should not?"},
+            {"id": "retention",
+             "ask": "What dated record states how long the provider keeps this deployment's "
+                    "prompts, outputs and any retrieved content, and where is that written?"},
+        ),
+    },
+    {
+        "id": "withdrawal",
+        "gvsc": ["GV.SC-10", "ID.AM-08"],
+        "nistaml": ["01"],
+        # Top of the scale only. A withdrawal plan for a marketing drafting assistant is
+        # paperwork; for the model inside a consequential decision it is the whole question.
+        "appliesWhen": {"criticalityAtLeast": "TOP"},
+        "questions": (
+            {"id": "version-withdrawn",
+             "ask": "What is the dated record of what happens to this deployment and the "
+                    "process behind it if the provider withdraws the version we use?"},
+            {"id": "data-return",
+             "ask": "What evidence would show our inputs and any fine-tuning data had been "
+                    "returned and then deleted, and how long would producing it take?"},
+        ),
+    },
+)
+
+
+def question_key(battery: dict, question: dict) -> str:
+    return "%s.%s" % (battery["id"], question["id"])
+
+
+def all_questions(batteries=None) -> list:
+    out = []
+    for battery in (batteries if batteries is not None else BATTERIES):
+        for q in battery["questions"]:
+            out.append((battery, q))
+    return out
+
+
+def _declared(rec: dict, flag: str):
+    """(value, declaredBy, declaredOn) for a deployment-level declaration. `None` is not False."""
+    subject = (rec.get("declares") or {}).get(flag)
+    if isinstance(subject, dict):
+        return (subject.get("value"), subject.get("declaredBy", ""),
+                subject.get("declaredOn", ""))
+    return subject, "", ""
+
+
+def _battery_applies(battery: dict, rec: dict, store: dict, context: dict):
+    """(applies, skip_record_or_None). CAC-AP-1 narrowing, mirrored rather than re-derived.
+
+    §2.2 — a missing criticality, a missing flag or an undeclared anything means NOT DECLARED,
+    so the battery APPLIES. Absence asks more. The deployment nobody classified is exactly the
+    one that must not be quietly treated as low-risk.
+
+    §2.3 — a declaration on the deployment outranks the org profile IN BOTH DIRECTIONS.
+
+    §2.4 — every skip carries the flag, the declarer and the date, so a reader can tell "we
+    judged this out of scope, here is who said so" from "nobody asked".
+    """
+    cond = battery.get("appliesWhen") or {}
+
+    if "criticalityAtLeast" in cond:
+        level = criticality_of(rec)
+        # Neither state is a level, so neither can narrow anything — and the deployment nobody
+        # could place is the one worth asking every question of. Kept explicitly, even though
+        # the `level in scale` test below also excludes both, because the obvious future edit
+        # is to compare with `criticality_rank`, which RAISES on these rather than returning a
+        # number, and a reader needs to know that is deliberate before working out why.
+        if level in (UNTRACED, UNCLASSIFIED):
+            return True, None
+        scale = store["settings"]["criticalityScale"]
+        conf = ((rec.get("criticality") or {}).get("confirmed") or {})
+        if cond["criticalityAtLeast"] == "TOP" and level in scale:
+            if scale.index(level) < len(scale) - 1:
+                return False, {
+                    "battery": battery["id"],
+                    "reason": "criticality %r is below the top of the scale (%s)"
+                              % (level, scale[-1]),
+                    "flag": "criticality",
+                    "declaredBy": conf.get("by", ""),
+                    "declaredOn": conf.get("on", ""),
+                }
+        return True, None
+
+    if "autonomyAtLeast" in cond:
+        declared = rec.get("autonomy") or ""
+        if declared not in AUTONOMY:
+            # Undeclared autonomy cannot narrow anything. `deploy` refuses one, so this is the
+            # store that was hand-edited — and the safe direction is to ask.
+            return True, None
+        if autonomy_rank(declared) < autonomy_rank(cond["autonomyAtLeast"]):
+            return False, {
+                "battery": battery["id"],
+                "reason": "autonomy %r is below %r" % (declared, cond["autonomyAtLeast"]),
+                "flag": "autonomy",
+                "declaredBy": rec.get("autonomyDeclaredBy", ""),
+                "declaredOn": rec.get("autonomyDeclaredOn", ""),
+            }
+        return True, None
+
+    if "genAI" in cond:
+        # An ATTRIBUTE gate, not a declaration gate, and the difference matters. Whether a
+        # system is generative is a recorded fact about what is in the inventory; the profile
+        # flag `aiInUse` answers a different question — whether this organisation uses AI at
+        # all — and a deployment sitting in this register has already answered that. So a
+        # profile saying false does NOT narrow this away, and the self-test asserts it.
+        system = next((s for s in store["systems"] if s.get("id") == rec.get("systemRef")), {})
+        value, by, on = _declared(rec, "genAI")
+        if value is None:
+            value = bool(system.get("genAI"))
+        if bool(value) == bool(cond["genAI"]):
+            return True, None
+        return False, {
+            "battery": battery["id"],
+            "reason": "the system is recorded as %s"
+                      % ("generative" if value else "predictive, not generative"),
+            "flag": "genAI",
+            "declaredBy": by or ("the system record %s" % (system.get("id") or "?")),
+            "declaredOn": on or "",
+        }
+
+    if "hosting" in cond:
+        system = next((s for s in store["systems"] if s.get("id") == rec.get("systemRef")), {})
+        allowed = list(cond["hosting"])
+        where = str(system.get("hosting") or "")
+        if not where or where in allowed:
+            return True, None
+        return False, {"battery": battery["id"],
+                       "reason": "hosting is %r, and this asks only of %s"
+                                 % (where, ", ".join(allowed)),
+                       "flag": "hosting",
+                       "declaredBy": "the system record %s" % (system.get("id") or "?"),
+                       "declaredOn": ""}
+
+    if "nistamlDerived" in cond:
+        # Follows the derived exposure rather than re-deriving it. One place decides what a
+        # deployment is exposed to, and this reads that decision.
+        exposure = rec.get("exposure") or {}
+        if cond["nistamlDerived"] in exposure:
+            return True, None
+        return False, {"battery": battery["id"],
+                       "reason": "%s is not among the classes derived for this deployment"
+                                 % cond["nistamlDerived"],
+                       "flag": "exposure",
+                       "declaredBy": "derived from the recorded attributes",
+                       "declaredOn": ""}
+
+    if "flag" in cond:
+        flag = cond["flag"]
+        sub_val, sub_by, sub_on = _declared(rec, flag)
+        if sub_val is True:
+            return True, None
+        if sub_val is False:
+            return False, {"battery": battery["id"],
+                           "reason": "the deployment declares %s false" % flag,
+                           "flag": flag, "declaredBy": sub_by, "declaredOn": sub_on}
+        entry = ((context or {}).get("profile") or {}).get(flag)
+        if isinstance(entry, dict) and entry.get("value") is False:
+            return False, {"battery": battery["id"],
+                           "reason": "the organisation profile declares %s false" % flag,
+                           "flag": flag,
+                           "declaredBy": entry.get("declaredBy", ""),
+                           "declaredOn": entry.get("declaredOn", "")}
+        # Not declared anywhere, or declared true. Either way: ask.
+        return True, None
+
+    return True, None
+
+
+def batteries_for(rec: dict, store: dict, context: dict = None) -> dict:
+    """Which batteries apply to this deployment, and which were skipped and why."""
+    applied, skipped = [], []
+    for battery in BATTERIES:
+        yes, skip = _battery_applies(battery, rec, store, context or {})
+        if yes:
+            applied.append(battery)
+        elif skip:
+            skipped.append(skip)
+    return {"applied": applied, "skipped": skipped}
+
+
+def declare_on_deployment(store: dict, did: str, flag: str, value, by: str,
+                          basis: str = "") -> dict:
+    """Record a CAC-AP-1 declaration on a deployment. §2.3: it outranks the org profile.
+
+    Refuses without `--by`. A narrowing nobody signed is the shape of a scope decision that
+    turns out, later, to have been nobody's.
+    """
+    if not str(flag or "").strip():
+        raise Refusal("--flag names what is being declared")
+    if not str(by or "").strip():
+        raise Refusal(
+            "--by is required: declaring a flag narrows what this register asks, and a "
+            "narrowing with nobody's name on it cannot be defended later.")
+    rec = find_deployment(store, did)
+    entry = {"value": value, "declaredBy": by.strip(), "declaredOn": utc_today(),
+             "basis": str(basis or "").strip()}
+    rec.setdefault("declares", {})[flag.strip()] = entry
+    append_history(store, "declared", did, by, why="%s = %r" % (flag.strip(), value))
+    return entry
+
+
+# --- Evidence tiers -----------------------------------------------------------
+#
+# Mirrored from `vendor-register`, down to the constant names, because the hierarchy is about
+# ASSESSMENT RIGOUR and not about how much a provider is trusted — and that is the same
+# judgement in both registers.
+#
+#   T1  an audited artifact — an independent model evaluation, an AI red-team report by a
+#       party that does not report to the team that built it, a penetration test of the
+#       deployment, a regulatory examination finding. Somebody independent looked, and
+#       recorded what they looked at and when.
+#   T2  a contractual commitment — an executed DPA, a clause in the signed agreement, a
+#       written no-training-on-our-data commitment. Not a demonstration, but an obligation
+#       with a remedy behind it.
+#   T3  an assertion — a model card, a system card, a completed questionnaire, the provider's
+#       own evaluation results, our own DPIA. The party describing itself.
+#   T4  public copy — a trust page, a product blog, marketing material.
+#
+# **A model card is T3, and this is the tier judgement most likely to be got wrong.** It is
+# the most substantive-looking artifact in the whole AI supply chain: structured, technical,
+# full of numbers, often the only thing a provider publishes. Nobody independent produced it,
+# nothing in it is an obligation with a remedy behind it, and the evaluations it reports were
+# chosen by the party being evaluated. It is genuinely useful for working out what to ASK, and
+# it is never a reason to stop asking.
+
+TIERS = ("T1", "T2", "T3", "T4")
+
+SATISFYING_TIERS = ("T1", "T2")
+"""The only tiers that may close a requirement.
+
+Referenced everywhere and never inlined, so the rule has exactly one definition to change and
+one place to argue with. `evals/proposal-boundary.sh` proves no code path gets around it.
+"""
+
+TIER_LABEL = {
+    "T1": "audited artifact",
+    "T2": "contractual commitment",
+    "T3": "an assertion by the party being described",
+    "T4": "public copy",
+}
+
+TIER_CEILING = {
+    # kind -> the best tier it can honestly be recorded at, and why.
+    "model-card": ("T3", "a model card is the provider describing its own model: nobody "
+                         "independent produced it, and nothing in it is an obligation with a "
+                         "remedy behind it"),
+    "system-card": ("T3", "a system card is the provider describing its own system"),
+    "provider-evaluation": ("T3", "an evaluation run by the party being evaluated, which "
+                                  "chose what to evaluate"),
+    "questionnaire": ("T3", "the provider answering our questions about itself"),
+    "dpia": ("T3", "our own documented assessment — a considered one, and still ours"),
+    "trust-page": ("T4", "public copy, which changes without notice"),
+    "product-blog": ("T4", "marketing material"),
+}
+"""Kinds that cannot be recorded above a stated tier, with the reason in the refusal.
+
+This is a ceiling and not a mapping: a third-party model evaluation may be T1, and the same
+words describe an internal one that is T3, so most kinds are left to the person recording
+them. These seven are the ones where the tier is not a judgement call and where getting it
+wrong would let an assertion close a requirement.
+"""
+
+EVIDENCE_ID_RE = re.compile(r"^EV-\d{3,}$")
+PROPOSAL_ID_RE = re.compile(r"^PR-\d{3,}$")
+
+
+def _next_sub_id(rec: dict, key: str, prefix: str, pattern) -> str:
+    used = [int(x["id"].split("-")[1]) for x in (rec.get(key) or [])
+            if pattern.match(str(x.get("id", "")))]
+    return "%s-%03d" % (prefix, (max(used) + 1) if used else 1)
+
+
+def ingest(store: dict, did: str, kind: str, tier: str, source: str, scope: str = "",
+           period_start: str = "", period_end: str = "", url: str = "",
+           retrieved: str = "", by: str = "") -> dict:
+    """Record an artifact about this deployment, with the tier that says what it can close.
+
+    **Scope and period are required for T1.** An artifact whose limits are not written down
+    gets read as though it had none: a penetration test that covered the API and not the
+    retrieval path has not covered the retrieval path, and a report with no period cannot
+    expire — it would sit here looking like current assurance forever.
+
+    Anything fetched from a URL needs `--retrieved`. A provider's published claims change
+    without notice, and an undated capture is a claim about a page that may no longer say it.
+    """
+    if tier not in TIERS:
+        raise Refusal("--tier must be one of %s; got %r" % (", ".join(TIERS), tier))
+    if not str(kind or "").strip():
+        raise Refusal("--kind names what the artifact is (model-card, red-team-report, "
+                      "penetration-test, dpa, ...)")
+    if not str(source or "").strip():
+        raise Refusal("--source says where this came from. An artifact with no provenance "
+                      "cannot be re-found by the person who has to check it.")
+    ceiling = TIER_CEILING.get(str(kind or "").strip().lower())
+    if ceiling and TIERS.index(tier) < TIERS.index(ceiling[0]):
+        raise Refusal(
+            "a %r cannot be recorded as %s; %s is the most it can be.\n"
+            "  %s. That makes it genuinely useful for working out what to ASK, and never a "
+            "reason to stop asking — only %s can close anything here."
+            % (kind, tier, ceiling[0], ceiling[1][0].upper() + ceiling[1][1:],
+               " or ".join(SATISFYING_TIERS)))
+    if tier == "T1":
+        missing = []
+        if not str(scope or "").strip():
+            missing.append("--scope")
+        if not (str(period_start or "").strip() and str(period_end or "").strip()):
+            missing.append("--period-start and --period-end")
+        if missing:
+            raise Refusal(
+                "a T1 artifact needs %s.\n"
+                "  T1 is the tier that can close a requirement, and it can only do so WITHIN "
+                "its scope and period. A red-team report that exercised the chat surface and "
+                "not the tool-calling path has not covered the tool-calling path; a report "
+                "with no period cannot expire, so it would sit here looking like current "
+                "assurance forever." % " and ".join(missing))
+    if str(url or "").strip() and not str(retrieved or "").strip():
+        raise Refusal(
+            "evidence with a --url needs --retrieved.\n"
+            "  A provider's published claims change without notice. An undated capture is a "
+            "claim about a page that may no longer say it, and nobody can check which.")
+    rec = find_deployment(store, did)
+    entry = {
+        "id": _next_sub_id(rec, "evidence", "EV", EVIDENCE_ID_RE),
+        "kind": kind.strip(),
+        "tier": tier,
+        "source": source.strip(),
+        "scope": str(scope or "").strip(),
+        "periodStart": check_date(period_start, "--period-start") if period_start else "",
+        "periodEnd": check_date(period_end, "--period-end") if period_end else "",
+        "url": str(url or "").strip(),
+        "retrievedOn": check_date(retrieved, "--retrieved") if retrieved else "",
+        "ingestedOn": utc_today(),
+        "ingestedBy": str(by or "").strip(),
+    }
+    rec.setdefault("evidence", []).append(entry)
+    append_history(store, "evidence-ingested", did, by,
+                   why="%s (%s)" % (entry["kind"], TIER_LABEL[tier]),
+                   detail={"evidenceId": entry["id"], "tier": tier})
+    return entry
+
+
+def find_evidence(rec: dict, eid: str) -> dict:
+    for ev in (rec.get("evidence") or []):
+        if ev.get("id") == eid:
+            return ev
+    known = ", ".join(e.get("id", "?") for e in (rec.get("evidence") or [])) or "none"
+    raise Refusal("no evidence %r on %s (known: %s)" % (eid, rec["id"], known))
+
+
+def evidence_status(ev: dict, today: str = "", grace: int = 365) -> str:
+    """`current`, `in-grace` or `expired`, measured from the END OF THE PERIOD.
+
+    A tier that cannot expire is not evidence, it is a keepsake. T3 and T4 have no period and
+    are reported `current` because they close nothing anyway — their job is to generate
+    questions, and a question does not go stale the way an assurance claim does.
+    """
+    today = today or utc_today()
+    end = str(ev.get("periodEnd") or "")
+    if not end:
+        return "current"
+    age = days_between(end, today)
+    if age <= 0:
+        return "current"          # the period has not closed yet
+    return "in-grace" if age <= int(grace) else "expired"
+
+
+# --- The Layer A / Layer B boundary -------------------------------------------
+#
+# The same safety property as `vendor-register`, and it matters more here, because the
+# artifacts a model provider publishes are unusually persuasive. A model card is structured,
+# technical and full of measured numbers, and a model reading one and ticking requirements
+# would produce a register full of green derived from a document the provider wrote about
+# itself — worse than an empty register, because it LOOKS FINISHED. Nobody re-checks a page
+# of ticks.
+#
+# Two refusals hold the line:
+#   1. `propose` refuses without a citation. A proposal with no citation is an opinion.
+#   2. `propose` refuses to cite T3 or T4 AT ALL.
+
+def propose(store: dict, did: str, requirement: str, evidence_ref: str, citation: str,
+            note: str = "", by: str = "") -> dict:
+    """Layer A's output: a reading, with its receipt. Satisfies nothing."""
+    if not str(requirement or "").strip():
+        raise Refusal("--requirement names what this proposal claims to cover")
+    if not str(citation or "").strip():
+        raise Refusal(
+            "--citation is required: the passage or document reference this reading rests on.\n"
+            "  A proposal with no citation is an opinion. The person who confirms it has to be "
+            "able to go and read the same thing.")
+    rec = find_deployment(store, did)
+    ev = find_evidence(rec, evidence_ref)
+    if ev["tier"] not in SATISFYING_TIERS:
+        raise Refusal(
+            "%s is %s (%s), which can never satisfy a requirement.\n"
+            "  Only %s can — something independently looked at, or something actually signed. "
+            "A model card is the most persuasive artifact in this whole supply chain and it is "
+            "still the provider describing itself: useful for working out what to ASK, never a "
+            "reason to stop asking."
+            % (evidence_ref, ev["tier"], TIER_LABEL[ev["tier"]], " or ".join(SATISFYING_TIERS)))
+    entry = {
+        "id": _next_sub_id(rec, "proposals", "PR", PROPOSAL_ID_RE),
+        "requirement": requirement.strip(),
+        "evidenceRef": evidence_ref,
+        "citation": citation.strip(),
+        "note": str(note or "").strip(),
+        "status": "proposed",
+        "proposedOn": utc_today(),
+        "proposedBy": str(by or "").strip(),
+    }
+    rec.setdefault("proposals", []).append(entry)
+    append_history(store, "proposed", did, by, why=entry["requirement"],
+                   detail={"proposalId": entry["id"], "evidenceRef": evidence_ref})
+    return entry
+
+
+def find_proposal(rec: dict, pid: str) -> dict:
+    for pr in (rec.get("proposals") or []):
+        if pr.get("id") == pid:
+            return pr
+    known = ", ".join(x.get("id", "?") for x in (rec.get("proposals") or [])) or "none"
+    raise Refusal("no proposal %r on %s (known: %s)" % (pid, rec["id"], known))
+
+
+def assess(store: dict, did: str, by: str, on: str = "", confirm=None, reject=None,
+           why: str = "", note: str = "") -> dict:
+    """Layer B: a named person rules on proposals, and the assessment clock resets.
+
+    This is the act that writes the `assessments` list the cadence reads. Refuses without
+    `--by` — an unattributed assessment is exactly what this boundary exists to prevent, and
+    it is what an assessor will ask for first.
+
+    Rejected proposals are RETAINED. Keeping one records that a claim was examined and not
+    accepted; deleting it would leave no trace that anybody looked.
+    """
+    if not str(by or "").strip():
+        raise Refusal(
+            "--by is required: the name of the person making this assessment.\n"
+            "  Derivation and reading both propose; only a person confirms. An assessment with "
+            "nobody's name on it cannot be defended by pointing at the tool that produced it.")
+    reject = list(reject or [])
+    if reject and not str(why or "").strip():
+        raise Refusal(
+            "--reject needs --why.\n"
+            "  A rejected reading is retained on the record, and a rejection with no reason "
+            "tells a later reader nothing about whether to try again.")
+    rec = find_deployment(store, did)
+    on = check_date(on, "--on") if on else utc_today()
+    system = next((s for s in store["systems"] if s.get("id") == rec.get("systemRef")), {})
+    confirmed_ids, rejected_ids = [], []
+    for pid in list(confirm or []):
+        pr = find_proposal(rec, pid)
+        ev = find_evidence(rec, pr["evidenceRef"])
+        # Belt and braces: `propose` already refuses these tiers, so a T3 reaching here means
+        # a proposal was written some other way, and this is the last gate before a tick.
+        if ev["tier"] not in SATISFYING_TIERS:
+            raise Refusal(
+                "%s cites %s, which is %s and can never satisfy a requirement."
+                % (pid, pr["evidenceRef"], TIER_LABEL[ev["tier"]]))
+        pr["status"] = "confirmed"
+        pr["confirmedBy"] = by.strip()
+        pr["confirmedOn"] = on
+        rec.setdefault("requirements", []).append({
+            "requirement": pr["requirement"],
+            "met": True,
+            "evidenceRef": pr["evidenceRef"],
+            "citation": pr["citation"],
+            "checkedOn": on,
+            "checkedBy": by.strip(),
+            "viaProposal": pid,
+        })
+        confirmed_ids.append(pid)
+    for pid in reject:
+        pr = find_proposal(rec, pid)
+        pr["status"] = "rejected"
+        pr["rejectedBy"] = by.strip()
+        pr["rejectedOn"] = on
+        pr["rejectedWhy"] = why.strip()
+        rejected_ids.append(pid)
+    entry = {
+        "on": on, "by": by.strip(), "confirmed": confirmed_ids, "rejected": rejected_ids,
+        "note": str(note or "").strip(),
+        # WHAT WAS ASSESSED, not just when. A silent model swap is the event that invalidates
+        # an assessment, and comparing today's system against the one that was actually in
+        # front of the assessor is the only way to notice. `model-changed` reads these.
+        "againstSystem": {
+            "systemRef": rec.get("systemRef") or "",
+            "version": system.get("version") or "",
+            "baseModel": system.get("baseModel") or "",
+            "hosting": system.get("hosting") or "",
+        },
+        "againstAutonomy": rec.get("autonomy") or "",
+        "againstConnectedResources": sorted(rec.get("connectedResources") or []),
+    }
+    rec.setdefault("assessments", []).append(entry)
+    append_history(store, "assessed", did, by,
+                   why=note or ("%d confirmed, %d rejected"
+                                % (len(confirmed_ids), len(rejected_ids))),
+                   detail={"confirmed": confirmed_ids, "rejected": rejected_ids})
+    return entry
+
+
+def open_proposals(rec: dict) -> list:
+    """The working view: what is still awaiting a person. Rejections are kept, not shown."""
+    return [pr for pr in (rec.get("proposals") or []) if pr.get("status") == "proposed"]
+
+
+def record_requirement(store: dict, did: str, requirement: str, evidence: str,
+                       met: bool = True, by: str = "") -> dict:
+    """Record a requirement checked directly, met or not met.
+
+    A Layer B act, like `assess`, and held to the same standard: a named person, and a
+    reference to what they actually read. `--by` is required from the first version here
+    rather than added later, because `vendor-register` shipped the equivalent act without it
+    and a requirement could be marked met with nobody's name against it — a hole in the "only
+    a named person closes anything" claim, found by a static scan rather than by review.
+
+    A requirement recorded NOT met is what `export-findings` carries to `risk-register`.
+    """
+    if not str(requirement or "").strip():
+        raise Refusal("--requirement names what is being checked")
+    if not str(evidence or "").strip():
+        raise Refusal(
+            "--evidence must reference what was actually read.\n"
+            "  A requirement marked met with no evidence reference is an assertion about "
+            "something nobody opened, and it reads identically to one that was checked.")
+    if not str(by or "").strip():
+        raise Refusal(
+            "--by is required: the person who checked.\n"
+            "  Recording a requirement met is closing it, and only a named person closes "
+            "anything here. Recording one NOT met opens a candidate risk in another register, "
+            "and that needs a name on it just as much.")
+    rec = find_deployment(store, did)
+    entry = {"requirement": requirement.strip(), "evidence": evidence.strip(),
+             "met": bool(met), "checkedOn": utc_today(), "checkedBy": by.strip()}
+    rec.setdefault("requirements", []).append(entry)
+    append_history(store, "requirement-recorded", did, by,
+                   why="%s: %s" % (requirement.strip(), "met" if met else "NOT met"))
+    return entry
+
+
+# --- Generated questions ------------------------------------------------------
+#
+# Take the batteries the gates left applicable, subtract what T1 and T2 evidence genuinely
+# covers, and emit WHAT REMAINS OPEN. A full battery is simply the degenerate case where
+# nothing was supplied — same code path, no special casing.
+#
+# T3 and T4 subtract NOTHING, and here that is the entire product claim: the artifact a model
+# provider is most likely to hand over is a model card, and a register that let one close
+# questions would go quiet exactly where it should be loudest.
+
+NOTHING_OPEN = ("Nothing is open for this deployment at its current criticality and autonomy. "
+                "Every applicable question is covered by evidence that can satisfy it.")
+"""Printed when the subtraction leaves nothing.
+
+An empty result must never be an empty string. A blank page and "we have asked everything and
+it is all evidenced" look identical on a screen and mean opposite things, and the blank one is
+the one somebody forwards as though it were the second.
+"""
+
+
+def ask(store: dict, did: str, context: dict = None, today: str = "") -> dict:
+    """What is still worth asking about this deployment, and why each question is being asked.
+
+    A question survives when nothing that CAN satisfy it does. A question whose requirement is
+    covered by evidence that has slipped into grace is still emitted, marked `re-confirm`
+    rather than `open`: the answer was good and is ageing, which is a different request from
+    one nobody has ever answered.
+    """
+    today = today or utc_today()
+    rec = find_deployment(store, did)
+    grace = int(store["settings"].get("evidenceGraceDays") or 365)
+    narrowed = batteries_for(rec, store, context or {})
+
+    covered = {}
+    for req in (rec.get("requirements") or []):
+        if not req.get("met"):
+            continue
+        key = str(req.get("requirement") or "")
+        ev_id = str(req.get("evidenceRef") or "")
+        try:
+            ev = find_evidence(rec, ev_id) if ev_id else None
+        except Refusal:
+            ev = None
+        # The tier rule is READ OFF `SATISFYING_TIERS` rather than re-implemented, so there is
+        # one definition of what may close anything.
+        if not ev or ev["tier"] not in SATISFYING_TIERS:
+            continue
+        status = evidence_status(ev, today, grace)
+        if status == "expired":
+            continue          # covered by something that has run out is not covered
+        prior = covered.get(key)
+        if prior is None or (prior["status"] == "current" and status == "in-grace"):
+            covered[key] = {"status": status, "evidence": ev}
+
+    questions, reconfirm = [], []
+    for battery, q in all_questions(narrowed["applied"]):
+        key = question_key(battery, q)
+        hit = covered.get(key)
+        entry = {
+            "key": key,
+            "ask": q["ask"],
+            "battery": battery["id"],
+            "gvsc": list(battery.get("gvsc") or []),
+            "nistaml": ["NISTAML.%s" % c for c in (battery.get("nistaml") or [])],
+        }
+        if hit is None:
+            entry["status"] = "open"
+            entry["why"] = "no evidence that can satisfy this has been recorded"
+            questions.append(entry)
+        elif hit["status"] == "in-grace":
+            entry["status"] = "re-confirm"
+            entry["why"] = ("covered by %s (%s), whose period ended %s and is now in grace"
+                            % (hit["evidence"]["id"], hit["evidence"]["kind"],
+                               hit["evidence"]["periodEnd"]))
+            reconfirm.append(entry)
+    out = {
+        "deployment": did,
+        "asOf": today,
+        "criticality": criticality_of(rec),
+        "autonomy": rec.get("autonomy") or "",
+        "questions": questions + reconfirm,
+        "open": len(questions),
+        "reConfirm": len(reconfirm),
+        "skipped": narrowed["skipped"],
+        "batteriesApplied": [b["id"] for b in narrowed["applied"]],
+    }
+    if not out["questions"]:
+        out["note"] = NOTHING_OPEN
+    return out
+
+
 # --- Self-test ----------------------------------------------------------------
 
 def _cmd_self_test(_args):
@@ -977,6 +1754,149 @@ def _cmd_self_test(_args):
         eq(len(find_deployment(store, "D-002")["exposure"]["NISTAML.02"]["controls"]), 3,
            "controls survive a recompute")
 
+        # --- T9: batteries, and what narrows them -----------------------------
+        #
+        # D-001 is `informs`, unclassified, generative, external provider.
+        # D-002 is `decides`, confirmed high (the top of the default scale), generative.
+        map_exposure(store, "D-001")
+        plain = batteries_for(find_deployment(store, "D-001"), store, None)
+        applied = [b["id"] for b in plain["applied"]]
+        # §2.2 in one assertion: no context, no criticality — everything applies EXCEPT the
+        # two gated on a declared attribute that says otherwise.
+        ok("inventory" in applied and "access-and-data" in applied
+           and "monitoring" in applied,
+           "with no context and no criticality, the ungated batteries all apply")
+        ok("regulated-data" in applied,
+           "and a flag nobody declared APPLIES — absence asks more (CAC-AP-1 §2.2)")
+        ok("adversarial-testing" in applied,
+           "a generative deployment gets the adversarial battery")
+        ok("autonomy-controls" not in applied,
+           "while an 'informs' deployment is not asked what a person can override")
+        # `untraced` and `unclassified` narrow NOTHING. D-001 has never been classified.
+        eq(criticality_of(find_deployment(store, "D-001")), UNCLASSIFIED,
+           "D-001 has never been classified")
+        ok("withdrawal" in applied,
+           "an unclassified deployment gets the FULL set — neither state can narrow anything")
+
+        top = batteries_for(find_deployment(store, "D-002"), store, None)
+        top_ids = [b["id"] for b in top["applied"]]
+        ok("autonomy-controls" in top_ids,
+           "a 'decides' deployment IS asked what a person can override")
+        ok("withdrawal" in top_ids, "and a top-of-scale one is asked about withdrawal")
+
+        # §2.3, the seam this skill plugs into: an org profile saying the organisation uses no
+        # AI does NOT narrow away the generative battery on a system recorded as generative.
+        no_ai = {"profile": {"aiInUse": {"value": False, "declaredBy": "COO",
+                                         "declaredOn": "2026-01-01"}}}
+        with_profile = [b["id"] for b in
+                        batteries_for(find_deployment(store, "D-002"), store,
+                                      no_ai)["applied"]]
+        ok("adversarial-testing" in with_profile,
+           "a profile declaring no AI in use does NOT narrow away the generative battery — "
+           "genAI is a recorded attribute of a system in the inventory, not a declaration")
+
+        # §2.3 in the other direction, on a flag that IS a declaration.
+        prof_false = {"profile": {"regulatedDataHeld": {"value": False, "declaredBy": "DPO",
+                                                        "declaredOn": "2026-02-01"}}}
+        narrowed = batteries_for(find_deployment(store, "D-002"), store, prof_false)
+        ok("regulated-data" not in [b["id"] for b in narrowed["applied"]],
+           "a profile declaring regulatedDataHeld false narrows that battery away")
+        skip = next((s for s in narrowed["skipped"]
+                     if s["battery"] == "regulated-data"), {})
+        eq(skip.get("declaredBy"), "DPO", "and the skip names who declared it (§2.4)")
+        eq(skip.get("declaredOn"), "2026-02-01", "...and when")
+        refuses(lambda: declare_on_deployment(store, "D-002", "regulatedDataHeld", True, ""),
+                "declaring a flag with no name is refused", "cannot be defended")
+        declare_on_deployment(store, "D-002", "regulatedDataHeld", True, "HR Director",
+                              basis="applicant data is regulated personal data")
+        ok("regulated-data" in [b["id"] for b in
+                                batteries_for(find_deployment(store, "D-002"), store,
+                                              prof_false)["applied"]],
+           "and a deployment declaring it TRUE outranks the profile saying false (§2.3)")
+
+        # Every skip carries a declarer and a date. A skip that cannot say who narrowed it is
+        # indistinguishable from a question nobody thought to ask.
+        low = deploy(store, "S-001", "internal search", "Head of IT", "informs", by="CIO")
+        classify(store, low["id"], ctx, confirm="low", by="D. Galleyne")
+        skips = batteries_for(find_deployment(store, low["id"]), store, None)["skipped"]
+        ok(skips, "a low-criticality 'informs' deployment does have skips to inspect")
+        ok(all(s.get("declaredBy") and "declaredOn" in s for s in skips),
+           "and every skip record carries a declarer and a date (§2.4)")
+
+        # --- T10: evidence, tiers and assessment ------------------------------
+        save(path, store)
+        before = open(path, "rb").read()
+        # THE tier judgement most likely to be got wrong.
+        refuses(lambda: ingest(store, "D-002", "model-card", "T1", "the provider's site",
+                               scope="the model", period_start="2026-01-01",
+                               period_end="2026-12-31"),
+                "a model card cannot be recorded as T1", "describing its own model")
+        refuses(lambda: ingest(store, "D-002", "model-card", "T2", "the provider's site"),
+                "nor as a contractual commitment", "never a reason to stop asking")
+        refuses(lambda: ingest(store, "D-002", "red-team-report", "T1", "an external firm"),
+                "a T1 with no scope and no period is refused", "cannot expire")
+        refuses(lambda: ingest(store, "D-002", "trust-page", "T4", "their site",
+                               url="https://example.test/trust"),
+                "a URL with no retrieval date is refused", "may no longer say it")
+        eq(open(path, "rb").read(), before, "and none of those refusals touched the file")
+
+        card = ingest(store, "D-002", "model-card", "T3", "the provider's published card",
+                      by="Security Analyst")
+        eq(card["tier"], "T3", "a model card ingests as T3")
+        refuses(lambda: propose(store, "D-002", "inventory.provenance", card["id"],
+                                "the Model details section"),
+                "and cannot be proposed against", "still the provider describing itself")
+        refuses(lambda: propose(store, "D-002", "inventory.provenance", card["id"], ""),
+                "a proposal with no citation is refused", "is an opinion")
+
+        rt = ingest(store, "D-002", "red-team-report", "T1", "Fabrikam Security, engagement 41",
+                    scope="the chat surface and the retrieval path, excluding tool calling",
+                    period_start="2026-01-01", period_end="2026-06-30", by="CISO")
+        pr = propose(store, "D-002", "adversarial-testing.red-team", rt["id"],
+                     "section 4.2, findings 1-3", by="Security Analyst")
+        eq(pr["status"], "proposed", "a proposal against a T1 is stored, and satisfies nothing")
+        ok(not any(r.get("requirement") == "adversarial-testing.red-team"
+                   for r in find_deployment(store, "D-002").get("requirements") or []),
+           "...specifically: no requirement moved")
+        refuses(lambda: assess(store, "D-002", "", confirm=[pr["id"]]),
+                "assessing with no --by is refused", "nobody's name on it")
+        refuses(lambda: assess(store, "D-002", "CISO", reject=[pr["id"]]),
+                "and rejecting with no --why is refused", "whether to try again")
+
+        asked_before = ask(store, "D-002", None, today="2026-06-15")
+        assess(store, "D-002", "CISO", on="2026-06-10", confirm=[pr["id"]],
+               note="read the report against the deployment as configured")
+        asked_after = ask(store, "D-002", None, today="2026-06-15")
+        ok(asked_after["open"] < asked_before["open"],
+           "a confirmed T1 proposal subtracts a question")
+        eq(asked_before["open"] - asked_after["open"], 1, "...exactly the one it answered")
+        ok(any(q["key"] == "adversarial-testing.red-team" for q in asked_before["questions"])
+           and not any(q["key"] == "adversarial-testing.red-team"
+                       for q in asked_after["questions"]),
+           "...and it is that question, by id rather than by prose")
+        # THE product claim, in the only form that matters.
+        card2 = ingest(store, "D-002", "questionnaire", "T3", "their completed answers")
+        find_deployment(store, "D-002")["requirements"].append(
+            {"requirement": "monitoring.degradation", "met": True,
+             "evidenceRef": card2["id"], "checkedOn": "2026-06-10", "checkedBy": "CISO"})
+        eq(ask(store, "D-002", None, today="2026-06-15")["open"], asked_after["open"],
+           "while the same requirement covered by a T3 subtracts NOTHING")
+        # Ageing, not gone.
+        in_grace = ask(store, "D-002", None, today="2027-01-01")
+        ok(any(q["status"] == "re-confirm" and q["key"] == "adversarial-testing.red-team"
+               for q in in_grace["questions"]),
+           "evidence in grace re-asks the question, marked re-confirm rather than open")
+        expired = ask(store, "D-002", None, today="2028-01-01")
+        ok(any(q["status"] == "open" and q["key"] == "adversarial-testing.red-team"
+               for q in expired["questions"]),
+           "and expired evidence puts it back to open")
+        eq(assess(store, "D-002", "CISO", on="2026-06-11")["againstSystem"]["version"],
+           "2026.4",
+           "an assessment records the system version it was made against")
+        refuses(lambda: record_requirement(store, "D-002", "monitoring.output-retention",
+                                           "the DPA, clause 8", met=False),
+                "recording a requirement with no name is refused", "needs a name on it")
+
     finally:
         shutil.rmtree(work, ignore_errors=True)
 
@@ -1100,6 +2020,97 @@ def _cmd_record_control(args) -> int:
     return 0
 
 
+def _cmd_declare(args) -> int:
+    store = load(args.store)
+    raw = str(args.value).strip().lower()
+    value = True if raw in ("true", "yes", "1") else (
+        False if raw in ("false", "no", "0") else args.value)
+    entry = declare_on_deployment(store, args.deployment, args.flag, value, args.by,
+                                  basis=args.basis)
+    save(args.store, store)
+    print("%s  %s = %r, declared by %s on %s"
+          % (args.deployment, args.flag, entry["value"], entry["declaredBy"],
+             entry["declaredOn"]))
+    return 0
+
+
+def _cmd_ingest(args) -> int:
+    store = load(args.store)
+    entry = ingest(store, args.deployment, args.kind, args.tier, args.source,
+                   scope=args.scope, period_start=args.period_start,
+                   period_end=args.period_end, url=args.url, retrieved=args.retrieved,
+                   by=args.by)
+    save(args.store, store)
+    print("%s  %s  %s (%s)" % (entry["id"], args.deployment, entry["kind"],
+                               TIER_LABEL[entry["tier"]]))
+    if entry["tier"] not in SATISFYING_TIERS:
+        print("  %s cannot satisfy a requirement. It generates questions, which is a "
+              "different and useful job." % entry["tier"])
+    return 0
+
+
+def _cmd_propose(args) -> int:
+    store = load(args.store)
+    entry = propose(store, args.deployment, args.requirement, args.evidence, args.citation,
+                    note=args.note, by=args.by)
+    save(args.store, store)
+    print("%s  proposes %s from %s" % (entry["id"], entry["requirement"],
+                                       entry["evidenceRef"]))
+    print("  Nothing is satisfied yet. `assess --confirm %s --by NAME` is the act that "
+          "closes it." % entry["id"])
+    return 0
+
+
+def _cmd_assess(args) -> int:
+    store = load(args.store)
+    entry = assess(store, args.deployment, args.by, on=args.on, confirm=args.confirm,
+                   reject=args.reject, why=args.why, note=args.note)
+    save(args.store, store)
+    print("%s  assessed by %s on %s — %d confirmed, %d rejected"
+          % (args.deployment, entry["by"], entry["on"], len(entry["confirmed"]),
+             len(entry["rejected"])))
+    return 0
+
+
+def _cmd_record_requirement(args) -> int:
+    store = load(args.store)
+    entry = record_requirement(store, args.deployment, args.requirement, args.evidence,
+                               met=not args.not_met, by=args.by)
+    save(args.store, store)
+    print("%s  %s: %s (checked by %s on %s)"
+          % (args.deployment, entry["requirement"], "met" if entry["met"] else "NOT met",
+             entry["checkedBy"], entry["checkedOn"]))
+    if not entry["met"]:
+        print("  This is a finding. `export-findings` carries it to risk-register, which "
+              "scores it once, there.")
+    return 0
+
+
+def _cmd_ask(args) -> int:
+    store = load(args.store)
+    out = ask(store, args.deployment, _ctx(args), today=args.today)
+    if args.json:
+        print(json.dumps(out, indent=2, ensure_ascii=False))
+        return 0
+    print("%s — %s, autonomy %s, as at %s"
+          % (out["deployment"], out["criticality"], out["autonomy"] or "undeclared",
+             out["asOf"]))
+    if out.get("note"):
+        print("\n%s" % out["note"])
+    for q in out["questions"]:
+        print("\n[%s] %s" % (q["status"], q["key"]))
+        print("  %s" % q["ask"])
+        print("  against %s%s" % (", ".join(q["gvsc"]),
+                                  ("; bears on %s" % ", ".join(q["nistaml"]))
+                                  if q["nistaml"] else ""))
+        print("  why: %s" % q["why"])
+    for skip in out["skipped"]:
+        print("\nskipped: %s — %s (declared by %s%s)"
+              % (skip["battery"], skip["reason"], skip.get("declaredBy") or "nobody named",
+                 (" on %s" % skip["declaredOn"]) if skip.get("declaredOn") else ""))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="ai_register.py",
                                 description=__doc__.split("\n")[0])
@@ -1183,6 +2194,65 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--on", default="")
     sp.add_argument("--by", default="")
     sp.set_defaults(fn=_cmd_record_control)
+
+    sp = store_arg(sub.add_parser("declare"))
+    sp.add_argument("--deployment", required=True)
+    sp.add_argument("--flag", required=True,
+                    help="a CAC-AP-1 flag. Outranks the org profile, in both directions.")
+    sp.add_argument("--value", required=True)
+    sp.add_argument("--by", default="")
+    sp.add_argument("--basis", default="")
+    sp.set_defaults(fn=_cmd_declare)
+
+    sp = store_arg(sub.add_parser("ingest"))
+    sp.add_argument("--deployment", required=True)
+    sp.add_argument("--kind", default="",
+                    help="model-card, system-card, red-team-report, penetration-test, "
+                         "third-party-evaluation, dpa, dpia, questionnaire, trust-page")
+    sp.add_argument("--tier", default="", choices=list(TIERS))
+    sp.add_argument("--source", default="")
+    sp.add_argument("--scope", default="", help="required for T1: what it covered")
+    sp.add_argument("--period-start", default="")
+    sp.add_argument("--period-end", default="")
+    sp.add_argument("--url", default="")
+    sp.add_argument("--retrieved", default="", help="required with --url")
+    sp.add_argument("--by", default="")
+    sp.set_defaults(fn=_cmd_ingest)
+
+    sp = store_arg(sub.add_parser("propose"))
+    sp.add_argument("--deployment", required=True)
+    sp.add_argument("--requirement", default="", help="the question id this claims to cover")
+    sp.add_argument("--evidence", required=True, help="the EV- id being read")
+    sp.add_argument("--citation", default="",
+                    help="required: the passage this reading rests on")
+    sp.add_argument("--note", default="")
+    sp.add_argument("--by", default="")
+    sp.set_defaults(fn=_cmd_propose)
+
+    sp = store_arg(sub.add_parser("assess"))
+    sp.add_argument("--deployment", required=True)
+    sp.add_argument("--by", default="", help="required: only a named person confirms")
+    sp.add_argument("--on", default="")
+    sp.add_argument("--confirm", action="append", default=[])
+    sp.add_argument("--reject", action="append", default=[])
+    sp.add_argument("--why", default="", help="required with --reject")
+    sp.add_argument("--note", default="")
+    sp.set_defaults(fn=_cmd_assess)
+
+    sp = store_arg(sub.add_parser("record-requirement"))
+    sp.add_argument("--deployment", required=True)
+    sp.add_argument("--requirement", default="")
+    sp.add_argument("--evidence", default="")
+    sp.add_argument("--not-met", action="store_true")
+    sp.add_argument("--by", default="")
+    sp.set_defaults(fn=_cmd_record_requirement)
+
+    sp = store_arg(sub.add_parser("ask"))
+    sp.add_argument("--deployment", required=True)
+    sp.add_argument("--context", default="")
+    sp.add_argument("--today", default="")
+    sp.add_argument("--json", action="store_true")
+    sp.set_defaults(fn=_cmd_ask)
 
     sub.add_parser("self-test").set_defaults(fn=_cmd_self_test)
     return p
