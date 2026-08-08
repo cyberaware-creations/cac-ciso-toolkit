@@ -5,8 +5,13 @@ description: >-
   products are in use, what each DEPLOYMENT of them touches, how critical it is, what it is
   exposed to under the NIST adversarial machine learning taxonomy, and what is evidenced about
   its security. This is the CISO's slice of AI governance and says so: it inventories and
-  assesses SECURITY, and does not evaluate models, assess bias, or perform conformity
-  assessment — see references/scope.md, which names those boundaries with their sources. Risk
+  assesses SECURITY, and does not evaluate models, assess bias, perform conformity assessment or
+  determine regulatory scope — see references/scope.md, which names those boundaries with their
+  sources. Whether the organisation is in scope for the EU AI Act or any other AI regime, and in
+  which role — deployer, provider, importer — is DECLARED in the applicability profile that
+  business-context owns, on legal advice, and is never inferred here. This skill's regime
+  overlays are SELECTED by that declaration rather than a substitute for it, and
+  references/regimes.json ships empty on purpose. Risk
   lives in the deployment, not the model: the same LLM drafting copy and screening applicants
   is one system and two entirely different exposures. Exposure classes are DERIVED from
   recorded attributes and there is no command to select them by hand. An attack class has NO
@@ -20,8 +25,9 @@ description: >-
   agents, record a new AI deployment, work out what an AI deployment is exposed to, log an
   unsanctioned or discovered AI tool, check what evidence covers a model, find AI deployments
   overdue for assessment, or build the AI section of a board pack. NOT for evaluating model
-  quality or bias, accepting a residual (exceptions-register), scoring a risk
-  (risk-register), or rating a control (nist-csf).
+  quality or bias, deciding whether a regime such as the EU AI Act applies or which role the
+  organisation holds under it (business-context declares that), accepting a residual
+  (exceptions-register), scoring a risk (risk-register), or rating a control (nist-csf).
 ---
 
 # ai-register

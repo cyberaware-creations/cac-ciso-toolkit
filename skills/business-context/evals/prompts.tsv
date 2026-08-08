@@ -3,8 +3,8 @@ B2	business-context	Our Dublin subsidiary got authorised in November - that puts
 B3	business-context	The CRM holds the client data about 60% of our revenue renews through. Write that down somewhere the risk work can use.
 B4	business-context	What did the board actually say about outage tolerance? I want the exact words on file.
 B5	business-context	Set our revenue base for FY26 so the materiality work has a denominator.
-B6	business-context	Which questions actually apply to us for an incident? We're not listed.
-B7	business-context	I'm assessing a vendor that uses an AI model, but we've declared no AI internally. Does the AI battery still apply?
+B6	business-context|incident-materiality	Which questions actually apply to us for an incident? We're not listed.
+B7	business-context|vendor-register	I'm assessing a vendor that uses an AI model, but we've declared no AI internally. Does the AI battery still apply?
 B8	business-context	Has anyone reviewed our regulatory scope this year?
 B9	risk-register	Score and band our top risks.
 B10	incident-materiality	Is the vendor payroll breach material?

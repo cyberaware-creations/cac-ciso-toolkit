@@ -35,7 +35,8 @@ Route each prompt cold, with no prior context, and record the skill chosen. A pr
 the skill that will eventually *consume* the fact is a failure, not a near miss: the fact never
 gets recorded, and the consuming skill has nothing to cite.
 
-**Status: scored 2026-08-08 against v0.42.0 — 12/15. B4 fixed and re-scored at v0.42.2 — 13/15.**
+**Status: scored 2026-08-08 against v0.42.0 — 12/15. B4 fixed and re-scored at v0.42.2 — 13/15.
+B6 and B7 re-scored at v0.42.3 against expectations widened in an earlier commit — 15/15.**
 Routing mode, fifteen fresh `claude -p` sessions, $8.40, ~52s a case.
 
 All six cases written to reach a *different* skill reached it — `risk-register`,
@@ -97,6 +98,45 @@ directions. Two skills, one correct answer, and an expectation that names only o
 
 Both should become pipe lists **before** the next run, on the precedent set for A13 and Y1 —
 argued on their own terms, and changed in a commit that does not also contain their result.
+
+### Widened at v0.42.3, argued from the contract rather than from the result
+
+Done, and the argument has to stand without reference to where either case landed or it is a fit
+to the outcome. Changed in `prompts.tsv` and set out here **before** the run that scores them.
+
+**B6 → `business-context|incident-materiality`.** CAC-AP-1 is a **contract between two skills**,
+not a feature of one. The profile computes the narrowing; the consumer owns the question set
+being narrowed and reads the profile through `--context`. *"Which questions apply to us for an
+incident"* therefore has two correct doors by construction: `applies --skill incident` answers it
+from the profile side, and `incident-materiality` answers it from the set side, having read the
+same profile. §2.4 settles it — every skipped battery carries its reason as a sentence **the
+consumer embeds**, which only makes sense if the consumer is a place the question can legitimately
+arrive. An expectation naming one door asserts the other half of the contract is a wrong turn.
+
+**B7 → `business-context|vendor-register`.** §2.3 says a subject-level declaration outranks the
+org-level profile **in both directions**, and the mechanism that carries it is
+`applies --subject-declares` — called by the **subject register**, because the subject register is
+what knows about the subject. A vendor arrangement that uses AI *is* a subject declaration, and
+the skill holding the arrangement is the one that has it to declare. `vendor-register` firing is
+the §2.3 mechanism working, not a near miss.
+
+**Neither widening is free**, and it is worth writing down what each costs before the number
+arrives. B6 can no longer tell the profile side from the consumer side; it now proves only that
+the question does not escape to `risk-register` or `nist-csf`. B7 keeps more teeth — `ai-register`
+is a live wrong answer for a prompt that names an AI model, and the pipe list still rules it out.
+
+**Both re-scored PASS at v0.42.3.** B6 went to `incident-materiality` again, B7 to
+`vendor-register` again — the same two skills as before, now against expectations that say the
+contract runs both ways. 2/2, $1.11. Neither answer changed in substance, which is the point: the
+skills were right and the checklist was asserting something the design does not.
+
+Both answers argue the contract rather than reciting it. B6 refuses to let the conversation itself
+narrow anything: *"Saying it here doesn't narrow anything. The engine reads a declared flag from
+`business-context`, and a missing flag means 'not declared,' never 'does not apply.'"* B7 names the
+§2.3 direction and what a wrongly-suppressed battery would leave behind: *"`ask` would print a §2.4
+sentence naming whoever declared 'no AI internally' as the reason this vendor wasn't asked about
+its model. An assessor reading that page sees a person's name attached to a claim they didn't make
+about a system they weren't asked about."*
 
 ## Refresh the plugin first
 

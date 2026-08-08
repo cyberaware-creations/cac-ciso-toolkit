@@ -5,7 +5,7 @@ we run, what it touches, what it is exposed to, what is evidenced, what changed 
 quiet when the question is about model quality, bias, accepting a residual, scoring a risk, or
 regulatory scope.
 
-**Status: scored 2026-08-08 against v0.41.0 — 11 of 13 scoreable; four cases re-run against v0.42.0, now 14/15 with one case unusable as written.**
+**Status: scored 2026-08-08 against v0.41.0 — 11 of 13 scoreable; four cases re-run against v0.42.0, then 14/15 with one case unusable as written; A14 fixed at cause and re-scored at v0.42.3 — 15/15.**
 
 Routing mode (no `ALLOWED_TOOLS`), fifteen fresh `claude -p` sessions, $8.16, ~55s a case.
 
@@ -83,6 +83,45 @@ a pipe list argued from the design rather than from results, or a rewrite that p
 
 That leaves **14 of 15**, with A14 the only failing case and its failure a property of the case.
 
+### Resolved at v0.42.3 — the side was already picked, and the skill did not know it
+
+Of the two options above, **a pipe list is the wrong one here**, and the reason is written at the
+top of this file: this checklist confirms the skill *"stays quiet when the question is about …
+regulatory scope."* Widening A14 to `business-context|ai-register` would make the case agree with
+whatever happened to occur, and it would do that by contradicting the skill's own stated
+boundary. The side was picked before the first run and it stands: **`business-context`**, because
+scope is declared and never inferred, and a declaration is the profile's job.
+
+So the case is unchanged and the **cause is fixed instead**, on the pattern T3, B4 and V6 set.
+`ai-register`'s description claimed only that it "does not perform conformity assessment" — a
+narrower and far more technical statement than *"does not decide whether the AI Act applies to
+you"* — while `references/scope.md` and the empty `regimes.json` carried the real boundary in
+places a routing decision never reads. The description now names regulatory scope alongside bias
+and conformity assessment, spells out the roles (deployer, provider, importer), says the
+determination is **declared in the applicability profile, on legal advice**, describes the regime
+overlays as *selected by* that declaration rather than a substitute for it, and repeats the
+boundary in the NOT list.
+
+This is a prediction rather than a re-specification, and it can fail: **if A14 still lands on
+`ai-register` after this, the description was not the cause** and the case is genuinely ambiguous
+— which is worth knowing, and is the opposite of a ratchet.
+
+**The prediction held. A14 re-scored PASS**, to `business-context`, in a run whose commit does not
+contain the change. The answer cites the new clause back almost verbatim, which is about as direct
+as causal evidence gets in a routing test: *"`ai-register` says the same in its own boundaries: it
+inventories and assesses security, it does not determine regulatory scope."* It then leads with
+CAC-AP-1 §2.2 — *"Not declared ≠ not in scope … absence asks everything"* — refuses to reason from
+*you look like an organisation that deploys AI systems* to *you are a deployer under Art. 26*, and
+ends where the design says it should: **nobody has written down whether you are in scope, and that
+absence is the finding.**
+
+**That makes it 15/15**, with no case now recorded as unusable.
+
+A2, A4 and A6 were re-run alongside it to check the narrowed description pushed nothing out — the
+new deployment, the exposure question and the base-model change all still route here. A2 came back
+`error_max_turns` on the first attempt, was **not** folded into the total, and passed on a re-run.
+Four cases plus one retry, $3.16.
+
 ## What the run actually establishes
 
 The eight core cases (A2–A9) routed here every time: a new deployment, shadow AI found in a CASB
@@ -122,7 +161,7 @@ PROMPTS="$PWD/skills/ai-register/evals/prompts.tsv" ./skills/nist-csf/evals/run-
 | A10 | `ai-register`\|`board-pack` | the section hand-off |
 | A11 | `exceptions-register` | the acceptance boundary. This skill refuses and names where it goes |
 | A12 | `neither` | bias assessment. `references/scope.md` is the answer, and the answer is "not ours, and here is why" |
-| A13 | `risk-register` | scoring. One exposure, one scoring register |
+| A13 | `ai-register`\|`risk-register` *(widened before the second run — see above)* | scoring. One exposure, one scoring register; firing here and handing off is right |
 | A14 | `business-context` *(re-specified after the first run — see above)* | regulatory scope. Role determination is a legal question and `regimes.json` ships empty |
 | A15 | `nist-csf` *(re-specified after the first run — see above)* | the maturity score. There isn't one, on purpose |
 
