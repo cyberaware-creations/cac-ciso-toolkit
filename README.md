@@ -166,6 +166,12 @@ overlays, never the frame.
 - **`untraced` is a value, not a gap.** Never `low`, never on the scale, and it cannot be ordered
   against one at all — the engine raises rather than ranking it. A dependency nobody can trace is
   a question, not a low-priority row.
+- **Evidence is tiered.** Only an audited artifact or a contractual commitment can satisfy a
+  requirement; a questionnaire or a trust page generates questions and closes nothing.
+- **The reading layer proposes and never confirms.** A model can map evidence to requirements
+  with a citation; only a named person marks one satisfied.
+- **`ask` returns what is still open** — the applicable questions minus what real evidence
+  covers. Read a SOC 2 and the set shrinks; read a trust page and it does not.
 - **No vendor score**, deliberately and under an eval with two halves. Findings go to
   `risk-register` and are scored once, there.
 
@@ -429,6 +435,9 @@ python3 skills/board-pack/scripts/assemble_pack.py self-test               # con
 ./skills/nist-csf/evals/board-safety.sh                   # each of these six guards its own views
 ./skills/metrics-register/evals/board-safety.sh
 ./skills/vendor-register/evals/no-vendor-score.sh   # no score, emitted or computed
+./skills/vendor-register/evals/proposal-boundary.sh # the reading layer cannot close anything
+./skills/vendor-register/evals/evidence-tiers.sh    # what a tier means, and what does not extend it
+./skills/vendor-register/evals/questions.sh         # a real report shrinks the set; copy does not
 ./skills/exceptions-register/evals/board-safety.sh
 ./skills/incident-materiality/evals/board-safety.sh
 ./skills/business-context/evals/board-safety.sh

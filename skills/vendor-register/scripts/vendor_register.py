@@ -100,9 +100,50 @@ SETTINGS_DEFAULTS = {
     "cadenceDays": {"high": 365, "moderate": 730},
     "exitTestStaleDays": 730,
     "traceMaxHops": 2,
+    # Twelve months from the END OF THE PERIOD an artifact covers, not from the day somebody
+    # filed it. A SOC 2 for a period that closed fourteen months ago is a historical document
+    # however recently it arrived.
+    "evidenceGraceDays": 365,
+    # A pile of unconfirmed proposals must not be able to masquerade as an assessment.
+    "proposalStaleDays": 30,
 }
 
 TRACE_MAX_HOPS = 2
+
+# --- Evidence tiers -----------------------------------------------------------
+#
+# The hierarchy is about ASSESSMENT RIGOUR, not about how much a vendor is trusted.
+#
+#   T1  an audited artifact — SOC 2 Type II, an ISO 27001 certificate with its Statement of
+#       Applicability, a penetration test report, a regulatory examination finding. Somebody
+#       independent looked, and recorded what they looked at and when.
+#   T2  a contractual commitment — an executed DPA, a clause in the signed agreement, a
+#       security addendum. Not a demonstration, but an obligation with a remedy behind it.
+#   T3  a vendor assertion — a completed questionnaire, a trust centre, a security
+#       whitepaper. The vendor describing itself.
+#   T4  public copy — a privacy policy, a website, a status page, marketing material.
+#
+# Only T1 and T2 may satisfy a requirement, and that line is what the whole assessment layer
+# stands on. A privacy page is a marketing artifact: scanning it is genuinely useful for
+# knowing what to ASK, and is never a reason to stop asking.
+TIERS = ("T1", "T2", "T3", "T4")
+
+SATISFYING_TIERS = ("T1", "T2")
+"""The only tiers that may close a requirement.
+
+Referenced everywhere and never inlined, so the rule has exactly one definition to change and
+one place to argue with. `evals/proposal-boundary.sh` proves no code path gets around it.
+"""
+
+TIER_LABEL = {
+    "T1": "audited artifact",
+    "T2": "contractual commitment",
+    "T3": "vendor assertion",
+    "T4": "public copy",
+}
+
+EVIDENCE_ID_RE = re.compile(r"^EV-\d{3,}$")
+PROPOSAL_ID_RE = re.compile(r"^PR-\d{3,}$")
 
 
 class Refusal(Exception):
@@ -326,6 +367,8 @@ def add_arrangement(store: dict, vendor_ref: str, services: str, owner: str,
         # collapsing the two into one "has an exit strategy" boolean is what lets it pass.
         "exit": {"documentedOn": "", "testedOn": "", "note": ""},
         "requirements": [],
+        "evidence": [],
+        "proposals": [],
         "assessments": [],
         "criticality": None,
         "retired": None,
@@ -551,6 +594,609 @@ def criticality_of(rec: dict) -> str:
     return UNCLASSIFIED
 
 
+# --- Batteries: what gets asked, and what narrows it --------------------------
+#
+# A small CORE keyed to `GV.SC`, not a questionnaire product. The valuable output is not a
+# 300-question bank; it is what the vendor's own documentation left open, which means the set
+# has to be small enough that subtracting from it produces something a person will actually
+# send.
+#
+# EVERY question asks for evidence with a date, never an attestation. "Do you encrypt data at
+# rest?" is worthless — every vendor answers yes. "What is the most recent evidence you can
+# provide that data at rest is encrypted, and when was it produced?" has a discoverable answer,
+# a date, and degrades honestly when the answer is "none". `evals/questions.sh` fails on the
+# attestation shapes, so this is enforced rather than remembered.
+
+# Questions carry a stable ID, and the id is what `ask` subtracts against. Matching a
+# satisfied requirement to an open question by comparing prose would be fuzzy in exactly the
+# place that must not be: a near-miss would either drop a question nobody answered or keep one
+# that was. `propose --requirement contract-terms.incident-notice` links a reading to the
+# question it answers; free text is still accepted and simply subtracts nothing.
+BATTERIES = (
+    {
+        "id": "contract-terms",
+        "gvsc": ["GV.SC-05"],
+        "sr": ["SR-3"],
+        "appliesWhen": {},
+        "questions": (
+            {"id": "incident-notice",
+             "ask": "What is the executed document, and which clause, that commits this "
+                    "provider to notifying us of a security incident — and within what period?"},
+            {"id": "audit-right",
+             "ask": "Which signed document sets out our right to audit or to receive assurance "
+                    "reports, and when was it last exercised?"},
+        ),
+    },
+    {
+        "id": "assurance",
+        "gvsc": ["GV.SC-06", "GV.SC-07"],
+        "sr": ["SR-6"],
+        "appliesWhen": {},
+        "questions": (
+            {"id": "latest-report",
+             "ask": "What is the most recent independent assurance report for the service we "
+                    "consume, what period does it cover, and what did it exclude from scope?"},
+            {"id": "open-findings",
+             "ask": "What findings were open at the end of that period, and what evidence "
+                    "shows their current state?"},
+        ),
+    },
+    {
+        "id": "exit",
+        "gvsc": ["GV.SC-10"],
+        "sr": ["SR-12"],
+        # Top of the scale only. An exit plan for a marketing sandbox is paperwork.
+        "appliesWhen": {"criticalityAtLeast": "TOP"},
+        "questions": (
+            {"id": "last-exercised",
+             "ask": "What is the dated record of the last time exit from this provider was "
+                    "actually exercised, rather than documented?"},
+            {"id": "deletion-evidence",
+             "ask": "What evidence would show our data had been returned and then deleted, and "
+                    "how long would producing it take?"},
+        ),
+    },
+    {
+        "id": "subprocessors",
+        "gvsc": ["GV.SC-07", "GV.SC-09"],
+        "sr": ["SR-3"],
+        "appliesWhen": {},
+        "questions": (
+            {"id": "current-list",
+             "ask": "What is the current dated list of subprocessors for this service, and how "
+                    "are we notified before it changes?"},
+        ),
+    },
+    {
+        "id": "ai-overlay",
+        "gvsc": ["GV.SC-07"],
+        "sr": ["SR-3"],
+        # Gated on a flag declarable on the ARRANGEMENT or on the org profile.
+        "appliesWhen": {"flag": "aiInUse"},
+        "questions": (
+            {"id": "models-in-scope",
+             "ask": "What documentation states which models process our data, and when was it "
+                    "last updated?"},
+            {"id": "training-use",
+             "ask": "What evidence shows whether our data is used to train or fine-tune a "
+                    "model, and what dated commitment covers that?"},
+        ),
+    },
+)
+
+
+# --- Regime overlays ----------------------------------------------------------
+#
+# An overlay adds batteries on top of the `GV.SC` core when a profile flag says a regime
+# applies. **None replaces the core**: a register with no overlay enabled is still a complete
+# GV.SC register, and that is checked rather than asserted.
+#
+# **This ships EMPTY, and that is a decision rather than an unfinished job.**
+#
+# DORA, NYDFS Part 500, the US interagency guidance and the SEC rules were all drafted from
+# secondary sources. An overlay tells a user that a regulation requires something of them, and
+# a compliance tool asserting an obligation it cannot cite is worse than one that stays quiet —
+# the user cannot tell the difference between a checked claim and a plausible one, and will act
+# on both. So the machinery ships and the content does not, pending a primary-source pass.
+#
+# `register_overlay` REFUSES an uncited requirement, so this cannot be quietly relaxed later:
+# whoever adds the content has to name the article or section, and the refusal message says
+# what a source has to be. See `references/overlays.md`.
+
+OVERLAYS = ()
+"""Deliberately empty. See the note above, and `references/overlays.md`.
+
+Populate through `register_overlay`, which refuses anything uncited."""
+
+
+def register_overlay(overlay: dict, into=None) -> dict:
+    """Add an overlay, refusing any requirement that cannot say where it comes from.
+
+    The gate is the point. An overlay is the only part of this skill that tells a user a THIRD
+    PARTY — a regulator — requires something of them, and that claim has to be traceable to the
+    text it came from. A citation to a summary, a vendor blog or a consultancy explainer is not
+    a citation to the regulation.
+    """
+    if not str(overlay.get("id") or "").strip():
+        raise Refusal("an overlay needs an id")
+    if not str(overlay.get("flag") or "").strip():
+        raise Refusal(
+            "overlay %r needs a --flag: the profile key that selects it.\n"
+            "  An overlay that is always on is not an overlay, it is the core."
+            % overlay.get("id"))
+    for battery in (overlay.get("batteries") or []):
+        for q in (battery.get("questions") or []):
+            src = str(q.get("source") or "").strip()
+            if not src:
+                raise Refusal(
+                    "overlay %r, question %r has no `source`.\n"
+                    "  Every overlay question must cite the article or section it comes from, "
+                    "checked against the regulation or the supervisory text — not a summary, a "
+                    "vendor explainer or a consultancy note. An overlay asserting an obligation "
+                    "it cannot cite does not ship: a reader cannot tell a checked claim from a "
+                    "plausible one, and will act on both."
+                    % (overlay["id"], q.get("id")))
+    target = OVERLAYS if into is None else into
+    if isinstance(target, tuple):
+        raise Refusal("pass a mutable list as `into` to register an overlay at runtime")
+    target.append(overlay)
+    return overlay
+
+
+def overlays_for(context: dict = None, overlays=None) -> list:
+    """The overlays a profile turns on. Absence never enables one — a regime applies because
+    somebody declared it, not because nothing said otherwise."""
+    profile = ((context or {}).get("profile") or {})
+    active = []
+    for ov in (OVERLAYS if overlays is None else overlays):
+        entry = profile.get(ov["flag"])
+        value = entry.get("value") if isinstance(entry, dict) else entry
+        if value is True:
+            active.append(ov)
+    return active
+
+
+def question_key(battery: dict, question: dict) -> str:
+    return "%s.%s" % (battery["id"], question["id"])
+
+
+def all_questions(batteries=None) -> list:
+    out = []
+    for battery in (batteries if batteries is not None else BATTERIES):
+        for q in battery["questions"]:
+            out.append((battery, q))
+    return out
+
+
+def _battery_applies(battery: dict, rec: dict, store: dict, context: dict):
+    """(applies, skip_record_or_None). CAC-AP-1 narrowing, reused rather than re-derived.
+
+    §2.2 — a missing criticality or a missing flag means NOT DECLARED, so the battery
+    APPLIES. Absence asks more. An arrangement nobody classified is exactly the one that must
+    not be quietly treated as low-risk.
+
+    §2.3 — a declaration on the arrangement outranks the org profile IN BOTH DIRECTIONS. An
+    organisation that declared no AI still gets the AI battery on a provider whose own record
+    says a model touches our data, and vice versa.
+
+    §2.4 — every skip carries the flag, the declarer and the date, so an assessor can tell
+    "we judged this out of scope, here is who said so" from "nobody asked".
+    """
+    cond = battery.get("appliesWhen") or {}
+
+    if "criticalityAtLeast" in cond:
+        level = criticality_of(rec)
+        # `untraced` and `unclassified` get the FULL battery. Neither is a level, so neither
+        # can narrow anything — and the arrangement nobody could place is the one worth asking
+        # every question of.
+        #
+        # This is the FIRST of two layers, and it is here for intent rather than because the
+        # second is weak: `level in scale` below also excludes both states, so removing this
+        # line changes no behaviour today. It is kept because the obvious future edit — using
+        # `criticality_rank` to compare levels — would raise on these states rather than
+        # returning a number, and a reader needs to know that is deliberate before working out
+        # why their comparison blew up.
+        if level in (UNTRACED, UNCLASSIFIED):
+            return True, None
+        scale = store["settings"]["criticalityScale"]
+        if cond["criticalityAtLeast"] == "TOP" and level in scale:
+            if scale.index(level) < len(scale) - 1:
+                return False, {
+                    "battery": battery["id"],
+                    "reason": "criticality %r is below the top of the scale (%s)"
+                              % (level, scale[-1]),
+                    "flag": "criticality",
+                    "declaredBy": ((rec.get("criticality") or {}).get("confirmed") or {})
+                                  .get("by", ""),
+                    "declaredOn": ((rec.get("criticality") or {}).get("confirmed") or {})
+                                  .get("on", ""),
+                }
+        return True, None
+
+    if "flag" in cond:
+        flag = cond["flag"]
+        # Subject layer first (§2.3), and `None` is not `False`: only an explicit declaration
+        # on the arrangement outranks anything.
+        subject = (rec.get("declares") or {}).get(flag)
+        if isinstance(subject, dict):
+            sub_val, sub_by, sub_on = (subject.get("value"), subject.get("declaredBy", ""),
+                                       subject.get("declaredOn", ""))
+        else:
+            sub_val, sub_by, sub_on = subject, "", ""
+        if sub_val is True:
+            return True, None
+        if sub_val is False:
+            return False, {"battery": battery["id"],
+                           "reason": "the arrangement declares %s false" % flag,
+                           "flag": flag, "declaredBy": sub_by, "declaredOn": sub_on}
+        entry = ((context or {}).get("profile") or {}).get(flag)
+        if isinstance(entry, dict) and entry.get("value") is False:
+            return False, {"battery": battery["id"],
+                           "reason": "the organisation profile declares %s false" % flag,
+                           "flag": flag,
+                           "declaredBy": entry.get("declaredBy", ""),
+                           "declaredOn": entry.get("declaredOn", "")}
+        # Not declared anywhere, or declared true. Either way: ask.
+        return True, None
+
+    return True, None
+
+
+def batteries_for(rec: dict, store: dict, context: dict = None, overlays=None) -> dict:
+    """Which batteries apply to this arrangement, and which were skipped and why.
+
+    Core first, then any overlay a declared profile flag turned on. The core is never replaced
+    or narrowed by an overlay: a register with no overlay enabled asks exactly what it asked
+    before overlays existed, which is asserted in the self-test rather than assumed.
+    """
+    pool = list(BATTERIES)
+    for ov in overlays_for(context, overlays):
+        pool.extend(ov.get("batteries") or [])
+    applied, skipped = [], []
+    for battery in pool:
+        yes, skip = _battery_applies(battery, rec, store, context or {})
+        if yes:
+            applied.append(battery)
+        elif skip:
+            skipped.append(skip)
+    return {"applied": applied, "skipped": skipped}
+
+
+# --- Evidence -----------------------------------------------------------------
+
+def _next_sub_id(rec: dict, key: str, prefix: str, pattern) -> str:
+    used = [int(x["id"].split("-")[1]) for x in (rec.get(key) or [])
+            if pattern.match(str(x.get("id", "")))]
+    return "%s-%03d" % (prefix, (max(used) + 1) if used else 1)
+
+
+def ingest(store: dict, aid: str, kind: str, tier: str, source: str, scope: str = "",
+           period_start: str = "", period_end: str = "", url: str = "",
+           retrieved: str = "", by: str = "") -> dict:
+    """Record an artifact a vendor supplied, with the tier that says what it can close.
+
+    **Scope and period are required for T1**, and this is the refusal that makes the tier mean
+    anything. A SOC 2 that excludes the subservice organisation actually running the workload
+    has not covered that workload, and a report with no period cannot expire — it would sit in
+    the register looking like current assurance forever. The two failures are the same failure:
+    an artifact whose limits are not written down gets read as though it had none.
+
+    Anything fetched from a URL needs `--retrieved`. Public copy changes without notice, and
+    an undated capture is a claim about a page that may no longer say it.
+    """
+    if tier not in TIERS:
+        raise Refusal("--tier must be one of %s; got %r" % (", ".join(TIERS), tier))
+    if not str(kind or "").strip():
+        raise Refusal("--kind names what the artifact is (soc2-type2, iso27001-cert, dpa, ...)")
+    if not str(source or "").strip():
+        raise Refusal("--source says where this came from. An artifact with no provenance "
+                      "cannot be re-found by the person who has to check it.")
+    if tier == "T1":
+        missing = []
+        if not str(scope or "").strip():
+            missing.append("--scope")
+        if not (str(period_start or "").strip() and str(period_end or "").strip()):
+            missing.append("--period-start and --period-end")
+        if missing:
+            raise Refusal(
+                "a T1 artifact needs %s.\n"
+                "  T1 is the tier that can close a requirement, and it can only do so WITHIN "
+                "its scope and period. A SOC 2 excluding the subservice organisation running "
+                "the workload has not covered it; a report with no period cannot expire, so it "
+                "would sit here looking like current assurance forever."
+                % " and ".join(missing))
+    if str(url or "").strip() and not str(retrieved or "").strip():
+        raise Refusal(
+            "evidence with a --url needs --retrieved.\n"
+            "  Public copy changes without notice. An undated capture is a claim about a page "
+            "that may no longer say it, and nobody can check which.")
+    rec = find_arrangement(store, aid)
+    entry = {
+        "id": _next_sub_id(rec, "evidence", "EV", EVIDENCE_ID_RE),
+        "kind": kind.strip(),
+        "tier": tier,
+        "source": source.strip(),
+        "scope": str(scope or "").strip(),
+        "periodStart": check_date(period_start, "--period-start") if period_start else "",
+        "periodEnd": check_date(period_end, "--period-end") if period_end else "",
+        "url": str(url or "").strip(),
+        "retrievedOn": check_date(retrieved, "--retrieved") if retrieved else "",
+        "ingestedOn": utc_today(),
+        "ingestedBy": str(by or "").strip(),
+    }
+    rec.setdefault("evidence", []).append(entry)
+    append_history(store, "evidence-ingested", aid, by,
+                   why="%s (%s)" % (entry["kind"], TIER_LABEL[tier]),
+                   detail={"evidenceId": entry["id"], "tier": tier})
+    return entry
+
+
+def find_evidence(rec: dict, eid: str) -> dict:
+    for ev in (rec.get("evidence") or []):
+        if ev.get("id") == eid:
+            return ev
+    known = ", ".join(e.get("id", "?") for e in (rec.get("evidence") or [])) or "none"
+    raise Refusal("no evidence %r on %s (known: %s)" % (eid, rec["id"], known))
+
+
+def evidence_status(ev: dict, today: str = "", grace: int = 365) -> str:
+    """`current`, `in-grace` or `expired`, measured from the END OF THE PERIOD.
+
+    A tier that cannot expire is not evidence, it is a keepsake. T3 and T4 have no period and
+    are reported `current` because they close nothing anyway — their job is to generate
+    questions, and a question does not go stale the way an assurance claim does.
+    """
+    today = today or utc_today()
+    end = str(ev.get("periodEnd") or "")
+    if not end:
+        return "current"
+    age = days_between(end, today)
+    if age <= 0:
+        return "current"          # the period has not closed yet
+    return "in-grace" if age <= int(grace) else "expired"
+
+
+# --- Generated questions ------------------------------------------------------
+#
+# The whole speed argument, and the reason this is not a questionnaire product.
+#
+# Take the batteries the criticality gate and the overlays left applicable, subtract what T1
+# and T2 evidence genuinely covers, and emit WHAT REMAINS OPEN. Read a SOC 2 properly and the
+# set might be four questions instead of forty, which is the difference between a decision this
+# week and a decision next quarter. A full questionnaire is simply the degenerate case where
+# the vendor supplied nothing — same code path, no special casing.
+#
+# T3 and T4 subtract NOTHING. That is the product claim, and `evals/questions.sh` asserts it in
+# the only form that matters: the same three requirements covered by a T1 shrink the set, and
+# covered by a T3 do not.
+
+NOTHING_OPEN = ("Nothing is open for this arrangement at its current criticality. Every "
+                "applicable question is covered by evidence that can satisfy it.")
+"""Printed when the subtraction leaves nothing.
+
+An empty result must never be an empty string. A blank page and "we have asked everything and
+it is all evidenced" look identical on a screen and mean opposite things, and the blank one is
+the one somebody forwards as though it were the second.
+"""
+
+
+def ask(store: dict, aid: str, context: dict = None, today: str = "") -> dict:
+    """What is still worth asking about this arrangement, and why each question is being asked.
+
+    A question survives when nothing that CAN satisfy it does. A question whose requirement is
+    covered by evidence that has slipped into grace is still emitted, marked `re-confirm`
+    rather than `open`: the answer was good and is ageing, which is a different request from
+    one nobody has ever answered, and collapsing the two would either nag or go quiet.
+    """
+    today = today or utc_today()
+    rec = find_arrangement(store, aid)
+    grace = int(store["settings"].get("evidenceGraceDays") or 365)
+    narrowed = batteries_for(rec, store, context or {})
+
+    # What a satisfying tier actually covers, keyed by the question it answers. Only
+    # requirements closed by T1/T2 count — the tier rule is not re-implemented here, it is
+    # read off SATISFYING_TIERS, so there is one definition of what may close anything.
+    covered = {}
+    for req in (rec.get("requirements") or []):
+        if not req.get("met"):
+            continue
+        key = str(req.get("requirement") or "")
+        ev_id = str(req.get("evidenceRef") or "")
+        try:
+            ev = find_evidence(rec, ev_id) if ev_id else None
+        except Refusal:
+            ev = None
+        if not ev or ev["tier"] not in SATISFYING_TIERS:
+            continue
+        status = evidence_status(ev, today, grace)
+        if status == "expired":
+            continue          # covered by something that has run out is not covered
+        # A question answered twice keeps the WORSE standing, so ageing evidence cannot be
+        # masked by a fresher artifact answering a different part of the same question.
+        prior = covered.get(key)
+        if prior is None or (prior["status"] == "current" and status == "in-grace"):
+            covered[key] = {"status": status, "evidence": ev}
+
+    questions, reconfirm = [], []
+    for battery, q in all_questions(narrowed["applied"]):
+        key = question_key(battery, q)
+        hit = covered.get(key)
+        entry = {
+            "key": key,
+            "ask": q["ask"],
+            "battery": battery["id"],
+            "gvsc": list(battery.get("gvsc") or []),
+            "sr": list(battery.get("sr") or []),
+        }
+        if hit is None:
+            entry["status"] = "open"
+            # The GV.SC reference is printed alongside by every caller, so naming it here
+            # too produced "against GV.SC-05 (GV.SC-05)" on the page.
+            entry["why"] = "no evidence that can satisfy this has been recorded"
+            questions.append(entry)
+        elif hit["status"] == "in-grace":
+            entry["status"] = "re-confirm"
+            entry["why"] = ("covered by %s (%s), whose period ended %s and is now in grace"
+                            % (hit["evidence"]["id"], hit["evidence"]["kind"],
+                               hit["evidence"]["periodEnd"]))
+            reconfirm.append(entry)
+    out = {
+        "arrangement": aid,
+        "asOf": today,
+        "criticality": criticality_of(rec),
+        "questions": questions + reconfirm,
+        "open": len(questions),
+        "reConfirm": len(reconfirm),
+        "skipped": narrowed["skipped"],
+        "batteriesApplied": [b["id"] for b in narrowed["applied"]],
+    }
+    if not out["questions"]:
+        out["note"] = NOTHING_OPEN
+    return out
+
+
+# --- The Layer A / Layer B boundary -------------------------------------------
+#
+# THE safety property of this whole feature, and worth stating before the code.
+#
+# Layer A is the reading layer: agentic, living in SKILL.md. It ingests artifacts, works out
+# what they appear to cover, and PROPOSES — every proposal citing a passage or a document
+# reference. Layer B is this file: deterministic, and the only thing that can mark a
+# requirement satisfied, which it does only when a named person says so.
+#
+# The failure this prevents is specific. A model reading a trust page and ticking requirements
+# produces a register full of green derived from marketing copy — worse than an empty register,
+# because it LOOKS FINISHED. Nobody re-checks a page of ticks.
+#
+# Two refusals hold the line, and neither is a convention:
+#   1. `propose` refuses without a citation. A proposal with no citation is an opinion.
+#   2. `propose` refuses to cite T3 or T4 evidence AT ALL. Those tiers generate questions and
+#      never propose satisfaction, and this is the single most important refusal in the file.
+#
+# `evals/proposal-boundary.sh` proves no code path gets around either.
+
+def propose(store: dict, aid: str, requirement: str, evidence_ref: str, citation: str,
+            note: str = "", by: str = "") -> dict:
+    """Layer A's output: a reading, with its receipt. Satisfies nothing.
+
+    A proposal is stored `proposed` and never touches a requirement's satisfied state. That
+    separation is the whole point — see `assess`, which is the only thing that closes anything.
+    """
+    if not str(requirement or "").strip():
+        raise Refusal("--requirement names what this proposal claims to cover")
+    if not str(citation or "").strip():
+        raise Refusal(
+            "--citation is required: the passage or document reference this reading rests on.\n"
+            "  A proposal with no citation is an opinion. The person who confirms it has to be "
+            "able to go and read the same thing.")
+    rec = find_arrangement(store, aid)
+    ev = find_evidence(rec, evidence_ref)
+    if ev["tier"] not in SATISFYING_TIERS:
+        raise Refusal(
+            "%s is %s (%s), which can never satisfy a requirement.\n"
+            "  Only %s can — an audited artifact or a contractual commitment. A vendor "
+            "assertion or a public page is genuinely useful for working out what to ASK, and "
+            "is never a reason to stop asking. Ingest it, let it generate questions, and "
+            "propose against something that was independently looked at or actually signed."
+            % (evidence_ref, ev["tier"], TIER_LABEL[ev["tier"]], " or ".join(SATISFYING_TIERS)))
+    entry = {
+        "id": _next_sub_id(rec, "proposals", "PR", PROPOSAL_ID_RE),
+        "requirement": requirement.strip(),
+        "evidenceRef": evidence_ref,
+        "citation": citation.strip(),
+        "note": str(note or "").strip(),
+        "status": "proposed",
+        "proposedOn": utc_today(),
+        "proposedBy": str(by or "").strip(),
+    }
+    rec.setdefault("proposals", []).append(entry)
+    append_history(store, "proposed", aid, by, why=entry["requirement"],
+                   detail={"proposalId": entry["id"], "evidenceRef": evidence_ref})
+    return entry
+
+
+def find_proposal(rec: dict, pid: str) -> dict:
+    for pr in (rec.get("proposals") or []):
+        if pr.get("id") == pid:
+            return pr
+    known = ", ".join(x.get("id", "?") for x in (rec.get("proposals") or [])) or "none"
+    raise Refusal("no proposal %r on %s (known: %s)" % (pid, rec["id"], known))
+
+
+def assess(store: dict, aid: str, by: str, on: str = "", confirm=None, reject=None,
+           why: str = "", note: str = "") -> dict:
+    """Layer B: a named person rules on proposals, and the assessment clock resets.
+
+    This is the act that writes the `assessments` list `_last_assessed` has been reading since
+    v0.39.1 — the clock existed with nothing able to reset it, and this closes that seam.
+
+    Refuses without `--by`. An unattributed assessment is exactly what this boundary exists to
+    prevent, and it is what an assessor will ask for first.
+
+    Rejected proposals are RETAINED, excluded from the working view and present on export.
+    Keeping one records that a claim was examined and not accepted, which is worth having under
+    examination; deleting it would leave no trace that anybody looked.
+    """
+    if not str(by or "").strip():
+        raise Refusal(
+            "--by is required: the name of the person making this assessment.\n"
+            "  Derivation and reading both propose; only a person confirms. An assessment with "
+            "nobody's name on it cannot be defended by pointing at the tool that produced it.")
+    reject = list(reject or [])
+    if reject and not str(why or "").strip():
+        raise Refusal(
+            "--reject needs --why.\n"
+            "  A rejected reading is retained on the record, and a rejection with no reason "
+            "tells a later reader nothing about whether to try again.")
+    rec = find_arrangement(store, aid)
+    on = check_date(on, "--on") if on else utc_today()
+    confirmed_ids, rejected_ids = [], []
+    for pid in list(confirm or []):
+        pr = find_proposal(rec, pid)
+        ev = find_evidence(rec, pr["evidenceRef"])
+        # Belt and braces. `propose` already refuses these tiers, so a T3 reaching here means
+        # a proposal was written some other way — and this is the last gate before a tick.
+        if ev["tier"] not in SATISFYING_TIERS:
+            raise Refusal(
+                "%s cites %s, which is %s and can never satisfy a requirement."
+                % (pid, pr["evidenceRef"], TIER_LABEL[ev["tier"]]))
+        pr["status"] = "confirmed"
+        pr["confirmedBy"] = by.strip()
+        pr["confirmedOn"] = on
+        # The audit trail IS the point: what was satisfied, by which artifact, on whose word,
+        # citing what. A bare `met: true` is the thing this register exists not to produce.
+        rec.setdefault("requirements", []).append({
+            "requirement": pr["requirement"],
+            "met": True,
+            "evidenceRef": pr["evidenceRef"],
+            "citation": pr["citation"],
+            "checkedOn": on,
+            "checkedBy": by.strip(),
+            "viaProposal": pid,
+        })
+        confirmed_ids.append(pid)
+    for pid in reject:
+        pr = find_proposal(rec, pid)
+        pr["status"] = "rejected"
+        pr["rejectedBy"] = by.strip()
+        pr["rejectedOn"] = on
+        pr["rejectedWhy"] = why.strip()
+        rejected_ids.append(pid)
+    entry = {"on": on, "by": by.strip(), "confirmed": confirmed_ids,
+             "rejected": rejected_ids, "note": str(note or "").strip()}
+    rec.setdefault("assessments", []).append(entry)
+    append_history(store, "assessed", aid, by,
+                   why=note or ("%d confirmed, %d rejected"
+                                % (len(confirmed_ids), len(rejected_ids))),
+                   detail={"confirmed": confirmed_ids, "rejected": rejected_ids})
+    return entry
+
+
+def open_proposals(rec: dict) -> list:
+    """The working view: what is still awaiting a person. Rejections are kept, not shown."""
+    return [pr for pr in (rec.get("proposals") or []) if pr.get("status") == "proposed"]
+
+
 # --- Lifecycle acts -----------------------------------------------------------
 
 def test_exit(store: dict, aid: str, tested: str, why: str, on: str = "",
@@ -581,6 +1227,18 @@ def document_exit(store: dict, aid: str, note: str, on: str = "", by: str = "") 
 
 def review_requirements(store: dict, aid: str, requirement: str, evidence: str,
                         met: bool = True, by: str = "") -> dict:
+    """Record a contract provision checked directly against the executed agreement.
+
+    A Layer B act, like `assess`: a person reads the signed document and says what it commits
+    the provider to. It is NOT a way around the proposal boundary — it demands the same things
+    `assess` does, a named person and a reference to what was actually read.
+
+    `--by` became required in v0.40.0. It was optional when this act shipped in v0.39.0, which
+    meant a requirement could be marked met with nobody's name against it — a hole in the
+    "only a named person closes anything" claim that the assessment layer is built on. Found by
+    `proposal-boundary.sh`'s static scan on its first run, which is the entire reason that scan
+    reads the AST rather than trusting the two acts it was written for.
+    """
     if not str(requirement or "").strip():
         raise Refusal("--requirement names the contract provision being checked")
     if not str(evidence or "").strip():
@@ -588,6 +1246,12 @@ def review_requirements(store: dict, aid: str, requirement: str, evidence: str,
             "--evidence must reference what was actually read.\n"
             "  A requirement marked met with no evidence reference is an assertion about "
             "an agreement nobody opened, and it reads identically to one that was checked.")
+    if not str(by or "").strip():
+        raise Refusal(
+            "--by is required: the person who read the agreement.\n"
+            "  Marking a requirement met is closing it, and only a named person closes "
+            "anything here. An unattributed tick cannot be defended by pointing at the tool "
+            "that recorded it.")
     rec = find_arrangement(store, aid)
     entry = {"requirement": requirement.strip(), "evidence": evidence.strip(),
              "met": bool(met), "checkedOn": utc_today(), "checkedBy": str(by or "").strip()}
@@ -794,6 +1458,38 @@ def escalations(store: dict, today: str = "") -> list:
                         "exit last exercised %s, beyond the %d-day staleness window"
                         % (tested, stale))
 
+        # Evidence that has expired and that a CONFIRMED requirement leans on. Not every
+        # expired artifact: an old report nobody cited is clutter, while an old report
+        # holding up a "satisfied" tick is a requirement that is no longer evidenced.
+        grace = int(store["settings"].get("evidenceGraceDays") or 365)
+        relied_on = {str(r.get("evidenceRef") or "")
+                     for r in (rec.get("requirements") or []) if r.get("met")}
+        for ev in (rec.get("evidence") or []):
+            if ev.get("id") not in relied_on:
+                continue
+            if evidence_status(ev, today, grace) != "expired":
+                continue
+            top = store["settings"]["criticalityScale"][-1]
+            add("evidence-expired", rec, "high" if level == top else "medium",
+                ev.get("periodEnd") or "",
+                "%s (%s) covers a requirement recorded as met, and its period ended %s — "
+                "beyond the %d-day window. The tick is still there; the evidence behind it "
+                "is not" % (ev.get("id"), ev.get("kind"), ev.get("periodEnd"), grace))
+
+        # Proposals nobody has ruled on. A stack of these must never read as an assessment:
+        # Layer A can produce them all day, and only Layer B closes anything.
+        stale_days = int(store["settings"].get("proposalStaleDays") or 30)
+        pending = [pr for pr in (rec.get("proposals") or [])
+                   if pr.get("status") == "proposed"
+                   and pr.get("proposedOn")
+                   and days_between(pr["proposedOn"], today) > stale_days]
+        if pending:
+            add("unconfirmed-proposals", rec, "medium",
+                min(pr["proposedOn"] for pr in pending),
+                "%d proposal(s) have sat un-assessed for more than %d days. A proposal is a "
+                "reading, not a finding — nothing here is satisfied until a named person "
+                "confirms it" % (len(pending), stale_days))
+
         # Triggers fire at EVERY level, including the lowest. A subprocessor change on a
         # low-criticality arrangement is exactly the event that makes it stop being low,
         # and `low` has no cadence to catch it.
@@ -837,6 +1533,185 @@ def load_context(path: str) -> dict:
         raise Refusal(f"{path} declares contract {payload.get('contractVersion')!r}, "
                       f"which this engine does not read")
     return payload
+
+
+# --- Register of Information --------------------------------------------------
+
+ROI_REQUIRED = (
+    ("vendorName", "the legal name of the provider"),
+    ("entityRef", "the legal entity holding the arrangement"),
+    ("services", "what the provider actually does"),
+    ("criticality", "a criticality that a person has confirmed"),
+    ("supports", "the function or system this arrangement supports"),
+    ("owner", "the person accountable for the arrangement"),
+)
+
+
+def export_roi(store: dict, context: dict = None, today: str = "") -> dict:
+    """A CAC-shaped register export, field names chosen so mapping to a filing template is
+    mechanical.
+
+    **It refuses to look complete when it is not.** An arrangement missing an identifier, a
+    confirmed criticality or a supported function is reported as a NAMED GAP rather than
+    emitted as a blank cell. A register that files cleanly and is wrong is worse than one that
+    refuses: the blank cell is indistinguishable from a legitimately empty one, and the filing
+    carries the organisation's name on it.
+
+    Gated on a DECLARED profile flag. This exports a register in a documented shape; it does
+    not tell anybody what a regulation requires, and the overlay that would is not shipped —
+    see `references/overlays.md`.
+    """
+    today = today or utc_today()
+    profile = ((context or {}).get("profile") or {})
+    entry = profile.get("doraScope")
+    scoped = entry.get("value") if isinstance(entry, dict) else entry
+    if scoped is not True:
+        raise Refusal(
+            "this export is gated on a declared `doraScope` in the applicability profile, and "
+            "the profile %s.\n"
+            "  Absence is not a 'no' — it means nobody has declared it. Declare the flag in "
+            "`business-context` and pass the exported payload with --context.\n"
+            "  The export produces a register in a documented shape. It does not assert what "
+            "any regulation requires of you: the regime overlay that would carry those "
+            "obligations is not shipped, pending a primary-source pass."
+            % ("declares it false" if scoped is False else "does not declare one"))
+    rows, gaps = [], []
+    for rec in store["arrangements"]:
+        if rec.get("retired"):
+            continue
+        vendor = next((v for v in store["vendors"]
+                       if v.get("id") == rec.get("vendorRef")), {})
+        conf = ((rec.get("criticality") or {}).get("confirmed") or {})
+        row = {
+            "arrangementRef": rec["id"],
+            "vendorName": vendor.get("name") or "",
+            "vendorJurisdiction": vendor.get("jurisdiction") or "",
+            "vendorGroupParent": vendor.get("groupParent") or "",
+            "entityRef": rec.get("entityRef") or "",
+            "services": rec.get("services") or "",
+            "supports": rec.get("supports") or "",
+            "owner": rec.get("owner") or "",
+            # The CONFIRMED level only. A derived one is a proposal, and filing a proposal as
+            # though a person had assigned it is the whole failure this skill refuses.
+            "criticality": conf.get("value") or "",
+            "criticalityScaleVersion": conf.get("scaleVersion") or "",
+            "criticalityConfirmedBy": conf.get("by") or "",
+            "startsOn": rec.get("startsOn") or "",
+            "endsOn": rec.get("endsOn") or "",
+            "subprocessorCount": len(rec.get("subcontractors") or []),
+            "exitDocumentedOn": (rec.get("exit") or {}).get("documentedOn") or "",
+            "exitTestedOn": (rec.get("exit") or {}).get("testedOn") or "",
+        }
+        missing = [(field, why) for field, why in ROI_REQUIRED if not str(row.get(field) or "")]
+        if missing:
+            gaps.append({
+                "arrangementRef": rec["id"],
+                "missing": [f for f, _ in missing],
+                "detail": "; ".join("%s — %s" % (f, why) for f, why in missing),
+            })
+        rows.append(row)
+    return {
+        "family": FAMILY,
+        "export": "register-of-information",
+        "shape": "CAC",
+        "asOf": today,
+        "organisation": store["meta"].get("orgName") or "",
+        "rows": rows,
+        "gaps": gaps,
+        "complete": not gaps,
+        "note": ("This is a CAC-shaped export. Field names are chosen so mapping to a filing "
+                 "template is mechanical; it is not a filing, and it asserts no regulatory "
+                 "obligation."),
+    }
+
+
+# --- The findings bridge (GV.SC-03, SR-2) -------------------------------------
+#
+# C-SCRM integrated into enterprise risk, implemented as a ONE-WAY export. This skill never
+# scores: findings go to `risk-register` and are scored once, there, under L×I with an appetite
+# to judge them against.
+#
+# **A finding is a requirement a named person recorded as NOT met.** That is a deliberate
+# narrowing, and it is the decision worth arguing with:
+#
+#   - It is a CHECKED fact. Somebody read the agreement or the report, said the provision is
+#     absent, and their name and the date are on it. That is what becomes a defensible
+#     candidate risk.
+#   - Escalations are NOT exported, even though several of them describe real exposure. They
+#     are derived and stateless — recomputed on every run — so exporting them would mint a new
+#     candidate risk every time the clock moved, and `board-pack` already aggregates them as
+#     escalations. One exposure in two systems of record is how the two disagree.
+#
+# What the payload deliberately does NOT carry: likelihood, impact, or any score. SP 800-161r1's
+# assessment template ends in a likelihood and a risk-exposure determination, and this stops
+# exactly there. `no-vendor-score.sh` and `evals/proposal-boundary.sh` both hold that line;
+# so does the self-test, by asserting the payload has no scoring key at all.
+
+FINDING_SCORING_KEYS = ("likelihood", "impact", "score", "severity", "rating", "band",
+                        "exposure", "priority")
+"""Keys the payload must never contain. Asserted rather than remembered.
+
+Naming them here rather than checking for a vague 'number' means the assertion can be exact,
+and means a reader can see precisely which words this bridge refuses to put in a risk's mouth.
+"""
+
+
+def export_findings(store: dict, today: str = "") -> dict:
+    """Requirements recorded as not met, in the `risk-register` import shape.
+
+    Idempotent on `sourceRef`: re-running updates the candidate it created rather than adding
+    a second one. The key is the arrangement plus the requirement, because one arrangement can
+    fail several provisions and each is its own candidate.
+    """
+    today = today or utc_today()
+    rows = []
+    for rec in store["arrangements"]:
+        if rec.get("retired"):
+            continue
+        vendor = next((v for v in store["vendors"]
+                       if v.get("id") == rec.get("vendorRef")), {})
+        conf = ((rec.get("criticality") or {}).get("confirmed") or {})
+        for req in (rec.get("requirements") or []):
+            if req.get("met"):
+                continue
+            if not str(req.get("checkedBy") or "").strip():
+                # Not a finding: nobody is recorded as having looked. Exporting it would put
+                # an unattributed claim into a register whose whole discipline is refusing one.
+                continue
+            rows.append({
+                "sourceRef": "%s:%s:%s" % (FAMILY, rec["id"],
+                                           str(req.get("requirement") or "")),
+                "sourceArrangementRef": rec["id"],
+                "title": "%s: %s not evidenced" % (vendor.get("name") or rec["id"],
+                                                   req.get("requirement")),
+                "description": ("Third-party arrangement %s with %s — %r was checked and "
+                                "recorded as not met."
+                                % (rec["id"], vendor.get("name") or "the provider",
+                                   req.get("requirement"))),
+                "vendor": vendor.get("name") or "",
+                "services": rec.get("services") or "",
+                "owner": rec.get("owner") or "",
+                # The criticality AND the scale it was assigned under. A level read a year
+                # later means nothing without it, and the importing register has its own
+                # scale for other things.
+                "criticality": conf.get("value") or criticality_of(rec),
+                "criticalityScaleVersion": conf.get("scaleVersion") or "",
+                "criticalityConfirmed": bool(conf.get("value")),
+                "evidenceRef": req.get("evidenceRef") or "",
+                "checkedBy": req.get("checkedBy") or "",
+                "checkedOn": req.get("checkedOn") or "",
+                "gvsc": list(rec.get("gvsc") or []),
+                "sr": list(rec.get("sr") or []),
+            })
+    return {
+        "family": FAMILY,
+        "export": "findings",
+        "asOf": today,
+        "organisation": store["meta"].get("orgName") or "",
+        "findings": rows,
+        "note": ("Candidate risks. This register does not score: no likelihood, no impact, no "
+                 "band. risk-register scores them once, under SP 800-30, against an appetite."),
+    }
 
 
 # --- Multi-entity ------------------------------------------------------------
@@ -892,6 +1767,7 @@ def analyze(store: dict, today: str = "", context: dict = None) -> dict:
     today = today or utc_today()
     entity = check_one_organisation(store)
     scale = store["settings"]["criticalityScale"]
+    grace = int(store["settings"].get("evidenceGraceDays") or 365)
 
     live = [r for r in store["arrangements"] if not r.get("retired")]
     by_level = {}
@@ -924,6 +1800,21 @@ def analyze(store: dict, today: str = "", context: dict = None) -> dict:
             "retired": bool(rec.get("retired")),
             "priorArrangementRef": rec.get("priorArrangementRef") or "",
         })
+        # The assessment layer, per arrangement. Counts, never a rating: how many questions
+        # are open is a fact about the work left, and turning it into a severity would be the
+        # vendor score arriving through a side door.
+        if not rec.get("retired"):
+            asked = ask(store, rec["id"], context, today=today)
+            rows[-1]["openQuestions"] = asked["open"]
+            rows[-1]["reConfirmQuestions"] = asked["reConfirm"]
+            rows[-1]["skippedBatteries"] = len(asked["skipped"])
+            rows[-1]["openProposals"] = len(open_proposals(rec))
+            by_status = {}
+            for ev in (rec.get("evidence") or []):
+                st = evidence_status(ev, today, grace)
+                by_status[st] = by_status.get(st, 0) + 1
+            rows[-1]["evidence"] = {"total": len(rec.get("evidence") or []),
+                                    "byStatus": by_status}
 
     esc = escalations(store, today)
     out = {
@@ -940,6 +1831,9 @@ def analyze(store: dict, today: str = "", context: dict = None) -> dict:
             "byCriticality": {k: len(v) for k, v in sorted(by_level.items())},
         },
         "arrangements": rows,
+        "openQuestions": sum(r.get("openQuestions", 0) for r in rows),
+        "reConfirmQuestions": sum(r.get("reConfirmQuestions", 0) for r in rows),
+        "openProposals": sum(r.get("openProposals", 0) for r in rows),
         "escalations": esc,
         "notes": [],
     }
@@ -975,6 +1869,19 @@ def _cmd_self_test(_args):
         checks[0] += 1
         if actual != expected:
             fails.append("%s: expected %r, got %r" % (label, expected, actual))
+
+    def at(seq, index, key, default="<missing>"):
+        """Read seq[index][key] without ever raising.
+
+        Written after the third mutation test in this file was caught by an IndexError or a
+        KeyError rather than by a named check. A crash inside the self-test aborts the run and
+        throws away the summary, so a broken guard reads as a silent pass in exactly the
+        situation the guard exists for.
+        """
+        try:
+            return seq[index][key]
+        except (IndexError, KeyError, TypeError):
+            return default
 
     def refuses(fn, label, needle=""):
         checks[0] += 1
@@ -1146,6 +2053,11 @@ def _cmd_self_test(_args):
                 "review-requirements with no evidence reference is refused", "nobody opened")
         refuses(lambda: record_subprocessor(store, "VA-001", "Fabrikam", ""),
                 "record-subprocessor with no effective date is refused", "as at a date")
+        # Closing a requirement needs a name here exactly as it does in `assess`. This act
+        # shipped in v0.39.0 without one, so a tick could carry nobody's judgement.
+        refuses(lambda: review_requirements(store, "VA-001", "breach notice",
+                                            "MSA schedule 3"),
+                "review-requirements with no named person is refused", "only a named person")
         refuses(lambda: retire(store, "VA-001", "", "2026-06-01"),
                 "retire with no data destination is refused", "GV.SC-10")
         refuses(lambda: retire(store, "VA-001", "returned to us on encrypted media", ""),
@@ -1245,6 +2157,419 @@ def _cmd_self_test(_args):
         s, rec = _fixture(supports="Nowhere", starts_on="2020-01-01")
         classify(s, rec["id"], ctx)
         ok("untraced" in _triggers(s), "an untraced arrangement is never silent")
+
+        # --- P2 T1: evidence and its tiers ------------------------------------
+        ev_store = new_store("Evidence Ltd")
+        add_vendor(ev_store, "Contoso Cloud")
+        add_arrangement(ev_store, "V-001", "hosting", "CTO", supports="CRM")
+        epath = os.path.join(work, "e.vnd")
+        save(epath, ev_store)
+        before = open(epath, "rb").read()
+        refuses(lambda: ingest(ev_store, "VA-001", "soc2-type2", "T1", "auditor PDF"),
+                "a T1 with no scope and no period is refused", "its scope and period")
+        refuses(lambda: ingest(ev_store, "VA-001", "soc2-type2", "T1", "auditor PDF",
+                               scope="the hosting platform"),
+                "a T1 with a scope but no period is refused", "cannot expire")
+        refuses(lambda: ingest(ev_store, "VA-001", "trust-page", "T4", "their website",
+                               url="https://example.test/trust"),
+                "a URL source with no retrieval date is refused", "may no longer say it")
+        refuses(lambda: ingest(ev_store, "VA-001", "soc2-type2", "T5", "x"),
+                "an unknown tier is refused")
+        refuses(lambda: ingest(ev_store, "VA-001", "", "T3", "questionnaire"),
+                "evidence with no --kind is refused")
+        eq(open(epath, "rb").read(), before, "and no refusal touched the file")
+
+        # T3 needs neither scope nor period, because it closes nothing anyway.
+        t3 = ingest(ev_store, "VA-001", "questionnaire", "T3", "their completed CAIQ")
+        eq(t3["id"], "EV-001", "evidence is numbered per arrangement")
+        eq(t3["scope"], "", "a T3 needs no scope, because it can satisfy nothing")
+        t1 = ingest(ev_store, "VA-001", "soc2-type2", "T1", "auditor PDF, filed 2026-02",
+                    scope="the hosting platform, excluding the payments subservice",
+                    period_start="2025-01-01", period_end="2025-12-31")
+        eq(t1["id"], "EV-002", "and numbering continues")
+        ok(t1["scope"] and t1["periodEnd"], "a T1 records both its scope and its period")
+
+        # --- P2 T2: currency, and what does NOT extend it ---------------------
+        eq(evidence_status(t1, "2025-06-01", 365), "current",
+           "an artifact whose period has not closed is current")
+        eq(evidence_status(t1, "2026-11-30", 365), "in-grace",
+           "eleven months past the period end is in grace")
+        eq(evidence_status(t1, "2027-02-01", 365), "expired",
+           "thirteen months past it is expired")
+        eq(evidence_status(t3, "2030-01-01", 365), "current",
+           "a tier with no period never expires, because it closes nothing to begin with")
+        # THE rule most likely to be "helpfully" relaxed later. A bridge letter is a
+        # management assertion, and a management assertion is not an audited artifact.
+        bridge = ingest(ev_store, "VA-001", "bridge-letter", "T3",
+                        "management letter covering Jan-Jun 2026")
+        eq(bridge["tier"], "T3", "a bridge letter is ingested as T3, not as an extension")
+        eq(evidence_status(t1, "2027-02-01", 365), "expired",
+           "and ingesting it leaves the expired T1 expired — a management assertion does "
+           "not extend an audited artifact's currency")
+        ok(bridge["tier"] not in SATISFYING_TIERS,
+           "...because it is not a tier that can satisfy anything")
+
+        # An expired artifact escalates only when something LEANS on it.
+        ev_rec = ev_store["arrangements"][0]
+        classify(ev_store, "VA-001", ctx, confirm="high", by="R. Calder")
+        ev_rec["assessments"].append({"on": "2027-01-15", "by": "D"})
+        eq(any(e["trigger"] == "evidence-expired"
+               for e in escalations(ev_store, "2027-02-01")), False,
+           "an expired artifact nobody cited is clutter, not an escalation")
+        ev_rec["requirements"].append(
+            {"requirement": "encryption at rest", "met": True, "evidenceRef": t1["id"]})
+        expired = [e for e in escalations(ev_store, "2027-02-01")
+                   if e["trigger"] == "evidence-expired"]
+        eq(len(expired), 1, "but one holding up a satisfied requirement escalates")
+        # Indexed defensively: a broken `evidence_status` empties this list, and an
+        # IndexError here would kill the run's summary and hide how much else broke.
+        ok("period ended" in str(at(expired, 0, "evidence")),
+           "and the record says what expired and when")
+
+        # --- P2 T3/T4: batteries and their narrowing --------------------------
+        # Every shipped question names a GV.SC reference and asks for EVIDENCE, never an
+        # attestation. "Do you encrypt at rest?" is worthless; every vendor answers yes.
+        ATTESTATION = re.compile(r"^(do|are|is|does|have|has|can|will) ", re.I)
+        seen_keys = set()
+        for battery in BATTERIES:
+            ok(battery.get("gvsc"), "battery %r names a GV.SC reference" % battery["id"])
+            for q in battery["questions"]:
+                ok(not ATTESTATION.match(q["ask"]),
+                   "battery %r asks for evidence, not an attestation: %r"
+                   % (battery["id"], q["ask"][:44]))
+                key = question_key(battery, q)
+                ok(key not in seen_keys, "question key %r is unique across the core" % key)
+                seen_keys.add(key)
+
+        bt_store = new_store("Battery Ltd")
+        add_vendor(bt_store, "Some Provider")
+        bt = add_arrangement(bt_store, "V-001", "a service", "An Owner")
+        total = len(BATTERIES)
+
+        # §2.2 — nothing declared anywhere. Absence asks MORE.
+        res = batteries_for(bt, bt_store, None)
+        eq(len(res["applied"]), total, "with no context and no criticality, every battery applies")
+        eq(res["skipped"], [], "and nothing is skipped")
+
+        # untraced is not a level and narrows nothing.
+        classify(bt_store, "VA-001", {}, confirm=None)
+        eq(criticality_of(bt), UNTRACED, "the fixture is untraced")
+        eq(len(batteries_for(bt, bt_store, None)["applied"]), total,
+           "an untraced arrangement gets the FULL battery — it is not a level to narrow by")
+
+        # §2.3 — the arrangement outranks the profile, in BOTH directions.
+        profile_no_ai = {"profile": {"aiInUse": {"value": False, "declaredBy": "GC",
+                                                 "declaredOn": "2026-01-01"}}}
+        res = batteries_for(bt, bt_store, profile_no_ai)
+        ok(not any(b["id"] == "ai-overlay" for b in res["applied"]),
+           "a profile declaring aiInUse false skips the AI battery")
+        skip = next((x for x in res["skipped"] if x["battery"] == "ai-overlay"), {})
+        eq(skip.get("declaredBy"), "GC", "and the skip names who declared it")
+        eq(skip.get("declaredOn"), "2026-01-01", "and when")
+        ok("profile" in skip.get("reason", ""), "and which layer decided it")
+
+        bt["declares"] = {"aiInUse": {"value": True, "declaredBy": "Vendor Manager",
+                                      "declaredOn": "2026-05-05"}}
+        res = batteries_for(bt, bt_store, profile_no_ai)
+        ok(any(b["id"] == "ai-overlay" for b in res["applied"]),
+           "an ARRANGEMENT declaring aiInUse true beats a profile declaring it false")
+        bt["declares"] = {"aiInUse": {"value": False, "declaredBy": "Vendor Manager",
+                                      "declaredOn": "2026-05-05"}}
+        profile_ai = {"profile": {"aiInUse": {"value": True, "declaredBy": "CISO",
+                                              "declaredOn": "2026-01-01"}}}
+        res = batteries_for(bt, bt_store, profile_ai)
+        skip = next((x for x in res["skipped"] if x["battery"] == "ai-overlay"), {})
+        ok(skip, "...and declaring it false beats a profile declaring it true")
+        ok("arrangement" in skip.get("reason", ""),
+           "with the reason naming the arrangement as the deciding layer")
+        eq(skip.get("declaredBy"), "Vendor Manager", "and its declarer, not the profile's")
+        bt.pop("declares", None)
+
+        # A criticality-gated battery narrows only for a real level below the top.
+        classify(bt_store, "VA-001", ctx, confirm="low", by="R. Calder")
+        res = batteries_for(bt, bt_store, None)
+        ok(not any(b["id"] == "exit" for b in res["applied"]),
+           "a low-criticality arrangement is not asked for a tested exit")
+        classify(bt_store, "VA-001", ctx, confirm="high", by="R. Calder")
+        ok(any(b["id"] == "exit" for b in batteries_for(bt, bt_store, None)["applied"]),
+           "and a top-criticality one is")
+        ok(all(x.get("declaredBy") is not None and "declaredOn" in x
+               for x in batteries_for(bt, bt_store, profile_no_ai)["skipped"]),
+           "every skip record carries a declarer and a date (§2.4)")
+
+        # --- P2 T5/T6/T7: the Layer A / Layer B boundary ----------------------
+        pb = new_store("Boundary Ltd")
+        add_vendor(pb, "Contoso Cloud")
+        pbr = add_arrangement(pb, "V-001", "hosting", "CTO", supports="CRM",
+                              starts_on="2026-01-01")
+        classify(pb, "VA-001", ctx, confirm="moderate", by="R. Calder")
+        soc2 = ingest(pb, "VA-001", "soc2-type2", "T1", "auditor PDF",
+                      scope="the hosting platform", period_start="2025-01-01",
+                      period_end="2025-12-31")
+        trust = ingest(pb, "VA-001", "trust-page", "T3", "their trust centre")
+        pbpath = os.path.join(work, "pb.vnd")
+        save(pbpath, pb)
+        before = open(pbpath, "rb").read()
+
+        refuses(lambda: propose(pb, "VA-001", "encryption at rest", soc2["id"], ""),
+                "propose with no citation is refused", "is an opinion")
+        # THE refusal. A trust page can never propose satisfaction.
+        refuses(lambda: propose(pb, "VA-001", "encryption at rest", trust["id"],
+                                "their trust centre says AES-256"),
+                "propose citing a T3 is REFUSED outright", "never satisfy a requirement")
+        refuses(lambda: propose(pb, "VA-001", "", soc2["id"], "s 4.2"),
+                "propose with no requirement is refused")
+        eq(open(pbpath, "rb").read(), before, "and no refusal touched the file")
+
+        pr = propose(pb, "VA-001", "encryption at rest", soc2["id"],
+                     "SOC 2 section IV, control CC6.7, tested no exceptions",
+                     by="reading layer")
+        eq(pr["status"], "proposed", "a valid proposal is stored as proposed")
+        # THE test that matters. Layer A has written, and nothing is satisfied.
+        eq([r for r in (pbr.get("requirements") or []) if r.get("met")], [],
+           "and NOTHING is satisfied by it — the reading layer cannot close anything")
+        eq(len(open_proposals(pbr)), 1, "it sits in the working view awaiting a person")
+
+        refuses(lambda: assess(pb, "VA-001", "", confirm=[pr["id"]]),
+                "assess with no --by is refused", "nobody's name on it")
+        refuses(lambda: assess(pb, "VA-001", "R. Calder", reject=[pr["id"]]),
+                "--reject with no --why is refused", "tells a later reader nothing")
+        eq([r for r in (pbr.get("requirements") or []) if r.get("met")], [],
+           "and a refused assessment satisfies nothing either")
+
+        act = assess(pb, "VA-001", "R. Calder", on="2026-06-30", confirm=[pr["id"]],
+                     note="FY26 H1 review")
+        met = [r for r in pbr["requirements"] if r.get("met")]
+        eq(len(met), 1, "a confirmed proposal satisfies its requirement")
+        eq(at(met, 0, "evidenceRef"), soc2["id"], "...naming the evidence that satisfied it")
+        ok(str(at(met, 0, "citation")).startswith("SOC 2 section IV"), "...and the citation")
+        eq(at(met, 0, "checkedBy"), "R. Calder", "...and the person who confirmed it")
+        eq(open_proposals(pbr), [], "and it leaves the working view")
+
+        # THE SEAM PLAN 1 LEFT OPEN. `_last_assessed` has been reading this list since
+        # v0.39.1 with nothing able to write to it; `assess` is the act that resets the clock.
+        eq(_last_assessed(pbr), "2026-06-30", "assess writes the assessments list")
+        pb["arrangements"][0]["exit"]["testedOn"] = "2026-06-30"
+        trig = {e["trigger"] for e in escalations(pb, "2026-07-01")}
+        ok("assessment-overdue" not in trig,
+           "...and clears assessment-overdue, closing the seam Plan 1 built the clock for")
+
+        # A rejected proposal is retained, hidden from the working view, present on export.
+        pr2 = propose(pb, "VA-001", "penetration testing cadence", soc2["id"],
+                      "SOC 2 section III mentions annual testing", by="reading layer")
+        assess(pb, "VA-001", "R. Calder", on="2026-07-01", reject=[pr2["id"]],
+               why="the report describes the vendor's own testing, not an independent test")
+        eq(open_proposals(pbr), [], "a rejected proposal leaves the working view")
+        kept = [x for x in pbr["proposals"] if x["status"] == "rejected"]
+        eq(len(kept), 1, "but is RETAINED — that a claim was examined and refused is a record")
+        ok(at(kept, 0, "rejectedWhy", ""), "with the reason it was refused")
+
+        # unconfirmed-proposals: a stack of readings must never read as an assessment.
+        pr3 = propose(pb, "VA-001", "backup restoration testing", soc2["id"],
+                      "SOC 2 section IV CC7.4", by="reading layer")
+        pr3["proposedOn"] = "2026-07-02"
+        eq(any(e["trigger"] == "unconfirmed-proposals"
+               for e in escalations(pb, "2026-07-20")), False,
+           "proposals inside the window escalate nothing")
+        stale = [e for e in escalations(pb, "2026-09-01")
+                 if e["trigger"] == "unconfirmed-proposals"]
+        eq(len(stale), 1, "beyond it, exactly one record — not one per proposal")
+        ok("1 proposal" in str(at(stale, 0, "evidence")), "naming how many are waiting")
+
+        # --- P2 T9: the subtraction -------------------------------------------
+        def _askstore(level="high"):
+            st = new_store("Ask Ltd")
+            add_vendor(st, "Contoso Cloud")
+            add_arrangement(st, "V-001", "hosting", "CTO", supports="CRM")
+            classify(st, "VA-001", ctx, confirm=level, by="R. Calder")
+            return st, st["arrangements"][0]
+
+        def _cover(st, keys, tier="T1", period_end="2026-12-31"):
+            """Close `keys` with an artifact of `tier`, through the real acts."""
+            ev = ingest(st, "VA-001", "soc2-type2" if tier == "T1" else "questionnaire",
+                        tier, "supplied by the vendor",
+                        scope="the hosting platform" if tier == "T1" else "",
+                        period_start="2025-01-01" if tier == "T1" else "",
+                        period_end=period_end if tier == "T1" else "")
+            for key in keys:
+                if tier in SATISFYING_TIERS:
+                    pr = propose(st, "VA-001", key, ev["id"], "cited passage for %s" % key)
+                    assess(st, "VA-001", "R. Calder", on="2026-01-05", confirm=[pr["id"]])
+                else:
+                    # A T3 cannot be proposed against at all, which IS the point. Record the
+                    # closure the only other way a store could carry one, so the check below
+                    # measures the tier rule rather than the refusal that precedes it.
+                    st["arrangements"][0].setdefault("requirements", []).append(
+                        {"requirement": key, "met": True, "evidenceRef": ev["id"],
+                         "citation": "their trust page", "checkedBy": "someone",
+                         "checkedOn": "2026-01-05"})
+            return ev
+
+        # 1. No evidence at all: every applicable question, and the count is the battery total.
+        st, rec_a = _askstore("high")
+        applied = batteries_for(rec_a, st, None)["applied"]
+        expected = sum(len(b["questions"]) for b in applied)
+        res = ask(st, "VA-001", None, today="2026-02-01")
+        eq(res["open"], expected, "with no evidence, every applicable question is open")
+        eq(res["reConfirm"], 0, "and nothing is a re-confirmation")
+        ok(all(q["gvsc"] for q in res["questions"]),
+           "every question names the GV.SC outcome it serves")
+        ok(all(q["why"] for q in res["questions"]),
+           "and says why it is being asked")
+
+        # 2. A T1 covering three questions removes exactly those three.
+        st, rec_b = _askstore("high")
+        three = ["contract-terms.incident-notice", "assurance.latest-report",
+                 "subprocessors.current-list"]
+        _cover(st, three, tier="T1")
+        res = ask(st, "VA-001", None, today="2026-02-01")
+        keys = {q["key"] for q in res["questions"]}
+        eq(res["open"], expected - 3, "a T1 covering three questions removes exactly three")
+        ok(not (keys & set(three)), "...and it is those three that are gone")
+        eq(res["reConfirm"], 0, "and none of them came back as a re-confirmation")
+
+        # 3. THE PRODUCT CLAIM. The same three, covered by a T3, remove nothing.
+        st, rec_c = _askstore("high")
+        _cover(st, three, tier="T3")
+        res_t3 = ask(st, "VA-001", None, today="2026-02-01")
+        eq(res_t3["open"], expected,
+           "the same three covered by a T3 remove NOTHING — a trust page closes no question")
+        ok(set(three) <= {q["key"] for q in res_t3["questions"]},
+           "...and all three are still being asked")
+        ok(res_t3["open"] > (expected - 3),
+           "so reading a real report shrinks the set and reading marketing copy does not")
+
+        # 4. Evidence that has slipped into grace is re-confirmed, not silently dropped.
+        st, rec_d = _askstore("high")
+        _cover(st, three, tier="T1", period_end="2025-12-31")
+        res = ask(st, "VA-001", None, today="2026-06-01")
+        eq(res["reConfirm"], 3, "evidence in grace produces re-confirmation questions")
+        eq(res["open"], expected - 3, "which are not counted as never-answered")
+        grace_q = [q for q in res["questions"] if q["status"] == "re-confirm"]
+        ok(all("in grace" in q["why"] for q in grace_q),
+           "and each says the answer is ageing rather than missing")
+        # Past grace it is not coverage at all, and the question is open again.
+        res = ask(st, "VA-001", None, today="2027-06-01")
+        eq(res["open"], expected, "past grace the question is open again, not re-confirm")
+        eq(res["reConfirm"], 0, "because expired evidence covers nothing")
+
+        # 5. Everything covered: an explicit sentence, never an empty string.
+        st, rec_e = _askstore("high")
+        every = [question_key(b, q)
+                 for b in batteries_for(rec_e, st, None)["applied"] for q in b["questions"]]
+        _cover(st, every, tier="T1")
+        res = ask(st, "VA-001", None, today="2026-02-01")
+        eq(res["questions"], [], "with everything covered there are no questions")
+        eq(res.get("note"), NOTHING_OPEN,
+           "...and the result SAYS so — a blank page and 'all evidenced' look identical "
+           "on screen and mean opposite things")
+
+        # --- P2 T11: the overlay mechanism, shipping empty --------------------
+        eq(list(OVERLAYS), [],
+           "no regime overlay ships — no obligation is asserted that cannot cite its source")
+        # THE regression this has to prevent: with no overlay active, the battery set must be
+        # exactly what it was before overlays existed.
+        ov_store, ov_rec = _askstore("high")
+        base = [b["id"] for b in batteries_for(ov_rec, ov_store, None)["applied"]]
+        eq([b["id"] for b in batteries_for(ov_rec, ov_store, None, overlays=[])["applied"]],
+           base, "a register with no overlay asks exactly what the core asks")
+
+        # The gate that stops uncited content shipping later.
+        bucket = []
+        refuses(lambda: register_overlay({"id": "dora", "flag": "doraScope", "batteries": [
+                    {"id": "roi", "questions": [{"id": "q1", "ask": "What is X?"}]}]},
+                    into=bucket),
+                "an overlay question with no source is refused", "cannot cite")
+        refuses(lambda: register_overlay({"id": "x", "batteries": []}, into=bucket),
+                "an overlay with no selecting flag is refused", "not an overlay")
+        eq(bucket, [], "and nothing uncited was registered")
+        cited = register_overlay(
+            {"id": "demo", "flag": "demoScope", "source": "a primary text",
+             "batteries": [{"id": "demo-battery", "gvsc": ["GV.SC-05"],
+                            "appliesWhen": {},
+                            "questions": [{"id": "q1", "ask": "What dated evidence covers X?",
+                                           "source": "Article 1(1), verified 2026-08-08"}]}]},
+            into=bucket)
+        eq(len(bucket), 1, "a cited overlay registers")
+        eq(overlays_for({"profile": {"demoScope": {"value": True}}}, bucket), [cited],
+           "and a declared flag turns it on")
+        eq(overlays_for({"profile": {"demoScope": {"value": False}}}, bucket), [],
+           "a flag declared false leaves it off")
+        eq(overlays_for({}, bucket), [],
+           "and absence never turns one on — a regime applies because somebody declared it")
+        with_ov = [b["id"] for b in
+                   batteries_for(ov_rec, ov_store, {"profile": {"demoScope": {"value": True}}},
+                                 overlays=bucket)["applied"]]
+        ok("demo-battery" in with_ov, "an active overlay ADDS a battery")
+        ok(set(base) <= set(with_ov), "...and replaces none of the core")
+
+        # --- P2 T12: the Register of Information ------------------------------
+        dora_on = {"profile": {"doraScope": {"value": True, "declaredBy": "GC",
+                                             "declaredOn": "2026-01-20"}}}
+        refuses(lambda: export_roi(ov_store, None), "export-roi with no declared scope is refused",
+                "Absence is not a 'no'")
+        refuses(lambda: export_roi(ov_store, {"profile": {"doraScope": {"value": False}}}),
+                "...and with the flag declared false")
+        roi_store = new_store("Filing Ltd")
+        add_vendor(roi_store, "Contoso Cloud", jurisdiction="IE")
+        add_arrangement(roi_store, "V-001", "hosting", "CTO", supports="CRM",
+                        starts_on="2026-01-01")
+        add_arrangement(roi_store, "V-001", "sandbox", "CMO")     # no supports, unclassified
+        classify(roi_store, "VA-001", ctx, confirm="high", by="R. Calder")
+        out = export_roi(roi_store, dora_on, today="2026-08-08")
+        eq(out["complete"], False, "an incomplete register does NOT export as complete")
+        eq([g["arrangementRef"] for g in out["gaps"]], ["VA-002"],
+           "and names which arrangement is short")
+        ok("criticality" in out["gaps"][0]["missing"] and "supports" in out["gaps"][0]["missing"],
+           "naming each missing field rather than emitting a blank cell")
+        eq(len(out["rows"]), 2, "every live arrangement is still present, gaps and all")
+        row = next(r for r in out["rows"] if r["arrangementRef"] == "VA-001")
+        eq(row["criticalityScaleVersion"], "v1",
+           "a filed criticality carries the scale it was assigned under")
+        eq(row["criticalityConfirmedBy"], "R. Calder", "and who assigned it")
+        # A DERIVED level is a proposal. Filing one as though a person assigned it is the
+        # failure this whole skill refuses.
+        classify(roi_store, "VA-002", ctx)
+        out2 = export_roi(roi_store, dora_on, today="2026-08-08")
+        row2 = next(r for r in out2["rows"] if r["arrangementRef"] == "VA-002")
+        eq(row2["criticality"], "",
+           "a derived-but-unconfirmed level is NOT filed as though somebody assigned it")
+        ok(any(g["arrangementRef"] == "VA-002" for g in out2["gaps"]),
+           "...it stays a named gap")
+
+        # --- P2 T14: the findings bridge --------------------------------------
+        fb = new_store("Bridge Ltd")
+        add_vendor(fb, "Contoso Cloud", jurisdiction="IE")
+        add_arrangement(fb, "V-001", "hosting", "CTO", supports="CRM", gvsc=["GV.SC-05"])
+        classify(fb, "VA-001", ctx, confirm="high", by="R. Calder")
+        eq(export_findings(fb)["findings"], [],
+           "a register with nothing recorded as unmet exports no findings")
+        review_requirements(fb, "VA-001", "breach notification within 24h",
+                            "MSA schedule 3 — no such clause", met=False, by="General Counsel")
+        out = export_findings(fb, today="2026-08-08")
+        eq(len(out["findings"]), 1, "a requirement recorded as NOT met is a finding")
+        f = out["findings"][0]
+        ok("not evidenced" in f["title"] and "Contoso Cloud" in f["title"],
+           "titled so a risk register reader knows the provider and the gap")
+        eq(f["criticalityScaleVersion"], "v1",
+           "carrying the scale the criticality was assigned under")
+        eq(f["checkedBy"], "General Counsel", "and who checked it")
+        # THE line this bridge does not cross.
+        flat = json.dumps(out).lower()
+        for key in FINDING_SCORING_KEYS:
+            ok('"%s"' % key not in flat,
+               "the payload carries no %r — risk-register scores these once, there" % key)
+        # An escalation is derived and stateless. Exporting one would mint a fresh candidate
+        # risk every time a clock moved.
+        ok(any(e["trigger"] == "exit-untested" for e in escalations(fb, "2026-08-08")),
+           "the fixture is escalating something")
+        eq(len(export_findings(fb)["findings"]), 1,
+           "...and escalations are NOT exported — one exposure, one system of record")
+        # Unattributed non-compliance is not a finding: nobody is recorded as having looked.
+        fb["arrangements"][0]["requirements"].append(
+            {"requirement": "something", "met": False, "checkedBy": ""})
+        eq(len(export_findings(fb)["findings"]), 1,
+           "a requirement nobody is recorded as checking is not exported")
 
         # --- T14: the consolidation guard -------------------------------------
         multi = new_store("Group Plc")
@@ -1364,6 +2689,117 @@ def _cmd_document_exit(args) -> int:
     save(args.store, store)
     print("%s  exit documented %s (not tested: %s)"
           % (args.arrangement, ex["documentedOn"], ex["testedOn"] or "never"))
+    return 0
+
+
+def _cmd_ingest(args) -> int:
+    store = load(args.store)
+    ev = ingest(store, args.arrangement, args.kind, args.tier, args.source,
+                scope=args.scope, period_start=args.period_start,
+                period_end=args.period_end, url=args.url, retrieved=args.retrieved,
+                by=args.by)
+    save(args.store, store)
+    print("%s  %s  %s (%s)" % (args.arrangement, ev["id"], ev["kind"],
+                               TIER_LABEL[ev["tier"]]))
+    if ev["tier"] not in SATISFYING_TIERS:
+        print("  %s closes nothing. It records context and generates questions."
+              % ev["tier"])
+    return 0
+
+
+def _cmd_propose(args) -> int:
+    store = load(args.store)
+    pr = propose(store, args.arrangement, args.requirement, args.evidence, args.citation,
+                 note=args.note, by=args.by)
+    save(args.store, store)
+    print("%s  %s  proposed: %s" % (args.arrangement, pr["id"], pr["requirement"]))
+    print("  cites %s — %s" % (pr["evidenceRef"], pr["citation"]))
+    print("  NOTHING is satisfied by this. A named person confirms it with `assess`.")
+    return 0
+
+
+def _cmd_assess(args) -> int:
+    store = load(args.store)
+    act = assess(store, args.arrangement, args.by, on=args.on, confirm=args.confirm,
+                 reject=args.reject, why=args.why, note=args.note)
+    save(args.store, store)
+    print("%s  assessed %s by %s — %d confirmed, %d rejected"
+          % (args.arrangement, act["on"], act["by"],
+             len(act["confirmed"]), len(act["rejected"])))
+    return 0
+
+
+def _cmd_ask(args) -> int:
+    store = load(args.store)
+    out = ask(store, args.arrangement, _ctx(args), today=args.today)
+    if args.format == "json":
+        json.dump(out, sys.stdout, indent=2, ensure_ascii=False)
+        sys.stdout.write("\n")
+        return 0
+    md = args.format == "md"
+    head = "%s — %s criticality, as at %s" % (out["arrangement"], out["criticality"],
+                                              out["asOf"])
+    print(("## " + head) if md else head)
+    print()
+    if not out["questions"]:
+        # Never an empty page. A blank result and "all evidenced" look identical on screen.
+        print(out["note"])
+    else:
+        print("%d open, %d for re-confirmation:" % (out["open"], out["reConfirm"]))
+        print()
+        for q in out["questions"]:
+            bullet = "- " if md else "  "
+            flag = "" if q["status"] == "open" else "  [re-confirm]"
+            print("%s%s%s" % (bullet, q["ask"], flag))
+            print("%s  why: %s (%s)" % ("  " if md else "    ", q["why"],
+                                        ", ".join(q["gvsc"])))
+            print()
+    for skip in out["skipped"]:
+        # §2.4 verbatim: an assessor must be able to tell a question ruled out from one
+        # nobody asked.
+        print("not asked — %s: %s%s"
+              % (skip["battery"], skip["reason"],
+                 (" (declared by %s on %s)" % (skip["declaredBy"], skip["declaredOn"]))
+                 if skip.get("declaredBy") else " (nobody is recorded as declaring this)"))
+    return 0
+
+
+def _cmd_export_roi(args) -> int:
+    store = load(args.store)
+    out = export_roi(store, _ctx(args), today=args.today)
+    if args.out:
+        with open(args.out, "w", encoding="utf-8") as fh:
+            json.dump(out, fh, indent=2, ensure_ascii=False)
+            fh.write("\n")
+        print("Wrote %s — %d row(s)" % (args.out, len(out["rows"])), file=sys.stderr)
+    else:
+        json.dump(out, sys.stdout, indent=2, ensure_ascii=False)
+        sys.stdout.write("\n")
+    if out["gaps"]:
+        # Non-zero, deliberately. A register that files cleanly and is wrong is worse than one
+        # that refuses, and a zero exit is what a script reads as "fine to send".
+        print("\n%d arrangement(s) are not complete enough to file:" % len(out["gaps"]),
+              file=sys.stderr)
+        for gap in out["gaps"]:
+            print("  %s — %s" % (gap["arrangementRef"], gap["detail"]), file=sys.stderr)
+        return 1
+    return 0
+
+
+def _cmd_export_findings(args) -> int:
+    store = load(args.store)
+    out = export_findings(store, today=args.today)
+    if args.out:
+        with open(args.out, "w", encoding="utf-8") as fh:
+            json.dump(out, fh, indent=2, ensure_ascii=False)
+            fh.write("\n")
+        print("Wrote %s — %d finding(s)" % (args.out, len(out["findings"])), file=sys.stderr)
+    else:
+        json.dump(out, sys.stdout, indent=2, ensure_ascii=False)
+        sys.stdout.write("\n")
+    print("\nOne-way. Import with `score_register.py import-findings <file> --into r.rr "
+          "--write`.\nNo likelihood, impact or band travels: risk-register scores these once, "
+          "there.", file=sys.stderr)
     return 0
 
 
@@ -1507,6 +2943,60 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--on", default="")
     sp.add_argument("--by", default="")
     sp.set_defaults(fn=_cmd_document_exit)
+
+    sp = store_arg(sub.add_parser("ingest"))
+    sp.add_argument("--arrangement", required=True)
+    sp.add_argument("--kind", default="", help="soc2-type2, iso27001-cert, dpa, trust-page, ...")
+    sp.add_argument("--tier", default="", choices=list(TIERS) + [""],
+                    help="T1 audited · T2 contractual · T3 vendor assertion · T4 public copy. "
+                         "Only T1 and T2 can satisfy a requirement.")
+    sp.add_argument("--source", default="")
+    sp.add_argument("--scope", default="", help="required for T1: what the artifact covers")
+    sp.add_argument("--period-start", default="")
+    sp.add_argument("--period-end", default="", help="required for T1: when its period closed")
+    sp.add_argument("--url", default="")
+    sp.add_argument("--retrieved", default="", help="required with --url")
+    sp.add_argument("--by", default="")
+    sp.set_defaults(fn=_cmd_ingest)
+
+    sp = store_arg(sub.add_parser("propose"))
+    sp.add_argument("--arrangement", required=True)
+    sp.add_argument("--requirement", default="")
+    sp.add_argument("--evidence", default="", help="the EV- id this reading rests on")
+    sp.add_argument("--citation", default="",
+                    help="the passage or document reference. Required: a proposal with no "
+                         "citation is an opinion.")
+    sp.add_argument("--note", default="")
+    sp.add_argument("--by", default="")
+    sp.set_defaults(fn=_cmd_propose)
+
+    sp = store_arg(sub.add_parser("assess"))
+    sp.add_argument("--arrangement", required=True)
+    sp.add_argument("--by", default="", help="required: only a named person confirms")
+    sp.add_argument("--on", default="")
+    sp.add_argument("--confirm", action="append", default=[], help="a PR- id. Repeatable.")
+    sp.add_argument("--reject", action="append", default=[], help="a PR- id. Repeatable.")
+    sp.add_argument("--why", default="", help="required with --reject")
+    sp.add_argument("--note", default="")
+    sp.set_defaults(fn=_cmd_assess)
+
+    sp = store_arg(sub.add_parser("ask"))
+    sp.add_argument("--arrangement", required=True)
+    sp.add_argument("--context", default="")
+    sp.add_argument("--today", default="")
+    sp.add_argument("--format", default="text", choices=["text", "json", "md"])
+    sp.set_defaults(fn=_cmd_ask)
+
+    sp = store_arg(sub.add_parser("export-roi"))
+    sp.add_argument("--context", default="")
+    sp.add_argument("--today", default="")
+    sp.add_argument("--out", default="")
+    sp.set_defaults(fn=_cmd_export_roi)
+
+    sp = store_arg(sub.add_parser("export-findings"))
+    sp.add_argument("--today", default="")
+    sp.add_argument("--out", default="")
+    sp.set_defaults(fn=_cmd_export_findings)
 
     sp = store_arg(sub.add_parser("review-requirements"))
     sp.add_argument("--arrangement", required=True)

@@ -28,6 +28,31 @@ def _trace_cell(row) -> str:
     return arrow
 
 
+def _open_cell(row) -> str:
+    if row.get("retired"):
+        return '<span class="muted">retired</span>'
+    bits = ["%d open" % row.get("openQuestions", 0)]
+    if row.get("reConfirmQuestions"):
+        bits.append("%d to re-confirm" % row["reConfirmQuestions"])
+    if row.get("openProposals"):
+        bits.append("%d proposal(s) awaiting a person" % row["openProposals"])
+    return C.esc(" · ".join(bits))
+
+
+def _evidence_cell(row) -> str:
+    ev = row.get("evidence") or {}
+    if not ev.get("total"):
+        return '<span class="muted">none ingested</span>'
+    by = ev.get("byStatus") or {}
+    # Each state carries its word. `in-grace` and `expired` are different facts and must not
+    # look like one: the first is an answer ageing, the second is no answer at all.
+    parts = []
+    for state in ("current", "in-grace", "expired"):
+        if by.get(state):
+            parts.append("%d %s" % (by[state], state))
+    return C.esc(", ".join(parts))
+
+
 def _rows(ctx) -> str:
     out = []
     for row in ctx.rows:
@@ -37,12 +62,14 @@ def _rows(ctx) -> str:
             else '<span class="muted">derived only — nobody has assigned it</span>'
         out.append(
             "<tr%s><td><code>%s</code></td><td>%s</td><td>%s</td>"
-            "<td>%s<div class=\"sub\">%s</div></td><td>%s</td><td>%s</td><td>%s</td></tr>"
+            "<td>%s<div class=\"sub\">%s</div></td><td>%s</td><td>%s</td><td>%s</td>"
+            "<td>%s</td><td>%s</td></tr>"
             % (' class="retired"' if row.get("retired") else "",
                C.esc(row["id"]), C.esc(row["vendor"]), C.esc(row["services"]),
                C.crit_chip(row["criticality"], ctx.scale, board=False), assigned,
                _trace_cell(row), C.esc(row["owner"]),
-               chips or '<span class="muted">none</span>'))
+               chips or '<span class="muted">none</span>',
+               _open_cell(row), _evidence_cell(row)))
     return "".join(out)
 
 

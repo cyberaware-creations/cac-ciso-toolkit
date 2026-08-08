@@ -242,6 +242,15 @@ jobs:
       - name: No vendor score, on the floor
         run: PY="$(command -v python3)" ./skills/vendor-register/evals/no-vendor-score.sh
 
+      - name: Evidence tiers, on the floor
+        run: PY="$(command -v python3)" ./skills/vendor-register/evals/evidence-tiers.sh
+
+      - name: The Layer A/B proposal boundary, on the floor
+        run: PY="$(command -v python3)" ./skills/vendor-register/evals/proposal-boundary.sh
+
+      - name: Generated questions and the subtraction, on the floor
+        run: PY="$(command -v python3)" ./skills/vendor-register/evals/questions.sh
+
       - name: Board-safety (vendor), on the floor
         run: PY="$(command -v python3)" ./skills/vendor-register/evals/board-safety.sh
 
