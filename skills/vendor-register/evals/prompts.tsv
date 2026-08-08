@@ -1,0 +1,15 @@
+V1	vendor-register	Add our new cloud hosting agreement with Contoso to the third-party register.
+V2	vendor-register	How critical is our arrangement with the provider that runs the plant historian?
+V3	vendor-register	Which of our suppliers are overdue for reassessment?
+V4	vendor-register	We ran the failover test for the hosting contract last week - record that the exit strategy was actually exercised.
+V5	vendor-register	Our processor has introduced a new subprocessor without telling us. Log it.
+V6	vendor-register	Does our MSA with Fabrikam actually commit them to a breach notification window?
+V7	vendor-register	Which third parties have we never traced to anything the business depends on?
+V8	vendor-register	Build the third-party section for this quarter's board pack.
+V9	vendor-register	We are ending the Tailspin contract - what do we need on file to close it out properly?
+V10	vendor-register	The same provider holds three separate agreements with us at different levels of importance. How should that be recorded?
+Y1	risk-register	Give me a risk score for our hosting provider and tell me if it is within appetite.
+Y2	exceptions-register	The board accepted the single-provider dependency for another year. Record the acceptance and its expiry.
+Y3	incident-materiality	Our payroll vendor was breached last week. Is it material for us?
+Y4	ciso-board-translation	How should I phrase our concentration risk with one cloud provider for the audit committee?
+Y5	nist-csf	How well do we score against the CSF supply chain category?

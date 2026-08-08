@@ -22,7 +22,7 @@ skill="$(cd "$here/.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=80
+EXPECTED_CHECKS=82
 checks=0
 fails=0
 ok()  { checks=$((checks + 1)); printf '  ok    %s\n' "$1"; }
@@ -136,6 +136,32 @@ thin_warn=$("$PY" -c 'import json,sys
 p = json.load(open(sys.argv[1]))
 print(any("pitched at the board" in w for w in p["provenance"]["warnings"]))' "$work/thin.json")
 eq "a pack inside the sitting convention ($thin_board asks) stays silent" "False" "$thin_warn"
+
+# A pack with no vendor sidecar SAYS SO. Deliberate, and pinned here so it survives tidying.
+#
+# Adding the `vendor` section in v0.39.0 made an existing pack gain one provenance line, which
+# broke a byte-identity check the plan had listed. The alternative was exempting `vendor` the
+# way `incident` is exempted — restoring byte-identity by making a whole board section silently
+# absent, so a reader could not tell "considered, and there are none" from "nobody asked".
+#
+# The shipped example manifest declares no vendor section, so this is checked on the real
+# specimen rather than a fixture built to agree with it. Both directions: the note is present
+# when the section is absent, and every OTHER part of the pack is untouched by its arrival.
+if q 'any("vendor" in m and "not in this pack" in m for m in p["provenance"]["missing"])' \
+   | grep -q True; then
+  ok "a pack with no vendor sidecar says so, rather than omitting third parties in silence"
+else
+  bad "a pack with no vendor sidecar says so" \
+      "no note — a whole board section is missing and the page does not mention it"
+fi
+# ...and `incident` remains the one exemption, because a quarter with no incident is a normal
+# quarter. If that list ever grows, this fails and somebody has to justify the addition.
+eq "incident is still the only section whose absence is silent in 'missing'" "True" \
+   "$("$PY" -c 'import importlib.util, sys
+spec = importlib.util.spec_from_file_location("ap", sys.argv[1])
+ap = importlib.util.module_from_spec(spec); spec.loader.exec_module(ap)
+src = open(sys.argv[1], encoding="utf-8").read()
+print(src.count("!= \"incident\"") == 1)' "$A")"
 
 # --- 12-15. THE placeholder pair ----------------------------------------------
 # Both directions, because a check that only looks for absence passes over an empty file.
