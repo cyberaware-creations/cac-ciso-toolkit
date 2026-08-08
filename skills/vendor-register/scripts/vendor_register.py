@@ -100,9 +100,50 @@ SETTINGS_DEFAULTS = {
     "cadenceDays": {"high": 365, "moderate": 730},
     "exitTestStaleDays": 730,
     "traceMaxHops": 2,
+    # Twelve months from the END OF THE PERIOD an artifact covers, not from the day somebody
+    # filed it. A SOC 2 for a period that closed fourteen months ago is a historical document
+    # however recently it arrived.
+    "evidenceGraceDays": 365,
+    # A pile of unconfirmed proposals must not be able to masquerade as an assessment.
+    "proposalStaleDays": 30,
 }
 
 TRACE_MAX_HOPS = 2
+
+# --- Evidence tiers -----------------------------------------------------------
+#
+# The hierarchy is about ASSESSMENT RIGOUR, not about how much a vendor is trusted.
+#
+#   T1  an audited artifact — SOC 2 Type II, an ISO 27001 certificate with its Statement of
+#       Applicability, a penetration test report, a regulatory examination finding. Somebody
+#       independent looked, and recorded what they looked at and when.
+#   T2  a contractual commitment — an executed DPA, a clause in the signed agreement, a
+#       security addendum. Not a demonstration, but an obligation with a remedy behind it.
+#   T3  a vendor assertion — a completed questionnaire, a trust centre, a security
+#       whitepaper. The vendor describing itself.
+#   T4  public copy — a privacy policy, a website, a status page, marketing material.
+#
+# Only T1 and T2 may satisfy a requirement, and that line is what the whole assessment layer
+# stands on. A privacy page is a marketing artifact: scanning it is genuinely useful for
+# knowing what to ASK, and is never a reason to stop asking.
+TIERS = ("T1", "T2", "T3", "T4")
+
+SATISFYING_TIERS = ("T1", "T2")
+"""The only tiers that may close a requirement.
+
+Referenced everywhere and never inlined, so the rule has exactly one definition to change and
+one place to argue with. `evals/proposal-boundary.sh` proves no code path gets around it.
+"""
+
+TIER_LABEL = {
+    "T1": "audited artifact",
+    "T2": "contractual commitment",
+    "T3": "vendor assertion",
+    "T4": "public copy",
+}
+
+EVIDENCE_ID_RE = re.compile(r"^EV-\d{3,}$")
+PROPOSAL_ID_RE = re.compile(r"^PR-\d{3,}$")
 
 
 class Refusal(Exception):
@@ -326,6 +367,8 @@ def add_arrangement(store: dict, vendor_ref: str, services: str, owner: str,
         # collapsing the two into one "has an exit strategy" boolean is what lets it pass.
         "exit": {"documentedOn": "", "testedOn": "", "note": ""},
         "requirements": [],
+        "evidence": [],
+        "proposals": [],
         "assessments": [],
         "criticality": None,
         "retired": None,
@@ -549,6 +592,100 @@ def criticality_of(rec: dict) -> str:
     if block.get("derived"):
         return str(block["derived"])
     return UNCLASSIFIED
+
+
+# --- Evidence -----------------------------------------------------------------
+
+def _next_sub_id(rec: dict, key: str, prefix: str, pattern) -> str:
+    used = [int(x["id"].split("-")[1]) for x in (rec.get(key) or [])
+            if pattern.match(str(x.get("id", "")))]
+    return "%s-%03d" % (prefix, (max(used) + 1) if used else 1)
+
+
+def ingest(store: dict, aid: str, kind: str, tier: str, source: str, scope: str = "",
+           period_start: str = "", period_end: str = "", url: str = "",
+           retrieved: str = "", by: str = "") -> dict:
+    """Record an artifact a vendor supplied, with the tier that says what it can close.
+
+    **Scope and period are required for T1**, and this is the refusal that makes the tier mean
+    anything. A SOC 2 that excludes the subservice organisation actually running the workload
+    has not covered that workload, and a report with no period cannot expire — it would sit in
+    the register looking like current assurance forever. The two failures are the same failure:
+    an artifact whose limits are not written down gets read as though it had none.
+
+    Anything fetched from a URL needs `--retrieved`. Public copy changes without notice, and
+    an undated capture is a claim about a page that may no longer say it.
+    """
+    if tier not in TIERS:
+        raise Refusal("--tier must be one of %s; got %r" % (", ".join(TIERS), tier))
+    if not str(kind or "").strip():
+        raise Refusal("--kind names what the artifact is (soc2-type2, iso27001-cert, dpa, ...)")
+    if not str(source or "").strip():
+        raise Refusal("--source says where this came from. An artifact with no provenance "
+                      "cannot be re-found by the person who has to check it.")
+    if tier == "T1":
+        missing = []
+        if not str(scope or "").strip():
+            missing.append("--scope")
+        if not (str(period_start or "").strip() and str(period_end or "").strip()):
+            missing.append("--period-start and --period-end")
+        if missing:
+            raise Refusal(
+                "a T1 artifact needs %s.\n"
+                "  T1 is the tier that can close a requirement, and it can only do so WITHIN "
+                "its scope and period. A SOC 2 excluding the subservice organisation running "
+                "the workload has not covered it; a report with no period cannot expire, so it "
+                "would sit here looking like current assurance forever."
+                % " and ".join(missing))
+    if str(url or "").strip() and not str(retrieved or "").strip():
+        raise Refusal(
+            "evidence with a --url needs --retrieved.\n"
+            "  Public copy changes without notice. An undated capture is a claim about a page "
+            "that may no longer say it, and nobody can check which.")
+    rec = find_arrangement(store, aid)
+    entry = {
+        "id": _next_sub_id(rec, "evidence", "EV", EVIDENCE_ID_RE),
+        "kind": kind.strip(),
+        "tier": tier,
+        "source": source.strip(),
+        "scope": str(scope or "").strip(),
+        "periodStart": check_date(period_start, "--period-start") if period_start else "",
+        "periodEnd": check_date(period_end, "--period-end") if period_end else "",
+        "url": str(url or "").strip(),
+        "retrievedOn": check_date(retrieved, "--retrieved") if retrieved else "",
+        "ingestedOn": utc_today(),
+        "ingestedBy": str(by or "").strip(),
+    }
+    rec.setdefault("evidence", []).append(entry)
+    append_history(store, "evidence-ingested", aid, by,
+                   why="%s (%s)" % (entry["kind"], TIER_LABEL[tier]),
+                   detail={"evidenceId": entry["id"], "tier": tier})
+    return entry
+
+
+def find_evidence(rec: dict, eid: str) -> dict:
+    for ev in (rec.get("evidence") or []):
+        if ev.get("id") == eid:
+            return ev
+    known = ", ".join(e.get("id", "?") for e in (rec.get("evidence") or [])) or "none"
+    raise Refusal("no evidence %r on %s (known: %s)" % (eid, rec["id"], known))
+
+
+def evidence_status(ev: dict, today: str = "", grace: int = 365) -> str:
+    """`current`, `in-grace` or `expired`, measured from the END OF THE PERIOD.
+
+    A tier that cannot expire is not evidence, it is a keepsake. T3 and T4 have no period and
+    are reported `current` because they close nothing anyway — their job is to generate
+    questions, and a question does not go stale the way an assurance claim does.
+    """
+    today = today or utc_today()
+    end = str(ev.get("periodEnd") or "")
+    if not end:
+        return "current"
+    age = days_between(end, today)
+    if age <= 0:
+        return "current"          # the period has not closed yet
+    return "in-grace" if age <= int(grace) else "expired"
 
 
 # --- Lifecycle acts -----------------------------------------------------------
@@ -793,6 +930,38 @@ def escalations(store: dict, today: str = "") -> list:
                     add("exit-untested", rec, "medium", tested,
                         "exit last exercised %s, beyond the %d-day staleness window"
                         % (tested, stale))
+
+        # Evidence that has expired and that a CONFIRMED requirement leans on. Not every
+        # expired artifact: an old report nobody cited is clutter, while an old report
+        # holding up a "satisfied" tick is a requirement that is no longer evidenced.
+        grace = int(store["settings"].get("evidenceGraceDays") or 365)
+        relied_on = {str(r.get("evidenceRef") or "")
+                     for r in (rec.get("requirements") or []) if r.get("met")}
+        for ev in (rec.get("evidence") or []):
+            if ev.get("id") not in relied_on:
+                continue
+            if evidence_status(ev, today, grace) != "expired":
+                continue
+            top = store["settings"]["criticalityScale"][-1]
+            add("evidence-expired", rec, "high" if level == top else "medium",
+                ev.get("periodEnd") or "",
+                "%s (%s) covers a requirement recorded as met, and its period ended %s — "
+                "beyond the %d-day window. The tick is still there; the evidence behind it "
+                "is not" % (ev.get("id"), ev.get("kind"), ev.get("periodEnd"), grace))
+
+        # Proposals nobody has ruled on. A stack of these must never read as an assessment:
+        # Layer A can produce them all day, and only Layer B closes anything.
+        stale_days = int(store["settings"].get("proposalStaleDays") or 30)
+        pending = [pr for pr in (rec.get("proposals") or [])
+                   if pr.get("status") == "proposed"
+                   and pr.get("proposedOn")
+                   and days_between(pr["proposedOn"], today) > stale_days]
+        if pending:
+            add("unconfirmed-proposals", rec, "medium",
+                min(pr["proposedOn"] for pr in pending),
+                "%d proposal(s) have sat un-assessed for more than %d days. A proposal is a "
+                "reading, not a finding — nothing here is satisfied until a named person "
+                "confirms it" % (len(pending), stale_days))
 
         # Triggers fire at EVERY level, including the lowest. A subprocessor change on a
         # low-criticality arrangement is exactly the event that makes it stop being low,
@@ -1246,6 +1415,74 @@ def _cmd_self_test(_args):
         classify(s, rec["id"], ctx)
         ok("untraced" in _triggers(s), "an untraced arrangement is never silent")
 
+        # --- P2 T1: evidence and its tiers ------------------------------------
+        ev_store = new_store("Evidence Ltd")
+        add_vendor(ev_store, "Contoso Cloud")
+        add_arrangement(ev_store, "V-001", "hosting", "CTO", supports="CRM")
+        epath = os.path.join(work, "e.vnd")
+        save(epath, ev_store)
+        before = open(epath, "rb").read()
+        refuses(lambda: ingest(ev_store, "VA-001", "soc2-type2", "T1", "auditor PDF"),
+                "a T1 with no scope and no period is refused", "its scope and period")
+        refuses(lambda: ingest(ev_store, "VA-001", "soc2-type2", "T1", "auditor PDF",
+                               scope="the hosting platform"),
+                "a T1 with a scope but no period is refused", "cannot expire")
+        refuses(lambda: ingest(ev_store, "VA-001", "trust-page", "T4", "their website",
+                               url="https://example.test/trust"),
+                "a URL source with no retrieval date is refused", "may no longer say it")
+        refuses(lambda: ingest(ev_store, "VA-001", "soc2-type2", "T5", "x"),
+                "an unknown tier is refused")
+        refuses(lambda: ingest(ev_store, "VA-001", "", "T3", "questionnaire"),
+                "evidence with no --kind is refused")
+        eq(open(epath, "rb").read(), before, "and no refusal touched the file")
+
+        # T3 needs neither scope nor period, because it closes nothing anyway.
+        t3 = ingest(ev_store, "VA-001", "questionnaire", "T3", "their completed CAIQ")
+        eq(t3["id"], "EV-001", "evidence is numbered per arrangement")
+        eq(t3["scope"], "", "a T3 needs no scope, because it can satisfy nothing")
+        t1 = ingest(ev_store, "VA-001", "soc2-type2", "T1", "auditor PDF, filed 2026-02",
+                    scope="the hosting platform, excluding the payments subservice",
+                    period_start="2025-01-01", period_end="2025-12-31")
+        eq(t1["id"], "EV-002", "and numbering continues")
+        ok(t1["scope"] and t1["periodEnd"], "a T1 records both its scope and its period")
+
+        # --- P2 T2: currency, and what does NOT extend it ---------------------
+        eq(evidence_status(t1, "2025-06-01", 365), "current",
+           "an artifact whose period has not closed is current")
+        eq(evidence_status(t1, "2026-11-30", 365), "in-grace",
+           "eleven months past the period end is in grace")
+        eq(evidence_status(t1, "2027-02-01", 365), "expired",
+           "thirteen months past it is expired")
+        eq(evidence_status(t3, "2030-01-01", 365), "current",
+           "a tier with no period never expires, because it closes nothing to begin with")
+        # THE rule most likely to be "helpfully" relaxed later. A bridge letter is a
+        # management assertion, and a management assertion is not an audited artifact.
+        bridge = ingest(ev_store, "VA-001", "bridge-letter", "T3",
+                        "management letter covering Jan-Jun 2026")
+        eq(bridge["tier"], "T3", "a bridge letter is ingested as T3, not as an extension")
+        eq(evidence_status(t1, "2027-02-01", 365), "expired",
+           "and ingesting it leaves the expired T1 expired — a management assertion does "
+           "not extend an audited artifact's currency")
+        ok(bridge["tier"] not in SATISFYING_TIERS,
+           "...because it is not a tier that can satisfy anything")
+
+        # An expired artifact escalates only when something LEANS on it.
+        ev_rec = ev_store["arrangements"][0]
+        classify(ev_store, "VA-001", ctx, confirm="high", by="D. Galleyne")
+        ev_rec["assessments"].append({"on": "2027-01-15", "by": "D"})
+        eq(any(e["trigger"] == "evidence-expired"
+               for e in escalations(ev_store, "2027-02-01")), False,
+           "an expired artifact nobody cited is clutter, not an escalation")
+        ev_rec["requirements"].append(
+            {"requirement": "encryption at rest", "met": True, "evidenceRef": t1["id"]})
+        expired = [e for e in escalations(ev_store, "2027-02-01")
+                   if e["trigger"] == "evidence-expired"]
+        eq(len(expired), 1, "but one holding up a satisfied requirement escalates")
+        # Indexed defensively: a broken `evidence_status` empties this list, and an
+        # IndexError here would kill the run's summary and hide how much else broke.
+        ok("period ended" in (expired[0]["evidence"] if expired else ""),
+           "and the record says what expired and when")
+
         # --- T14: the consolidation guard -------------------------------------
         multi = new_store("Group Plc")
         add_vendor(multi, "Shared Provider")
@@ -1364,6 +1601,21 @@ def _cmd_document_exit(args) -> int:
     save(args.store, store)
     print("%s  exit documented %s (not tested: %s)"
           % (args.arrangement, ex["documentedOn"], ex["testedOn"] or "never"))
+    return 0
+
+
+def _cmd_ingest(args) -> int:
+    store = load(args.store)
+    ev = ingest(store, args.arrangement, args.kind, args.tier, args.source,
+                scope=args.scope, period_start=args.period_start,
+                period_end=args.period_end, url=args.url, retrieved=args.retrieved,
+                by=args.by)
+    save(args.store, store)
+    print("%s  %s  %s (%s)" % (args.arrangement, ev["id"], ev["kind"],
+                               TIER_LABEL[ev["tier"]]))
+    if ev["tier"] not in SATISFYING_TIERS:
+        print("  %s closes nothing. It records context and generates questions."
+              % ev["tier"])
     return 0
 
 
@@ -1507,6 +1759,21 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--on", default="")
     sp.add_argument("--by", default="")
     sp.set_defaults(fn=_cmd_document_exit)
+
+    sp = store_arg(sub.add_parser("ingest"))
+    sp.add_argument("--arrangement", required=True)
+    sp.add_argument("--kind", default="", help="soc2-type2, iso27001-cert, dpa, trust-page, ...")
+    sp.add_argument("--tier", default="", choices=list(TIERS) + [""],
+                    help="T1 audited · T2 contractual · T3 vendor assertion · T4 public copy. "
+                         "Only T1 and T2 can satisfy a requirement.")
+    sp.add_argument("--source", default="")
+    sp.add_argument("--scope", default="", help="required for T1: what the artifact covers")
+    sp.add_argument("--period-start", default="")
+    sp.add_argument("--period-end", default="", help="required for T1: when its period closed")
+    sp.add_argument("--url", default="")
+    sp.add_argument("--retrieved", default="", help="required with --url")
+    sp.add_argument("--by", default="")
+    sp.set_defaults(fn=_cmd_ingest)
 
     sp = store_arg(sub.add_parser("review-requirements"))
     sp.add_argument("--arrangement", required=True)
