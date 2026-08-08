@@ -26,7 +26,7 @@ Mutations (each appends an append-only history event and writes a schema-valid f
                                          [--scope-note ..] [--appetite-statement ..]
   add          <register.rr> --title ... --il L --ii I --rl L --ri I [--theme ID] [--why ...]
   set-text     <register.rr> <id> [--title ...] [--description ...] --why ...
-                                         Reword an imported gap as a NISTIR 8286 event
+                                         Reword an imported gap as an if-then event
                                          statement; clears `provisionalTitle`.
   set-score    <register.rr> <id> [--inherent L I] [--residual L I] --why ...
   accept       <register.rr> <id> --approver ... --justification ... --revalidate DATE
@@ -394,7 +394,7 @@ def merge_import(existing: list[dict], candidates: list[dict]) -> dict:
             match = next((r for r in risks if r.get("sourceRef") == cand["sourceRef"]), None)
         if match:
             # Only overwrite the wording while nobody has rewritten it. Once a risk has
-            # been through set-text it carries a NISTIR 8286 event statement someone
+            # been through set-text it carries an if-then event statement someone
             # authored; re-importing after a quarterly review must refresh the CSF-derived
             # facts without silently throwing that away.
             if match.get("provisionalTitle"):
@@ -2276,7 +2276,7 @@ def _cmd_add(args):
 def _cmd_set_text(args):
     """Rewrite a risk's title and/or description, clearing `provisionalTitle`.
 
-    The build workflow says to reword each imported gap as a NISTIR 8286 event
+    The build workflow says to reword each imported gap as an if-then event
     statement — "PR.AA-05 partially implemented" is a control objective, not a risk —
     but until this command existed there was no way to do it except hand-editing the
     JSON, which bypasses history entirely. This is the command that makes an imported

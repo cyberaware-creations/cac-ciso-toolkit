@@ -1,0 +1,21 @@
+{
+  "guard": "skills/board-pack/evals/outcome-framing.sh",
+  "forbids": "a board sentence with no consequence, and a decisions entry that decides nothing",
+  "note": "This one is a FLOOR rather than an equality, which makes it the kind of guard that rots most quietly. A widened vocabulary, a loosened connective, a floor computed from the wrong denominator — any of them turns the check into something that passes everything and goes on printing `ok`. Both halves are mutated in the vocabulary and the scan rather than in the sidecars, because the sidecars are the thing being protected and a proof that edits its own subject proves nothing.",
+  "mutations": [
+    {
+      "half": "consequence-floor",
+      "why": "the floor stops biting. If `has_consequence` returns True unconditionally, every sentence 'carries a consequence' and the suite's own stripped-sentence mutation passes — the exact rot a share-based check is prone to.",
+      "file": "skills/board-pack/evals/_outcomescan.py",
+      "find": "    low = \" %s \" % str(text or \"\").lower()\n    if not any(c in low for c in vocab[\"connectives\"]):\n        return False",
+      "replace": "    low = \" %s \" % str(text or \"\").lower()\n    if True:\n        return True\n    if not any(c in low for c in vocab[\"connectives\"]):\n        return False"
+    },
+    {
+      "half": "decision-hard-rule",
+      "why": "the hard rule stops biting. `is_decision` returning True for anything non-empty lets 'We should look at this.' through as a board decision — and unlike the floor there is no share to hide behind, so a guard that misses this misses the unambiguous half.",
+      "file": "skills/board-pack/evals/_outcomescan.py",
+      "find": "    first = (_words(text) or [\"\"])[0]\n    if first in {v.lower() for v in vocab[\"decisionVerbs\"]}:\n        return True",
+      "replace": "    first = (_words(text) or [\"\"])[0]\n    if first:\n        return True\n    if first in {v.lower() for v in vocab[\"decisionVerbs\"]}:\n        return True"
+    }
+  ]
+}
