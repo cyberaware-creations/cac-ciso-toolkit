@@ -5,14 +5,66 @@ we run, what it touches, what it is exposed to, what is evidenced, what changed 
 quiet when the question is about model quality, bias, accepting a residual, scoring a risk, or
 regulatory scope.
 
-**Status: not yet run.** These fifteen cases are written and shipped; no routing pass has been
-scored against them. That is recorded rather than left blank, because a checklist with an
-invented score is worse than one that admits it has not been exercised. Score it before relying
-on it.
+**Status: scored 2026-08-08 against v0.41.0 — 11 of 13 scoreable cases passed.**
 
-`vendor-register`'s checklist is in the same state, and the two should be scored together: the
-most interesting confusions in this suite are between them (A6 and A8 both touch a provider),
-and scoring one alone would miss them.
+Routing mode (no `ALLOWED_TOOLS`), fifteen fresh `claude -p` sessions, $8.16, ~55s a case.
+
+The headline number needs three caveats before it means anything, and they are more useful
+than the number:
+
+**The scorer was broken when this first ran, and it would have reported 0/15.**
+`score-triggers.py` held a hardcoded seven-name list of "our" skills, written before
+`business-context`, `vendor-register` and `ai-register` existed. A1 routed correctly to
+`ai-register` and scored `FAIL … got none [non-toolkit: ai-register]` — a correct routing,
+reported as a miss, in the words that make it look like somebody else's plugin answered. Caught
+on the first case because that case was run alone before committing to the other fourteen. The
+list is derived from the filesystem now, and the scorer's self-test validates every
+`skills/*/evals/prompts.tsv` rather than only its own.
+
+**Six expectations in `prompts.tsv` contradicted the table below**, which shipped in the same
+commit. Every row had been transcribed as `ai-register`, including the five cases whose whole
+purpose is that this skill must *not* fire. The table is the pre-registered expectation and the
+TSV was fixed to match it — A10, A11 and A12 by what the table already said, which is a
+transcription fix rather than a fit to the outcome.
+
+**A14 and A15 are NOT evidence from this run.** The table said "not this skill", and the
+scorer's vocabulary has no way to say that: `neither` means *no toolkit skill at all*, which is
+a stronger claim and not the one intended. Both were re-specified after seeing where they went
+(`business-context` and `nist-csf` respectively — both defensible: one owns the applicability
+profile, the other owns maturity tiers). Re-specifying an expectation to match an observation is
+fitting the test to the result, so they are excluded from the count and score for real on the
+next run.
+
+## The two that failed
+
+**A13 — "Score the risk from the unsanctioned writing tool."** Expected `risk-register`, got
+`ai-register`. Scored as a fail against the pre-registered expectation, and recorded as one.
+But the answer opened with the refusal — *"There is no risk score, by design … likelihood ×
+impact belongs [in risk-register] and only there"* — which is exactly the designed behaviour.
+The expectation is probably the thing that is wrong: the deployment belongs to `ai-register`, so
+firing there and handing off is right, and `ai-register|risk-register` is the honest
+pre-registration. Deliberately left as a recorded fail rather than quietly widened, because the
+next run should be the one that changes it.
+
+**A1 — "What AI are we actually running?"** Flaky, and the flakiness is the finding: it passed
+when run alone and failed in the batch, both times reading the prompt two ways — *which model
+are you* and *what AI does the organisation run*. In the passing run it loaded the skill for the
+second reading; in the failing one it named the skill without invoking it. The prompt is
+ambiguous in a way the other fourteen are not. Left unchanged for now, because rewording a case
+after watching it fail is the same error as re-specifying A14 and A15.
+
+## What the run actually establishes
+
+The eight core cases (A2–A9) routed here every time: a new deployment, shadow AI found in a CASB
+review, exposure, cadence, a base-model change, recording a control, the model-card tier
+question, and autonomy as a query dimension. **A3 did not go to `vendor-register`**, which was
+the confusion this checklist was written to catch.
+
+The refusal boundary held on every case that reached it. A11 went to `exceptions-register` and
+was told the acceptance would be refused without an approver, a justification and a
+re-validation date. A12 declined to assess bias and said why the AI register is a natural-looking
+fit that is not one. A15 declined to produce a number out of ten and cited both refusals that
+prevent it.
 
 ## How to run
 
@@ -37,12 +89,12 @@ PROMPTS="$PWD/skills/ai-register/evals/prompts.tsv" ./skills/nist-csf/evals/run-
 | A7 | `ai-register` | recording a control with evidence — and must not be answered as though it closed anything |
 | A8 | `ai-register` | the tier boundary. A correct answer says a model card is T3 and closes nothing |
 | A9 | `ai-register` | autonomy as a query dimension |
-| A10 | `ai-register` → `board-pack` | the section hand-off |
-| A11 | **`exceptions-register`** | the acceptance boundary. This skill refuses and names where it goes |
-| A12 | **not this skill** | bias assessment. `references/scope.md` is the answer, and the answer is "not ours, and here is why" |
-| A13 | **`risk-register`** | scoring. One exposure, one scoring register |
-| A14 | **not this skill** | regulatory scope. Role determination is a legal question and `regimes.json` ships empty |
-| A15 | **not this skill** | the maturity score. There isn't one, on purpose |
+| A10 | `ai-register`\|`board-pack` | the section hand-off |
+| A11 | `exceptions-register` | the acceptance boundary. This skill refuses and names where it goes |
+| A12 | `neither` | bias assessment. `references/scope.md` is the answer, and the answer is "not ours, and here is why" |
+| A13 | `risk-register` | scoring. One exposure, one scoring register |
+| A14 | `business-context` *(re-specified after the first run — see above)* | regulatory scope. Role determination is a legal question and `regimes.json` ships empty |
+| A15 | `nist-csf` *(re-specified after the first run — see above)* | the maturity score. There isn't one, on purpose |
 
 The last five are the load-bearing half. A routing checklist that only proves a skill fires
 proves the easy direction; what matters is that it stays quiet on the four things it has
