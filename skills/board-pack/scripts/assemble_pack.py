@@ -66,6 +66,11 @@ SECTION_KEYS = {
     # at different criticalities and a vendor-keyed section would force one line per company
     # for facts that differ per agreement.
     "vendor": ("arrangements",),
+    # Named for what the section is ABOUT, on the same rule as `vendor`. Not "systems":
+    # risk lives in the deployment, so one model used twice is two rows with different
+    # owners and different exposures, and a system-keyed section would force one sentence
+    # to cover both.
+    "ai": ("deployments",),
     "incident": ("incidents",),
 }
 
@@ -88,11 +93,16 @@ SECTION_ORDER = {
     # `vendor` sits directly after `risk`: here is the exposure we carry, and here is who we
     # depend on to carry it. Placing third parties after metrics would put two sections
     # between a dependency and the risk it belongs to.
-    "board": ("posture", "risk", "vendor", "metrics", "exceptions", "incident"),
+    # `ai` sits directly after `vendor`, in both audiences: dependencies first, then the
+    # newest class of dependency. Most AI in a firm arrives through a third party, so the
+    # third-party section is the context the AI section is read against — reversing them
+    # would have a board meet the models before it meets who supplies them.
+    "board": ("posture", "risk", "vendor", "ai", "metrics", "exceptions", "incident"),
     # An audit committee convened to examine controls, exceptions and incidents. That leads.
     # `vendor` follows `risk` here too, for the same reason, and ahead of posture because an
     # audit committee asks about outsourced dependencies before framework coverage.
-    "audit-committee": ("incident", "exceptions", "risk", "vendor", "posture", "metrics"),
+    "audit-committee": ("incident", "exceptions", "risk", "vendor", "ai", "posture",
+                        "metrics"),
 }
 
 SECTION_TITLE = {
@@ -101,6 +111,9 @@ SECTION_TITLE = {
     # Named for the relationship, not the register. A board does not convene to discuss a
     # vendor register; it discusses what the organisation depends on other people for.
     "vendor": "Third parties",
+    # Spelled out rather than "AI". A board paper that abbreviates in its own section
+    # heading reads as written for the people who already know what is in it.
+    "ai": "Artificial intelligence",
     "metrics": "Metrics",
     "exceptions": "Accepted risks and exceptions",
     "incident": "Incidents",
@@ -1225,6 +1238,34 @@ def _vendor_escalations(a):
     return list(a.get("escalations") or [])
 
 
+def _ai_headline(a):
+    counts = a.get("counts") or {}
+    unsanctioned = int(counts.get("unsanctioned", 0))
+    uncontrolled = int(a.get("uncontrolledClasses", 0))
+    # Deliberately NOT a coverage percentage, a maturity figure or any single number
+    # standing for the AI estate. That register refuses to score a deployment, and a pack
+    # deriving one from its counts would put back the number the skill exists without.
+    #
+    # `uncontrolledClasses` takes NO severity, and that is the interesting omission. It is a
+    # count of attack classes with nothing recorded against them — real, and worth seeing —
+    # but marking it critical would imply the opposite state is finished, and there is no
+    # finished state for an attack class. The severity goes on the thing that genuinely is a
+    # crossed threshold: something in production that nobody sanctioned.
+    return [("AI deployments", counts.get("live")),
+            ("attack classes with no control recorded", uncontrolled),
+            ("running on systems nobody sanctioned", unsanctioned,
+             "critical" if unsanctioned else None)]
+
+
+def _ai_figures(a):
+    by = (a.get("counts") or {}).get("byAutonomy") or {}
+    return [{"label": level, "value": int(n)} for level, n in by.items() if n]
+
+
+def _ai_escalations(a):
+    return list(a.get("escalations") or [])
+
+
 def _incident_headline(a):
     att = a.get("attention") or {}
     due = att.get("due") or []
@@ -1272,6 +1313,14 @@ PRODUCERS = {
                "context": True,
                "headline": _vendor_headline, "figures": _vendor_figures,
                "escalations": _vendor_escalations},
+    "ai": {"skill": "ai-register", "script": "scripts/ai_register.py",
+           "argv": ["analyze", "{store}", "--today", "{asOf}", "--json"],
+           # Reads a profile: the criticality walk traces into the crown jewels the payload
+           # carries, and the batteries narrow on its flags. With no profile every
+           # deployment derives `untraced`, which is loud and correct.
+           "context": True,
+           "headline": _ai_headline, "figures": _ai_figures,
+           "escalations": _ai_escalations},
     "incident": {"skill": "incident-materiality", "script": "scripts/incident_analysis.py",
                  "argv": ["analyze", "{store}", "--today", "{asOf}",
                           "--now", "{asOf}T00:00:00+00:00"],
@@ -1585,6 +1634,11 @@ def assemble(manifest: dict, skills_root: str = None, with_stores: bool = True) 
     # tell "third parties were considered and there are none" from "nobody asked", which is the
     # CAC-AP-1 §2.2 failure wearing different clothes. Third-party risk is a board section in
     # its own right, so its absence reads exactly like a missing `risk` or `posture` section.
+    #
+    # `ai` takes the same answer, added in v0.41.0, and the reasoning transfers exactly. It
+    # is arguably stronger there: most AI in a firm arrived without a procurement decision, so
+    # "we looked and there is none" is a genuinely useful thing for a board to be told, and it
+    # is indistinguishable from silence unless the pack says which.
     #
     # Pinned by an assembly check, so the decision cannot be undone by someone tidying up.
     for name in SECTION_ORDER[manifest["audience"]]:

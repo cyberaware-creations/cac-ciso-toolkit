@@ -21,6 +21,84 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.41.0 — 2026-08-08
+
+**`ai-register`, skill #10.** A security inventory of the AI the organisation runs. Not an AI
+governance programme — `references/scope.md` names what this skill does not own (model
+evaluation, bias assessment, conformity assessment, regulatory scope) and cites why. Security is
+one of the AI RMF's seven characteristics, and a tool that inventories AI and then reports on
+all seven is claiming a competence its evidence does not support.
+
+- **Risk lives in the deployment, not the model.** The same LLM drafting marketing copy and
+  screening job applicants is one `system` and two `deployment` rows with different owners,
+  different data and different exposure. A model-keyed register forces one answer, and it is
+  the wrong one for whichever use mattered more.
+- **Autonomy is declared, never inferred.** `informs` / `recommends` / `decides` / `acts`.
+  `deploy` refuses without it and without an owner: autonomy gates every battery here, so an
+  undeclared one would be assessed anyway, quietly, at whatever the default was.
+- **Exposure is DERIVED from recorded attributes, and there is no command to select it.** Five
+  classes following the shape of NIST's adversarial ML taxonomy — availability, integrity,
+  privacy, misuse, supply chain — each carrying a `because` built from something declared.
+  Misuse is generative-only; supply chain follows the model coming from outside, which is the
+  join to `vendor-register`. A hand-selectable list becomes one somebody trims, and the class
+  most likely to be trimmed is the one that took longest to explain.
+- **An attack class has NO closed state.** No `mitigated`, `resolved`, `closed` or `accepted`
+  field anywhere, and no command that sets one. Those mitigations are empirical rather than
+  guaranteed and published defences have repeatedly been broken by adaptive attacks; a register
+  that let somebody tick a class as handled would assert what the source declines to. Controls
+  are recorded with evidence and a date. `accept_exposure` exists only to refuse, and names
+  `exceptions-register` — a refusal with nowhere to go gets worked around.
+- **A model card is T3**, and `ingest` refuses to record one higher. It is the most
+  substantive-looking artifact in the whole AI supply chain and it is still the provider
+  describing its own model.
+- **Nine escalation triggers**, three of which fire at *every* criticality level:
+  `model-changed`, `base-model-changed` and `unsanctioned-in-use`. `low` has no cadence by
+  design, and a silent model swap is exactly the event that makes a low-criticality deployment
+  stop being low. `base-model-changed` is its own trigger because a provider re-basing a product
+  and leaving the version number alone is the change nothing else would notice — so `assess` now
+  records the system, version, base model, hosting, autonomy and connected resources it was
+  made against.
+- **Shadow AI is a real row immediately.** `intake-discovered` refuses without a source and a
+  sighting date, then records the system unsanctioned and in the register. No staging area: the
+  failure mode of shadow AI is a finding that lives in a CASB console until somebody promotes it.
+- **Regimes ship as dated data, and the dataset is empty**, on the precedent `vendor-register`
+  set. `register_regime` refuses an obligation with no `source` and no `owningFunction`, and a
+  regime with no `aiRole` — much of what these regimes say is addressed to *providers*, and a
+  firm that buys and deploys AI is usually a deployer.
+- **Two bridges, both one-way.** `export-findings` to `risk-register` through the *existing*
+  import path, carrying no likelihood, impact or score; attack classes are deliberately not
+  exported, because a class has no closed state and a risk does. `export-signal` gives
+  `nist-csf`'s existing Cyber AI Profile scoping question counts as evidence — and only counts:
+  a rating arriving there is refused, and with no signal the output is byte-for-byte unchanged.
+- **The `ai` board section**, additive within `contractVersion: 1`, item key `deployments`,
+  ordered after `vendor` in both audiences: most AI arrives through a third party, so the
+  third-party section is the context this one is read against.
+
+Found while building, and fixed:
+
+- **`no-regime-dates.sh` caught its first defect on its first run — in this skill's own
+  self-test fixture.** A source string read `"Article 1, checked 2026-01-01"`, which is exactly
+  the shape the guard bans: a year inside a sentence citing a regulation. The fixture changed,
+  not the guard. A dated citation belongs in `regimes.json`, behind an `asOf`.
+- **The first `no-closed-state` scanner read a subscript key wrongly** — `node.slice.value`
+  returns the inner AST node on 3.8 and the bare string on 3.9+, so a planted
+  `exposure[cls]["mitigated"] = True` passed the assignment scan on every interpreter this
+  suite actually runs on. It was masked because the only mutant testing that path also carried
+  a give-away function name and went red for the other reason. Two mutants now, one per path.
+- **The first exposure colour guard held four literal hex values** it believed were "the green
+  one". The library's good band is `#E3EDE4`, which was not among them, so a planted green chip
+  passed in silence. Replaced with a hue test.
+- **`vendor_finding_to_risk` set `theme = "govern" if "govern" in CSF_FUNCTION_THEMES`**, whose
+  keys are `GV` / `ID` / …, so it was always `None`: every finding imported from
+  `vendor-register` since v0.39.0 landed outside every CSF theme, and a theme-filtered view
+  dropped the lot in silence. Found while generalising that function to carry AI findings
+  through the same path.
+- **A pack with no `ai` sidecar gains one provenance line**, exactly as `vendor` did, and takes
+  the same answer for the same reason: exempting it would restore byte-identity by making a
+  whole board section silently absent. Pinned in `evals/assembly.sh`.
+
+---
+
 ## v0.40.0 — 2026-08-08
 
 **The assessment layer.** Plan 1 built the record; this builds the work — read what a vendor

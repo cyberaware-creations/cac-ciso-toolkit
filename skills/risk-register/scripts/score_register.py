@@ -316,20 +316,33 @@ def gap_row_to_risk(row: dict, risk_id: str) -> dict:
     return risk
 
 
-def vendor_finding_to_risk(finding: dict, risk_id: str) -> dict:
-    """A vendor-register finding as a CANDIDATE risk. Unscored, and provisional in both ways.
+def finding_to_risk(finding: dict, risk_id: str) -> dict:
+    """A register's finding as a CANDIDATE risk. Unscored, and provisional in both ways.
 
-    `vendor-register` deliberately produces no likelihood, impact or band — see its
-    `export-findings`. So the seed here is the same neutral middle an unreviewed row gets, and
-    `provisionalScore` says out loud that nobody has assessed it. The alternative, deriving a
-    seed from the arrangement's criticality, would be this register inventing the number the
-    other skill refused to invent, one import removed.
+    Handles `vendor-register` and `ai-register` findings through one path, because they are
+    the same act: a named person checked something and recorded that it is not met. A second
+    mapper would be a second place for the seed, the provisional flags and the no-score rule
+    to drift apart, and the third producer would then get a third.
+
+    Both source registers deliberately produce no likelihood, impact or band. So the seed here
+    is the same neutral middle an unreviewed row gets, and `provisionalScore` says out loud
+    that nobody has assessed it. The alternative — deriving a seed from the criticality — would
+    be this register inventing the number the other skill refused to invent, one import
+    removed.
     """
     risk = empty_risk(risk_id)
     risk["title"] = trunc(finding.get("title") or "Third-party finding")
     risk["description"] = finding.get("description") or ""
-    risk["category"] = "GV.SC"
-    risk["theme"] = "govern" if "govern" in CSF_FUNCTION_THEMES else None
+    # The Category comes from the finding's own Subcategory references where it has them, so
+    # an AI finding against ID.RA-01 does not land under GV.SC. GV.SC is the fallback because
+    # it is where a third-party finding belongs and where these used to land unconditionally.
+    subcats = [s for s in (finding.get("gvsc") or []) if isinstance(s, str) and "." in s]
+    risk["category"] = subcats[0].rsplit("-", 1)[0] if subcats else "GV.SC"
+    fid = risk["category"].split(".")[0]
+    # This read `"govern" if "govern" in CSF_FUNCTION_THEMES`, whose keys are "GV", "ID", ...
+    # so it was always None: every imported finding landed outside every CSF theme, and a
+    # theme-filtered view silently dropped them all.
+    risk["theme"] = fid.lower() if fid in CSF_FUNCTION_THEMES else None
     risk["sourceRef"] = finding.get("sourceRef") or ""
     seed = 3
     risk["inherent"] = {"likelihood": seed, "impact": seed}
@@ -339,19 +352,31 @@ def vendor_finding_to_risk(finding: dict, risk_id: str) -> dict:
     bits = []
     if finding.get("vendor"):
         bits.append("Provider: %s" % finding["vendor"])
+    if finding.get("autonomy"):
+        bits.append("Autonomy: %s" % finding["autonomy"])
     if finding.get("criticality"):
-        bits.append("Arrangement criticality: %s (scale %s, %s)"
-                    % (finding["criticality"],
+        bits.append("%s criticality: %s (scale %s, %s)"
+                    % ("Deployment" if finding.get("sourceDeploymentRef") else "Arrangement",
+                       finding["criticality"],
                        finding.get("criticalityScaleVersion") or "unstated",
                        "confirmed" if finding.get("criticalityConfirmed") else "DERIVED, "
                        "not confirmed by a person"))
+    if finding.get("nistaml"):
+        # Carried as context, never as a state. An attack class has no closed state in
+        # `ai-register`; this risk does, and closing the risk closes the risk.
+        bits.append("Exposed to %s (recorded in ai-register, where a class is never closed)"
+                    % ", ".join(finding["nistaml"]))
     if finding.get("checkedBy"):
         bits.append("Checked by %s on %s" % (finding["checkedBy"],
                                              finding.get("checkedOn") or "an unstated date"))
-    if finding.get("gvsc"):
-        bits.append("GV.SC: %s" % ", ".join(finding["gvsc"]))
+    if subcats:
+        bits.append("CSF: %s" % ", ".join(subcats))
     risk["notes"] = " · ".join(bits) or None
     return risk
+
+
+# The name this shipped under in v0.39.0, kept so a caller written against it still works.
+vendor_finding_to_risk = finding_to_risk
 
 
 def merge_import(existing: list[dict], candidates: list[dict]) -> dict:
@@ -954,7 +979,8 @@ def _cmd_import_findings(args: list[str]) -> int:
         print("usage: score_register.py import-findings <findings.json> "
               "[--into <register.rr>] [--write]\n"
               "  Previews the mapped candidates by default and writes nothing.\n"
-              "  Produce the input with `vendor_register.py export-findings`.", file=sys.stderr)
+              "  Produce the input with `vendor_register.py export-findings` or\n"
+              "  `ai_register.py export-findings`.", file=sys.stderr)
         return 2
     do_write = "--write" in args
     if do_write and not into:
@@ -965,7 +991,7 @@ def _cmd_import_findings(args: list[str]) -> int:
         payload = json.load(fh)
     if payload.get("export") != "findings":
         print("import-findings: %s is not a findings export (export=%r). Produce it with "
-              "`vendor_register.py export-findings`."
+              "`vendor_register.py export-findings` or `ai_register.py export-findings`."
               % (paths[0], payload.get("export")), file=sys.stderr)
         return 2
     # A scoring key reaching here means the other register started scoring, which is the one
@@ -974,11 +1000,11 @@ def _cmd_import_findings(args: list[str]) -> int:
                      if k.lower() in ("likelihood", "impact", "score", "band", "severity")})
     if banned:
         print("import-findings: the payload carries scoring key(s) %s. This register scores "
-              "third-party findings; the source register must not." % ", ".join(banned),
+              "imported findings; the source register must not." % ", ".join(banned),
               file=sys.stderr)
         return 2
     existing = load_register(into)["risks"] if into else []
-    candidates = [vendor_finding_to_risk(f, "R-%03d" % (i + 1))
+    candidates = [finding_to_risk(f, "R-%03d" % (i + 1))
                   for i, f in enumerate(payload.get("findings") or [])]
     result = merge_import(existing, candidates)
     if do_write and into:
@@ -986,8 +1012,9 @@ def _cmd_import_findings(args: list[str]) -> int:
         reg["risks"] = result["risks"]
         _ensure_csf_themes(reg)
         _append_event(reg, "import-merged",
-                      rationale="%d added, %d updated from vendor findings"
-                                % (result["added"], result["updated"]))
+                      rationale="%d added, %d updated from %s findings"
+                                % (result["added"], result["updated"],
+                                   payload.get("family") or "an external register"))
         save_register(reg, into)
         print("Wrote %s: %d added, %d updated" % (into, result["added"], result["updated"]),
               file=sys.stderr)
@@ -1104,6 +1131,49 @@ def _cmd_self_test(_: list[str]) -> int:
     _kept = merge_import(_authored, [vendor_finding_to_risk(_finding, "R-902")])
     eq("a reworded title survives a re-import",
        _kept["risks"][0]["title"], "Loss of the CRM through a provider gap")
+    # This was `"govern" if "govern" in CSF_FUNCTION_THEMES`, whose keys are "GV", "ID", ... —
+    # so every imported finding landed with no theme at all, and a theme-filtered view
+    # dropped the lot in silence.
+    eq("a GV.SC finding lands in the Govern theme rather than nowhere",
+       (_vr["category"], _vr["theme"]), ("GV.SC", "gv"))
+
+    # --- ai-register findings: the SAME path, not a second one ---------------
+    #
+    # An AI finding is the same act as a third-party one — a named person checked something
+    # and recorded that it is not met — so it maps through the same function. A second mapper
+    # would be a second place for the seed, the provisional flags and the no-score rule to
+    # drift, and the third producer would then get a third.
+    _ai = {
+        "family": "ai-register",
+        "sourceRef": "ai-register:D-002:monitoring.output-retention",
+        "sourceDeploymentRef": "D-002",
+        "title": "Contoso Assist (screening job applicants): retention not evidenced",
+        "description": "checked and recorded as not met",
+        "vendor": "Contoso", "autonomy": "decides", "criticality": "high",
+        "criticalityScaleVersion": "v1", "criticalityConfirmed": True,
+        "nistaml": ["NISTAML.02", "NISTAML.03"],
+        "checkedBy": "DPO", "checkedOn": "2026-08-08",
+        "gvsc": ["DE.CM-09"],
+    }
+    _ar = finding_to_risk(_ai, "R-910")
+    eq("an AI finding imports provisional in both dimensions too",
+       (_ar["provisionalTitle"], _ar["provisionalScore"]), (True, True))
+    eq("...with the same neutral seed and no assessed magnitude",
+       (_ar["inherent"], _ar["residual"]),
+       ({"likelihood": 3, "impact": 3}, {"likelihood": 3, "impact": 3}))
+    eq("a DE.CM finding lands under Detect, not under GV.SC",
+       (_ar["category"], _ar["theme"]), ("DE.CM", "de"))
+    eq("the deployment's autonomy travels with it",
+       "Autonomy: decides" in (_ar["notes"] or ""), True)
+    # The exposure classes are context on the risk, never a state. A class has no closed state
+    # in `ai-register`; a risk has one, and closing the risk closes the risk.
+    eq("and its exposure classes, said to be recorded where a class is never closed",
+       "never closed" in (_ar["notes"] or ""), True)
+    _mixed = merge_import(_first["risks"], [finding_to_risk(_ai, "R-910")])
+    eq("an AI finding merges alongside a vendor one rather than colliding with it",
+       (_mixed["added"], len(_mixed["risks"])), (1, 2))
+    eq("and re-importing it updates rather than doubling",
+       merge_import(_mixed["risks"], [finding_to_risk(_ai, "R-911")])["added"], 0)
 
     # exposure / band (scoring.test.ts)
     eq("exposure(4,5)", exposure(4, 5), 20)

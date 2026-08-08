@@ -21,6 +21,9 @@ Design anchors:
 Read-only:
   validate     [--core PATH]                       Assert the bundled Core is intact (6/22/106).
   analyze      <store.csfp> [--today D] [--top N] [--queue-top N] [--out F]   Emit the complete derived JSON.
+               [--context PAYLOAD] [--ai-signal SIGNAL]   `--ai-signal` is optional evidence
+               for the Cyber AI Profile scoping question, from `ai_register.py export-signal`.
+               Counts only; the question is still asked, and still answered here.
   diff         <store.csfp> [--label L] [--json]   Compare current state to a snapshot.
   export-gaps  <store.csfp> [--out F]              Gap CSV for `risk-register import-gaps`.
   queue        <store.csfp> [--top N] [--json]      What to confirm next, ranked.
@@ -3010,7 +3013,62 @@ def load_context(path: str) -> dict:
     return payload
 
 
-def applicability_for(payload: dict, overlay_cfg: dict) -> dict:
+def load_ai_signal(path: str) -> dict:
+    """Read an `ai-register export-signal` payload. Optional, and evidence only.
+
+    `ai-register` counts what an organisation actually runs. This skill asks whether the
+    AI-use focus areas are applied to the Profile, and until now asked that of a human with
+    nothing to hand. The signal gives the question EVIDENCE and never an answer: it carries
+    counts, no ratings and no recommendation, and the sentences below still say "resolve it"
+    rather than resolving it.
+
+    Absent, everything behaves exactly as it did — the key is omitted rather than set to
+    None, on the same rule as the overlay block.
+    """
+    try:
+        with open(path, encoding="utf-8") as fh:
+            payload = json.load(fh)
+    except FileNotFoundError:
+        raise ValueError(f"no such AI signal: {path}")
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"{path} is not valid JSON (line {exc.lineno}, "
+                         f"column {exc.colno}): {exc.msg}")
+    if not isinstance(payload, dict) or payload.get("export") != "signal":
+        raise ValueError(
+            f"{path} is not an AI inventory signal (export="
+            f"{payload.get('export') if isinstance(payload, dict) else None!r}). Produce one "
+            f"with `ai_register.py export-signal`.")
+    counts = payload.get("counts")
+    if not isinstance(counts, dict):
+        raise ValueError(f"{path} carries no `counts`, so there is no evidence in it.")
+    # Counts only, asserted rather than trusted. A rating or a priority arriving here would be
+    # the other skill answering this skill's question, which is the one thing it must not do.
+    bad = sorted(k for k in counts if not isinstance(counts[k], int)
+                 or isinstance(counts[k], bool))
+    if bad:
+        raise ValueError(
+            f"{path} carries non-count value(s) for {', '.join(bad)}. The signal is counts "
+            f"only: which focus areas a Profile applies is a judgement, and it is made here.")
+    return {"asOf": str(payload.get("asOf") or ""),
+            "organisation": str(payload.get("organisation") or ""),
+            "counts": {k: int(v) for k, v in sorted(counts.items())}}
+
+
+def ai_signal_sentence(signal: dict) -> str:
+    """What the inventory says, as a sentence. Facts, and no instruction."""
+    c = (signal or {}).get("counts") or {}
+    bits = [f"{c.get('deployments', 0)} AI deployment(s) recorded"]
+    for key, label in (("generative", "generative"),
+                       ("acts", "acting without a person in the loop"),
+                       ("consequentialDecisions", "in consequential decisions"),
+                       ("unsanctioned", "on unsanctioned systems")):
+        if c.get(key):
+            bits.append(f"{c[key]} {label}")
+    return (f"The AI register as at {signal.get('asOf') or 'an unstated date'}: "
+            f"{'; '.join(bits)}.")
+
+
+def applicability_for(payload: dict, overlay_cfg: dict, ai_signal: dict = None) -> dict:
     """The profile's decision, and where it disagrees with what this Profile actually does.
 
     The payload arrives DECIDED — §2.2 and §2.3 were applied by `business-context`, and
@@ -3051,6 +3109,14 @@ def applicability_for(payload: dict, overlay_cfg: dict) -> dict:
                           # The answer, which no other consumer can give.
                           "answered": True, "applied": applied,
                           "focusAreas": sorted(focus)})
+            # Evidence for the question, when somebody supplied it. Never the answer: the
+            # entry above still records what this Profile applies, and the sentence below
+            # still says to resolve it rather than resolving it.
+            if ai_signal:
+                asked[-1]["inventorySignal"] = {
+                    "asOf": ai_signal.get("asOf") or "",
+                    "counts": dict(ai_signal.get("counts") or {}),
+                    "sentence": ai_signal_sentence(ai_signal)}
             if battery == "ai-overlay" and not applied:
                 conflicts.append({
                     "battery": battery, "flag": spec["flag"],
@@ -3062,7 +3128,8 @@ def applicability_for(payload: dict, overlay_cfg: dict) -> dict:
                         + f", so the assessment is not weighted for the AI-relevant "
                           f"Subcategories IR 8596 identifies. Enable `secure` and/or "
                           f"`defend` with `overlay enable --focus`, or record why they do "
-                          f"not apply.")})
+                          f"not apply."
+                        + (f" {ai_signal_sentence(ai_signal)}" if ai_signal else ""))})
     return {
         "profileVersion": str(payload.get("profileVersion") or ""),
         "asked": asked,
@@ -3077,7 +3144,8 @@ def applicability_for(payload: dict, overlay_cfg: dict) -> dict:
 def _cmd_analyze(args):
     pos, opt = parse_flags(args)
     path = _require_store(pos, "usage: analyze <store.csfp> [--today YYYY-MM-DD] [--top N] "
-                                "[--queue-top N] [--out F] [--context PAYLOAD]")
+                                "[--queue-top N] [--out F] [--context PAYLOAD] "
+                                "[--ai-signal SIGNAL]")
     core = load_core(); index = index_subcategories(core)
     store = load_store(path)
 
@@ -3230,7 +3298,12 @@ def _cmd_analyze(args):
     # exists only when a profile was supplied, so a run without one is byte-for-byte what
     # it always was.
     if isinstance(opt.get("context"), (str, list)):
-        out["context"] = applicability_for(load_context(_s(opt["context"])), cfg)
+        # D-3. The AI inventory signal is optional evidence for the scoping question, and
+        # rides on the context block because that is where the question lives. With no
+        # signal the block is byte-for-byte what it was.
+        signal = (load_ai_signal(_s(opt["ai-signal"]))
+                  if isinstance(opt.get("ai-signal"), (str, list)) else None)
+        out["context"] = applicability_for(load_context(_s(opt["context"])), cfg, signal)
 
     # Crosswalk lenses are a report-time choice, so they appear only when asked
     # for and are never written back to the store. Same omit-when-absent rule as
@@ -5311,6 +5384,59 @@ def _cmd_self_test(_args):
     else:
         failures.append("golden crosswalk fixture is missing")
         checks += 1
+
+    # --- D-3: the AI inventory signal, as evidence and never as an answer -----
+    #
+    # The property that matters is what the signal is NOT allowed to be. A rating or a
+    # priority arriving here would be `ai-register` answering this skill's question, and the
+    # question — which focus areas does this Profile apply — is a judgement made here.
+    _payload = {
+        "contractVersion": CONTEXT_CONTRACT,
+        "profileVersion": "1",
+        "applicability": {CONTEXT_SKILL: {"ask": ["ai-overlay"], "skipped": []}},
+    }
+    _no_signal = applicability_for(_payload, {"enabled": False, "focusAreas": []})
+    eq(json.dumps(_no_signal, sort_keys=True),
+       json.dumps(applicability_for(_payload, {"enabled": False, "focusAreas": []}, None),
+                  sort_keys=True),
+       "with no signal, the context block is byte-for-byte what it always was")
+    ok("inventorySignal" not in (_no_signal["asked"][0] if _no_signal["asked"] else {}),
+       "...and carries no signal key at all, rather than one set to null")
+    _sig = {"asOf": "2026-08-01",
+            "counts": {"deployments": 12, "generative": 9, "acts": 2,
+                       "consequentialDecisions": 3, "unsanctioned": 1}}
+    _with = applicability_for(_payload, {"enabled": False, "focusAreas": []}, _sig)
+    ok("inventorySignal" in _with["asked"][0], "a supplied signal appears as evidence")
+    ok("12 AI deployment(s) recorded" in _with["asked"][0]["inventorySignal"]["sentence"],
+       "...as counts of what is recorded")
+    ok(_with["conflicts"] and "Enable `secure`" in _with["conflicts"][0]["sentence"],
+       "and the conflict still says to resolve it — the signal informs, it does not answer")
+    eq(_with["asked"][0]["applied"], _no_signal["asked"][0]["applied"],
+       "...specifically: the signal changes no decision this skill makes")
+    with tempfile.TemporaryDirectory() as _sd:
+        _p = os.path.join(_sd, "sig.json")
+        with open(_p, "w", encoding="utf-8") as _fh:
+            json.dump({"export": "signal", "asOf": "2026-08-01",
+                       "counts": {"deployments": 3}}, _fh)
+        eq(load_ai_signal(_p)["counts"], {"deployments": 3}, "a counts-only signal loads")
+        with open(_p, "w", encoding="utf-8") as _fh:
+            json.dump({"export": "signal", "asOf": "2026-08-01",
+                       "counts": {"deployments": 3, "postureRating": "high"}}, _fh)
+        try:
+            load_ai_signal(_p)
+            failures.append("a signal carrying a rating was accepted")
+            checks += 1
+        except ValueError as _exc:
+            ok("counts only" in str(_exc),
+               "and one carrying a rating is refused, saying the judgement is made here")
+        with open(_p, "w", encoding="utf-8") as _fh:
+            json.dump({"export": "findings", "findings": []}, _fh)
+        try:
+            load_ai_signal(_p)
+            failures.append("a findings export was accepted as a signal")
+            checks += 1
+        except ValueError:
+            ok("...and a findings export is not a signal", True)
 
     print(f"self-test: {checks - len(failures)}/{checks} checks passed")
     if failures:

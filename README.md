@@ -30,9 +30,10 @@ already have; see [Requirements](#requirements).
 
 ## Skills
 
-Nine skills, in three layers. **Seven own data** — each is the system of record for one thing and
+Ten skills, in three layers. **Eight own data** — each is the system of record for one thing and
 persists it in a local file: risks, a CSF Profile, metrics, accepted exceptions, incident
-determinations, third-party arrangements, and the organisation's own business facts. **One owns language** —
+determinations, third-party arrangements, AI deployments, and the organisation's own business
+facts. **One owns language** —
 `ciso-board-translation` holds the board-facing phrasing the others call rather than each inventing
 its own. **One owns the deliverable** — `board-pack` assembles what the producers wrote into a
 single document, and owns no data at all.
@@ -41,7 +42,7 @@ The seam is deliberate. A producer decides what is true, the translation skill d
 said, and the assembler decides what order a board reads it in. No skill does two of those jobs, so
 a fact has exactly one home and changing how something is phrased never edits a store.
 
-`business-context` sits slightly apart from the other five producers: it supplies facts *to* them
+`business-context` sits slightly apart from the other six producers: it supplies facts *to* them
 rather than reporting on its own. It takes ownership of nothing that already has an owner —
 `risk-register` still owns the appetite band, this owns the board sentence the band came from.
 
@@ -174,6 +175,37 @@ overlays, never the frame.
   covers. Read a SOC 2 and the set shrinks; read a trust page and it does not.
 - **No vendor score**, deliberately and under an eval with two halves. Findings go to
   `risk-register` and are scored once, there.
+
+### `ai-register`
+A security inventory of the AI the organisation actually runs — persisted in a local `.air`
+file. The CISO's slice, and it says so: `references/scope.md` names what this skill does not own
+(model evaluation, bias assessment, conformity assessment) and cites why.
+
+- **Risk lives in the deployment, not the model.** The same LLM drafting copy and screening
+  applicants is one system and two entirely different exposures. A model-keyed register forces
+  one answer, and it is the wrong one for whichever deployment mattered more.
+- **Autonomy is declared, never inferred.** `informs`, `recommends`, `decides`, `acts`. It gates
+  the security battery and every regulatory question, so `deploy` refuses a deployment without
+  one — an undeclared autonomy would be assessed anyway, quietly, at the default.
+- **Exposure is derived from attributes, never selected.** Five classes following the shape of
+  NIST's adversarial ML taxonomy. There is no command to mark one inapplicable, because a
+  hand-selectable list becomes one somebody trims, and the class most likely to be trimmed is
+  the one that took longest to explain.
+- **An attack class has no closed state.** No `mitigated`, no `resolved`, no `accepted` — those
+  mitigations are empirical and published defences have repeatedly been broken by adaptive
+  attacks. Controls are recorded with evidence and a date; a class with controls reads as
+  controls applied, never as handled. Accepting the residual belongs in `exceptions-register`,
+  and the refusal says so.
+- **A model card is T3.** The most substantive-looking artifact in the whole AI supply chain, and
+  still the provider describing itself. `ingest` refuses to record one higher. Useful for working
+  out what to ask; never a reason to stop asking.
+- **A silent model swap escalates at every criticality level**, including the lowest — including
+  when the provider re-bases the product and leaves the version number alone. `low` has no
+  cadence by design, so these are all that would catch it.
+- **Shadow AI is a real row immediately.** No staging area: the failure mode of unsanctioned AI
+  is a finding that lives in a CASB console until somebody remembers to promote it.
+- **No AI risk score**, under the same two-halved eval `vendor-register` uses, plus a third guard
+  on the rendered page — no green fill, no tick, no "3 of 5 covered" on an attack class.
 
 ### `exceptions-register`
 The defensible record of what the organisation knowingly accepted — risk acceptances and control
@@ -350,6 +382,13 @@ skills/
     references/                schema, criticality method, GV.SC and SR mapping
     examples/                  worked .vnd + its board translations
     evals/                     no-vendor-score suite
+  ai-register/
+    SKILL.md
+    scripts/ai_register.py          AI deployments + NISTAML exposure (stdlib only)
+    renderers/                 render_operational / render_board
+    references/                schema, the exposure taxonomy, scope, regimes (empty)
+    examples/                  worked .air + its board translations
+    evals/                     no-closed-state, no-ai-score, exposure, questions suites
   exceptions-register/
     SKILL.md
     scripts/exceptions_register.py  acceptance + exception lifecycle (stdlib only)
@@ -419,6 +458,7 @@ python3 skills/metrics-register/scripts/metrics_analysis.py self-test      # tre
 python3 skills/exceptions-register/scripts/exceptions_register.py self-test  # lifecycle + refusals
 python3 skills/incident-materiality/scripts/incident_analysis.py self-test   # clocks + banding
 python3 skills/vendor-register/scripts/vendor_register.py self-test        # the criticality walk
+python3 skills/ai-register/scripts/ai_register.py self-test               # exposure, and no closed state
 python3 skills/business-context/scripts/business_context.py self-test      # §2.2/§2.3 narrowing
 python3 skills/board-pack/scripts/assemble_pack.py self-test               # contract + assembly
 
@@ -438,6 +478,12 @@ python3 skills/board-pack/scripts/assemble_pack.py self-test               # con
 ./skills/vendor-register/evals/proposal-boundary.sh # the reading layer cannot close anything
 ./skills/vendor-register/evals/evidence-tiers.sh    # what a tier means, and what does not extend it
 ./skills/vendor-register/evals/questions.sh         # a real report shrinks the set; copy does not
+
+./skills/ai-register/evals/no-closed-state.sh       # an attack class is never handled
+./skills/ai-register/evals/no-ai-score.sh           # no score, emitted or computed
+./skills/ai-register/evals/exposure.sh              # derived from attributes, never selected
+./skills/ai-register/evals/no-regime-dates.sh       # no regulatory date compiled into prose
+./skills/ai-register/evals/questions.sh             # a model card subtracts nothing
 ./skills/exceptions-register/evals/board-safety.sh
 ./skills/incident-materiality/evals/board-safety.sh
 ./skills/business-context/evals/board-safety.sh

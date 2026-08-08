@@ -22,7 +22,7 @@ skill="$(cd "$here/.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=82
+EXPECTED_CHECKS=83
 checks=0
 fails=0
 ok()  { checks=$((checks + 1)); printf '  ok    %s\n' "$1"; }
@@ -152,6 +152,18 @@ if q 'any("vendor" in m and "not in this pack" in m for m in p["provenance"]["mi
   ok "a pack with no vendor sidecar says so, rather than omitting third parties in silence"
 else
   bad "a pack with no vendor sidecar says so" \
+      "no note — a whole board section is missing and the page does not mention it"
+fi
+# `ai` takes the SAME answer, for the same reason and by the same decision. Adding it made an
+# existing pack gain one more provenance line, and exempting it would mean a reader could not
+# tell "we looked at what AI we run and there is none" from "nobody asked" — which, for a
+# class of dependency most firms acquired without a procurement decision, is the worse of the
+# two silences.
+if q 'any("ai" in m and "not in this pack" in m for m in p["provenance"]["missing"])' \
+   | grep -q True; then
+  ok "and a pack with no AI sidecar says so too, on the same reasoning"
+else
+  bad "a pack with no AI sidecar says so" \
       "no note — a whole board section is missing and the page does not mention it"
 fi
 # ...and `incident` remains the one exemption, because a quarter with no incident is a normal

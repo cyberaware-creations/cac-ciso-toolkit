@@ -22,7 +22,7 @@ repo="$(cd "$here/../../.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=46
+EXPECTED_CHECKS=50
 checks=0
 fails=0
 
@@ -422,10 +422,57 @@ if [ "$key" = "arrangements" ]; then
 else
   bad "the vendor item key is 'arrangements'" "got '$key'"
 fi
-if [ "$ord" = "posture,risk,vendor,metrics,exceptions,incident" ]; then
+if [ "$ord" = "posture,risk,vendor,ai,metrics,exceptions,incident" ]; then
   ok "and vendor sits directly after risk: what we carry, then who we depend on for it"
 else
   bad "vendor sits directly after risk in the board order" "got '$ord'"
+fi
+
+# --- the `ai` section, added the same way in v0.41.0 --------------------------
+#
+# The same load-bearing pair: the new section validates, and the version is untouched so
+# every sidecar written before it existed still does. The ordering check is exact rather than
+# a "contains" test, because the position IS the decision — `ai` after `vendor` in both
+# audiences, so a board meets who supplies the models before it meets the models.
+cat > "$work/ai.board.json" <<'JSON'
+{"section": "ai",
+ "executiveSummary": "One model screens job applicants; nobody has tested it adversarially.",
+ "deployments": {"D-001": "The applicant screening model decides, and no red-team report covers it."},
+ "decisions": ["Fund an adversarial test of the screening deployment, or move it back to recommending."],
+ "asOf": "2026-06-30"}
+JSON
+if "$PY" - "$repo" "$work/ai.board.json" <<'PYEOF' >"$work/ai.out" 2>"$work/ai.err"
+import importlib.util, json, sys
+spec = importlib.util.spec_from_file_location(
+    "ap", sys.argv[1] + "/skills/board-pack/scripts/assemble_pack.py")
+ap = importlib.util.module_from_spec(spec); spec.loader.exec_module(ap)
+raw = json.load(open(sys.argv[2], encoding="utf-8"))
+ap.validate_section("ai", raw, sys.argv[2])
+print(ap.CONTRACT_VERSION)
+print(",".join(ap.SECTION_KEYS["ai"]))
+print(",".join(ap.SECTION_ORDER["audit-committee"]))
+PYEOF
+then
+  ok "an ai sidecar validates against the contract"
+else
+  bad "an ai sidecar validates against the contract" "$(cat "$work/ai.err")"
+fi
+if [ "$(sed -n 1p "$work/ai.out")" = "1" ]; then
+  ok "...and the contract version is STILL 1 after a second additive section"
+else
+  bad "the contract version is still 1 after adding ai" \
+      "got $(sed -n 1p "$work/ai.out") — every existing sidecar is now refused"
+fi
+if [ "$(sed -n 2p "$work/ai.out")" = "deployments" ]; then
+  ok "the item key is 'deployments' — risk lives in the deployment, not the model"
+else
+  bad "the ai item key is 'deployments'" "got '$(sed -n 2p "$work/ai.out")'"
+fi
+if [ "$(sed -n 3p "$work/ai.out")" = "incident,exceptions,risk,vendor,ai,posture,metrics" ]; then
+  ok "and ai follows vendor for an audit committee too, not only for a board"
+else
+  bad "ai follows vendor in the audit-committee order" \
+      "got '$(sed -n 3p "$work/ai.out")'"
 fi
 
 echo
