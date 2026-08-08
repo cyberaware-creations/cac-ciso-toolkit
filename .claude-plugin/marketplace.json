@@ -5,13 +5,13 @@
     "url": "https://cyberawarecreations.com"
   },
   "description": "Marketplace for the Cyber Aware Creations CISO Toolkit — NIST-aligned security leadership skills that run locally against your own files.",
-  "version": "0.40.0",
+  "version": "0.41.0",
   "plugins": [
     {
       "name": "cyber-aware-creations",
       "source": "./",
-      "description": "Nine NIST-aligned skills for security leaders, running locally against your own files. Seven own data and persist it: risk-register scores and tracks a cybersecurity risk register with change history and board dashboards; nist-csf assesses your programme against NIST CSF 2.0 as a tracked Organizational Profile with gap analysis, coverage reporting and read-only crosswalks to ISO 27001, CIS Controls and 800-53; metrics-register trends security metrics and KRIs with direction-aware thresholds; exceptions-register runs the lifecycle of accepted risks and control exceptions and exports the evidence artifact an auditor asks for; incident-materiality structures an SEC Item 1.05 and DORA disclosure determination and its clocks, and never emits a verdict; business-context records the organisation's own facts — revenue base, crown jewels, board-voiced tolerance — and the applicability profile that narrows what a consuming skill asks — every register reads it — risk, posture, metrics, exceptions and incident. vendor-register keeps third-party arrangements with a criticality derived by tracing what each one supports back to a business workflow and confirmed by a named person, and emits no vendor score. ciso-board-translation owns the board-facing language they all call, with sourced regulatory receipts. board-pack assembles the quarterly pack as a print-ready document and an editable PowerPoint deck, and owns no data at all.",
-      "version": "0.40.0",
+      "description": "Ten NIST-aligned skills for security leaders, running locally against your own files. Eight own data and persist it: risk-register scores and tracks a cybersecurity risk register with change history and board dashboards; nist-csf assesses your programme against NIST CSF 2.0 as a tracked Organizational Profile with gap analysis, coverage reporting and read-only crosswalks to ISO 27001, CIS Controls and 800-53; metrics-register trends security metrics and KRIs with direction-aware thresholds; exceptions-register runs the lifecycle of accepted risks and control exceptions and exports the evidence artifact an auditor asks for; incident-materiality structures an SEC Item 1.05 and DORA disclosure determination and its clocks, and never emits a verdict; business-context records the organisation's own facts — revenue base, crown jewels, board-voiced tolerance — and the applicability profile that narrows what a consuming skill asks — every register reads it — risk, posture, metrics, exceptions and incident. vendor-register keeps third-party arrangements with a criticality derived by tracing what each one supports back to a business workflow and confirmed by a named person, and emits no vendor score. ai-register keeps a security inventory of the AI the organisation runs — risk lives in the deployment, not the model — deriving what each deployment is exposed to under the NIST adversarial machine learning taxonomy from its recorded attributes, recording controls with evidence and a date, and never marking an attack class handled, because those mitigations are empirical and published defences have repeatedly been broken. ciso-board-translation owns the board-facing language they all call, with sourced regulatory receipts. board-pack assembles the quarterly pack as a print-ready document and an editable PowerPoint deck, and owns no data at all.",
+      "version": "0.41.0",
       "author": {
         "name": "Cyber Aware Creations, LLC.",
         "url": "https://cyberawarecreations.com"
@@ -38,7 +38,17 @@
         "disclosure",
         "sec-8k",
         "pptx",
-        "charts"
+        "charts",
+        "ai-register",
+        "ai",
+        "ai-security",
+        "ai-governance",
+        "adversarial-ml",
+        "shadow-ai",
+        "llm",
+        "model-risk",
+        "ai-inventory",
+        "prompt-injection"
       ]
     }
   ]

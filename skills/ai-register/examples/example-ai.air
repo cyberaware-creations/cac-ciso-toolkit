@@ -1,0 +1,1014 @@
+{
+  "schemaVersion": 1,
+  "family": "ai-register",
+  "meta": {
+    "orgName": "Northwind Manufacturing (fictional)",
+    "preparedBy": "D. Galleyne",
+    "scopeNote": "SPECIMEN. Every deployment, provider and finding here is invented.",
+    "asOf": "2026-08-07"
+  },
+  "settings": {
+    "criticalityScale": [
+      "low",
+      "moderate",
+      "high"
+    ],
+    "scaleVersion": "v1",
+    "cadenceDays": {
+      "high": 365,
+      "moderate": 730
+    },
+    "traceMaxHops": 2,
+    "evidenceGraceDays": 365,
+    "proposalStaleDays": 30,
+    "consolidation": {}
+  },
+  "systems": [
+    {
+      "id": "S-001",
+      "name": "Contoso Assist",
+      "provider": "Contoso",
+      "version": "2026.4",
+      "family": "Contoso Assist",
+      "baseModel": "GPT-cx-3",
+      "hosting": "saas",
+      "genAI": true,
+      "fineTuned": false,
+      "retrievalAugmented": true,
+      "vendorRef": "",
+      "arrangementRef": "VA-001",
+      "chainNote": "Contoso publishes the base model but not who hosts the inference endpoint for EU tenants.",
+      "provenance": "declared",
+      "sanction": "sanctioned",
+      "sanctionBy": "",
+      "sanctionOn": "",
+      "sanctionWhy": ""
+    },
+    {
+      "id": "S-002",
+      "name": "Churn propensity model",
+      "provider": "In-house",
+      "version": "3.1",
+      "family": "",
+      "baseModel": "",
+      "hosting": "self-hosted",
+      "genAI": false,
+      "fineTuned": true,
+      "retrievalAugmented": false,
+      "vendorRef": "",
+      "arrangementRef": "",
+      "chainNote": "",
+      "provenance": "declared",
+      "sanction": "sanctioned",
+      "sanctionBy": "",
+      "sanctionOn": "",
+      "sanctionWhy": ""
+    },
+    {
+      "id": "S-003",
+      "name": "Fabrikam AutoOps",
+      "provider": "Fabrikam",
+      "version": "8.2",
+      "family": "",
+      "baseModel": "Llama-fx-3",
+      "hosting": "hybrid",
+      "genAI": true,
+      "fineTuned": false,
+      "retrievalAugmented": false,
+      "vendorRef": "",
+      "arrangementRef": "VA-004",
+      "chainNote": "",
+      "provenance": "declared",
+      "sanction": "sanctioned",
+      "sanctionBy": "",
+      "sanctionOn": "",
+      "sanctionWhy": ""
+    },
+    {
+      "id": "S-004",
+      "name": "Tailspin Writer",
+      "provider": "Tailspin",
+      "version": "unknown",
+      "family": "",
+      "baseModel": "",
+      "hosting": "saas",
+      "genAI": true,
+      "fineTuned": false,
+      "retrievalAugmented": false,
+      "vendorRef": "",
+      "arrangementRef": "",
+      "chainNote": "",
+      "provenance": "discovered",
+      "sanction": "unsanctioned",
+      "sanctionBy": "",
+      "sanctionOn": "",
+      "sanctionWhy": "",
+      "discoveredVia": "CASB egress review, week of 11 May",
+      "discoveredOn": "2026-05-14"
+    }
+  ],
+  "deployments": [
+    {
+      "id": "D-001",
+      "systemRef": "S-001",
+      "entityRef": "Northwind Manufacturing (fictional)",
+      "purpose": "screening job applicants",
+      "owner": "HR Director",
+      "autonomy": "decides",
+      "autonomyDeclaredBy": "CISO",
+      "autonomyDeclaredOn": "2026-08-07",
+      "declares": {},
+      "dataClasses": [
+        "applicant personal data",
+        "CV free text"
+      ],
+      "connectedResources": [],
+      "consequentialDecision": true,
+      "supports": "Applicant tracking",
+      "addedOn": "2026-08-07",
+      "criticality": {
+        "derived": "moderate",
+        "derivedOn": "2026-08-07",
+        "trace": [
+          "Applicant tracking"
+        ],
+        "truncated": false,
+        "derivedFromLevel": "moderate",
+        "confirmed": {
+          "value": "high",
+          "by": "D. Galleyne",
+          "on": "2026-08-07",
+          "basis": "a decision about a person, on regulated personal data",
+          "scaleVersion": "v1",
+          "againstDerived": "moderate"
+        }
+      },
+      "exposure": {
+        "NISTAML.01": {
+          "class": "NISTAML.01",
+          "name": "availability",
+          "concern": "an attacker degrading the service the deployment provides",
+          "because": "any deployment can be degraded by an attacker who can reach it",
+          "controls": []
+        },
+        "NISTAML.02": {
+          "class": "NISTAML.02",
+          "name": "integrity",
+          "concern": "an attacker causing the deployment to produce the output they choose",
+          "because": "any model's output can be steered by an attacker who can shape its input",
+          "controls": [
+            {
+              "control": "untrusted-content filter on CV free text before it reaches the context",
+              "evidence": "config export NW-CFG-118, plus the red-team retest in section 4.2",
+              "on": "2026-03-30",
+              "by": "Head of Security"
+            }
+          ]
+        },
+        "NISTAML.03": {
+          "class": "NISTAML.03",
+          "name": "privacy",
+          "concern": "an attacker recovering data the deployment was trained on or has access to",
+          "because": "it handles applicant personal data, CV free text; retrieval puts organisation data in its context at run time",
+          "controls": [
+            {
+              "control": "tenant isolation and a contractual no-training commitment",
+              "evidence": "DPA clause 11.3 and Contoso's tenancy attestation of 2026-02-09",
+              "on": "2026-02-09",
+              "by": "Head of Security"
+            }
+          ]
+        },
+        "NISTAML.04": {
+          "class": "NISTAML.04",
+          "name": "misuse",
+          "concern": "an attacker using the deployment's own generative capability for their ends",
+          "because": "the deployment is generative, so its capability can be turned to an attacker's purpose",
+          "controls": []
+        },
+        "NISTAML.05": {
+          "class": "NISTAML.05",
+          "name": "supply-chain",
+          "concern": "compromise reaching the deployment through the model or its supply chain",
+          "because": "the model comes from Contoso, so its provenance is somebody else's to assure",
+          "controls": []
+        }
+      },
+      "evidence": [
+        {
+          "id": "EV-001",
+          "kind": "model-card",
+          "tier": "T3",
+          "source": "Contoso's published card for GPT-cx-2, retrieved from their docs site",
+          "scope": "",
+          "periodStart": "",
+          "periodEnd": "",
+          "url": "https://example.test/contoso/model-card",
+          "retrievedOn": "2026-04-02",
+          "ingestedOn": "2026-08-07",
+          "ingestedBy": "Security Analyst"
+        },
+        {
+          "id": "EV-002",
+          "kind": "red-team-report",
+          "tier": "T1",
+          "source": "Fabrikam Security, engagement 2026-41",
+          "scope": "the chat surface and the retrieval path; EXCLUDES the ATS integration and any tool calling",
+          "periodStart": "2026-01-06",
+          "periodEnd": "2026-03-27",
+          "url": "",
+          "retrievedOn": "",
+          "ingestedOn": "2026-08-07",
+          "ingestedBy": "CISO"
+        },
+        {
+          "id": "EV-003",
+          "kind": "dpa",
+          "tier": "T2",
+          "source": "the executed data processing agreement, clause 11.3",
+          "scope": "",
+          "periodStart": "",
+          "periodEnd": "",
+          "url": "",
+          "retrievedOn": "",
+          "ingestedOn": "2026-08-07",
+          "ingestedBy": "General Counsel"
+        }
+      ],
+      "proposals": [
+        {
+          "id": "PR-001",
+          "requirement": "adversarial-testing.red-team",
+          "evidenceRef": "EV-002",
+          "citation": "section 4.2 — prompt-injection findings 1 to 3, all remediated and retested",
+          "note": "",
+          "status": "confirmed",
+          "proposedOn": "2026-08-07",
+          "proposedBy": "Security Analyst",
+          "confirmedBy": "CISO",
+          "confirmedOn": "2026-04-10"
+        },
+        {
+          "id": "PR-002",
+          "requirement": "access-and-data.training-use",
+          "evidenceRef": "EV-003",
+          "citation": "clause 11.3 — Contoso may not use tenant inputs for model training",
+          "note": "",
+          "status": "confirmed",
+          "proposedOn": "2026-08-07",
+          "proposedBy": "Security Analyst",
+          "confirmedBy": "CISO",
+          "confirmedOn": "2026-04-10"
+        }
+      ],
+      "requirements": [
+        {
+          "requirement": "adversarial-testing.red-team",
+          "met": true,
+          "evidenceRef": "EV-002",
+          "citation": "section 4.2 — prompt-injection findings 1 to 3, all remediated and retested",
+          "checkedOn": "2026-04-10",
+          "checkedBy": "CISO",
+          "viaProposal": "PR-001"
+        },
+        {
+          "requirement": "access-and-data.training-use",
+          "met": true,
+          "evidenceRef": "EV-003",
+          "citation": "clause 11.3 — Contoso may not use tenant inputs for model training",
+          "checkedOn": "2026-04-10",
+          "checkedBy": "CISO",
+          "viaProposal": "PR-002"
+        },
+        {
+          "requirement": "monitoring.output-retention",
+          "evidence": "DPA clause 11.3 is silent on how long Contoso retains prompts and outputs; the support portal says 30 days and nothing signed says so",
+          "met": false,
+          "checkedOn": "2026-08-07",
+          "checkedBy": "DPO"
+        }
+      ],
+      "assessments": [
+        {
+          "on": "2026-04-10",
+          "by": "CISO",
+          "confirmed": [
+            "PR-001",
+            "PR-002"
+          ],
+          "rejected": [],
+          "note": "read both against the deployment as configured on the day",
+          "againstSystem": {
+            "systemRef": "S-001",
+            "version": "2026.4",
+            "baseModel": "GPT-cx-2",
+            "hosting": "saas"
+          },
+          "againstAutonomy": "decides",
+          "againstConnectedResources": []
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "D-002",
+      "systemRef": "S-001",
+      "entityRef": "Northwind Manufacturing (fictional)",
+      "purpose": "drafting marketing copy",
+      "owner": "CMO",
+      "autonomy": "informs",
+      "autonomyDeclaredBy": "CISO",
+      "autonomyDeclaredOn": "2026-08-07",
+      "declares": {},
+      "dataClasses": [],
+      "connectedResources": [],
+      "consequentialDecision": false,
+      "supports": "Campaign management",
+      "addedOn": "2026-08-07",
+      "criticality": {
+        "derived": "high",
+        "derivedOn": "2026-08-07",
+        "trace": [
+          "Campaign management",
+          "CRM"
+        ],
+        "truncated": false,
+        "derivedFromLevel": "high",
+        "confirmed": {
+          "value": "low",
+          "by": "D. Galleyne",
+          "on": "2026-08-07",
+          "basis": "drafting only; a person edits everything before it leaves",
+          "scaleVersion": "v1",
+          "againstDerived": "high"
+        }
+      },
+      "exposure": {
+        "NISTAML.01": {
+          "class": "NISTAML.01",
+          "name": "availability",
+          "concern": "an attacker degrading the service the deployment provides",
+          "because": "any deployment can be degraded by an attacker who can reach it",
+          "controls": []
+        },
+        "NISTAML.02": {
+          "class": "NISTAML.02",
+          "name": "integrity",
+          "concern": "an attacker causing the deployment to produce the output they choose",
+          "because": "any model's output can be steered by an attacker who can shape its input",
+          "controls": []
+        },
+        "NISTAML.03": {
+          "class": "NISTAML.03",
+          "name": "privacy",
+          "concern": "an attacker recovering data the deployment was trained on or has access to",
+          "because": "retrieval puts organisation data in its context at run time",
+          "controls": []
+        },
+        "NISTAML.04": {
+          "class": "NISTAML.04",
+          "name": "misuse",
+          "concern": "an attacker using the deployment's own generative capability for their ends",
+          "because": "the deployment is generative, so its capability can be turned to an attacker's purpose",
+          "controls": []
+        },
+        "NISTAML.05": {
+          "class": "NISTAML.05",
+          "name": "supply-chain",
+          "concern": "compromise reaching the deployment through the model or its supply chain",
+          "because": "the model comes from Contoso, so its provenance is somebody else's to assure",
+          "controls": []
+        }
+      },
+      "evidence": [],
+      "proposals": [],
+      "requirements": [],
+      "assessments": [],
+      "retired": null
+    },
+    {
+      "id": "D-003",
+      "systemRef": "S-002",
+      "entityRef": "Northwind Manufacturing (fictional)",
+      "purpose": "churn scoring for the renewals desk",
+      "owner": "Head of Sales",
+      "autonomy": "recommends",
+      "autonomyDeclaredBy": "CISO",
+      "autonomyDeclaredOn": "2026-08-07",
+      "declares": {},
+      "dataClasses": [
+        "customer contract history"
+      ],
+      "connectedResources": [],
+      "consequentialDecision": false,
+      "supports": "CRM",
+      "addedOn": "2026-08-07",
+      "criticality": {
+        "derived": "high",
+        "derivedOn": "2026-08-07",
+        "trace": [
+          "CRM"
+        ],
+        "truncated": false,
+        "derivedFromLevel": "high",
+        "confirmed": {
+          "value": "high",
+          "by": "D. Galleyne",
+          "on": "2026-08-07",
+          "basis": "the renewals desk works this list every morning",
+          "scaleVersion": "v1",
+          "againstDerived": "high"
+        }
+      },
+      "exposure": {
+        "NISTAML.01": {
+          "class": "NISTAML.01",
+          "name": "availability",
+          "concern": "an attacker degrading the service the deployment provides",
+          "because": "any deployment can be degraded by an attacker who can reach it",
+          "controls": []
+        },
+        "NISTAML.02": {
+          "class": "NISTAML.02",
+          "name": "integrity",
+          "concern": "an attacker causing the deployment to produce the output they choose",
+          "because": "any model's output can be steered by an attacker who can shape its input",
+          "controls": []
+        },
+        "NISTAML.03": {
+          "class": "NISTAML.03",
+          "name": "privacy",
+          "concern": "an attacker recovering data the deployment was trained on or has access to",
+          "because": "it handles customer contract history; the model was fine-tuned, so organisation data is in its weights",
+          "controls": []
+        }
+      },
+      "evidence": [],
+      "proposals": [],
+      "requirements": [],
+      "assessments": [
+        {
+          "on": "2025-06-30",
+          "by": "Head of Security",
+          "confirmed": [],
+          "rejected": [],
+          "note": "annual review of the churn model",
+          "againstSystem": {
+            "systemRef": "S-002",
+            "version": "3.1",
+            "baseModel": "",
+            "hosting": "self-hosted"
+          },
+          "againstAutonomy": "recommends",
+          "againstConnectedResources": []
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "D-004",
+      "systemRef": "S-003",
+      "entityRef": "Northwind Manufacturing (fictional)",
+      "purpose": "auto-remediating low-severity tickets",
+      "owner": "Head of IT",
+      "autonomy": "acts",
+      "autonomyDeclaredBy": "CISO",
+      "autonomyDeclaredOn": "2026-08-07",
+      "declares": {},
+      "dataClasses": [],
+      "connectedResources": [
+        "the service desk",
+        "endpoint management",
+        "the change queue"
+      ],
+      "consequentialDecision": false,
+      "supports": "IT service management",
+      "addedOn": "2026-08-07",
+      "criticality": {
+        "derived": "high",
+        "derivedOn": "2026-08-07",
+        "trace": [
+          "IT service management"
+        ],
+        "truncated": false,
+        "derivedFromLevel": "high",
+        "confirmed": {
+          "value": "high",
+          "by": "D. Galleyne",
+          "on": "2026-08-07",
+          "basis": "it changes production endpoints without a person in the loop",
+          "scaleVersion": "v1",
+          "againstDerived": "high"
+        }
+      },
+      "exposure": {
+        "NISTAML.01": {
+          "class": "NISTAML.01",
+          "name": "availability",
+          "concern": "an attacker degrading the service the deployment provides",
+          "because": "any deployment can be degraded by an attacker who can reach it",
+          "controls": [
+            {
+              "control": "rate limit and a hard cap of 40 automated actions per hour",
+              "evidence": "AutoOps policy export, dated",
+              "on": "2026-02-20",
+              "by": "Head of IT"
+            }
+          ]
+        },
+        "NISTAML.02": {
+          "class": "NISTAML.02",
+          "name": "integrity",
+          "concern": "an attacker causing the deployment to produce the output they choose",
+          "because": "any model's output can be steered by an attacker who can shape its input",
+          "controls": []
+        },
+        "NISTAML.03": {
+          "class": "NISTAML.03",
+          "name": "privacy",
+          "concern": "an attacker recovering data the deployment was trained on or has access to",
+          "because": "it reaches the service desk, endpoint management",
+          "controls": []
+        },
+        "NISTAML.04": {
+          "class": "NISTAML.04",
+          "name": "misuse",
+          "concern": "an attacker using the deployment's own generative capability for their ends",
+          "because": "the deployment is generative, so its capability can be turned to an attacker's purpose",
+          "controls": []
+        },
+        "NISTAML.05": {
+          "class": "NISTAML.05",
+          "name": "supply-chain",
+          "concern": "compromise reaching the deployment through the model or its supply chain",
+          "because": "the model comes from Fabrikam, so its provenance is somebody else's to assure",
+          "controls": []
+        }
+      },
+      "evidence": [
+        {
+          "id": "EV-001",
+          "kind": "penetration-test",
+          "tier": "T1",
+          "source": "Northwind internal red team, report NW-2026-03",
+          "scope": "the AutoOps action path into endpoint management only",
+          "periodStart": "2026-02-01",
+          "periodEnd": "2026-02-28",
+          "url": "",
+          "retrievedOn": "",
+          "ingestedOn": "2026-08-07",
+          "ingestedBy": "CISO"
+        }
+      ],
+      "proposals": [],
+      "requirements": [],
+      "assessments": [
+        {
+          "on": "2026-03-05",
+          "by": "Head of Security",
+          "confirmed": [],
+          "rejected": [],
+          "note": "baseline assessment before the connected-resource expansion",
+          "againstSystem": {
+            "systemRef": "S-003",
+            "version": "8.2",
+            "baseModel": "Llama-fx-3",
+            "hosting": "hybrid"
+          },
+          "againstAutonomy": "acts",
+          "againstConnectedResources": [
+            "endpoint management",
+            "the service desk"
+          ]
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "D-005",
+      "systemRef": "S-004",
+      "entityRef": "Northwind Manufacturing (fictional)",
+      "purpose": "drafting customer-facing proposals",
+      "owner": "Sales Operations",
+      "autonomy": "informs",
+      "autonomyDeclaredBy": "Security Analyst",
+      "autonomyDeclaredOn": "2026-08-07",
+      "declares": {},
+      "dataClasses": [],
+      "connectedResources": [],
+      "consequentialDecision": false,
+      "supports": "",
+      "addedOn": "2026-08-07",
+      "criticality": {
+        "derived": "untraced",
+        "derivedOn": "2026-08-07",
+        "trace": [],
+        "truncated": false,
+        "derivedFromLevel": "untraced",
+        "confirmed": null
+      },
+      "exposure": {
+        "NISTAML.01": {
+          "class": "NISTAML.01",
+          "name": "availability",
+          "concern": "an attacker degrading the service the deployment provides",
+          "because": "any deployment can be degraded by an attacker who can reach it",
+          "controls": []
+        },
+        "NISTAML.02": {
+          "class": "NISTAML.02",
+          "name": "integrity",
+          "concern": "an attacker causing the deployment to produce the output they choose",
+          "because": "any model's output can be steered by an attacker who can shape its input",
+          "controls": []
+        },
+        "NISTAML.04": {
+          "class": "NISTAML.04",
+          "name": "misuse",
+          "concern": "an attacker using the deployment's own generative capability for their ends",
+          "because": "the deployment is generative, so its capability can be turned to an attacker's purpose",
+          "controls": []
+        },
+        "NISTAML.05": {
+          "class": "NISTAML.05",
+          "name": "supply-chain",
+          "concern": "compromise reaching the deployment through the model or its supply chain",
+          "because": "the model comes from Tailspin, so its provenance is somebody else's to assure",
+          "controls": []
+        }
+      },
+      "evidence": [],
+      "proposals": [],
+      "requirements": [],
+      "assessments": [],
+      "retired": null
+    }
+  ],
+  "history": [
+    {
+      "event": "system-added",
+      "target": "S-001",
+      "actor": "CISO",
+      "ts": "2026-08-07T00:00:00+00:00",
+      "why": "Contoso Contoso Assist (2026.4)"
+    },
+    {
+      "event": "system-added",
+      "target": "S-002",
+      "actor": "CISO",
+      "ts": "2026-08-07T00:00:00+00:00",
+      "why": "In-house Churn propensity model (3.1)"
+    },
+    {
+      "event": "system-added",
+      "target": "S-003",
+      "actor": "CISO",
+      "ts": "2026-08-07T00:00:00+00:00",
+      "why": "Fabrikam Fabrikam AutoOps (8.2)"
+    },
+    {
+      "event": "system-added",
+      "target": "S-004",
+      "actor": "Security Analyst",
+      "ts": "2026-08-07T00:00:00+00:00",
+      "why": "Tailspin Tailspin Writer (unknown)"
+    },
+    {
+      "event": "system-discovered",
+      "target": "S-004",
+      "actor": "Security Analyst",
+      "ts": "2026-08-07T00:00:00+00:00",
+      "why": "CASB egress review, week of 11 May",
+      "detail": {
+        "foundOn": "2026-05-14"
+      }
+    },
+    {
+      "event": "deployment-added",
+      "target": "D-001",
+      "actor": "CISO",
+      "ts": "2026-08-07T00:00:00+00:00",
+      "why": "screening job applicants",
+      "detail": {
+        "systemRef": "S-001",
+        "autonomy": "decides",
+        "owner": "HR Director"
+      }
+    },
+    {
+      "event": "deployment-added",
+      "target": "D-002",
+      "actor": "CISO",
+      "ts": "2026-08-07T00:00:00+00:00",
+      "why": "drafting marketing copy",
+      "detail": {
+        "systemRef": "S-001",
+        "autonomy": "informs",
+        "owner": "CMO"
+      }
+    },
+    {
+      "event": "deployment-added",
+      "target": "D-003",
+      "actor": "CISO",
+      "ts": "2026-08-07T00:00:00+00:00",
+      "why": "churn scoring for the renewals desk",
+      "detail": {
+        "systemRef": "S-002",
+        "autonomy": "recommends",
+        "owner": "Head of Sales"
+      }
+    },
+    {
+      "event": "deployment-added",
+      "target": "D-004",
+      "actor": "CISO",
+      "ts": "2026-08-07T00:00:00+00:00",
+      "why": "auto-remediating low-severity tickets",
+      "detail": {
+        "systemRef": "S-003",
+        "autonomy": "acts",
+        "owner": "Head of IT"
+      }
+    },
+    {
+      "event": "deployment-added",
+      "target": "D-005",
+      "actor": "Security Analyst",
+      "ts": "2026-08-07T00:00:00+00:00",
+      "why": "drafting customer-facing proposals",
+      "detail": {
+        "systemRef": "S-004",
+        "autonomy": "informs",
+        "owner": "Sales Operations"
+      }
+    },
+    {
+      "event": "exposure-mapped",
+      "target": "D-001",
+      "actor": "CISO",
+      "ts": "2026-08-07T00:00:00+00:00",
+      "why": "NISTAML.01, NISTAML.02, NISTAML.03, NISTAML.04, NISTAML.05"
+    },
+    {
+      "event": "exposure-mapped",
+      "target": "D-002",
+      "actor": "CISO",
+      "ts": "2026-08-07T00:00:00+00:00",
+      "why": "NISTAML.01, NISTAML.02, NISTAML.03, NISTAML.04, NISTAML.05"
+    },
+    {
+      "event": "exposure-mapped",
+      "target": "D-003",
+      "actor": "CISO",
+      "ts": "2026-08-07T00:00:00+00:00",
+      "why": "NISTAML.01, NISTAML.02, NISTAML.03"
+    },
+    {
+      "event": "exposure-mapped",
+      "target": "D-004",
+      "actor": "CISO",
+      "ts": "2026-08-07T00:00:00+00:00",
+      "why": "NISTAML.01, NISTAML.02, NISTAML.03, NISTAML.04, NISTAML.05"
+    },
+    {
+      "event": "exposure-mapped",
+      "target": "D-005",
+      "actor": "CISO",
+      "ts": "2026-08-07T00:00:00+00:00",
+      "why": "NISTAML.01, NISTAML.02, NISTAML.04, NISTAML.05"
+    },
+    {
+      "event": "classified",
+      "target": "D-001",
+      "actor": "D. Galleyne",
+      "ts": "2026-08-07T00:00:00+00:00",
+      "why": "confirmed high",
+      "detail": {
+        "derived": "moderate",
+        "trace": [
+          "Applicant tracking"
+        ],
+        "truncated": false
+      }
+    },
+    {
+      "event": "classified",
+      "target": "D-002",
+      "actor": "D. Galleyne",
+      "ts": "2026-08-07T00:00:00+00:00",
+      "why": "confirmed low",
+      "detail": {
+        "derived": "high",
+        "trace": [
+          "Campaign management",
+          "CRM"
+        ],
+        "truncated": false
+      }
+    },
+    {
+      "event": "classified",
+      "target": "D-003",
+      "actor": "D. Galleyne",
+      "ts": "2026-08-07T00:00:00+00:00",
+      "why": "confirmed high",
+      "detail": {
+        "derived": "high",
+        "trace": [
+          "CRM"
+        ],
+        "truncated": false
+      }
+    },
+    {
+      "event": "classified",
+      "target": "D-004",
+      "actor": "D. Galleyne",
+      "ts": "2026-08-07T00:00:00+00:00",
+      "why": "confirmed high",
+      "detail": {
+        "derived": "high",
+        "trace": [
+          "IT service management"
+        ],
+        "truncated": false
+      }
+    },
+    {
+      "event": "classified",
+      "target": "D-005",
+      "actor": "",
+      "ts": "2026-08-07T00:00:00+00:00",
+      "why": "derived untraced",
+      "detail": {
+        "derived": "untraced",
+        "trace": [],
+        "truncated": false
+      }
+    },
+    {
+      "event": "evidence-ingested",
+      "target": "D-001",
+      "actor": "Security Analyst",
+      "ts": "2026-08-07T00:00:00+00:00",
+      "why": "model-card (an assertion by the party being described)",
+      "detail": {
+        "evidenceId": "EV-001",
+        "tier": "T3"
+      }
+    },
+    {
+      "event": "evidence-ingested",
+      "target": "D-001",
+      "actor": "CISO",
+      "ts": "2026-08-07T00:00:00+00:00",
+      "why": "red-team-report (audited artifact)",
+      "detail": {
+        "evidenceId": "EV-002",
+        "tier": "T1"
+      }
+    },
+    {
+      "event": "evidence-ingested",
+      "target": "D-001",
+      "actor": "General Counsel",
+      "ts": "2026-08-07T00:00:00+00:00",
+      "why": "dpa (contractual commitment)",
+      "detail": {
+        "evidenceId": "EV-003",
+        "tier": "T2"
+      }
+    },
+    {
+      "event": "proposed",
+      "target": "D-001",
+      "actor": "Security Analyst",
+      "ts": "2026-08-07T00:00:00+00:00",
+      "why": "adversarial-testing.red-team",
+      "detail": {
+        "proposalId": "PR-001",
+        "evidenceRef": "EV-002"
+      }
+    },
+    {
+      "event": "proposed",
+      "target": "D-001",
+      "actor": "Security Analyst",
+      "ts": "2026-08-07T00:00:00+00:00",
+      "why": "access-and-data.training-use",
+      "detail": {
+        "proposalId": "PR-002",
+        "evidenceRef": "EV-003"
+      }
+    },
+    {
+      "event": "assessed",
+      "target": "D-001",
+      "actor": "CISO",
+      "ts": "2026-08-07T00:00:00+00:00",
+      "why": "read both against the deployment as configured on the day",
+      "detail": {
+        "confirmed": [
+          "PR-001",
+          "PR-002"
+        ],
+        "rejected": []
+      }
+    },
+    {
+      "event": "evidence-ingested",
+      "target": "D-004",
+      "actor": "CISO",
+      "ts": "2026-08-07T00:00:00+00:00",
+      "why": "penetration-test (audited artifact)",
+      "detail": {
+        "evidenceId": "EV-001",
+        "tier": "T1"
+      }
+    },
+    {
+      "event": "assessed",
+      "target": "D-004",
+      "actor": "Head of Security",
+      "ts": "2026-08-07T00:00:00+00:00",
+      "why": "baseline assessment before the connected-resource expansion",
+      "detail": {
+        "confirmed": [],
+        "rejected": []
+      }
+    },
+    {
+      "event": "assessed",
+      "target": "D-003",
+      "actor": "Head of Security",
+      "ts": "2026-08-07T00:00:00+00:00",
+      "why": "annual review of the churn model",
+      "detail": {
+        "confirmed": [],
+        "rejected": []
+      }
+    },
+    {
+      "event": "control-recorded",
+      "target": "D-001",
+      "actor": "Head of Security",
+      "ts": "2026-08-07T00:00:00+00:00",
+      "why": "untrusted-content filter on CV free text before it reaches the context",
+      "detail": {
+        "class": "NISTAML.02"
+      }
+    },
+    {
+      "event": "control-recorded",
+      "target": "D-001",
+      "actor": "Head of Security",
+      "ts": "2026-08-07T00:00:00+00:00",
+      "why": "tenant isolation and a contractual no-training commitment",
+      "detail": {
+        "class": "NISTAML.03"
+      }
+    },
+    {
+      "event": "control-recorded",
+      "target": "D-004",
+      "actor": "Head of IT",
+      "ts": "2026-08-07T00:00:00+00:00",
+      "why": "rate limit and a hard cap of 40 automated actions per hour",
+      "detail": {
+        "class": "NISTAML.01"
+      }
+    },
+    {
+      "event": "requirement-recorded",
+      "target": "D-001",
+      "actor": "DPO",
+      "ts": "2026-08-07T00:00:00+00:00",
+      "why": "monitoring.output-retention: NOT met"
+    },
+    {
+      "event": "system-updated",
+      "target": "S-001",
+      "actor": "Security Analyst",
+      "ts": "2026-08-07T00:00:00+00:00",
+      "why": "Contoso disclosed a base-model change; product version unchanged",
+      "detail": {
+        "baseModel": "GPT-cx-3",
+        "was": "GPT-cx-2"
+      }
+    },
+    {
+      "event": "deployment-updated",
+      "target": "D-004",
+      "actor": "Head of IT",
+      "ts": "2026-08-07T00:00:00+00:00",
+      "why": "the change queue was connected in June, after the March assessment",
+      "detail": {
+        "connected": "the change queue"
+      }
+    }
+  ],
+  "snapshots": [],
+  "createdAt": "2026-08-07T00:00:00+00:00",
+  "updatedAt": "2026-08-07T00:00:00+00:00"
+}

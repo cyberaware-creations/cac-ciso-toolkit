@@ -1,0 +1,28 @@
+{
+  "contractVersion": "CAC-AP-1",
+  "profileVersion": "3",
+  "crownJewels": [
+    {
+      "system": "Applicant tracking",
+      "criticality": "moderate"
+    },
+    {
+      "system": "CRM",
+      "criticality": "high",
+      "dependsOn": [
+        "Campaign management"
+      ]
+    },
+    {
+      "system": "IT service management",
+      "criticality": "high"
+    }
+  ],
+  "profile": {
+    "regulatedDataHeld": {
+      "value": true,
+      "declaredBy": "DPO",
+      "declaredOn": "2026-01-15"
+    }
+  }
+}

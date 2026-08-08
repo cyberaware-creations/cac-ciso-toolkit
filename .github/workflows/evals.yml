@@ -257,6 +257,37 @@ jobs:
       - name: Decisions render (vendor), on the floor
         run: PY="$(command -v python3)" ./skills/vendor-register/evals/decisions-render.sh
 
+      # The AI register. Two guards carry this skill and both are listed first, because
+      # they are what make it a security register rather than a spreadsheet of tools:
+      # exposure cannot be hand-selected away, and an attack class has no closed state.
+      # Each has a behavioural half and a static half, and each is mutation-tested inside
+      # its own suite — a guard nobody has watched fail is not known to work.
+      #
+      # Listed individually, like everything else here.
+      - name: AI engine self-test, on the floor
+        run: python3 ./skills/ai-register/scripts/ai_register.py self-test
+
+      - name: No closed state on an attack class, on the floor
+        run: PY="$(command -v python3)" ./skills/ai-register/evals/no-closed-state.sh
+
+      - name: No AI score, on the floor
+        run: PY="$(command -v python3)" ./skills/ai-register/evals/no-ai-score.sh
+
+      - name: NISTAML exposure is derived, never selected, on the floor
+        run: PY="$(command -v python3)" ./skills/ai-register/evals/exposure.sh
+
+      - name: No regulatory date in prose, on the floor
+        run: PY="$(command -v python3)" ./skills/ai-register/evals/no-regime-dates.sh
+
+      - name: Generated questions and the tier boundary (AI), on the floor
+        run: PY="$(command -v python3)" ./skills/ai-register/evals/questions.sh
+
+      - name: Board-safety (AI), on the floor
+        run: PY="$(command -v python3)" ./skills/ai-register/evals/board-safety.sh
+
+      - name: Decisions render (AI), on the floor
+        run: PY="$(command -v python3)" ./skills/ai-register/evals/decisions-render.sh
+
       # The five decisions-render guards. Each one pins the same shipped P1: the
       # sidecar carries decisions as {"text":..., "altitude":...} objects, the board
       # renderers stringified them, and every board pack printed a raw Python dict
