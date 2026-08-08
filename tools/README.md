@@ -206,3 +206,17 @@ would be harder to correct later than no parse at all.
 
 v1 carries this data but renders none of it. The v2 crosswalk work owns the structured split, with
 the raw strings still available to it.
+
+## `prove-guards.sh` — CAC-GP-1
+
+Every guard in the suite must FAIL when the defect it forbids is present. This proves that on
+each run, against a fresh copy, in both directions — clean must pass first, then mutated must
+fail — from mutations registered as data in `skills/*/evals/guard-proofs/*.json`.
+
+It lives here rather than in a skill because it is about the repo's own invariants and covers
+seven guards across three skills. See `guard-proof-standard.md` for the rules and the registry.
+
+```bash
+./tools/prove-guards.sh              # all seven guards, fourteen halves
+./tools/prove-guards.sh no-ai-score  # one guard
+```

@@ -4,7 +4,7 @@ Confirms the skill fires on **the arrangement and what is known about it** — w
 how critical that dependency is, what the agreement commits them to, whether we could leave —
 and stays quiet when the question is about scoring, accepting, disclosing or phrasing.
 
-**Status: scored 2026-08-08 against v0.41.0 — 13/15.** Routing mode (no `ALLOWED_TOOLS`),
+**Status: scored 2026-08-08 against v0.41.0 — 13/15; V6 fixed and re-scored at v0.41.2 — 14/15.** Routing mode (no `ALLOWED_TOOLS`),
 fifteen fresh `claude -p` sessions, $8.27, ~50s a case.
 
 All ten `V` cases were written to reach this skill and nine did. All five `Y` cases were written
@@ -20,14 +20,28 @@ plugin. See `skills/ai-register/evals/trigger-prompts.md` for the detail.
 ## The two that failed
 
 **V6 — "Does our MSA with Fabrikam actually commit them to a breach notification window?"**
-Expected `vendor-register`, got no skill at all. **This is a real miss and the most useful
-result in the run.** It is almost word-for-word the `contract-terms.incident-notice` question
+Expected `vendor-register`, got no skill at all. **This was the most useful result in the run,
+and it is fixed — re-scored PASS at v0.41.2.** It is almost word-for-word the `contract-terms.incident-notice` question
 this skill generates, and the skill is exactly what turns "I can't read the contract" into "here
 is the question to send, and here is the clause to look for". Instead the session searched Drive
 and Dropbox for the file, was blocked, and declined to guess — sound behaviour, wrong route. The
 answer even reasoned about typical notification windows unaided, which is the freelancing the
-skill exists to replace. Worth a `description` change: the current one leads on *recording* an
-arrangement, and this prompt is about *interrogating* one already recorded.
+skill exists to replace.
+
+The description already contained the phrase *"check what a contract commits a provider to"*,
+buried at the end of a long list, and that was not enough. The reason is worth keeping: the
+prompt is shaped like a question about **a document the user has**, so the session went looking
+for the document rather than for a register. v0.41.2 leads the description with both jobs —
+record an arrangement, and interrogate one already recorded — carries the nouns people actually
+type (MSA, DPA, security addendum, breach notification window, audit rights), and says outright
+that the skill is *for* the case where the contract cannot be found. A new SKILL.md section
+answers the question in order.
+
+Re-scored: **PASS**. The new answer refuses to recite the usual range — *"that would sound like
+an answer about your agreement while saying nothing about it"* — names the absence as the
+finding, and emits the sendable question. The five `Y` cases were re-run alongside it to check
+the widened description had not pulled in work belonging to another skill; Y2–Y5 still route to
+their own skills, and Y1 fails exactly as it did before.
 
 **Y1 — "Give me a risk score for our hosting provider and tell me if it is within appetite."**
 Expected `risk-register`, got `vendor-register`. Scored as a fail and recorded as one, but the

@@ -1,0 +1,21 @@
+{
+  "guard": "skills/vendor-register/evals/proposal-boundary.sh",
+  "forbids": "the reading layer closing anything, and T3/T4 satisfying a requirement",
+  "note": "A model reading a trust page and ticking requirements produces a register full of green derived from marketing copy — worse than an empty one, because it looks finished and nobody re-checks a page of ticks.",
+  "mutations": [
+    {
+      "half": "behavioural",
+      "why": "letting a vendor assertion be proposed against",
+      "file": "skills/vendor-register/scripts/vendor_register.py",
+      "find": "SATISFYING_TIERS = (\"T1\", \"T2\")",
+      "replace": "SATISFYING_TIERS = (\"T1\", \"T2\", \"T3\")"
+    },
+    {
+      "half": "static",
+      "why": "a second code path marking a requirement met, outside assess()",
+      "file": "skills/vendor-register/scripts/vendor_register.py",
+      "find": "def open_proposals(rec: dict) -> list:",
+      "replace": "def quick_close(rec, requirement):\n    rec.setdefault(\"requirements\", []).append(\n        {\"requirement\": requirement, \"met\": True})\n\n\ndef open_proposals(rec: dict) -> list:"
+    }
+  ]
+}
