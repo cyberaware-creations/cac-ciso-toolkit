@@ -1625,6 +1625,95 @@ def export_roi(store: dict, context: dict = None, today: str = "") -> dict:
     }
 
 
+# --- The findings bridge (GV.SC-03, SR-2) -------------------------------------
+#
+# C-SCRM integrated into enterprise risk, implemented as a ONE-WAY export. This skill never
+# scores: findings go to `risk-register` and are scored once, there, under L×I with an appetite
+# to judge them against.
+#
+# **A finding is a requirement a named person recorded as NOT met.** That is a deliberate
+# narrowing, and it is the decision worth arguing with:
+#
+#   - It is a CHECKED fact. Somebody read the agreement or the report, said the provision is
+#     absent, and their name and the date are on it. That is what becomes a defensible
+#     candidate risk.
+#   - Escalations are NOT exported, even though several of them describe real exposure. They
+#     are derived and stateless — recomputed on every run — so exporting them would mint a new
+#     candidate risk every time the clock moved, and `board-pack` already aggregates them as
+#     escalations. One exposure in two systems of record is how the two disagree.
+#
+# What the payload deliberately does NOT carry: likelihood, impact, or any score. SP 800-161r1's
+# assessment template ends in a likelihood and a risk-exposure determination, and this stops
+# exactly there. `no-vendor-score.sh` and `evals/proposal-boundary.sh` both hold that line;
+# so does the self-test, by asserting the payload has no scoring key at all.
+
+FINDING_SCORING_KEYS = ("likelihood", "impact", "score", "severity", "rating", "band",
+                        "exposure", "priority")
+"""Keys the payload must never contain. Asserted rather than remembered.
+
+Naming them here rather than checking for a vague 'number' means the assertion can be exact,
+and means a reader can see precisely which words this bridge refuses to put in a risk's mouth.
+"""
+
+
+def export_findings(store: dict, today: str = "") -> dict:
+    """Requirements recorded as not met, in the `risk-register` import shape.
+
+    Idempotent on `sourceRef`: re-running updates the candidate it created rather than adding
+    a second one. The key is the arrangement plus the requirement, because one arrangement can
+    fail several provisions and each is its own candidate.
+    """
+    today = today or utc_today()
+    rows = []
+    for rec in store["arrangements"]:
+        if rec.get("retired"):
+            continue
+        vendor = next((v for v in store["vendors"]
+                       if v.get("id") == rec.get("vendorRef")), {})
+        conf = ((rec.get("criticality") or {}).get("confirmed") or {})
+        for req in (rec.get("requirements") or []):
+            if req.get("met"):
+                continue
+            if not str(req.get("checkedBy") or "").strip():
+                # Not a finding: nobody is recorded as having looked. Exporting it would put
+                # an unattributed claim into a register whose whole discipline is refusing one.
+                continue
+            rows.append({
+                "sourceRef": "%s:%s:%s" % (FAMILY, rec["id"],
+                                           str(req.get("requirement") or "")),
+                "sourceArrangementRef": rec["id"],
+                "title": "%s: %s not evidenced" % (vendor.get("name") or rec["id"],
+                                                   req.get("requirement")),
+                "description": ("Third-party arrangement %s with %s — %r was checked and "
+                                "recorded as not met."
+                                % (rec["id"], vendor.get("name") or "the provider",
+                                   req.get("requirement"))),
+                "vendor": vendor.get("name") or "",
+                "services": rec.get("services") or "",
+                "owner": rec.get("owner") or "",
+                # The criticality AND the scale it was assigned under. A level read a year
+                # later means nothing without it, and the importing register has its own
+                # scale for other things.
+                "criticality": conf.get("value") or criticality_of(rec),
+                "criticalityScaleVersion": conf.get("scaleVersion") or "",
+                "criticalityConfirmed": bool(conf.get("value")),
+                "evidenceRef": req.get("evidenceRef") or "",
+                "checkedBy": req.get("checkedBy") or "",
+                "checkedOn": req.get("checkedOn") or "",
+                "gvsc": list(rec.get("gvsc") or []),
+                "sr": list(rec.get("sr") or []),
+            })
+    return {
+        "family": FAMILY,
+        "export": "findings",
+        "asOf": today,
+        "organisation": store["meta"].get("orgName") or "",
+        "findings": rows,
+        "note": ("Candidate risks. This register does not score: no likelihood, no impact, no "
+                 "band. risk-register scores them once, under SP 800-30, against an appetite."),
+    }
+
+
 # --- Multi-entity ------------------------------------------------------------
 
 def organisations(store: dict) -> list:
@@ -2429,6 +2518,40 @@ def _cmd_self_test(_args):
         ok(any(g["arrangementRef"] == "VA-002" for g in out2["gaps"]),
            "...it stays a named gap")
 
+        # --- P2 T14: the findings bridge --------------------------------------
+        fb = new_store("Bridge Ltd")
+        add_vendor(fb, "Contoso Cloud", jurisdiction="IE")
+        add_arrangement(fb, "V-001", "hosting", "CTO", supports="CRM", gvsc=["GV.SC-05"])
+        classify(fb, "VA-001", ctx, confirm="high", by="D. Galleyne")
+        eq(export_findings(fb)["findings"], [],
+           "a register with nothing recorded as unmet exports no findings")
+        review_requirements(fb, "VA-001", "breach notification within 24h",
+                            "MSA schedule 3 — no such clause", met=False, by="General Counsel")
+        out = export_findings(fb, today="2026-08-08")
+        eq(len(out["findings"]), 1, "a requirement recorded as NOT met is a finding")
+        f = out["findings"][0]
+        ok("not evidenced" in f["title"] and "Contoso Cloud" in f["title"],
+           "titled so a risk register reader knows the provider and the gap")
+        eq(f["criticalityScaleVersion"], "v1",
+           "carrying the scale the criticality was assigned under")
+        eq(f["checkedBy"], "General Counsel", "and who checked it")
+        # THE line this bridge does not cross.
+        flat = json.dumps(out).lower()
+        for key in FINDING_SCORING_KEYS:
+            ok('"%s"' % key not in flat,
+               "the payload carries no %r — risk-register scores these once, there" % key)
+        # An escalation is derived and stateless. Exporting one would mint a fresh candidate
+        # risk every time a clock moved.
+        ok(any(e["trigger"] == "exit-untested" for e in escalations(fb, "2026-08-08")),
+           "the fixture is escalating something")
+        eq(len(export_findings(fb)["findings"]), 1,
+           "...and escalations are NOT exported — one exposure, one system of record")
+        # Unattributed non-compliance is not a finding: nobody is recorded as having looked.
+        fb["arrangements"][0]["requirements"].append(
+            {"requirement": "something", "met": False, "checkedBy": ""})
+        eq(len(export_findings(fb)["findings"]), 1,
+           "a requirement nobody is recorded as checking is not exported")
+
         # --- T14: the consolidation guard -------------------------------------
         multi = new_store("Group Plc")
         add_vendor(multi, "Shared Provider")
@@ -2644,6 +2767,23 @@ def _cmd_export_roi(args) -> int:
     return 0
 
 
+def _cmd_export_findings(args) -> int:
+    store = load(args.store)
+    out = export_findings(store, today=args.today)
+    if args.out:
+        with open(args.out, "w", encoding="utf-8") as fh:
+            json.dump(out, fh, indent=2, ensure_ascii=False)
+            fh.write("\n")
+        print("Wrote %s — %d finding(s)" % (args.out, len(out["findings"])), file=sys.stderr)
+    else:
+        json.dump(out, sys.stdout, indent=2, ensure_ascii=False)
+        sys.stdout.write("\n")
+    print("\nOne-way. Import with `score_register.py import-findings <file> --into r.rr "
+          "--write`.\nNo likelihood, impact or band travels: risk-register scores these once, "
+          "there.", file=sys.stderr)
+    return 0
+
+
 def _cmd_review_requirements(args) -> int:
     store = load(args.store)
     entry = review_requirements(store, args.arrangement, args.requirement, args.evidence,
@@ -2833,6 +2973,11 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--today", default="")
     sp.add_argument("--out", default="")
     sp.set_defaults(fn=_cmd_export_roi)
+
+    sp = store_arg(sub.add_parser("export-findings"))
+    sp.add_argument("--today", default="")
+    sp.add_argument("--out", default="")
+    sp.set_defaults(fn=_cmd_export_findings)
 
     sp = store_arg(sub.add_parser("review-requirements"))
     sp.add_argument("--arrangement", required=True)
