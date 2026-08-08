@@ -1,0 +1,21 @@
+{
+  "guard": "skills/ai-register/evals/no-regime-dates.sh",
+  "forbids": "a regulatory date compiled into prose; an obligation that cannot cite its source or name its owning function",
+  "note": "A stale date inside a refusal is a wrong statement of law delivered at the moment somebody is trying to do the right thing. The mutation uses a phrasing the FIRST version of the vocabulary let through, found by audit.",
+  "mutations": [
+    {
+      "half": "static",
+      "why": "a regulatory date in prose, phrased the way an author actually writes it",
+      "file": "skills/ai-register/scripts/ai_register.py",
+      "find": "AI_ROLES = (\"deployer\", \"provider\")",
+      "replace": "AI_ROLES = (\"deployer\", \"provider\")\n\nDEPLOYER_NOTE = \"Deployer obligations begin 2 December 2027.\""
+    },
+    {
+      "half": "dataset",
+      "why": "a regime dataset with no asOf is a claim about an unknown version",
+      "file": "skills/ai-register/references/regimes.json",
+      "find": "\"asOf\": \"2026-08-08\",",
+      "replace": "\"asOf\": \"\","
+    }
+  ]
+}

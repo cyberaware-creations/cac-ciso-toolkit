@@ -1,0 +1,21 @@
+{
+  "guard": "skills/vendor-register/evals/evidence-tiers.sh",
+  "forbids": "a T1 with no stated scope or period; a bridge letter extending an expired report's currency",
+  "note": "THE guard with no recorded proof before CAC-GP-1, and the one protecting the rule most exposed to commercial pressure: 'the vendor's trust centre says exactly what we need, why can't it count?'",
+  "mutations": [
+    {
+      "half": "scope-and-period",
+      "why": "an artifact whose limits are not written down gets read as having none",
+      "file": "skills/vendor-register/scripts/vendor_register.py",
+      "find": "    if tier == \"T1\":\n        missing = []",
+      "replace": "    if False:\n        missing = []"
+    },
+    {
+      "half": "expiry",
+      "why": "a report with no period cannot expire, so grace must have an end",
+      "file": "skills/vendor-register/scripts/vendor_register.py",
+      "find": "    return \"in-grace\" if age <= int(grace) else \"expired\"",
+      "replace": "    return \"in-grace\""
+    }
+  ]
+}
