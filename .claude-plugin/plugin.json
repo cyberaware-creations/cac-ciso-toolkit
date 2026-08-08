@@ -59,6 +59,19 @@
     "escalations",
     "triage",
     "security-review",
-    "what-changed"
+    "what-changed",
+    "vendor-register",
+    "vendor",
+    "vendor-risk",
+    "third-party",
+    "third-party-risk",
+    "tprm",
+    "supply-chain",
+    "scrm",
+    "msa",
+    "dpa",
+    "subprocessor",
+    "exit-strategy",
+    "concentration-risk"
   ]
 }

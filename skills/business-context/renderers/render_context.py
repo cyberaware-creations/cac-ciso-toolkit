@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
 """render_context.py — the framing a board pack opens on.
 
-D-1: this is **framing, not a sixth section**. `board-pack`'s section contract keeps its
-five-value enum untouched. What this supplies is the cover, the opening context paragraph,
-and a provenance stamp naming the profile version the pack was assembled against — so a
-reader a year later can tell which perimeter the assessment inside was narrowed by.
+D-1: this is **framing, not another section**. `board-pack`'s section enum belongs to the
+producers that own data, and this adds nothing to it. What it supplies is the cover, the
+opening context paragraph, and a provenance stamp naming the profile version the pack was
+assembled against — so a reader a year later can tell which perimeter the assessment inside
+was narrowed by.
+
+The count of sections is deliberately not repeated here. It used to read "five-value enum",
+which was true when this was written and had gone stale by two once `vendor` and `ai`
+shipped — a number in a docstring is a number nothing checks.
 
 Revenue renders as a **band** by default (D-2). `--render-revenue exact` shows the figure
 **and writes that choice into the provenance line**, because the two documents are not
