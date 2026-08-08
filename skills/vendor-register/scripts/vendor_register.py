@@ -594,6 +594,169 @@ def criticality_of(rec: dict) -> str:
     return UNCLASSIFIED
 
 
+# --- Batteries: what gets asked, and what narrows it --------------------------
+#
+# A small CORE keyed to `GV.SC`, not a questionnaire product. The valuable output is not a
+# 300-question bank; it is what the vendor's own documentation left open, which means the set
+# has to be small enough that subtracting from it produces something a person will actually
+# send.
+#
+# EVERY question asks for evidence with a date, never an attestation. "Do you encrypt data at
+# rest?" is worthless — every vendor answers yes. "What is the most recent evidence you can
+# provide that data at rest is encrypted, and when was it produced?" has a discoverable answer,
+# a date, and degrades honestly when the answer is "none". `evals/questions.sh` fails on the
+# attestation shapes, so this is enforced rather than remembered.
+
+BATTERIES = (
+    {
+        "id": "contract-terms",
+        "gvsc": ["GV.SC-05"],
+        "sr": ["SR-3"],
+        "appliesWhen": {},
+        "questions": [
+            "What is the executed document, and which clause, that commits this provider to "
+            "notifying us of a security incident — and within what period?",
+            "Which signed document sets out our right to audit or to receive assurance "
+            "reports, and when was it last exercised?",
+        ],
+    },
+    {
+        "id": "assurance",
+        "gvsc": ["GV.SC-06", "GV.SC-07"],
+        "sr": ["SR-6"],
+        "appliesWhen": {},
+        "questions": [
+            "What is the most recent independent assurance report for the service we consume, "
+            "what period does it cover, and what did it exclude from scope?",
+            "What findings were open at the end of that period, and what evidence shows their "
+            "current state?",
+        ],
+    },
+    {
+        "id": "exit",
+        "gvsc": ["GV.SC-10"],
+        "sr": ["SR-12"],
+        # Top of the scale only. An exit plan for a marketing sandbox is paperwork.
+        "appliesWhen": {"criticalityAtLeast": "TOP"},
+        "questions": [
+            "What is the dated record of the last time exit from this provider was actually "
+            "exercised, rather than documented?",
+            "What evidence would show our data had been returned and then deleted, and how "
+            "long would producing it take?",
+        ],
+    },
+    {
+        "id": "subprocessors",
+        "gvsc": ["GV.SC-07", "GV.SC-09"],
+        "sr": ["SR-3"],
+        "appliesWhen": {},
+        "questions": [
+            "What is the current dated list of subprocessors for this service, and how are we "
+            "notified before it changes?",
+        ],
+    },
+    {
+        "id": "ai-overlay",
+        "gvsc": ["GV.SC-07"],
+        "sr": ["SR-3"],
+        # Gated on a flag that may be declared on the ARRANGEMENT or on the org profile.
+        "appliesWhen": {"flag": "aiInUse"},
+        "questions": [
+            "What documentation states which models process our data, and when was it last "
+            "updated?",
+            "What evidence shows whether our data is used to train or fine-tune a model, and "
+            "what dated commitment covers that?",
+        ],
+    },
+)
+
+
+def _battery_applies(battery: dict, rec: dict, store: dict, context: dict):
+    """(applies, skip_record_or_None). CAC-AP-1 narrowing, reused rather than re-derived.
+
+    §2.2 — a missing criticality or a missing flag means NOT DECLARED, so the battery
+    APPLIES. Absence asks more. An arrangement nobody classified is exactly the one that must
+    not be quietly treated as low-risk.
+
+    §2.3 — a declaration on the arrangement outranks the org profile IN BOTH DIRECTIONS. An
+    organisation that declared no AI still gets the AI battery on a provider whose own record
+    says a model touches our data, and vice versa.
+
+    §2.4 — every skip carries the flag, the declarer and the date, so an assessor can tell
+    "we judged this out of scope, here is who said so" from "nobody asked".
+    """
+    cond = battery.get("appliesWhen") or {}
+
+    if "criticalityAtLeast" in cond:
+        level = criticality_of(rec)
+        # `untraced` and `unclassified` get the FULL battery. Neither is a level, so neither
+        # can narrow anything — and the arrangement nobody could place is the one worth asking
+        # every question of.
+        #
+        # This is the FIRST of two layers, and it is here for intent rather than because the
+        # second is weak: `level in scale` below also excludes both states, so removing this
+        # line changes no behaviour today. It is kept because the obvious future edit — using
+        # `criticality_rank` to compare levels — would raise on these states rather than
+        # returning a number, and a reader needs to know that is deliberate before working out
+        # why their comparison blew up.
+        if level in (UNTRACED, UNCLASSIFIED):
+            return True, None
+        scale = store["settings"]["criticalityScale"]
+        if cond["criticalityAtLeast"] == "TOP" and level in scale:
+            if scale.index(level) < len(scale) - 1:
+                return False, {
+                    "battery": battery["id"],
+                    "reason": "criticality %r is below the top of the scale (%s)"
+                              % (level, scale[-1]),
+                    "flag": "criticality",
+                    "declaredBy": ((rec.get("criticality") or {}).get("confirmed") or {})
+                                  .get("by", ""),
+                    "declaredOn": ((rec.get("criticality") or {}).get("confirmed") or {})
+                                  .get("on", ""),
+                }
+        return True, None
+
+    if "flag" in cond:
+        flag = cond["flag"]
+        # Subject layer first (§2.3), and `None` is not `False`: only an explicit declaration
+        # on the arrangement outranks anything.
+        subject = (rec.get("declares") or {}).get(flag)
+        if isinstance(subject, dict):
+            sub_val, sub_by, sub_on = (subject.get("value"), subject.get("declaredBy", ""),
+                                       subject.get("declaredOn", ""))
+        else:
+            sub_val, sub_by, sub_on = subject, "", ""
+        if sub_val is True:
+            return True, None
+        if sub_val is False:
+            return False, {"battery": battery["id"],
+                           "reason": "the arrangement declares %s false" % flag,
+                           "flag": flag, "declaredBy": sub_by, "declaredOn": sub_on}
+        entry = ((context or {}).get("profile") or {}).get(flag)
+        if isinstance(entry, dict) and entry.get("value") is False:
+            return False, {"battery": battery["id"],
+                           "reason": "the organisation profile declares %s false" % flag,
+                           "flag": flag,
+                           "declaredBy": entry.get("declaredBy", ""),
+                           "declaredOn": entry.get("declaredOn", "")}
+        # Not declared anywhere, or declared true. Either way: ask.
+        return True, None
+
+    return True, None
+
+
+def batteries_for(rec: dict, store: dict, context: dict = None) -> dict:
+    """Which batteries apply to this arrangement, and which were skipped and why."""
+    applied, skipped = [], []
+    for battery in BATTERIES:
+        yes, skip = _battery_applies(battery, rec, store, context or {})
+        if yes:
+            applied.append(battery)
+        elif skip:
+            skipped.append(skip)
+    return {"applied": applied, "skipped": skipped}
+
+
 # --- Evidence -----------------------------------------------------------------
 
 def _next_sub_id(rec: dict, key: str, prefix: str, pattern) -> str:
@@ -1482,6 +1645,73 @@ def _cmd_self_test(_args):
         # IndexError here would kill the run's summary and hide how much else broke.
         ok("period ended" in (expired[0]["evidence"] if expired else ""),
            "and the record says what expired and when")
+
+        # --- P2 T3/T4: batteries and their narrowing --------------------------
+        # Every shipped question names a GV.SC reference and asks for EVIDENCE, never an
+        # attestation. "Do you encrypt at rest?" is worthless; every vendor answers yes.
+        ATTESTATION = re.compile(r"^(do|are|is|does|have|has|can|will) ", re.I)
+        for battery in BATTERIES:
+            ok(battery.get("gvsc"), "battery %r names a GV.SC reference" % battery["id"])
+            for q in battery["questions"]:
+                ok(not ATTESTATION.match(q),
+                   "battery %r asks for evidence, not an attestation: %r"
+                   % (battery["id"], q[:44]))
+
+        bt_store = new_store("Battery Ltd")
+        add_vendor(bt_store, "Some Provider")
+        bt = add_arrangement(bt_store, "V-001", "a service", "An Owner")
+        total = len(BATTERIES)
+
+        # §2.2 — nothing declared anywhere. Absence asks MORE.
+        res = batteries_for(bt, bt_store, None)
+        eq(len(res["applied"]), total, "with no context and no criticality, every battery applies")
+        eq(res["skipped"], [], "and nothing is skipped")
+
+        # untraced is not a level and narrows nothing.
+        classify(bt_store, "VA-001", {}, confirm=None)
+        eq(criticality_of(bt), UNTRACED, "the fixture is untraced")
+        eq(len(batteries_for(bt, bt_store, None)["applied"]), total,
+           "an untraced arrangement gets the FULL battery — it is not a level to narrow by")
+
+        # §2.3 — the arrangement outranks the profile, in BOTH directions.
+        profile_no_ai = {"profile": {"aiInUse": {"value": False, "declaredBy": "GC",
+                                                 "declaredOn": "2026-01-01"}}}
+        res = batteries_for(bt, bt_store, profile_no_ai)
+        ok(not any(b["id"] == "ai-overlay" for b in res["applied"]),
+           "a profile declaring aiInUse false skips the AI battery")
+        skip = next((x for x in res["skipped"] if x["battery"] == "ai-overlay"), {})
+        eq(skip.get("declaredBy"), "GC", "and the skip names who declared it")
+        eq(skip.get("declaredOn"), "2026-01-01", "and when")
+        ok("profile" in skip.get("reason", ""), "and which layer decided it")
+
+        bt["declares"] = {"aiInUse": {"value": True, "declaredBy": "Vendor Manager",
+                                      "declaredOn": "2026-05-05"}}
+        res = batteries_for(bt, bt_store, profile_no_ai)
+        ok(any(b["id"] == "ai-overlay" for b in res["applied"]),
+           "an ARRANGEMENT declaring aiInUse true beats a profile declaring it false")
+        bt["declares"] = {"aiInUse": {"value": False, "declaredBy": "Vendor Manager",
+                                      "declaredOn": "2026-05-05"}}
+        profile_ai = {"profile": {"aiInUse": {"value": True, "declaredBy": "CISO",
+                                              "declaredOn": "2026-01-01"}}}
+        res = batteries_for(bt, bt_store, profile_ai)
+        skip = next((x for x in res["skipped"] if x["battery"] == "ai-overlay"), {})
+        ok(skip, "...and declaring it false beats a profile declaring it true")
+        ok("arrangement" in skip.get("reason", ""),
+           "with the reason naming the arrangement as the deciding layer")
+        eq(skip.get("declaredBy"), "Vendor Manager", "and its declarer, not the profile's")
+        bt.pop("declares", None)
+
+        # A criticality-gated battery narrows only for a real level below the top.
+        classify(bt_store, "VA-001", ctx, confirm="low", by="D. Galleyne")
+        res = batteries_for(bt, bt_store, None)
+        ok(not any(b["id"] == "exit" for b in res["applied"]),
+           "a low-criticality arrangement is not asked for a tested exit")
+        classify(bt_store, "VA-001", ctx, confirm="high", by="D. Galleyne")
+        ok(any(b["id"] == "exit" for b in batteries_for(bt, bt_store, None)["applied"]),
+           "and a top-criticality one is")
+        ok(all(x.get("declaredBy") is not None and "declaredOn" in x
+               for x in batteries_for(bt, bt_store, profile_no_ai)["skipped"]),
+           "every skip record carries a declarer and a date (§2.4)")
 
         # --- T14: the consolidation guard -------------------------------------
         multi = new_store("Group Plc")
