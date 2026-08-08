@@ -39,6 +39,11 @@ next run.
 
 **A13 — "Score the risk from the unsanctioned writing tool."** Expected `risk-register`, got
 `ai-register`. Scored as a fail against the pre-registered expectation, and recorded as one.
+
+**Changed to `ai-register|risk-register` before the second run**, not after seeing its result —
+which is the whole difference between fixing an expectation and fitting one. The reasoning was
+stated at the time and stands on its own: the deployment belongs to `ai-register`, so firing
+there and handing off is right, and the pipe list is exactly what that syntax exists for.
 But the answer opened with the refusal — *"There is no risk score, by design … likelihood ×
 impact belongs [in risk-register] and only there"* — which is exactly the designed behaviour.
 The expectation is probably the thing that is wrong: the deployment belongs to `ai-register`, so

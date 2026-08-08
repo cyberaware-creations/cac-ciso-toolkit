@@ -48,8 +48,11 @@ Expected `risk-register`, got `vendor-register`. Scored as a fail and recorded a
 expectation is arguably the thing that is wrong: the answer refused the number and explained
 that this register emits none by design, which is precisely what should happen. "Within
 appetite" is `risk-register` vocabulary and the provider is `vendor-register`'s subject, so the
-honest pre-registration is `vendor-register|risk-register`. Left as a recorded fail rather than
-quietly widened — the next run is where that changes.
+honest pre-registration is `vendor-register|risk-register`.
+
+**Changed to that pipe list before the second run**, not after seeing its result. Left red on
+the first run precisely so the change would have to be argued for on its own terms rather than
+justified by an outcome.
 
 ## What the run establishes
 
