@@ -8,12 +8,12 @@
 
 ## The problem, stated exactly
 
-The suite has seven guards. Each exists because a specific defect would otherwise look like a
+The suite has eight guards. Each exists because a specific defect would otherwise look like a
 feature, and each is unusually well written — `no-closed-state.sh` explains in its own header
 why somebody will eventually reach for the change it forbids, and runs a behavioural and a
 static half because either alone is escapable.
 
-Six of the seven also record that they were mutation-tested. For example:
+Six of the eight also record that they were mutation-tested. For example:
 
 > *Mutation-tested. `exposure["mitigated"] = True` fails the static half; writing the same key
 > into the store fails the behavioural half. A guard never seen to fail is not known to work.*
@@ -116,8 +116,9 @@ about globs.
 | `no-closed-state.sh` | `ai-register` | a `mitigated`/`resolved`/`accepted` state on an attack class | static · behavioural |
 | `no-ai-score.sh` | `ai-register` | a computed AI risk score | behavioural · static |
 | `no-regime-dates.sh` | `ai-register` | a regulatory date in prose; an uncited obligation | static · dataset |
+| `no-priority-score.sh` | `attention-surface` | a computed priority ordering the escalations | static · behavioural |
 
-Seven guards, fourteen halves, each proved in both directions on every run.
+Eight guards, sixteen halves, each proved in both directions on every run.
 
 **`evidence-tiers.sh` was the reason to do this first.** Every other guard had at least been
 proved once; that one carried no such record, and it protects the rule most exposed to

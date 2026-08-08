@@ -217,6 +217,6 @@ It lives here rather than in a skill because it is about the repo's own invarian
 seven guards across three skills. See `guard-proof-standard.md` for the rules and the registry.
 
 ```bash
-./tools/prove-guards.sh              # all seven guards, fourteen halves
+./tools/prove-guards.sh              # all eight guards, sixteen halves
 ./tools/prove-guards.sh no-ai-score  # one guard
 ```

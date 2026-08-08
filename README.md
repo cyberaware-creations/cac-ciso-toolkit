@@ -30,13 +30,15 @@ already have; see [Requirements](#requirements).
 
 ## Skills
 
-Ten skills, in three layers. **Eight own data** — each is the system of record for one thing and
+Eleven skills, in four layers. **Eight own data** — each is the system of record for one thing and
 persists it in a local file: risks, a CSF Profile, metrics, accepted exceptions, incident
 determinations, third-party arrangements, AI deployments, and the organisation's own business
 facts. **One owns language** —
 `ciso-board-translation` holds the board-facing phrasing the others call rather than each inventing
 its own. **One owns the deliverable** — `board-pack` assembles what the producers wrote into a
-single document, and owns no data at all.
+single document, and owns no data at all. **One owns the week** — `attention-surface` reads the
+escalations every producer already computes and shows what needs the CISO now; it owns no data
+either, and is the weekly counterpart to the quarterly pack.
 
 The seam is deliberate. A producer decides what is true, the translation skill decides how it is
 said, and the assembler decides what order a board reads it in. No skill does two of those jobs, so
@@ -206,6 +208,27 @@ file. The CISO's slice, and it says so: `references/scope.md` names what this sk
   is a finding that lives in a CASB console until somebody remembers to promote it.
 - **No AI risk score**, under the same two-halved eval `vendor-register` uses, plus a third guard
   on the rendered page — no green fill, no tick, no "3 of 5 covered" on an attack class.
+
+### `attention-surface`
+What needs the CISO **this week**, derived from what every other skill already computes —
+persisted in a local `.att` file that holds review events and nothing else. `board-pack` reads
+the same escalations quarterly, for a board; this reads them weekly, for the person who has to
+act.
+
+- **It owns no data.** Every fact comes from a producer's store, and the producer is named on
+  every item. That is what stops an attention list becoming a thirty-first opinion.
+- **Grouped by decision, not by producer.** Clocks running out, something moved under us, nobody
+  owns it, we disagree with ourselves, uncontrolled exposure, over tolerance. The mapping is
+  data; an unmapped trigger surfaces in an explicit unclustered group rather than disappearing.
+- **Ordered without a score.** Severity as the producer declared it, then age, then subject
+  reference — three declared facts compared as a tuple. No weighting, no priority number.
+- **What changed since you last looked**, keyed on producer + trigger + subject rather than on
+  the evidence prose, which rewords itself as clocks advance.
+- **No mute and no snooze.** If volume is unusable the fix is threshold tuning at the producer,
+  logged and visible. An attention surface is exactly where a mute feels most reasonable, which
+  is why the rule is written down.
+- **Absence is visible.** A register that could not be read is reported as NOT READ, above
+  everything else on the page — never as clean.
 
 ### `exceptions-register`
 The defensible record of what the organisation knowingly accepted — risk acceptances and control
@@ -382,6 +405,12 @@ skills/
     references/                schema, criticality method, GV.SC and SR mapping
     examples/                  worked .vnd + its board translations
     evals/                     no-vendor-score suite
+  attention-surface/
+    SKILL.md
+    scripts/attention_surface.py    reads seven producers, groups and diffs (stdlib only)
+    references/                clusters (data), schema, scope
+    examples/                  a worked .att with one recorded review
+    evals/                     no-priority-score, clusters, trigger-routing suites
   ai-register/
     SKILL.md
     scripts/ai_register.py          AI deployments + NISTAML exposure (stdlib only)
@@ -459,6 +488,7 @@ python3 skills/exceptions-register/scripts/exceptions_register.py self-test  # l
 python3 skills/incident-materiality/scripts/incident_analysis.py self-test   # clocks + banding
 python3 skills/vendor-register/scripts/vendor_register.py self-test        # the criticality walk
 python3 skills/ai-register/scripts/ai_register.py self-test               # exposure, and no closed state
+python3 skills/attention-surface/scripts/attention_surface.py self-test   # ordering, clusters, the diff
 python3 skills/business-context/scripts/business_context.py self-test      # §2.2/§2.3 narrowing
 python3 skills/board-pack/scripts/assemble_pack.py self-test               # contract + assembly
 
@@ -484,6 +514,11 @@ python3 skills/board-pack/scripts/assemble_pack.py self-test               # con
 ./skills/ai-register/evals/exposure.sh              # derived from attributes, never selected
 ./skills/ai-register/evals/no-regime-dates.sh       # no regulatory date compiled into prose
 ./skills/ai-register/evals/questions.sh             # a model card subtracts nothing
+
+./skills/attention-surface/evals/no-priority-score.sh  # ordering, never a computed priority
+./skills/attention-surface/evals/clusters.sh           # nothing vanishes: unmapped, unread, malformed
+
+./tools/prove-guards.sh                             # CAC-GP-1: every guard fails when its defect is present
 ./skills/exceptions-register/evals/board-safety.sh
 ./skills/incident-materiality/evals/board-safety.sh
 ./skills/business-context/evals/board-safety.sh
