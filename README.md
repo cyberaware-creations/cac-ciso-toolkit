@@ -50,7 +50,9 @@ rather than reporting on its own. It takes ownership of nothing that already has
 
 ### `risk-register`
 Build, score, and maintain a cybersecurity risk register that persists in a local `.rr` file and
-tracks how risk changes over time. NISTIR 8286 event-statement risks, deterministic Likelihood ×
+tracks how risk changes over time. Risks written as event statements in the CAC house format —
+carrying the four scenario elements NISTIR 8286A r1 §2.2 prescribes, though NIST prescribes no
+template — deterministic Likelihood ×
 Impact scoring and banding (SP 800-30), risk-appetite flagging (CSF 2.0 GV.RM), an append-only change
 log with rationale, named review snapshots, structured risk acceptance, and reporting — heat matrix,
 themes, trend, and operational, executive, and printable board outputs.
@@ -339,8 +341,10 @@ alongside what the business is worth, and `SKILL.md` opens with a handling note 
 ### `ciso-board-translation`
 The reusable "moat" skill. Turns a raw security fact — a metric, a risk, or a quarter of program
 work — into board-ready language a director acts on, using the four-question method, a curated
-board-question bank, and sourced regulatory receipts (Caremark, DORA RTS, SEC Item 106, NYDFS Part
-500) with their honest limits kept intact. Every board-facing sentence in the suite comes from here.
+board-question bank, and sourced regulatory receipts (the Delaware *Caremark*/*Stone v. Ritter*
+oversight line, DORA RTS, SEC Item 106, NYDFS Part 500) with their honest limits kept intact. Each
+carries a full citation in `references/regulatory-receipts.md`, by identifier rather than by link,
+so it can be retrieved from the issuing body. Every board-facing sentence in the suite comes from here.
 
 ### `board-pack`
 Assembles the quarterly board pack or audit-committee pack from the section objects the other

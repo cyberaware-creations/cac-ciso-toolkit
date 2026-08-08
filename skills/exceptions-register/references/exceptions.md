@@ -98,9 +98,11 @@ A permanent, queryable, timestamped record of every risk the organisation knowin
 is **discoverable**. It is a governance asset and a litigation exhibit, and which one it turns
 out to be depends on whether it agrees with what the organisation said publicly.
 
-Delaware's *Caremark* line rewards a documented oversight process: a board that can show it
-received information and acted on it is far better placed than one that cannot. That is the
-case for keeping this record.
+Delaware's *Caremark* line — *In re Caremark Int'l Inc. Derivative Litig.*, 698 A.2d 959 (Del.
+Ch. 1996), as restated in *Stone v. Ritter*, 911 A.2d 362 (Del. 2006) — rewards a documented
+oversight process: a board that can show it received information and acted on it is far better
+placed than one that cannot. That is the case for keeping this record. Cite both, not *Caremark*
+alone: *Stone* is where the standard a court applies actually lives.
 
 The other half is *SEC v. SolarWinds*: granular internal records that contradicted the
 company's public security statements became the evidence. The records were not the problem;

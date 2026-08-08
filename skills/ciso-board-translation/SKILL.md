@@ -54,7 +54,9 @@ translation actually land:
   judgment, carried in the question bank.
 - **It cannot source a receipt honestly.** Grounding a "record the acceptance"
   ask in the DORA RTS or the Caremark line *without inventing a fake legal
-  hook* takes sourced references with their limits attached.
+  hook* takes sourced references with their limits attached. Every receipt is
+  cited in full in `references/regulatory-receipts.md`. Cite it as written
+  there — never from memory.
 
 The number is data. The translation is judgment. This skill supplies the
 judgment scaffold; the user supplies the numbers.

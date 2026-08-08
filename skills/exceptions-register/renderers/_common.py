@@ -170,10 +170,12 @@ def window_elapsed(row: dict):
 PLACEHOLDER = ("Board narrative not supplied. Run the ciso-board-translation skill over this "
                "register and pass its output with --translations to replace this block.")
 
-# Surfaced on every view that shows these records, not tucked into a footer. The point is
-# not to discourage keeping the record — Caremark rewards a documented process — but to
-# make sure it is written as something that can be read by a regulator, a board, and
-# opposing counsel without contradicting what the organisation said publicly.
+# Surfaced on every view that shows these records, not tucked into a footer. The point is not
+# to discourage keeping the record — the Caremark line rewards a documented process (In re
+# Caremark Int'l Inc. Derivative Litig., 698 A.2d 959 (Del. Ch. 1996), restated in Stone v.
+# Ritter, 911 A.2d 362 (Del. 2006); see references/exceptions.md) — but to make sure it is
+# written as something that can be read by a regulator, a board, and opposing counsel without
+# contradicting what the organisation said publicly.
 CAVEAT = ("These records are discoverable. A permanent, dated inventory of accepted risk is a "
           "governance asset and a potential litigation exhibit, and which one it becomes depends "
           "on whether it agrees with what the organisation has said publicly. Keep entries "
