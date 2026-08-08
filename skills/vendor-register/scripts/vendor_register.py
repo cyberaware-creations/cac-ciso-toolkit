@@ -685,6 +685,77 @@ BATTERIES = (
 )
 
 
+# --- Regime overlays ----------------------------------------------------------
+#
+# An overlay adds batteries on top of the `GV.SC` core when a profile flag says a regime
+# applies. **None replaces the core**: a register with no overlay enabled is still a complete
+# GV.SC register, and that is checked rather than asserted.
+#
+# **This ships EMPTY, and that is a decision rather than an unfinished job.**
+#
+# DORA, NYDFS Part 500, the US interagency guidance and the SEC rules were all drafted from
+# secondary sources. An overlay tells a user that a regulation requires something of them, and
+# a compliance tool asserting an obligation it cannot cite is worse than one that stays quiet —
+# the user cannot tell the difference between a checked claim and a plausible one, and will act
+# on both. So the machinery ships and the content does not, pending a primary-source pass.
+#
+# `register_overlay` REFUSES an uncited requirement, so this cannot be quietly relaxed later:
+# whoever adds the content has to name the article or section, and the refusal message says
+# what a source has to be. See `references/overlays.md`.
+
+OVERLAYS = ()
+"""Deliberately empty. See the note above, and `references/overlays.md`.
+
+Populate through `register_overlay`, which refuses anything uncited."""
+
+
+def register_overlay(overlay: dict, into=None) -> dict:
+    """Add an overlay, refusing any requirement that cannot say where it comes from.
+
+    The gate is the point. An overlay is the only part of this skill that tells a user a THIRD
+    PARTY — a regulator — requires something of them, and that claim has to be traceable to the
+    text it came from. A citation to a summary, a vendor blog or a consultancy explainer is not
+    a citation to the regulation.
+    """
+    if not str(overlay.get("id") or "").strip():
+        raise Refusal("an overlay needs an id")
+    if not str(overlay.get("flag") or "").strip():
+        raise Refusal(
+            "overlay %r needs a --flag: the profile key that selects it.\n"
+            "  An overlay that is always on is not an overlay, it is the core."
+            % overlay.get("id"))
+    for battery in (overlay.get("batteries") or []):
+        for q in (battery.get("questions") or []):
+            src = str(q.get("source") or "").strip()
+            if not src:
+                raise Refusal(
+                    "overlay %r, question %r has no `source`.\n"
+                    "  Every overlay question must cite the article or section it comes from, "
+                    "checked against the regulation or the supervisory text — not a summary, a "
+                    "vendor explainer or a consultancy note. An overlay asserting an obligation "
+                    "it cannot cite does not ship: a reader cannot tell a checked claim from a "
+                    "plausible one, and will act on both."
+                    % (overlay["id"], q.get("id")))
+    target = OVERLAYS if into is None else into
+    if isinstance(target, tuple):
+        raise Refusal("pass a mutable list as `into` to register an overlay at runtime")
+    target.append(overlay)
+    return overlay
+
+
+def overlays_for(context: dict = None, overlays=None) -> list:
+    """The overlays a profile turns on. Absence never enables one — a regime applies because
+    somebody declared it, not because nothing said otherwise."""
+    profile = ((context or {}).get("profile") or {})
+    active = []
+    for ov in (OVERLAYS if overlays is None else overlays):
+        entry = profile.get(ov["flag"])
+        value = entry.get("value") if isinstance(entry, dict) else entry
+        if value is True:
+            active.append(ov)
+    return active
+
+
 def question_key(battery: dict, question: dict) -> str:
     return "%s.%s" % (battery["id"], question["id"])
 
@@ -771,10 +842,18 @@ def _battery_applies(battery: dict, rec: dict, store: dict, context: dict):
     return True, None
 
 
-def batteries_for(rec: dict, store: dict, context: dict = None) -> dict:
-    """Which batteries apply to this arrangement, and which were skipped and why."""
+def batteries_for(rec: dict, store: dict, context: dict = None, overlays=None) -> dict:
+    """Which batteries apply to this arrangement, and which were skipped and why.
+
+    Core first, then any overlay a declared profile flag turned on. The core is never replaced
+    or narrowed by an overlay: a register with no overlay enabled asks exactly what it asked
+    before overlays existed, which is asserted in the self-test rather than assumed.
+    """
+    pool = list(BATTERIES)
+    for ov in overlays_for(context, overlays):
+        pool.extend(ov.get("batteries") or [])
     applied, skipped = [], []
-    for battery in BATTERIES:
+    for battery in pool:
         yes, skip = _battery_applies(battery, rec, store, context or {})
         if yes:
             applied.append(battery)
@@ -1454,6 +1533,96 @@ def load_context(path: str) -> dict:
         raise Refusal(f"{path} declares contract {payload.get('contractVersion')!r}, "
                       f"which this engine does not read")
     return payload
+
+
+# --- Register of Information --------------------------------------------------
+
+ROI_REQUIRED = (
+    ("vendorName", "the legal name of the provider"),
+    ("entityRef", "the legal entity holding the arrangement"),
+    ("services", "what the provider actually does"),
+    ("criticality", "a criticality that a person has confirmed"),
+    ("supports", "the function or system this arrangement supports"),
+    ("owner", "the person accountable for the arrangement"),
+)
+
+
+def export_roi(store: dict, context: dict = None, today: str = "") -> dict:
+    """A CAC-shaped register export, field names chosen so mapping to a filing template is
+    mechanical.
+
+    **It refuses to look complete when it is not.** An arrangement missing an identifier, a
+    confirmed criticality or a supported function is reported as a NAMED GAP rather than
+    emitted as a blank cell. A register that files cleanly and is wrong is worse than one that
+    refuses: the blank cell is indistinguishable from a legitimately empty one, and the filing
+    carries the organisation's name on it.
+
+    Gated on a DECLARED profile flag. This exports a register in a documented shape; it does
+    not tell anybody what a regulation requires, and the overlay that would is not shipped —
+    see `references/overlays.md`.
+    """
+    today = today or utc_today()
+    profile = ((context or {}).get("profile") or {})
+    entry = profile.get("doraScope")
+    scoped = entry.get("value") if isinstance(entry, dict) else entry
+    if scoped is not True:
+        raise Refusal(
+            "this export is gated on a declared `doraScope` in the applicability profile, and "
+            "the profile %s.\n"
+            "  Absence is not a 'no' — it means nobody has declared it. Declare the flag in "
+            "`business-context` and pass the exported payload with --context.\n"
+            "  The export produces a register in a documented shape. It does not assert what "
+            "any regulation requires of you: the regime overlay that would carry those "
+            "obligations is not shipped, pending a primary-source pass."
+            % ("declares it false" if scoped is False else "does not declare one"))
+    rows, gaps = [], []
+    for rec in store["arrangements"]:
+        if rec.get("retired"):
+            continue
+        vendor = next((v for v in store["vendors"]
+                       if v.get("id") == rec.get("vendorRef")), {})
+        conf = ((rec.get("criticality") or {}).get("confirmed") or {})
+        row = {
+            "arrangementRef": rec["id"],
+            "vendorName": vendor.get("name") or "",
+            "vendorJurisdiction": vendor.get("jurisdiction") or "",
+            "vendorGroupParent": vendor.get("groupParent") or "",
+            "entityRef": rec.get("entityRef") or "",
+            "services": rec.get("services") or "",
+            "supports": rec.get("supports") or "",
+            "owner": rec.get("owner") or "",
+            # The CONFIRMED level only. A derived one is a proposal, and filing a proposal as
+            # though a person had assigned it is the whole failure this skill refuses.
+            "criticality": conf.get("value") or "",
+            "criticalityScaleVersion": conf.get("scaleVersion") or "",
+            "criticalityConfirmedBy": conf.get("by") or "",
+            "startsOn": rec.get("startsOn") or "",
+            "endsOn": rec.get("endsOn") or "",
+            "subprocessorCount": len(rec.get("subcontractors") or []),
+            "exitDocumentedOn": (rec.get("exit") or {}).get("documentedOn") or "",
+            "exitTestedOn": (rec.get("exit") or {}).get("testedOn") or "",
+        }
+        missing = [(field, why) for field, why in ROI_REQUIRED if not str(row.get(field) or "")]
+        if missing:
+            gaps.append({
+                "arrangementRef": rec["id"],
+                "missing": [f for f, _ in missing],
+                "detail": "; ".join("%s — %s" % (f, why) for f, why in missing),
+            })
+        rows.append(row)
+    return {
+        "family": FAMILY,
+        "export": "register-of-information",
+        "shape": "CAC",
+        "asOf": today,
+        "organisation": store["meta"].get("orgName") or "",
+        "rows": rows,
+        "gaps": gaps,
+        "complete": not gaps,
+        "note": ("This is a CAC-shaped export. Field names are chosen so mapping to a filing "
+                 "template is mechanical; it is not a filing, and it asserts no regulatory "
+                 "obligation."),
+    }
 
 
 # --- Multi-entity ------------------------------------------------------------
@@ -2187,6 +2356,79 @@ def _cmd_self_test(_args):
            "...and the result SAYS so — a blank page and 'all evidenced' look identical "
            "on screen and mean opposite things")
 
+        # --- P2 T11: the overlay mechanism, shipping empty --------------------
+        eq(list(OVERLAYS), [],
+           "no regime overlay ships — no obligation is asserted that cannot cite its source")
+        # THE regression this has to prevent: with no overlay active, the battery set must be
+        # exactly what it was before overlays existed.
+        ov_store, ov_rec = _askstore("high")
+        base = [b["id"] for b in batteries_for(ov_rec, ov_store, None)["applied"]]
+        eq([b["id"] for b in batteries_for(ov_rec, ov_store, None, overlays=[])["applied"]],
+           base, "a register with no overlay asks exactly what the core asks")
+
+        # The gate that stops uncited content shipping later.
+        bucket = []
+        refuses(lambda: register_overlay({"id": "dora", "flag": "doraScope", "batteries": [
+                    {"id": "roi", "questions": [{"id": "q1", "ask": "What is X?"}]}]},
+                    into=bucket),
+                "an overlay question with no source is refused", "cannot cite")
+        refuses(lambda: register_overlay({"id": "x", "batteries": []}, into=bucket),
+                "an overlay with no selecting flag is refused", "not an overlay")
+        eq(bucket, [], "and nothing uncited was registered")
+        cited = register_overlay(
+            {"id": "demo", "flag": "demoScope", "source": "a primary text",
+             "batteries": [{"id": "demo-battery", "gvsc": ["GV.SC-05"],
+                            "appliesWhen": {},
+                            "questions": [{"id": "q1", "ask": "What dated evidence covers X?",
+                                           "source": "Article 1(1), verified 2026-08-08"}]}]},
+            into=bucket)
+        eq(len(bucket), 1, "a cited overlay registers")
+        eq(overlays_for({"profile": {"demoScope": {"value": True}}}, bucket), [cited],
+           "and a declared flag turns it on")
+        eq(overlays_for({"profile": {"demoScope": {"value": False}}}, bucket), [],
+           "a flag declared false leaves it off")
+        eq(overlays_for({}, bucket), [],
+           "and absence never turns one on — a regime applies because somebody declared it")
+        with_ov = [b["id"] for b in
+                   batteries_for(ov_rec, ov_store, {"profile": {"demoScope": {"value": True}}},
+                                 overlays=bucket)["applied"]]
+        ok("demo-battery" in with_ov, "an active overlay ADDS a battery")
+        ok(set(base) <= set(with_ov), "...and replaces none of the core")
+
+        # --- P2 T12: the Register of Information ------------------------------
+        dora_on = {"profile": {"doraScope": {"value": True, "declaredBy": "GC",
+                                             "declaredOn": "2026-01-20"}}}
+        refuses(lambda: export_roi(ov_store, None), "export-roi with no declared scope is refused",
+                "Absence is not a 'no'")
+        refuses(lambda: export_roi(ov_store, {"profile": {"doraScope": {"value": False}}}),
+                "...and with the flag declared false")
+        roi_store = new_store("Filing Ltd")
+        add_vendor(roi_store, "Contoso Cloud", jurisdiction="IE")
+        add_arrangement(roi_store, "V-001", "hosting", "CTO", supports="CRM",
+                        starts_on="2026-01-01")
+        add_arrangement(roi_store, "V-001", "sandbox", "CMO")     # no supports, unclassified
+        classify(roi_store, "VA-001", ctx, confirm="high", by="D. Galleyne")
+        out = export_roi(roi_store, dora_on, today="2026-08-08")
+        eq(out["complete"], False, "an incomplete register does NOT export as complete")
+        eq([g["arrangementRef"] for g in out["gaps"]], ["VA-002"],
+           "and names which arrangement is short")
+        ok("criticality" in out["gaps"][0]["missing"] and "supports" in out["gaps"][0]["missing"],
+           "naming each missing field rather than emitting a blank cell")
+        eq(len(out["rows"]), 2, "every live arrangement is still present, gaps and all")
+        row = next(r for r in out["rows"] if r["arrangementRef"] == "VA-001")
+        eq(row["criticalityScaleVersion"], "v1",
+           "a filed criticality carries the scale it was assigned under")
+        eq(row["criticalityConfirmedBy"], "D. Galleyne", "and who assigned it")
+        # A DERIVED level is a proposal. Filing one as though a person assigned it is the
+        # failure this whole skill refuses.
+        classify(roi_store, "VA-002", ctx)
+        out2 = export_roi(roi_store, dora_on, today="2026-08-08")
+        row2 = next(r for r in out2["rows"] if r["arrangementRef"] == "VA-002")
+        eq(row2["criticality"], "",
+           "a derived-but-unconfirmed level is NOT filed as though somebody assigned it")
+        ok(any(g["arrangementRef"] == "VA-002" for g in out2["gaps"]),
+           "...it stays a named gap")
+
         # --- T14: the consolidation guard -------------------------------------
         multi = new_store("Group Plc")
         add_vendor(multi, "Shared Provider")
@@ -2380,6 +2622,28 @@ def _cmd_ask(args) -> int:
     return 0
 
 
+def _cmd_export_roi(args) -> int:
+    store = load(args.store)
+    out = export_roi(store, _ctx(args), today=args.today)
+    if args.out:
+        with open(args.out, "w", encoding="utf-8") as fh:
+            json.dump(out, fh, indent=2, ensure_ascii=False)
+            fh.write("\n")
+        print("Wrote %s — %d row(s)" % (args.out, len(out["rows"])), file=sys.stderr)
+    else:
+        json.dump(out, sys.stdout, indent=2, ensure_ascii=False)
+        sys.stdout.write("\n")
+    if out["gaps"]:
+        # Non-zero, deliberately. A register that files cleanly and is wrong is worse than one
+        # that refuses, and a zero exit is what a script reads as "fine to send".
+        print("\n%d arrangement(s) are not complete enough to file:" % len(out["gaps"]),
+              file=sys.stderr)
+        for gap in out["gaps"]:
+            print("  %s — %s" % (gap["arrangementRef"], gap["detail"]), file=sys.stderr)
+        return 1
+    return 0
+
+
 def _cmd_review_requirements(args) -> int:
     store = load(args.store)
     entry = review_requirements(store, args.arrangement, args.requirement, args.evidence,
@@ -2563,6 +2827,12 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--today", default="")
     sp.add_argument("--format", default="text", choices=["text", "json", "md"])
     sp.set_defaults(fn=_cmd_ask)
+
+    sp = store_arg(sub.add_parser("export-roi"))
+    sp.add_argument("--context", default="")
+    sp.add_argument("--today", default="")
+    sp.add_argument("--out", default="")
+    sp.set_defaults(fn=_cmd_export_roi)
 
     sp = store_arg(sub.add_parser("review-requirements"))
     sp.add_argument("--arrangement", required=True)
