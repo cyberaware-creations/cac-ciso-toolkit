@@ -21,6 +21,51 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.42.1 — 2026-08-08
+
+**Every routing checklist in the suite now carries a real number from a real run.** The last two
+— `attention-surface` and `business-context` — had shipped marked *"not yet run"*, and the six
+cases held over from the first scored run are resolved.
+
+| checklist | result |
+|---|---|
+| `vendor-register` | **15/15** — Y1 re-scored against a pipe list widened in a prior commit |
+| `ai-register` | **14/15** — A1, A13 and A15 now pass; A14 recorded as unusable as written |
+| `attention-surface` | **10/12** |
+| `business-context` | **12/15** |
+
+**The attention-surface run had to be done twice, and the first attempt is the more useful
+story.** Ten of twelve cases returned at `$0.000` and ~16s: the OAuth token expired mid-run and
+refreshed afterwards, so ten sessions died on a 401. `score-triggers.py` classified them as
+ERRORED and **refused to fold them into a total** — which is the only reason that page does not
+read "2/12". A scorer that counted an errored session as a routing miss would have condemned a
+working skill on the strength of an expired token.
+
+Three real misses, recorded and deliberately **not** fixed in the same commit:
+
+- **T3** — *"what changed since our last security review?"* reached no skill, though **T5**
+  — *"run the Monday security review"* — passed. The session read *what changed* as a diff over
+  files and checked the directory, git, its memory store and the transcript. Every one of those
+  is a reasonable reading of the phrase and none of them is a register.
+- **T6** — *"give me a digest I can paste into the team channel"* has no security referent as
+  written. **The case is at fault, not the skill**, and the session said so precisely.
+- **B4** — *"what did the board actually say about outage tolerance? exact words on file"*
+  reached no skill. The same shape as `vendor-register`'s V6: phrased as *what is on file*, so
+  the session went looking for a **file** rather than for the register that holds the fact.
+
+Nothing is rewritten here. Rewriting a case after watching it fail is the same error as
+re-specifying an expectation after watching it pass, and the discipline holds in both directions.
+
+**A14 is now recorded as unusable as written rather than widened a second time.** *"Are we in
+scope for the EU AI Act as a deployer?"* reached `business-context` on one run and `ai-register`
+on the next, refusing to determine scope and pointing at counsel both times. Two runs, two
+skills, two correct answers. It was widened once already after the first run — widening it again
+to match a second observation is a ratchet, not a test.
+
+Documentation only. No engine, eval or manifest content changed.
+
+---
+
 ## v0.42.0 — 2026-08-08
 
 **`attention-surface`, skill #11 — the last in the sequence** business context → vendor → AI →
