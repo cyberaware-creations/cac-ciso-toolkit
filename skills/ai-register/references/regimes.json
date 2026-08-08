@@ -1,0 +1,34 @@
+{
+  "id": "ai-register-regimes",
+  "datasetVersion": "empty-1",
+  "sourceStatus": "No regime content. This dataset ships deliberately empty — see `note` and references/regimes.md.",
+  "sourceUrl": "",
+  "asOf": "2026-08-08",
+  "note": "The mechanism ships and the content does not. An obligation is the only thing this skill would state about what a regulator requires of the reader; everything else it says is about the reader's own register. A tool asserting an obligation it cannot cite to primary text is worse than one that stays quiet, because a reader cannot tell a checked claim from a plausible one and will act on both. `register_regime` refuses an obligation with no `source` and no `owningFunction`, so this cannot be quietly relaxed: whoever adds content has to have read the text, named the article, and decided who at the firm owns the duty.",
+  "roles": [
+    {
+      "id": "deployer",
+      "meaning": "the organisation puts somebody else's AI system into use"
+    },
+    {
+      "id": "provider",
+      "meaning": "the organisation develops or places an AI system on the market"
+    }
+  ],
+  "roleNote": "`aiRole` is the decisive gate. Much of what these regimes say is addressed to providers, and a firm that buys and deploys AI is usually a deployer. Conflating the two fills a register with obligations that are real and are somebody else's, and a reader cannot tell the difference because they read identically to the ones that apply.",
+  "shape": {
+    "id": "the regime's short id",
+    "flag": "the business-context profile key that selects it",
+    "aiRole": "deployer | provider",
+    "obligations": [
+      {
+        "id": "stable id",
+        "requirement": "what the text requires, in its own terms",
+        "owningFunction": "who at the firm discharges it — required, and often not security",
+        "source": "the article or section, and the date it was checked against primary text",
+        "securityWork": "true when this is the security function's to do"
+      }
+    ]
+  },
+  "regimes": []
+}

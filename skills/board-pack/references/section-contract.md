@@ -37,6 +37,7 @@ The item key is named for what the section is about, and the spelling is exact.
 | `metrics` | `metrics` | `metrics-register` |
 | `exceptions` | `acceptances` **and** `exceptions` | `exceptions-register` |
 | `vendor` | `arrangements` | `vendor-register` |
+| `ai` | `deployments` | `ai-register` |
 | `incident` | `incidents` | `incident-materiality` |
 
 `vendor` is keyed on **arrangements, not vendors**. The register is contract-centric: one
@@ -65,6 +66,22 @@ absence reads like a missing `risk` or `posture` section, which is what it is.
 
 Pinned by two checks in `evals/assembly.sh`: the note must be present on the shipped specimen,
 and `incident` must remain the only exemption. Exempting `vendor` fails both.
+
+**`ai` was added the same way, in v0.41.0, and takes the same answer.** Keyed on
+`deployments`, not systems: risk lives in the deployment, so one model used to draft copy and
+to screen applicants is two rows with different owners, different data and different exposure,
+and a system-keyed section would force one sentence to cover both.
+
+It is additive within `contractVersion: 1` on the `vendor` precedent, and a pack with no `ai`
+sidecar gains one provenance line for the same reason. The argument is arguably stronger here:
+most AI in a firm arrived without a procurement decision, so *we looked at what we run and
+there is none* is a genuinely useful thing for a board to be told — and it is indistinguishable
+from *nobody asked* unless the pack says which.
+
+`ai` is ordered directly after `vendor` in both audiences. Dependencies first, then the newest
+class of dependency: most AI arrives through a third party, so the third-party section is the
+context the AI section is read against, and reversing them would have a board meet the models
+before it meets who supplies them.
 
 `exceptions` is the one section with two item maps, because an acceptance and an exception are
 different objects with one lifecycle. A section may carry both, either, or neither.

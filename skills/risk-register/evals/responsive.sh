@@ -44,6 +44,7 @@ IM="$repo/skills/incident-materiality"
 BP="$repo/skills/board-pack"
 BC="$repo/skills/business-context"
 VR="$repo/skills/vendor-register"
+AR="$repo/skills/ai-register"
 PORT="${CDP_PORT:-9333}"
 export CDP_PORT="$PORT"
 
@@ -179,6 +180,22 @@ done
 (cd "$VR/renderers" && "$PY" render_operational.py --in "$work/vr.json" \
   --out "$work/vr_ops.html" --offline) >/dev/null || {
     echo "responsive: FIXTURE FAILED — vendor render_operational errored"; exit 1; }
+
+# ai-register, both surfaces. The operational table is NINE columns — the widest in the suite —
+# and two of them refuse to wrap: a trace rendered as `A -> B -> ...`, and a stack of exposure
+# chips per row. The board view carries its sidecar. Rendered against the skill's own exported
+# profile rather than a generic one, so the criticality chips are the ones the walk produced.
+"$PY" "$AR/scripts/ai_register.py" analyze "$AR/examples/example-ai.air" \
+  --context "$AR/examples/example-context.json" --today 2026-08-07 \
+  --out "$work/ar.json" >/dev/null || {
+    echo "responsive: FIXTURE FAILED — ai analyze errored"; exit 1; }
+(cd "$AR/renderers" && "$PY" render_board.py --in "$work/ar.json" \
+  --translations "$AR/examples/example-translations.json" \
+  --out "$work/ar_board.html" --offline) >/dev/null || {
+    echo "responsive: FIXTURE FAILED — ai render_board errored"; exit 1; }
+(cd "$AR/renderers" && "$PY" render_operational.py --in "$work/ar.json" \
+  --out "$work/ar_ops.html" --offline) >/dev/null || {
+    echo "responsive: FIXTURE FAILED — ai render_operational errored"; exit 1; }
 
 # incident-materiality, both surfaces. The worksheet is the densest page in the suite —
 # four incidents, each with a six-row factor table carrying a paragraph of prose per row —
@@ -433,6 +450,7 @@ pages=("$work/render_board.html" "$work/render_dashboard.html" "$work/render_rep
        "$work/bp_pack.html" "$work/bp_conflict.html"
        "$work/csf_xw.html" "$work/bc_framing.html"
        "$work/vr_board.html" "$work/vr_ops.html"
+       "$work/ar_board.html" "$work/ar_ops.html"
        "$work/mx_exec_brand.html" "$work/im_ws_brand.html"
        "$work/mx_exec_empty.html" "$work/xr_inv_empty.html"
        "$work/im_ws_empty.html" "$work/bc_empty.html")
@@ -461,6 +479,7 @@ covered=(
   "board-pack/render_pack"
   "business-context/render_context"
   "vendor-register/render_board"        "vendor-register/render_operational"
+  "ai-register/render_board"            "ai-register/render_operational"
 )
 shipped=""
 for rp in "$repo"/skills/*/renderers/render_*.py; do
