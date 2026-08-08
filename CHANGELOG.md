@@ -21,6 +21,32 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.42.2 — 2026-08-08
+
+**T3 and B4 were the same defect in two skills, and one of them had an engine gap behind it.**
+Both cases are phrased as questions about something already held — *"what changed since our last
+security review?"* and *"what did the board actually say? I want the exact words on file"* — and
+both sessions went looking for a **file**: the working directory, then git, then Drive, Notion
+and a mailbox. It is `vendor-register`'s V6 exactly, and it gets V6's fix: the description leads
+with retrieval as well as recording, carries the words people actually type, and says outright
+that the skill is *for* the case where no document can be found.
+
+**`business-context` could not read back the one sentence it exists to hold.** `set-fact
+--board-tolerance` stored the board's words verbatim from the first release and refused an
+unattributed one — and `show` never printed them. The quote was reachable only through `--json`.
+Widening the description without this would have routed B4 here and then answered it with a page
+that does not mention the board. `show` now prints every recorded sentence word for word with who
+said it and when, and prints `NONE RECORDED` when there are none, naming the distinction: nobody
+wrote down what the board said is a different fact from the board having said nothing. Under five
+new self-test checks; segments, strategic goals and contractual obligations render too.
+
+`attention-surface` needed no engine change — `review` already computes the diff and already says
+*no earlier review is recorded* rather than *nothing changed*. Its description now names the
+wrong reading and rules it out: what changed means a diff over the escalations the registers
+hold, not over files, code, git history or a session transcript.
+
+Both skills gain a SKILL.md section answering the question in order, on the pattern V6 set.
+
 ## v0.42.1 — 2026-08-08
 
 **Every routing checklist in the suite now carries a real number from a real run.** The last two
