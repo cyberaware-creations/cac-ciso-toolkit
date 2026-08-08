@@ -21,6 +21,97 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.43.1 — 2026-08-08
+
+**A release test against v0.43.0 found three defects, and two of them were in the tests.** The
+v0.42 runtime blockers stayed fixed, all 2,962 counted checks ran, and CI was green — while a
+board pack shipped without two of its charts and two suites reported passes they had not run.
+The pattern in all three is the same one this repo keeps having to relearn: an absence that
+looks exactly like a success.
+
+### The blocker: the vendor and AI charts were built, then silently discarded
+
+`_vendor_figures` and `_ai_figures` in `assemble_pack.py` returned bare `{label, value}` series
+points where the chart contract expects a figure — `kind`, `title`, `source`, `series`.
+`_figure` in `render_pack.py` dispatches on `kind` and returns an empty string for anything it
+does not recognise, so seven of the specimen's sixteen chart objects rendered as nothing at
+all. The pack carried nine figure captions for sixteen model entries, no vendor-criticality
+figure and no AI-autonomy figure.
+
+**It was silent, and that is the whole severity.** The headline numbers were untouched, so a
+reader saw a plausible pack rather than an error, and the only way to notice was to count
+captions against model entries by hand. That is what the release test did.
+
+Both adapters now emit a figure. Both are `bar` rather than `band-mix`, deliberately: a
+band-mix earns RAG colour because the producer declared its bands *as severities*, and neither
+of these is one. Vendor criticality is a declared scale of how much depends on an arrangement,
+and that register refuses to rate a vendor — colouring the segments red-through-green would put
+the vendor score back on the page through the chart. AI autonomy is an ordered scale of what a
+deployment may do without a person, and `acts` is not a red band. Criticality is drawn in the
+order the producer declares its scale, with `untraced` and `unclassified` after it and never
+sorted into it, because they are states and not levels. Autonomy draws its zero levels, because
+`acts: 0` and `acts` missing from the chart are very different statements and only one of them
+is true.
+
+**And the assembler now refuses a figure that does not meet the contract**, naming it on the
+provenance page instead of passing it to a renderer that will drop it. A named absence is
+recoverable; this one was not.
+
+### The two false greens
+
+`skills/board-pack/evals/assembly.sh` ran its chart comparison in command substitution. The
+comparison raised `KeyError: 'title'` on exactly the malformed objects above, the shell captured
+an empty string, and empty is this suite's word for "no problems" — so it printed OK, counted
+the check and exited zero. The defect the check was written to catch was in front of it and it
+passed. Every captured probe now runs through a `probe` helper that reads the exit status and
+turns a crash into a failure carrying the traceback.
+
+`skills/risk-register/evals/board-safety.sh` gained an outcome-framing check written with
+`ok`/`bad`. That suite declares `chk` and neither of the other two. Under `set -u` without
+`set -e` — which is the house convention here, deliberately, so one failing check does not abort
+the forty after it — an unrecognised command is a silent no-op: the shell wrote
+`ok: command not found`, the failure counter stayed at zero, and the suite reported
+`all checks passed`. The check is registered through `chk` now.
+
+**`tools/lint-evals.py` (CAC-LE-1)** makes the second one a class rather than an incident: for
+every `evals/*.sh`, a harness helper that is called must be declared by the suite calling it. It
+runs in CI beside the guard proofs, for the same reason they do. Running it over the repo for
+the first time found two false positives in its own logic before it found anything else, and
+both are now self-test cases.
+
+### Two checks that would have caught the blocker directly
+
+Consistency is not presence. `assembly.sh` verified that the model and the page agreed, and they
+did — about a pack with no third-party and no AI figure in it. It now also asserts that **every
+section of the specimen contributes at least one figure**, as a set and not a count, and that
+**no figure was rejected by the chart contract**. Both fail against the v0.43.0 code and pass
+against this one.
+
+### Board copy
+
+- The positive-risk slide printed `cites goal:Close the Dublin authorisation year` — a tagged
+  field written the way a machine reads it, on a board slide, and the citation was welded to the
+  end of the sentence with a mid-dot that collided with the bullet glyph. The citation now takes
+  its own muted line, which is what `.from { display:block }` had always done in the HTML, and
+  the tag is spaced from its value. Only the separator is touched: the declared goal is the
+  business's own words and is printed back unaltered.
+- The exceptions figure read `Active records only. No closed records not shown.` A fixed tail
+  collided with a substitution that was itself a negative, on the commonest case of all — a
+  register with nothing closed. Both that note and the incident note beside it (same trap, not
+  in the report only because the specimen happens to carry a closed incident) are now written as
+  two independent clauses. The self-test asserted the literal `"not shown"`, which is why it
+  passed over a double negative for as long as it existed; it now asserts the two cases apart
+  and asserts against the double negative directly.
+
+### Not in this release
+
+The shipped specimen still carries 14 board asks against the toolkit's own five-ask convention,
+and 40 slides. The tool warns about both, correctly, so it is an editorial pass on sidecar prose
+rather than a defect — but it should be edited before the specimen becomes the flagship
+marketing example.
+
+---
+
 ## v0.43.0 — 2026-08-08
 
 **A release-readiness test against v0.42.0 returned a no-go, and it was right.** Everything it

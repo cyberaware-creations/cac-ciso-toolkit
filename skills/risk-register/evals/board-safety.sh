@@ -421,15 +421,25 @@ for _cand in "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"/references/examp
              "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"/examples/pack.board.json; do
   [ -f "$_cand" ] && _sidecar="$_cand" && break
 done
+# `chk`, not `ok`/`bad`. This block was copied verbatim from the eight producer suites that
+# declare `ok()` and `bad()`; this one declares `chk()` and neither of the others, so both
+# arms called a command that does not exist. The shell wrote `ok: command not found`, left
+# `fails` at zero, printed "board-safety: all checks passed" and exited 0 — an unregistered
+# check, green by construction, on the one suite whose scanner has the most to say.
+#
+# `set -e` would have caught it. This suite deliberately does not use it, because a single
+# failing check must not abort the remaining forty. That trade is the right one, and its cost
+# is exactly this: an unrecognised command is a silent no-op, so a check has to be *registered*
+# to exist. Registration is what `chk` is.
 if [ -z "$_sidecar" ]; then
   # business-context is framing rather than a section, so it ships no translations sidecar.
   # Asserted rather than skipped: the day it gains one, this fails and somebody wires it in.
-  ok "no board sidecar in this skill, so there is no board prose here to check"
+  chk C-1 "no board sidecar here, so there is no board prose to check" PASS
 elif "$PY" "$_scan" "$_sidecar" >/dev/null 2>"${TMPDIR:-/tmp}/cac-outcome.$$.err"; then
-  ok "every board sentence carries a consequence and every decision decides (C-1)"
+  chk C-1 "every board sentence carries a consequence, every decision decides" PASS
 else
-  bad "every board sentence carries a consequence and every decision decides (C-1)" \
-      "$("$PY" "$_scan" "$_sidecar" 2>&1 >/dev/null | grep '^  FAIL' | head -3 | tr '\n' ' ')"
+  chk C-1 "every board sentence carries a consequence, every decision decides" \
+      "FAIL $("$PY" "$_scan" "$_sidecar" 2>&1 >/dev/null | grep '^  FAIL' | head -3 | tr '\n' ' ')"
 fi
 
 echo
