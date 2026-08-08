@@ -1023,6 +1023,18 @@ def document_exit(store: dict, aid: str, note: str, on: str = "", by: str = "") 
 
 def review_requirements(store: dict, aid: str, requirement: str, evidence: str,
                         met: bool = True, by: str = "") -> dict:
+    """Record a contract provision checked directly against the executed agreement.
+
+    A Layer B act, like `assess`: a person reads the signed document and says what it commits
+    the provider to. It is NOT a way around the proposal boundary — it demands the same things
+    `assess` does, a named person and a reference to what was actually read.
+
+    `--by` became required in v0.40.0. It was optional when this act shipped in v0.39.0, which
+    meant a requirement could be marked met with nobody's name against it — a hole in the
+    "only a named person closes anything" claim that the assessment layer is built on. Found by
+    `proposal-boundary.sh`'s static scan on its first run, which is the entire reason that scan
+    reads the AST rather than trusting the two acts it was written for.
+    """
     if not str(requirement or "").strip():
         raise Refusal("--requirement names the contract provision being checked")
     if not str(evidence or "").strip():
@@ -1030,6 +1042,12 @@ def review_requirements(store: dict, aid: str, requirement: str, evidence: str,
             "--evidence must reference what was actually read.\n"
             "  A requirement marked met with no evidence reference is an assertion about "
             "an agreement nobody opened, and it reads identically to one that was checked.")
+    if not str(by or "").strip():
+        raise Refusal(
+            "--by is required: the person who read the agreement.\n"
+            "  Marking a requirement met is closing it, and only a named person closes "
+            "anything here. An unattributed tick cannot be defended by pointing at the tool "
+            "that recorded it.")
     rec = find_arrangement(store, aid)
     entry = {"requirement": requirement.strip(), "evidence": evidence.strip(),
              "met": bool(met), "checkedOn": utc_today(), "checkedBy": str(by or "").strip()}
@@ -1633,6 +1651,11 @@ def _cmd_self_test(_args):
                 "review-requirements with no evidence reference is refused", "nobody opened")
         refuses(lambda: record_subprocessor(store, "VA-001", "Fabrikam", ""),
                 "record-subprocessor with no effective date is refused", "as at a date")
+        # Closing a requirement needs a name here exactly as it does in `assess`. This act
+        # shipped in v0.39.0 without one, so a tick could carry nobody's judgement.
+        refuses(lambda: review_requirements(store, "VA-001", "breach notice",
+                                            "MSA schedule 3"),
+                "review-requirements with no named person is refused", "only a named person")
         refuses(lambda: retire(store, "VA-001", "", "2026-06-01"),
                 "retire with no data destination is refused", "GV.SC-10")
         refuses(lambda: retire(store, "VA-001", "returned to us on encrypted media", ""),
