@@ -394,8 +394,17 @@ def evidence_text(evidence) -> str:
                             ("against %s" % baseline) if baseline else "") if b]
         if bits:
             return "%s%s" % (bits[0], (" (%s)" % "; ".join(bits[1:])) if bits[1:] else "")
-        # Nothing recognised inside it. Say so rather than printing the object: a reader who
-        # sees a dict on a page cannot tell a shape change from a data problem.
+        # An EMPTY dict is empty evidence and renders as nothing; there is no shape question
+        # to report. A dict carrying keys this function does not recognise is different — say
+        # so and name them, rather than printing the object, because a reader who sees a dict
+        # on a page cannot tell a shape change from a data problem.
+        #
+        # `board-pack`'s renderer holds the twin of this function, and the two agree
+        # deliberately: the same escalation read by the weekly surface and by the quarterly
+        # pack has to produce the same sentence, or two consumers of one contract describe
+        # one fact differently.
+        if not evidence:
+            return ""
         return "(structured evidence with no `detail`: %s)" % ", ".join(sorted(evidence))
     return str(evidence or "")
 

@@ -22,7 +22,7 @@ skill="$(cd "$here/.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=83
+EXPECTED_CHECKS=84
 checks=0
 fails=0
 ok()  { checks=$((checks + 1)); printf '  ok    %s\n' "$1"; }
@@ -61,25 +61,31 @@ if "$PY" "$A" assemble "$M" --out "$J" >/dev/null 2>"$work/a.err"; then
 else
   bad "and assembles" "$(tail -2 "$work/a.err")"
 fi
-eq "all five producers are in the pack" "5" "$(q 'len(p["sections"])')"
+# Seven, not five. The shipped example demonstrated the five sections that existed when it was
+# written, and it is also the fixture every suite in this directory builds on — so `vendor`
+# (v0.39.0) and `ai` (v0.41.0) shipped with nothing here assembling them from the example, and
+# a renderer crash on their string-shaped evidence survived two releases and a release test.
+# A demo manifest is not only a demo: it is what the tests exercise, and it has to carry the
+# whole product or the tests only cover the part that was finished first.
+eq "all seven producers are in the pack" "7" "$(q 'len(p["sections"])')"
 
 # --- 4-6. ordering is by audience and is fixed --------------------------------
 eq "board order: the frame first, then what we carry" \
-   "['posture', 'risk', 'metrics', 'exceptions', 'incident']" \
+   "['posture', 'risk', 'vendor', 'ai', 'metrics', 'exceptions', 'incident']" \
    "$(q 'p["provenance"]["sectionOrder"]')"
 variant "$work/ac.manifest.json" 'm["audience"] = "audit-committee"'
 "$PY" "$A" assemble "$work/ac.manifest.json" --out "$work/ac.json" >/dev/null 2>&1
 eq "audit-committee order: its own remit leads" \
-   "['incident', 'exceptions', 'risk', 'posture', 'metrics']" \
+   "['incident', 'exceptions', 'risk', 'vendor', 'ai', 'posture', 'metrics']" \
    "$("$PY" -c 'import json,sys;print(json.load(open(sys.argv[1]))["provenance"]["sectionOrder"])' "$work/ac.json")"
-eq "the same sections appear in both, only re-ordered" "5" \
+eq "the same sections appear in both, only re-ordered" "7" \
    "$("$PY" -c 'import json,sys;print(len(json.load(open(sys.argv[1]))["sections"]))' "$work/ac.json")"
 
 # --- 7-9. headline figures are READ from the producers ------------------------
-# Twelve, not eleven: metrics gained the population figure it was the only producer
-# not to supply. Pinned by number on purpose — a headline appearing or vanishing is
-# a change to what a board reads, and it should have to be typed here first.
-eq "twelve headline figures, read from five producers" "12" "$(q 'len(p["headlines"])')"
+# Seventeen: the twelve from the original five producers, plus vendor's three and AI's two.
+# Pinned by number on purpose — a headline appearing or vanishing is a change to what a board
+# reads, and it should have to be typed here first.
+eq "seventeen headline figures, read from seven producers" "17" "$(q 'len(p["headlines"])')"
 eq "and each names the section that computed it" "True" \
    "$(q 'all(h["section"] in {s["section"] for s in p["sections"]} for h in p["headlines"])')"
 # The assembler must not invent or format a figure the producer did not compute. Counts stay
@@ -144,10 +150,20 @@ eq "a pack inside the sitting convention ($thin_board asks) stays silent" "False
 # way `incident` is exempted — restoring byte-identity by making a whole board section silently
 # absent, so a reader could not tell "considered, and there are none" from "nobody asked".
 #
-# The shipped example manifest declares no vendor section, so this is checked on the real
-# specimen rather than a fixture built to agree with it. Both directions: the note is present
-# when the section is absent, and every OTHER part of the pack is untouched by its arrival.
-if q 'any("vendor" in m and "not in this pack" in m for m in p["provenance"]["missing"])' \
+# The shipped example now DECLARES both sections, so absence is checked on a variant that
+# drops them rather than on the specimen. That is a real loss and worth naming: the check used
+# to run on the shipped artifact and now runs on a fixture. It is the lesser loss. A specimen
+# that omits two shipped sections is a specimen no test assembles them from, and that is how
+# the renderer crash on their evidence shape survived two releases — the absence check was
+# being paid for with the coverage of everything else those sections touch.
+variant "$work/no-vnd-ai.manifest.json" \
+  'm["sections"] = [s for s in m["sections"] if s["section"] not in ("vendor", "ai")]'
+"$PY" "$A" assemble "$work/no-vnd-ai.manifest.json" --out "$work/no-vnd-ai.json" >/dev/null 2>&1
+nva() { "$PY" -c '
+import json, sys
+p = json.load(open(sys.argv[1], encoding="utf-8"))
+print(eval(sys.argv[2]))' "$work/no-vnd-ai.json" "$1"; }
+if nva 'any("vendor" in m and "not in this pack" in m for m in p["provenance"]["missing"])' \
    | grep -q True; then
   ok "a pack with no vendor sidecar says so, rather than omitting third parties in silence"
 else
@@ -159,12 +175,20 @@ fi
 # tell "we looked at what AI we run and there is none" from "nobody asked" — which, for a
 # class of dependency most firms acquired without a procurement decision, is the worse of the
 # two silences.
-if q 'any("ai" in m and "not in this pack" in m for m in p["provenance"]["missing"])' \
+if nva 'any("ai" in m and "not in this pack" in m for m in p["provenance"]["missing"])' \
    | grep -q True; then
   ok "and a pack with no AI sidecar says so too, on the same reasoning"
 else
   bad "a pack with no AI sidecar says so" \
       "no note — a whole board section is missing and the page does not mention it"
+fi
+# ...and the specimen, which HAS both, must not claim they are missing. Without this the two
+# checks above would pass over a variant while the shipped pack said something untrue.
+if q 'any("not in this pack" in m for m in p["provenance"]["missing"])' | grep -q True; then
+  bad "the seven-section specimen claims nothing is missing" \
+      "$(q '[m for m in p["provenance"]["missing"] if "not in this pack" in m]')"
+else
+  ok "...while the seven-section specimen reports no absent section, because it has none"
 fi
 # ...and `incident` remains the one exemption, because a quarter with no incident is a normal
 # quarter. If that list ever grows, this fails and somebody has to justify the addition.
@@ -537,6 +561,14 @@ SOURCES = [
     ("incident", "incident-materiality", "incident_analysis.py",
      ["analyze", "{store}", "--today", "{asOf}", "--now", "{asOf}T00:00:00+00:00"],
      "example-incident.inc"),
+    # The two producers that shipped with no provenance source here, because the specimen
+    # carried no section for them to escalate from. The `checked_sections` clause below went
+    # red the moment it did — which is exactly what that clause was written for, and is the
+    # argument for the specimen carrying every shipped section rather than the first five.
+    ("vendor", "vendor-register", "vendor_register.py",
+     ["analyze", "{store}", "--today", "{asOf}", "--json"], "example-vendors.vnd"),
+    ("ai", "ai-register", "ai_register.py",
+     ["analyze", "{store}", "--today", "{asOf}", "--json"], "example-ai.air"),
 ]
 checked_sections = set()
 for section, skill_dir, script, argv, fixture in SOURCES:
@@ -797,7 +829,7 @@ fi
 # introduce is the opposite: a real board decision quietly filed away as a management action.
 # So both directions are checked, and the unmarked case is checked explicitly — absent means
 # unclassified, and unclassified stays in front of the board.
-eq "the shipped example separates board decisions from management actions" "10 3" \
+eq "the shipped example separates board decisions from management actions" "14 6" \
    "$(q 'str(sum(1 for d in p["decisions"] if d["altitude"] != "management")) + " " + str(sum(1 for d in p["decisions"] if d["altitude"] == "management"))')"
 eq "and every decision carries an explicit altitude or an explicit None" "True" \
    "$(q 'all("altitude" in d for d in p["decisions"])')"

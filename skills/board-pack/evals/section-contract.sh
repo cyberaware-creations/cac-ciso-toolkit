@@ -22,7 +22,7 @@ repo="$(cd "$here/../../.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=50
+EXPECTED_CHECKS=51
 checks=0
 fails=0
 
@@ -473,6 +473,43 @@ if [ "$(sed -n 3p "$work/ai.out")" = "incident,exceptions,risk,vendor,ai,posture
 else
   bad "ai follows vendor in the audit-committee order" \
       "got '$(sed -n 3p "$work/ai.out")'"
+fi
+
+# --- the two SECTION_TITLE maps agree -----------------------------------------
+#
+# The assembler and the renderer each hold one, because a skill directory has to run on its
+# own and the renderer cannot import from `scripts/`. `vendor` and `ai` were added to the
+# assembler's and not the renderer's, so every heading naming them on BOTH deliverables
+# printed the bare key — "vendor", "ai" — for two releases. Nothing failed; a board page just
+# read as unfinished, and no eval assembled a section that would have shown it.
+#
+# Keyed off PRODUCERS rather than listing today's seven, so the next section added to one map
+# and not the other fails here instead of on somebody's screen.
+if "$PY" -c '
+import importlib.util, sys
+def load(name, path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
+    return mod
+sys.path.insert(0, sys.argv[2].rsplit("/", 1)[0])
+a = load("ap", sys.argv[1]); r = load("rp", sys.argv[2])
+# Keyed off PRODUCERS, not a bare dict equality: `pack` is in the assembler map as the
+# through-line pseudo-section and has no producer, so equality would fail for a reason that
+# is not drift. Every REAL section is what has to agree, and has to be present in both.
+bad_titles = {name: (a.SECTION_TITLE.get(name), r.SECTION_TITLE.get(name))
+              for name in a.PRODUCERS
+              if not a.SECTION_TITLE.get(name)
+              or a.SECTION_TITLE.get(name) != r.SECTION_TITLE.get(name)}
+if bad_titles:
+    print("assembler vs renderer: %s" % bad_titles, file=sys.stderr)
+    sys.exit(1)
+if len(a.PRODUCERS) < 7:
+    print("only %d producers — the scan is reading the wrong map" % len(a.PRODUCERS),
+          file=sys.stderr); sys.exit(1)
+' "$repo/skills/board-pack/scripts/assemble_pack.py" "$repo/skills/board-pack/renderers/render_pack.py" 2>"$work/title.err"; then
+  ok "the assembler and the renderer name every section identically"
+else
+  bad "the two SECTION_TITLE maps agree" "$(cat "$work/title.err")"
 fi
 
 echo

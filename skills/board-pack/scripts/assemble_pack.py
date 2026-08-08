@@ -1221,7 +1221,13 @@ def _vendor_headline(a):
     # Deliberately NOT a share, a coverage percentage or any single figure standing for the
     # third-party estate. This register refuses to score a vendor, and a pack that derived
     # one from its counts would put the number back that the skill exists without.
-    return [("third-party arrangements", counts.get("live")),
+    #
+    # "tracked", not a bare noun. `_popcheck.py` holds the rule — a count needs the population
+    # it was drawn from — and "2 whose criticality is untraced" says nothing until the page
+    # also says out of how many. This shipped without it for the same reason the renderer
+    # crash did: no eval assembled this section from the specimen, because the specimen had
+    # no vendor section to assemble.
+    return [("third-party arrangements tracked", counts.get("live")),
             # Untraced is a real, crossed threshold in this register's terms: nobody can say
             # what these arrangements hold up. That is a question, and questions about
             # dependencies are what a board is for.
@@ -1251,7 +1257,9 @@ def _ai_headline(a):
     # but marking it critical would imply the opposite state is finished, and there is no
     # finished state for an attack class. The severity goes on the thing that genuinely is a
     # crossed threshold: something in production that nobody sanctioned.
-    return [("AI deployments", counts.get("live")),
+    # "tracked" for the same reason as `vendor` above: the population the other two counts
+    # are drawn from has to be on the page beside them.
+    return [("AI deployments tracked", counts.get("live")),
             ("attack classes with no control recorded", uncontrolled),
             ("running on systems nobody sanctioned", unsanctioned,
              "critical" if unsanctioned else None)]

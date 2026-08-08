@@ -54,9 +54,17 @@ NOT_LEGAL = ("Not legal advice. The incident record structures and documents a m
 PLACEHOLDER = ("Not supplied. Compose this with the ciso-board-translation skill and re-run "
                "the assembler — this pack does not write board prose.")
 
+# A second copy of the assembler's SECTION_TITLE, because a skill directory has to run on
+# its own. `vendor` and `ai` were added to the assembler's map and not to this one, so every
+# heading naming them on both deliverables read as the bare key — "vendor", "ai" — on a board
+# page whose whole claim is that it was written for a board. Nothing failed; it just looked
+# unfinished, and no eval assembled a section that would have shown it.
+# section-contract.sh asserts the two maps agree, so the next section cannot drift the same way.
 SECTION_TITLE = {
     "posture": "Framework posture",
     "risk": "Risk",
+    "vendor": "Third parties",
+    "ai": "Artificial intelligence",
     "metrics": "Metrics",
     "exceptions": "Accepted risks and exceptions",
     "incident": "Incidents",
@@ -65,6 +73,7 @@ ITEM_LABEL = {
     "risks": "Risks", "themes": "Themes", "gaps": "Outcomes short of target",
     "metrics": "Metrics", "acceptances": "Accepted risks", "exceptions": "Exceptions",
     "incidents": "Incidents",
+    "arrangements": "Arrangements", "deployments": "Deployments",
 }
 
 
@@ -325,6 +334,48 @@ def _decision_items(decisions: list) -> str:
         for d in decisions)
 
 
+def evidence_text(evidence) -> str:
+    """`evidence` as a sentence, whichever shape the producer emits.
+
+    CAC-EL-1 §1.3 fixes the six KEYS an escalation carries. **It does not fix the type of
+    `evidence`**, and the producers legitimately differ: `risk-register`, `metrics-register`
+    and `exceptions-register` emit a structured delta — `{from, to, baseline, detail}` —
+    because a band crossing is a movement and both ends of it are the fact, while
+    `vendor-register` and `ai-register` emit a finished sentence.
+
+    Both call sites here assumed the dict. A pack carrying a `vendor` or `ai` section
+    assembled cleanly and then died in the renderer with `'str' object has no attribute
+    'get'` — before writing either deliverable, so a PowerPoint-only request was blocked by
+    the HTML path it never asked for. Two sections shipped at v0.41.0 and v0.42.0 could not
+    reach a page.
+
+    `attention-surface` hit the same shape on its first live run against all seven producers
+    and fixed it the same way: one function, not a check at each call site. That the defect
+    recurred in a second consumer is the argument for the function existing at all — and for
+    the eval below it, which renders a vendor-only, an AI-only and a seven-section pack to
+    BOTH deliverables rather than trusting that the five-section fixture covers them.
+    """
+    if isinstance(evidence, dict):
+        detail = str(evidence.get("detail") or "").strip()
+        moved = ""
+        if evidence.get("from") not in (None, "") and evidence.get("to") not in (None, ""):
+            moved = "%s -> %s" % (evidence["from"], evidence["to"])
+        baseline = str(evidence.get("baseline") or "").strip()
+        bits = [b for b in (detail, moved,
+                            ("against %s" % baseline) if baseline else "") if b]
+        if not bits:
+            # An EMPTY dict is empty evidence, and renders as nothing — there is no shape
+            # question to report. A dict with keys this function does not recognise is
+            # different: say so, and name them, rather than printing the object. A reader
+            # who sees `{'from': 12}` on a board page cannot tell a shape change from a
+            # data problem, and neither can the person they ask.
+            if not evidence:
+                return ""
+            return "(structured evidence with no `detail`: %s)" % ", ".join(sorted(evidence))
+        return "%s%s" % (bits[0], (" (%s)" % "; ".join(bits[1:])) if bits[1:] else "")
+    return str(evidence or "")
+
+
 def _escalations(escalations: list) -> str:
     """What the producers raised on their own, across every section.
 
@@ -342,7 +393,7 @@ def _escalations(escalations: list) -> str:
                 'sustained drift, a long dwell over appetite, or a lapsed acceptance.</p>')
     rows = ""
     for e in escalations:
-        ev = e.get("evidence") or {}
+        ev = evidence_text(e.get("evidence"))
         colour = G._sev_colour(e["severity"], "text")
         rows += (
             f'<tr><td><span class="sevdot" style="background:{colour}"></span>'
@@ -350,7 +401,7 @@ def _escalations(escalations: list) -> str:
             f'<td class="mono">{esc(e["subjectRef"])}</td>'
             f'<td>{esc(SECTION_TITLE.get(e.get("section"), e.get("section", "")))}</td>'
             f'<td class="mono">{esc(e["trigger"])}</td>'
-            f'<td>{esc(ev.get("detail") or "")}'
+            f'<td>{esc(ev)}'
             f'<span class="from">since {esc(e.get("since") or "—")}</span></td></tr>')
     return (f'<table class="esc"><thead><tr><th>Severity</th><th>Ref</th><th>Section</th>'
             f'<th>Trigger</th><th>What fired it</th></tr></thead><tbody>{rows}</tbody></table>'
@@ -622,6 +673,10 @@ def build_pptx(pack: dict, path: str, mode: str = "full") -> None:
                PX.INK if tl else PX.MUTED, False)],
              eyebrow=eyebrow)
 
+    # Declared here rather than beside the management actions, because board mode now moves
+    # two kinds of slide and both have to reach the same list. See the escalation block below.
+    appendix = []
+
     if pack["headlines"]:
         # Tiles rather than bullets, so a figure can carry the band its producer
         # declared. A figure with no band renders in ink and takes no rule and no
@@ -650,14 +705,32 @@ def build_pptx(pack: dict, path: str, mode: str = "full") -> None:
             more = "" if len(escalated) <= 5 else f" ({i // 5 + 1})"
             paras = []
             for e in chunk:
-                ev = e.get("evidence") or {}
+                # Same shape rule as the HTML path, through the same function — see
+                # evidence_text(). The deck was the second call site that assumed a dict,
+                # and it is only reachable after the HTML path, which is why one crash hid
+                # two.
+                ev = evidence_text(e.get("evidence"))
                 # Severity in the band's TEXT colour, never its fill: this is a light slide,
                 # and the fills measure 1.5-2.6:1 there. verify() enforces it.
                 paras.append((f"{e['severity'].upper()}  {e['subjectRef']}  ·  "
                               f"{e['trigger']}", 1250, True,
                               PX.SEV_TEXT.get(e["severity"], PX.INK), False))
-                paras.append((ev.get("detail") or "", 1050, False, PX.MUTED, False))
-            deck.add(f"What escalated{more}", paras, eyebrow=eyebrow)
+                paras.append((ev, 1050, False, PX.MUTED, False))
+            title = f"What escalated{more}"
+            # In board mode the FIRST page stays in the core and the continuations move to the
+            # appendix. Escalations arrive sorted worst-first by the assembler, so page one is
+            # the worst five and moving pages two onward is not a judgement about which matter
+            # — it is the same MOVES-NEVER-DROPS rule already applied to item detail, applied
+            # to the other list that grows without limit.
+            #
+            # It became necessary when the specimen went from five sections to seven: 28
+            # escalations is six slides, and a board core of 23 is not a board core. Nothing
+            # about a board sitting's attention got longer because the product gained two
+            # producers, so the deck is what has to give, not the length rule.
+            if mode == "board" and i >= 5:
+                appendix.append((title, paras))
+            else:
+                deck.add(title, paras, eyebrow=eyebrow)
     else:
         deck.add("What escalated",
                  [("Nothing escalated. No section reported a band crossing, a sustained "
@@ -683,8 +756,8 @@ def build_pptx(pack: dict, path: str, mode: str = "full") -> None:
     #
     # In board mode they move to the appendix on the same reasoning taken one step further:
     # they are not for board decision at all, so they are not core to a board meeting. They
-    # are still in the file, in full.
-    appendix = []
+    # are still in the file, in full. (`appendix` is declared above the figures, because the
+    # escalation continuations reach it first.)
     for i in range(0, len(management_asks), 5):
         chunk = management_asks[i:i + 5]
         more = "" if len(management_asks) <= 5 else f" ({i // 5 + 1})"
@@ -748,7 +821,9 @@ def build_pptx(pack: dict, path: str, mode: str = "full") -> None:
     # of wondering whether it was cut.
     if appendix:
         deck.section("Appendix",
-                     "Item detail and management actions, moved out of the main sequence. "
+                     "Item detail, management actions, and escalations beyond the first "
+                     "five — which arrive worst-first, so the five in the main sequence are "
+                     "the five that matter most. "
                      "Nothing has been removed — this is the same content the full deck "
                      "carries inline.")
         for title, rows in appendix:

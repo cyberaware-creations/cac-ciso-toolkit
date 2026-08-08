@@ -293,11 +293,11 @@ the import — and hands it to **every producer that declares it reads one.** A 
 not is never given the flag: it would exit on an unrecognised argument and the whole section
 would drop off the pack, which is strictly worse than not narrowing.
 
-Today that is **all five** — `exceptions`, `incident`, `metrics`, `posture`, `risk` — and the
-provenance page says so in as many words:
+Today that is **all seven** — `ai`, `exceptions`, `incident`, `metrics`, `posture`, `risk`,
+`vendor` — and the provenance page says so in as many words:
 
-> *the applicability profile narrowed every section in this pack (exceptions, incident, metrics,
-> posture, risk); none asked a question the profile had ruled out*
+> *the applicability profile narrowed every section in this pack (ai, exceptions, incident,
+> metrics, posture, risk, vendor); none asked a question the profile had ruled out*
 
 `board-pack` is not itself on that list, and never will be. It exports the profile and
 distributes it; it owns no question set of its own to narrow, because it owns no data. Until a
