@@ -21,6 +21,44 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.41.2 — 2026-08-08
+
+**The V6 routing miss, fixed at its cause.** The first scored routing run found that *"does our
+MSA with Fabrikam actually commit them to a breach notification window?"* reached **no skill at
+all** — the session searched Drive and Dropbox for the contract, was blocked, and then reasoned
+about typical notification windows from general knowledge. That last part is the freelancing
+this register exists to replace, and it is the answer a CISO is most likely to act on wrongly.
+
+The description already contained the phrase *"check what a contract commits a provider to"*,
+buried at the end of a long list. That was not enough, and the reason is worth recording: the
+prompt is shaped like a question about **a document the user has**, so the session went looking
+for the document rather than for a register.
+
+- **The description now leads with both jobs** — record an arrangement, and *interrogate* one
+  already recorded — and carries the nouns people actually type: MSA, master services agreement,
+  DPA, security addendum, breach notification window, audit rights.
+- **It says explicitly that the skill is for the case where the contract cannot be found**,
+  because that is when generalising is most tempting and least useful.
+- **A new SKILL.md section answers that question in order**: check the register, refuse to
+  generalise, emit the battery question, tier the document when it arrives, and record the
+  arrangement if it was never there. An MSA is T2 and may satisfy; a trust page saying the same
+  thing is T4 and satisfies nothing.
+
+**Also — `no-regime-dates` was chasing verbs, and verbs leak.** The guard matched
+`applies from` and missed `apply from` — one letter of subject-verb agreement — and missed
+`take effect on` and `begin` outright. All three are what a well-meaning author actually
+writes. The vocabulary leads with NOUNS now — obligation, duty, requirement, deadline, grace
+period, enforcement, penalty — because those do not conjugate, and a sentence carrying one
+alongside a year is making a claim about law. Ten phrasings are registered as the guard's own
+probe: the six the audit found, and four negatives that must keep passing (a period end, an
+assessment date, a report window, a cadence), because a guard that cries wolf over fixture
+dates is one somebody switches off. A second mutant plants a phrasing the first vocabulary
+would have let through.
+
+No engine change in either. Descriptions, instructions and an eval.
+
+---
+
 ## v0.41.1 — 2026-08-08
 
 **The routing checklists are scored, and the scorer that scores them was broken.**
