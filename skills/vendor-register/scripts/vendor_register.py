@@ -607,30 +607,39 @@ def criticality_of(rec: dict) -> str:
 # a date, and degrades honestly when the answer is "none". `evals/questions.sh` fails on the
 # attestation shapes, so this is enforced rather than remembered.
 
+# Questions carry a stable ID, and the id is what `ask` subtracts against. Matching a
+# satisfied requirement to an open question by comparing prose would be fuzzy in exactly the
+# place that must not be: a near-miss would either drop a question nobody answered or keep one
+# that was. `propose --requirement contract-terms.incident-notice` links a reading to the
+# question it answers; free text is still accepted and simply subtracts nothing.
 BATTERIES = (
     {
         "id": "contract-terms",
         "gvsc": ["GV.SC-05"],
         "sr": ["SR-3"],
         "appliesWhen": {},
-        "questions": [
-            "What is the executed document, and which clause, that commits this provider to "
-            "notifying us of a security incident — and within what period?",
-            "Which signed document sets out our right to audit or to receive assurance "
-            "reports, and when was it last exercised?",
-        ],
+        "questions": (
+            {"id": "incident-notice",
+             "ask": "What is the executed document, and which clause, that commits this "
+                    "provider to notifying us of a security incident — and within what period?"},
+            {"id": "audit-right",
+             "ask": "Which signed document sets out our right to audit or to receive assurance "
+                    "reports, and when was it last exercised?"},
+        ),
     },
     {
         "id": "assurance",
         "gvsc": ["GV.SC-06", "GV.SC-07"],
         "sr": ["SR-6"],
         "appliesWhen": {},
-        "questions": [
-            "What is the most recent independent assurance report for the service we consume, "
-            "what period does it cover, and what did it exclude from scope?",
-            "What findings were open at the end of that period, and what evidence shows their "
-            "current state?",
-        ],
+        "questions": (
+            {"id": "latest-report",
+             "ask": "What is the most recent independent assurance report for the service we "
+                    "consume, what period does it cover, and what did it exclude from scope?"},
+            {"id": "open-findings",
+             "ask": "What findings were open at the end of that period, and what evidence "
+                    "shows their current state?"},
+        ),
     },
     {
         "id": "exit",
@@ -638,37 +647,54 @@ BATTERIES = (
         "sr": ["SR-12"],
         # Top of the scale only. An exit plan for a marketing sandbox is paperwork.
         "appliesWhen": {"criticalityAtLeast": "TOP"},
-        "questions": [
-            "What is the dated record of the last time exit from this provider was actually "
-            "exercised, rather than documented?",
-            "What evidence would show our data had been returned and then deleted, and how "
-            "long would producing it take?",
-        ],
+        "questions": (
+            {"id": "last-exercised",
+             "ask": "What is the dated record of the last time exit from this provider was "
+                    "actually exercised, rather than documented?"},
+            {"id": "deletion-evidence",
+             "ask": "What evidence would show our data had been returned and then deleted, and "
+                    "how long would producing it take?"},
+        ),
     },
     {
         "id": "subprocessors",
         "gvsc": ["GV.SC-07", "GV.SC-09"],
         "sr": ["SR-3"],
         "appliesWhen": {},
-        "questions": [
-            "What is the current dated list of subprocessors for this service, and how are we "
-            "notified before it changes?",
-        ],
+        "questions": (
+            {"id": "current-list",
+             "ask": "What is the current dated list of subprocessors for this service, and how "
+                    "are we notified before it changes?"},
+        ),
     },
     {
         "id": "ai-overlay",
         "gvsc": ["GV.SC-07"],
         "sr": ["SR-3"],
-        # Gated on a flag that may be declared on the ARRANGEMENT or on the org profile.
+        # Gated on a flag declarable on the ARRANGEMENT or on the org profile.
         "appliesWhen": {"flag": "aiInUse"},
-        "questions": [
-            "What documentation states which models process our data, and when was it last "
-            "updated?",
-            "What evidence shows whether our data is used to train or fine-tune a model, and "
-            "what dated commitment covers that?",
-        ],
+        "questions": (
+            {"id": "models-in-scope",
+             "ask": "What documentation states which models process our data, and when was it "
+                    "last updated?"},
+            {"id": "training-use",
+             "ask": "What evidence shows whether our data is used to train or fine-tune a "
+                    "model, and what dated commitment covers that?"},
+        ),
     },
 )
+
+
+def question_key(battery: dict, question: dict) -> str:
+    return "%s.%s" % (battery["id"], question["id"])
+
+
+def all_questions(batteries=None) -> list:
+    out = []
+    for battery in (batteries if batteries is not None else BATTERIES):
+        for q in battery["questions"]:
+            out.append((battery, q))
+    return out
 
 
 def _battery_applies(battery: dict, rec: dict, store: dict, context: dict):
@@ -849,6 +875,105 @@ def evidence_status(ev: dict, today: str = "", grace: int = 365) -> str:
     if age <= 0:
         return "current"          # the period has not closed yet
     return "in-grace" if age <= int(grace) else "expired"
+
+
+# --- Generated questions ------------------------------------------------------
+#
+# The whole speed argument, and the reason this is not a questionnaire product.
+#
+# Take the batteries the criticality gate and the overlays left applicable, subtract what T1
+# and T2 evidence genuinely covers, and emit WHAT REMAINS OPEN. Read a SOC 2 properly and the
+# set might be four questions instead of forty, which is the difference between a decision this
+# week and a decision next quarter. A full questionnaire is simply the degenerate case where
+# the vendor supplied nothing — same code path, no special casing.
+#
+# T3 and T4 subtract NOTHING. That is the product claim, and `evals/questions.sh` asserts it in
+# the only form that matters: the same three requirements covered by a T1 shrink the set, and
+# covered by a T3 do not.
+
+NOTHING_OPEN = ("Nothing is open for this arrangement at its current criticality. Every "
+                "applicable question is covered by evidence that can satisfy it.")
+"""Printed when the subtraction leaves nothing.
+
+An empty result must never be an empty string. A blank page and "we have asked everything and
+it is all evidenced" look identical on a screen and mean opposite things, and the blank one is
+the one somebody forwards as though it were the second.
+"""
+
+
+def ask(store: dict, aid: str, context: dict = None, today: str = "") -> dict:
+    """What is still worth asking about this arrangement, and why each question is being asked.
+
+    A question survives when nothing that CAN satisfy it does. A question whose requirement is
+    covered by evidence that has slipped into grace is still emitted, marked `re-confirm`
+    rather than `open`: the answer was good and is ageing, which is a different request from
+    one nobody has ever answered, and collapsing the two would either nag or go quiet.
+    """
+    today = today or utc_today()
+    rec = find_arrangement(store, aid)
+    grace = int(store["settings"].get("evidenceGraceDays") or 365)
+    narrowed = batteries_for(rec, store, context or {})
+
+    # What a satisfying tier actually covers, keyed by the question it answers. Only
+    # requirements closed by T1/T2 count — the tier rule is not re-implemented here, it is
+    # read off SATISFYING_TIERS, so there is one definition of what may close anything.
+    covered = {}
+    for req in (rec.get("requirements") or []):
+        if not req.get("met"):
+            continue
+        key = str(req.get("requirement") or "")
+        ev_id = str(req.get("evidenceRef") or "")
+        try:
+            ev = find_evidence(rec, ev_id) if ev_id else None
+        except Refusal:
+            ev = None
+        if not ev or ev["tier"] not in SATISFYING_TIERS:
+            continue
+        status = evidence_status(ev, today, grace)
+        if status == "expired":
+            continue          # covered by something that has run out is not covered
+        # A question answered twice keeps the WORSE standing, so ageing evidence cannot be
+        # masked by a fresher artifact answering a different part of the same question.
+        prior = covered.get(key)
+        if prior is None or (prior["status"] == "current" and status == "in-grace"):
+            covered[key] = {"status": status, "evidence": ev}
+
+    questions, reconfirm = [], []
+    for battery, q in all_questions(narrowed["applied"]):
+        key = question_key(battery, q)
+        hit = covered.get(key)
+        entry = {
+            "key": key,
+            "ask": q["ask"],
+            "battery": battery["id"],
+            "gvsc": list(battery.get("gvsc") or []),
+            "sr": list(battery.get("sr") or []),
+        }
+        if hit is None:
+            entry["status"] = "open"
+            # The GV.SC reference is printed alongside by every caller, so naming it here
+            # too produced "against GV.SC-05 (GV.SC-05)" on the page.
+            entry["why"] = "no evidence that can satisfy this has been recorded"
+            questions.append(entry)
+        elif hit["status"] == "in-grace":
+            entry["status"] = "re-confirm"
+            entry["why"] = ("covered by %s (%s), whose period ended %s and is now in grace"
+                            % (hit["evidence"]["id"], hit["evidence"]["kind"],
+                               hit["evidence"]["periodEnd"]))
+            reconfirm.append(entry)
+    out = {
+        "arrangement": aid,
+        "asOf": today,
+        "criticality": criticality_of(rec),
+        "questions": questions + reconfirm,
+        "open": len(questions),
+        "reConfirm": len(reconfirm),
+        "skipped": narrowed["skipped"],
+        "batteriesApplied": [b["id"] for b in narrowed["applied"]],
+    }
+    if not out["questions"]:
+        out["note"] = NOTHING_OPEN
+    return out
 
 
 # --- The Layer A / Layer B boundary -------------------------------------------
@@ -1828,12 +1953,16 @@ def _cmd_self_test(_args):
         # Every shipped question names a GV.SC reference and asks for EVIDENCE, never an
         # attestation. "Do you encrypt at rest?" is worthless; every vendor answers yes.
         ATTESTATION = re.compile(r"^(do|are|is|does|have|has|can|will) ", re.I)
+        seen_keys = set()
         for battery in BATTERIES:
             ok(battery.get("gvsc"), "battery %r names a GV.SC reference" % battery["id"])
             for q in battery["questions"]:
-                ok(not ATTESTATION.match(q),
+                ok(not ATTESTATION.match(q["ask"]),
                    "battery %r asks for evidence, not an attestation: %r"
-                   % (battery["id"], q[:44]))
+                   % (battery["id"], q["ask"][:44]))
+                key = question_key(battery, q)
+                ok(key not in seen_keys, "question key %r is unique across the core" % key)
+                seen_keys.add(key)
 
         bt_store = new_store("Battery Ltd")
         add_vendor(bt_store, "Some Provider")
@@ -1969,6 +2098,94 @@ def _cmd_self_test(_args):
                  if e["trigger"] == "unconfirmed-proposals"]
         eq(len(stale), 1, "beyond it, exactly one record — not one per proposal")
         ok("1 proposal" in str(at(stale, 0, "evidence")), "naming how many are waiting")
+
+        # --- P2 T9: the subtraction -------------------------------------------
+        def _askstore(level="high"):
+            st = new_store("Ask Ltd")
+            add_vendor(st, "Contoso Cloud")
+            add_arrangement(st, "V-001", "hosting", "CTO", supports="CRM")
+            classify(st, "VA-001", ctx, confirm=level, by="D. Galleyne")
+            return st, st["arrangements"][0]
+
+        def _cover(st, keys, tier="T1", period_end="2026-12-31"):
+            """Close `keys` with an artifact of `tier`, through the real acts."""
+            ev = ingest(st, "VA-001", "soc2-type2" if tier == "T1" else "questionnaire",
+                        tier, "supplied by the vendor",
+                        scope="the hosting platform" if tier == "T1" else "",
+                        period_start="2025-01-01" if tier == "T1" else "",
+                        period_end=period_end if tier == "T1" else "")
+            for key in keys:
+                if tier in SATISFYING_TIERS:
+                    pr = propose(st, "VA-001", key, ev["id"], "cited passage for %s" % key)
+                    assess(st, "VA-001", "D. Galleyne", on="2026-01-05", confirm=[pr["id"]])
+                else:
+                    # A T3 cannot be proposed against at all, which IS the point. Record the
+                    # closure the only other way a store could carry one, so the check below
+                    # measures the tier rule rather than the refusal that precedes it.
+                    st["arrangements"][0].setdefault("requirements", []).append(
+                        {"requirement": key, "met": True, "evidenceRef": ev["id"],
+                         "citation": "their trust page", "checkedBy": "someone",
+                         "checkedOn": "2026-01-05"})
+            return ev
+
+        # 1. No evidence at all: every applicable question, and the count is the battery total.
+        st, rec_a = _askstore("high")
+        applied = batteries_for(rec_a, st, None)["applied"]
+        expected = sum(len(b["questions"]) for b in applied)
+        res = ask(st, "VA-001", None, today="2026-02-01")
+        eq(res["open"], expected, "with no evidence, every applicable question is open")
+        eq(res["reConfirm"], 0, "and nothing is a re-confirmation")
+        ok(all(q["gvsc"] for q in res["questions"]),
+           "every question names the GV.SC outcome it serves")
+        ok(all(q["why"] for q in res["questions"]),
+           "and says why it is being asked")
+
+        # 2. A T1 covering three questions removes exactly those three.
+        st, rec_b = _askstore("high")
+        three = ["contract-terms.incident-notice", "assurance.latest-report",
+                 "subprocessors.current-list"]
+        _cover(st, three, tier="T1")
+        res = ask(st, "VA-001", None, today="2026-02-01")
+        keys = {q["key"] for q in res["questions"]}
+        eq(res["open"], expected - 3, "a T1 covering three questions removes exactly three")
+        ok(not (keys & set(three)), "...and it is those three that are gone")
+        eq(res["reConfirm"], 0, "and none of them came back as a re-confirmation")
+
+        # 3. THE PRODUCT CLAIM. The same three, covered by a T3, remove nothing.
+        st, rec_c = _askstore("high")
+        _cover(st, three, tier="T3")
+        res_t3 = ask(st, "VA-001", None, today="2026-02-01")
+        eq(res_t3["open"], expected,
+           "the same three covered by a T3 remove NOTHING — a trust page closes no question")
+        ok(set(three) <= {q["key"] for q in res_t3["questions"]},
+           "...and all three are still being asked")
+        ok(res_t3["open"] > (expected - 3),
+           "so reading a real report shrinks the set and reading marketing copy does not")
+
+        # 4. Evidence that has slipped into grace is re-confirmed, not silently dropped.
+        st, rec_d = _askstore("high")
+        _cover(st, three, tier="T1", period_end="2025-12-31")
+        res = ask(st, "VA-001", None, today="2026-06-01")
+        eq(res["reConfirm"], 3, "evidence in grace produces re-confirmation questions")
+        eq(res["open"], expected - 3, "which are not counted as never-answered")
+        grace_q = [q for q in res["questions"] if q["status"] == "re-confirm"]
+        ok(all("in grace" in q["why"] for q in grace_q),
+           "and each says the answer is ageing rather than missing")
+        # Past grace it is not coverage at all, and the question is open again.
+        res = ask(st, "VA-001", None, today="2027-06-01")
+        eq(res["open"], expected, "past grace the question is open again, not re-confirm")
+        eq(res["reConfirm"], 0, "because expired evidence covers nothing")
+
+        # 5. Everything covered: an explicit sentence, never an empty string.
+        st, rec_e = _askstore("high")
+        every = [question_key(b, q)
+                 for b in batteries_for(rec_e, st, None)["applied"] for q in b["questions"]]
+        _cover(st, every, tier="T1")
+        res = ask(st, "VA-001", None, today="2026-02-01")
+        eq(res["questions"], [], "with everything covered there are no questions")
+        eq(res.get("note"), NOTHING_OPEN,
+           "...and the result SAYS so — a blank page and 'all evidenced' look identical "
+           "on screen and mean opposite things")
 
         # --- T14: the consolidation guard -------------------------------------
         multi = new_store("Group Plc")
@@ -2125,6 +2342,41 @@ def _cmd_assess(args) -> int:
     print("%s  assessed %s by %s — %d confirmed, %d rejected"
           % (args.arrangement, act["on"], act["by"],
              len(act["confirmed"]), len(act["rejected"])))
+    return 0
+
+
+def _cmd_ask(args) -> int:
+    store = load(args.store)
+    out = ask(store, args.arrangement, _ctx(args), today=args.today)
+    if args.format == "json":
+        json.dump(out, sys.stdout, indent=2, ensure_ascii=False)
+        sys.stdout.write("\n")
+        return 0
+    md = args.format == "md"
+    head = "%s — %s criticality, as at %s" % (out["arrangement"], out["criticality"],
+                                              out["asOf"])
+    print(("## " + head) if md else head)
+    print()
+    if not out["questions"]:
+        # Never an empty page. A blank result and "all evidenced" look identical on screen.
+        print(out["note"])
+    else:
+        print("%d open, %d for re-confirmation:" % (out["open"], out["reConfirm"]))
+        print()
+        for q in out["questions"]:
+            bullet = "- " if md else "  "
+            flag = "" if q["status"] == "open" else "  [re-confirm]"
+            print("%s%s%s" % (bullet, q["ask"], flag))
+            print("%s  why: %s (%s)" % ("  " if md else "    ", q["why"],
+                                        ", ".join(q["gvsc"])))
+            print()
+    for skip in out["skipped"]:
+        # §2.4 verbatim: an assessor must be able to tell a question ruled out from one
+        # nobody asked.
+        print("not asked — %s: %s%s"
+              % (skip["battery"], skip["reason"],
+                 (" (declared by %s on %s)" % (skip["declaredBy"], skip["declaredOn"]))
+                 if skip.get("declaredBy") else " (nobody is recorded as declaring this)"))
     return 0
 
 
@@ -2304,6 +2556,13 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--why", default="", help="required with --reject")
     sp.add_argument("--note", default="")
     sp.set_defaults(fn=_cmd_assess)
+
+    sp = store_arg(sub.add_parser("ask"))
+    sp.add_argument("--arrangement", required=True)
+    sp.add_argument("--context", default="")
+    sp.add_argument("--today", default="")
+    sp.add_argument("--format", default="text", choices=["text", "json", "md"])
+    sp.set_defaults(fn=_cmd_ask)
 
     sp = store_arg(sub.add_parser("review-requirements"))
     sp.add_argument("--arrangement", required=True)
