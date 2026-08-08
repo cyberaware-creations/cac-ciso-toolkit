@@ -1575,6 +1575,18 @@ def assemble(manifest: dict, skills_root: str = None, with_stores: bool = True) 
         missing.append("no through-line sidecar was supplied; the pack opens on a "
                        "placeholder rather than a synthesis")
     declared = [e["section"] for e in manifest["sections"]]
+    # `incident` is the ONLY exemption, and it is exempt because a quarter with no incident is
+    # a normal quarter — its own warning below says so.
+    #
+    # `vendor` is deliberately NOT exempt, and this is a decision rather than an oversight.
+    # Adding it in v0.39.0 meant a pack with no vendor sidecar gained this line, which broke a
+    # byte-identity check the implementation plan had listed. Exempting it would have restored
+    # that check by making an entire board section silently absent — a reader could not then
+    # tell "third parties were considered and there are none" from "nobody asked", which is the
+    # CAC-AP-1 §2.2 failure wearing different clothes. Third-party risk is a board section in
+    # its own right, so its absence reads exactly like a missing `risk` or `posture` section.
+    #
+    # Pinned by an assembly check, so the decision cannot be undone by someone tidying up.
     for name in SECTION_ORDER[manifest["audience"]]:
         if name not in declared and name != "incident":
             missing.append(f"the {name!r} section is not in this pack")
