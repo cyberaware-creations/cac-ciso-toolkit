@@ -47,7 +47,7 @@ snapshots so the register can report change over time without any external store
   "id": "R-001",
   "priority": 1,
   "title": "Short name",
-  "description": "If <event>, then <consequence> (NISTIR 8286 event statement).",
+  "description": "If <event>, then <consequence> — CAC house format, carrying 8286A r1's scenario elements.",
   "category": "PR",
   "theme": "identity",
   "owner": "Role or name",
@@ -72,7 +72,7 @@ snapshots so the register can report change over time without any external store
   build — a register still carrying it is migrated to both on load. Full behaviour:
   `references/csf-import.md`.
 - `acceptance` — populated when a risk is accepted (see Structured acceptance); otherwise `null`.
-- `priority` — optional manual board-ranking (NISTIR 8286 Priority). It is *not* used by scoring —
+- `priority` — optional manual board-ranking (NISTIR 8286r1 Table 1, `Priority`). It is *not* used by scoring —
   banding is always derived from exposure — so it never affects the heat map or over-appetite flags;
   it is purely an author-assigned ordering hint.
 - Everything else is as in v1: `id` `R-###`, `response.type` ∈ accept/transfer/mitigate/avoid,

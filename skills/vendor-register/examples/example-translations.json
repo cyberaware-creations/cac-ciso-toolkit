@@ -9,6 +9,13 @@
     "VA-003": "The marketing attribution sandbox supports nothing we have declared, so its criticality is untraced rather than low. A fourth party was introduced into its chain in June without notice, which is the kind of change a low-criticality arrangement has no cadence to catch.",
     "VA-005": "Replacement warehouse routing, opened when the Tailspin arrangement was retired in March. The predecessor's data return and deletion are closed and recorded against it. This one has not yet been traced to a workflow."
   },
+  "opportunities": [
+    {
+      "text": "A tested exit on the plant historian is what makes the Dublin renewal negotiable: today the supplier knows it holds the group's single production dependency and that we have never demonstrated leaving.",
+      "cites": "goal:Close the Dublin authorisation year without a supervisory finding",
+      "gvsc": "GV.RM-07"
+    }
+  ],
   "decisions": [
     {
       "text": "Fund a tested failover for the plant historian, or record the board's acceptance that the group's single production dependency has an untested exit for a further year.",

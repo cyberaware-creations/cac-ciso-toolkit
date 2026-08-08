@@ -21,6 +21,101 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.43.0 — 2026-08-08
+
+**A release-readiness test against v0.42.0 returned a no-go, and it was right.** Everything it
+found is fixed here, together with the board-outcome work the same review recommended.
+
+### The blocker: two of seven sections could not reach a page
+
+`render_pack.py` assumed every escalation's `evidence` was a dict with a `detail` field. CAC-EL-1
+fixes the six KEYS an escalation carries and deliberately not the TYPE of `evidence` — risk,
+metrics and exceptions emit a structured delta because a band crossing is a movement and both
+ends of it are the fact, while vendor and AI emit a finished sentence. A pack carrying either of
+the newer sections assembled cleanly and then died in the HTML path, which runs first, so a
+PowerPoint-only request was blocked by a deliverable it never asked for.
+
+**The cause was one level further back, and it was the more useful finding.** The specimen
+manifest demonstrated the five sections that existed when it was written, and it is also the
+fixture every board-pack eval builds on — so nothing assembled `vendor` or `ai` from it. Behind
+that sat four more defects nobody had a way to see: the renderer's `SECTION_TITLE` never gained
+the two new sections, so five headings on both deliverables read as the bare key `vendor` and
+`ai`; neither section stated the population its counts were drawn from; the escalation
+provenance check covered four producers of six; and seven sections put the board deck's core at
+23 slides. The specimen is seven sections now, and a new `mixed-evidence.sh` renders vendor-only,
+AI-only and all-seven packs to both deliverables — the acceptance test the report asked for.
+
+### The weekly example depended on where you were standing
+
+`attention-surface` resolved relative source paths against the process working directory. Run
+from its own `examples/` the shipped store read all seven producers; run from the repository
+root it reported all seven NOT READ. The worst possible failure for this skill in particular:
+reporting an unreadable source is its correct behaviour, so a page of NOT READ looks deliberate.
+The feature that makes absence visible is what made the defect invisible. Paths now resolve from
+the store.
+
+### C-1 — the translation contract's own requirements, enforced
+
+Every `board-safety.sh` in the suite tested for **absence** — no confidence vocabulary, no
+reworded score. None tested for **presence**, so a sidecar reading *"Patch compliance fell to
+88%."* passed every test in the repository: a named thing, no consequence, no ask.
+
+A shared checker now asserts that every item sentence carries a consequence and every
+`decisions[]` entry ends on a decision, wired into all nine board-safety suites. The vocabulary
+is data. The floor is 80% **and always tolerates one miss**, because on a four-item section an
+80% floor is a 100% gate wearing a percentage — and every rejection names its sentence, since a
+rejection a reader cannot act on is one they will disable. Registered under CAC-GP-1 with one
+mutation per half; 9 guards, 18 halves.
+
+### C-2 — positive risk, grounded (`GV.RM-07`)
+
+CSF 2.0 asks that *"strategic opportunities (i.e., positive risks) are characterized and are
+included in organizational cybersecurity risk discussions."* The suite had no element for it.
+
+Sidecars may now carry an `opportunities` array, additive within `contractVersion: 1`. **An
+entry must cite a declared strategic goal or crown-jewel dependency from `business-context`, and
+the assembler refuses one that does not** — refused, not warned. That single rule is what
+separates positive risk from marketing copy, and it is enforced at the contract rather than only
+in guidance. It renders as its own block in patina, never blended into a risk sentence and never
+in RAG green; absence renders nothing at all, with no "none identified" placeholder to
+manufacture pressure to fill. This was correct to omit until `business-context` shipped, because
+until then there was nothing for an upside claim to cite.
+
+### Citations
+
+Every NISTIR 8286 reference now points at the February 2025 revisions, and the if-then
+attribution is corrected. `risk-register` said *"8286 wants this if-then framing"*; 8286A r1 §2.2
+prescribes a four-part scenario and no template, and 8286r1's own example is cause-and-effect
+prose. If-then stays — a topic cannot be scored — as the CAC house format carrying 8286A r1's
+scenario elements. Documentation only; no behaviour changed.
+
+### The archetype layer — depth, never scope
+
+The same A/B test that found the applicability objects byte-identical across a USD 5m and a USD
+50bn organisation was **right to call that safe**: size does not create a legal obligation. It
+also meant the toolkit had nothing to say about size, and size genuinely changes how much
+assurance is proportionate.
+
+`business-context archetype` now returns advice on seven dimensions — evidence depth, review
+cadence, role separation, metrics breadth, third-party coverage, AI governance depth, board-pack
+density — in its own `--context` payload key, never inside `applicability`. Absence asks **more**
+(no size declared recommends the full depth, not the smallest), the higher of the two declared
+bands wins, and an unrecognised headcount string contributes nothing rather than being coerced.
+
+`archetype-advisory.sh` runs the release test's own A/B on every push, because "a small
+organisation probably does not need the AI battery" is one plausible line away at any time and
+would be an exemption nobody declared.
+
+### Also
+
+`render_context.py` no longer claims a "five-value enum"; the Codex short description names all
+eleven skills; and both manifests gained thirteen vendor keywords, without which the one skill a
+reader would search for as "TPRM" was unfindable.
+
+**Not done, and named rather than quietly skipped:** the empty `screenshots` list in the Codex
+manifest. Choosing what a listing shows is a design judgement about positioning, and inventing
+one here would put binary assets in the repo that nobody had reviewed.
+
 ## v0.42.3 — 2026-08-08
 
 **The three remaining red cases were expectations, not skills — and one of them turned out not to

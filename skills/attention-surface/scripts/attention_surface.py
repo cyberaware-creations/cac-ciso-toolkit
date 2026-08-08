@@ -394,8 +394,17 @@ def evidence_text(evidence) -> str:
                             ("against %s" % baseline) if baseline else "") if b]
         if bits:
             return "%s%s" % (bits[0], (" (%s)" % "; ".join(bits[1:])) if bits[1:] else "")
-        # Nothing recognised inside it. Say so rather than printing the object: a reader who
-        # sees a dict on a page cannot tell a shape change from a data problem.
+        # An EMPTY dict is empty evidence and renders as nothing; there is no shape question
+        # to report. A dict carrying keys this function does not recognise is different — say
+        # so and name them, rather than printing the object, because a reader who sees a dict
+        # on a page cannot tell a shape change from a data problem.
+        #
+        # `board-pack`'s renderer holds the twin of this function, and the two agree
+        # deliberately: the same escalation read by the weekly surface and by the quarterly
+        # pack has to produce the same sentence, or two consumers of one contract describe
+        # one fact differently.
+        if not evidence:
+            return ""
         return "(structured evidence with no `detail`: %s)" % ", ".join(sorted(evidence))
     return str(evidence or "")
 
@@ -412,7 +421,32 @@ def item_key(item: dict) -> str:
                          item.get("subjectRef") or "")
 
 
-def collect(store: dict, today: str = "", context: str = "", skills_root: str = "") -> dict:
+def resolve_source(source: str, store_path: str = "") -> str:
+    """A relative source path resolves from the STORE, not from the shell's cwd.
+
+    `add-source` records the path as typed, which is right — a `.att` a person can read and
+    edit is worth more than one holding absolute paths from whoever ran the command. But
+    resolving it against the process working directory made the shipped example depend on
+    where you stood: run from `examples/` it read all seven producers and returned 28 items;
+    run from the repository root, the natural place, it reported all seven NOT READ.
+
+    That is the worst possible failure for THIS skill in particular. Every other surface in
+    the suite can say "no such file" and be understood. This one turns an unreadable source
+    into a page of NOT READ, which is honest and correct — and a first-time reader has no way
+    to tell a working-directory mistake from a genuinely unreachable register. The feature
+    that makes absence visible is what made the bug hard to see.
+
+    Absolute paths pass through untouched, and so does everything when the store path is not
+    known — the fallback is the old behaviour rather than a guess.
+    """
+    text = str(source or "")
+    if not text or os.path.isabs(text) or not store_path:
+        return text
+    return os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(store_path)), text))
+
+
+def collect(store: dict, today: str = "", context: str = "", skills_root: str = "",
+            store_path: str = "") -> dict:
     """Read every declared source and return the escalations, the failures, and the malformed.
 
     Three lists, because they are three different facts. A malformed item is not dropped: an
@@ -422,7 +456,8 @@ def collect(store: dict, today: str = "", context: str = "", skills_root: str = 
     today = today or utc_today()
     items, sources, malformed = [], [], []
     for skill in sorted(store["sources"]):
-        got = read_producer(skill, store["sources"][skill], today, context, skills_root)
+        got = read_producer(skill, resolve_source(store["sources"][skill], store_path),
+                            today, context, skills_root)
         sources.append({k: got[k] for k in ("skill", "store", "ok", "reason")})
         if not got["ok"]:
             continue
@@ -541,9 +576,9 @@ def record_review(store: dict, snapshot: dict, by: str, label: str = "",
 
 
 def review(store: dict, today: str = "", context: str = "", since: str = "",
-           skills_root: str = "", clusters=None) -> dict:
+           skills_root: str = "", clusters=None, store_path: str = "") -> dict:
     """The working view: clusters, ordered, with what changed since the last review."""
-    snapshot = collect(store, today, context, skills_root)
+    snapshot = collect(store, today, context, skills_root, store_path)
     cl = clusters or load_clusters()
     prior = last_review(store, since)
     grouped = group(snapshot["items"], cl, snapshot["asOf"])
@@ -816,6 +851,37 @@ def _cmd_self_test(_args):
                          skills_root=os.path.join(work, "no-skills"))["ok"], False,
            "and a missing engine is reported rather than raising")
 
+        # --- a relative source resolves from the STORE, not the shell ------------
+        # The shipped example declares `../../risk-register/examples/...`, which resolved
+        # against the process working directory: run from `examples/` it read all seven
+        # producers and returned 28 items; run from the repository root — the natural place —
+        # it reported all seven NOT READ. Both answers looked deliberate, because reporting an
+        # unreadable source IS this skill's correct behaviour. The feature that makes absence
+        # visible is what made the defect invisible, and an external release test found it.
+        deep = os.path.join(work, "nest", "deeper")
+        os.makedirs(deep, exist_ok=True)
+        att_path = os.path.join(deep, "w.att")
+        eq(resolve_source("../../example.rr", att_path),
+           os.path.normpath(os.path.join(work, "example.rr")),
+           "a relative source resolves from the directory holding the .att")
+        eq(resolve_source(path, att_path), path, "an absolute source passes through unchanged")
+        eq(resolve_source("x.rr", ""), "x.rr",
+           "and with no store path the old behaviour stands, rather than a guess")
+        # End to end against a REAL producer store, from a directory deliberately not the
+        # `.att`'s own — which is the case that was broken and the only one that proves it.
+        real_rr = os.path.join(default_skills_root(), "risk-register", "examples",
+                               "example-register-v2.rr")
+        if os.path.exists(real_rr):
+            rel_store = new_store("Relative Ltd")
+            rel_store["sources"]["risk-register"] = os.path.relpath(real_rr, deep)
+            save(att_path, rel_store)
+            eq([s["ok"] for s in collect(load(att_path), "2026-08-01",
+                                         store_path=att_path)["sources"]], [True],
+               "and a store read from elsewhere finds its own relative source")
+        else:
+            ok(False, "the risk-register example is missing; the end-to-end path went "
+                      "unchecked rather than silently passing")
+
         # --- malformed input is shown, not dropped -------------------------------
         st2 = new_store("Probe")
         st2["sources"]["risk-register"] = "unused"
@@ -871,7 +937,7 @@ def _cmd_add_source(args) -> int:
 def _cmd_review(args) -> int:
     store = load(args.store)
     out = review(store, today=args.today, context=args.context, since=args.since,
-                 skills_root=args.skills_root)
+                 skills_root=args.skills_root, store_path=args.store)
     if args.record:
         snapshot = {"asOf": out["asOf"], "items": out["_items"], "sources": out["sources"]}
         rec = record_review(store, snapshot, args.by, label=args.label, note=args.note)
@@ -890,7 +956,7 @@ def _cmd_review(args) -> int:
 def _cmd_brief(args) -> int:
     store = load(args.store)
     out = review(store, today=args.today, context=args.context,
-                 skills_root=args.skills_root)
+                 skills_root=args.skills_root, store_path=args.store)
     print(_text_brief(out))
     return 0
 

@@ -193,6 +193,45 @@ An auditor cannot otherwise tell a question that was correctly out of scope from
 asked. The full contract, written for skill authors implementing `--context`, is in
 `references/applicability-contract.md`.
 
+## The archetype layer — depth, never scope
+
+```bash
+python3 $E archetype context.biz
+```
+
+A release test held sector, jurisdictions, regulatory scope, AI, OT, data, cloud, vendors and
+concentration constant and changed **only** revenue (USD 5m → 50bn) and headcount (1–50 →
+100,000+). The applicability objects came back **byte-for-byte identical**.
+
+**That is correct and must stay correct.** Size does not create a legal obligation: a Fortune
+100 and an SMB with the same declared facts owe the same duties, and a profile that invented an
+exemption for a small company would be doing the exact thing CAC-AP-1 exists to prevent.
+
+It did mean the toolkit had nothing to say about size — and size genuinely changes how much
+assurance is proportionate. So there is a **second, explicitly non-regulatory layer**. It reads
+the declared size facts and returns advice on seven dimensions: evidence depth, review cadence,
+role separation, metrics breadth, third-party coverage, AI governance depth and board-pack
+density. It travels in its own `archetype` key in the `--context` payload, never inside
+`applicability`.
+
+| | |
+|---|---|
+| **Changes** | how much assurance is proportionate |
+| **Never changes** | applicability, materiality, any question set, any flag |
+
+Three rules, each under a check in `evals/archetype-advisory.sh`:
+
+- **Absence asks MORE.** No size declared yields `undeclared`, which recommends the full depth.
+  §2.2 applies to this register too — reading a missing revenue figure as "probably small"
+  would recommend a thin programme to whoever had not filled in the form.
+- **The higher of the two bands wins.** A 40-person company turning over USD 2bn is not a small
+  organisation, and neither is a 30,000-person company on thin margins.
+- **An unrecognised headcount string contributes nothing** rather than being coerced.
+  `headcountBand` is a free declaration, not an enum: this skill owns no org-size scale any
+  more than it owns a criticality scale.
+
+The bands and their advice are data, in `references/archetypes.json`.
+
 ## What this skill must not own
 
 One skill owns any given lifecycle (`CAC-EL-1 §1.1`). This is a supplier of facts and takes
