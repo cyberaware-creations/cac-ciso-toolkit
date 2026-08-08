@@ -288,6 +288,18 @@ jobs:
       - name: Decisions render (AI), on the floor
         run: PY="$(command -v python3)" ./skills/ai-register/evals/decisions-render.sh
 
+      # The attention surface. It owns no data, so its whole failure surface is what it
+      # fails to SHOW: an unmapped trigger vanishing, an unread source looking clean, a
+      # malformed item dropped. clusters.sh checks all three in both directions.
+      - name: Attention surface engine self-test, on the floor
+        run: python3 ./skills/attention-surface/scripts/attention_surface.py self-test
+
+      - name: No priority score, on the floor
+        run: PY="$(command -v python3)" ./skills/attention-surface/evals/no-priority-score.sh
+
+      - name: Clusters, absence and malformed items, on the floor
+        run: PY="$(command -v python3)" ./skills/attention-surface/evals/clusters.sh
+
       # CAC-GP-1. Every guard must FAIL when its defect is present, proved on each run rather
       # than once at authoring. Listed last because it re-runs each guard twice on a copy —
       # and listed at all because a guard that quietly stopped guarding prints `ok` forever.

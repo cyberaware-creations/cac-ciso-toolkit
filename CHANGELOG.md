@@ -21,6 +21,61 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.42.0 — 2026-08-08
+
+**`attention-surface`, skill #11 — the last in the sequence** business context → vendor → AI →
+attention surface. What needs the CISO *this week*, derived entirely from what every other skill
+already computes.
+
+Twenty-eight escalation triggers across seven producers, each computed, dated, evidenced and
+carrying a subject reference — and until now there was nowhere to look at them together on a
+working cadence. `board-pack` reads the same escalations quarterly, for a board. This reads them
+weekly, for the person who has to act.
+
+- **It owns no data and computes no status.** Every fact comes from a producer's store, read at
+  run time, with the producer named on the item. That discipline is what stops an attention list
+  becoming a thirty-first opinion.
+- **Grouped by decision, not by producer** — clocks running out, something moved under us,
+  nobody owns it, we disagree with ourselves, uncontrolled exposure, over tolerance. The mapping
+  is DATA in `references/clusters.json`; `evals/clusters.sh` asserts every trigger the shipped
+  producers can emit has a home, reading that list out of the producers' own source rather than
+  a hand-kept copy.
+- **Ordered without a score.** Severity as the producer declared it, then age, then subject
+  reference — three declared facts compared as a tuple, which is not arithmetic. A weighted
+  blend would be this skill's own opinion about what matters, and it is the only voice in the
+  room with no register behind it. Guarded both ways and registered under CAC-GP-1, which brings
+  the suite to **eight guards and sixteen halves**.
+- **What changed since you last looked**, keyed on producer + trigger + subject and deliberately
+  NOT on the evidence string — evidence rewords itself as clocks advance, so keying on it would
+  mark everything new every week, which is the same as marking nothing. `gone` is reported as
+  *no longer firing*, never as *resolved*: the trigger stopped, and this surface cannot tell a
+  fix from a changed record.
+- **No mute, no snooze, no acknowledgement in v1.** If volume proves unusable the fix is
+  threshold tuning at the producer — logged and visible. The shape an acknowledgement would have
+  to take is recorded in the engine (ordering only, attributed, expiring) so whoever adds it
+  inherits the constraints rather than reinventing them.
+- **Absence is visible.** A register that could not be read is reported as NOT READ, above
+  everything that looks like a result. A malformed escalation is shown rather than dropped.
+  `nist-csf` is refused as a source by name, with the reason: a gap against a Target is a
+  distance, not a clock.
+
+Found on the first live run against all seven producers, and fixed:
+
+- **The dict-repr leak, in a new consumer.** `risk-register`, `metrics-register` and
+  `exceptions-register` emit `evidence` as a structured delta — `{from, to, baseline, detail}` —
+  where `vendor-register` and `ai-register` emit a sentence. CAC-EL-1 fixes the six keys, not the
+  type. The first renderer printed the raw dict on the page, which is exactly the defect
+  `board-pack`'s `decisions-render.sh` exists for, reappearing because a shape was handled at a
+  call site instead of in one function.
+- **`no-priority-score.sh` flagged the engine's own `index` key** on its first run. It was a
+  trigger-to-cluster lookup, not a priority — and the guard was right that next to a rule
+  forbidding a computed number the word reads as one. Renamed `byTrigger`.
+- **An argparse `choices=` gate swallowed a refusal.** `add-source --skill nist-csf` failed with
+  a bare usage line, so the paragraph explaining why that skill is deliberately absent never
+  reached the person who needed it. A gate that fires earlier than the explanation hides it.
+
+---
+
 ## v0.41.3 — 2026-08-08
 
 **CAC-GP-1: the guards are now proved on every run, not once at authoring.**

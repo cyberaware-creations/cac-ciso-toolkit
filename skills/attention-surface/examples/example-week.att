@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "family": "attention-surface",
+  "meta": {
+    "orgName": "Northwind Manufacturing (fictional)",
+    "preparedBy": "R. Calder",
+    "asOf": "2026-08-07"
+  },
+  "sources": {
+    "risk-register": "../../risk-register/examples/example-register-v2.rr",
+    "metrics-register": "../../metrics-register/examples/example-metrics.mtr",
+    "exceptions-register": "../../exceptions-register/examples/example.exc",
+    "incident-materiality": "../../incident-materiality/examples/example-incident.inc",
+    "vendor-register": "../../vendor-register/examples/example-vendors.vnd",
+    "ai-register": "../../ai-register/examples/example-ai.air",
+    "business-context": "../../business-context/examples/example-org.biz"
+  },
+  "reviews": [
+    {
+      "on": "2026-07-31",
+      "ts": "2026-07-31T09:00:00+00:00",
+      "by": "R. Calder",
+      "label": "week 31",
+      "note": "Monday review, before the AI register was populated.",
+      "keys": [
+        "exceptions-register|revalidation-overdue|A-002",
+        "metrics-register|threshold-breached|M-006",
+        "risk-register|band-crossed|R-007",
+        "risk-register|sustained-drift|R-008",
+        "vendor-register|assessment-overdue|VA-001",
+        "vendor-register|assessment-overdue|VA-002",
+        "vendor-register|untraced|VA-003",
+        "vendor-register|untraced|VA-005"
+      ],
+      "sourcesRead": [
+        "business-context",
+        "exceptions-register",
+        "metrics-register",
+        "risk-register",
+        "vendor-register"
+      ],
+      "sourcesUnread": [
+        "ai-register",
+        "incident-materiality"
+      ]
+    }
+  ],
+  "createdAt": "2026-08-07T00:00:00+00:00",
+  "updatedAt": "2026-08-07T00:00:00+00:00"
+}

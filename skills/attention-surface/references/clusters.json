@@ -1,0 +1,87 @@
+{
+  "id": "attention-clusters",
+  "datasetVersion": "1",
+  "asOf": "2026-08-08",
+  "note": "A CISO does not think 'show me vendor escalations'. They think 'what is overdue', 'what changed under me', 'what is unowned'. Triggers cluster across producers, and the clustering is DATA rather than logic: a new trigger lands in a cluster by declaration. An unmapped trigger surfaces in an explicit `unclustered` group and is never silently dropped — evals/clusters.sh asserts that every trigger the shipped producers can emit has a home here, and that an unknown one still appears.",
+  "orderNote": "Clusters are presented in this order. It is a judgement about what a person should read first, written down as chosen: a clock that has run out is already late, whereas an uncontrolled exposure is a standing condition. It is NOT a ranking of the items inside them, and there is no number anywhere.",
+  "clusters": [
+    {
+      "id": "clocks-running-out",
+      "title": "Clocks running out",
+      "meaning": "A period the organisation set, or a regulator set, has passed or is about to.",
+      "triggers": [
+        "window-overdue",
+        "revalidation-overdue",
+        "assessment-overdue",
+        "expired",
+        "evidence-expired",
+        "profile-stale"
+      ]
+    },
+    {
+      "id": "moved-under-us",
+      "title": "Something moved under us",
+      "meaning": "A fact an earlier judgement rested on has changed since that judgement was made. These are the ones nobody reports, because nothing failed.",
+      "triggers": [
+        "supplier-changed",
+        "model-changed",
+        "base-model-changed",
+        "autonomy-increased",
+        "band-crossed",
+        "threshold-breached",
+        "sustained-slip",
+        "sustained-drift",
+        "determination-superseded"
+      ]
+    },
+    {
+      "id": "unowned",
+      "title": "Nobody owns it",
+      "meaning": "There is no name attached, or no answer to what this holds up. Every other escalation has to land on somebody; these are the ones that cannot.",
+      "triggers": [
+        "unowned",
+        "unclassified",
+        "untraced",
+        "anchor-missing",
+        "unsanctioned-in-use",
+        "provider-arrangement-missing"
+      ]
+    },
+    {
+      "id": "self-disagreement",
+      "title": "We disagree with ourselves",
+      "meaning": "Two records about the same thing say different things. Reported, never resolved — which of them is wrong is a human's call.",
+      "triggers": [
+        "criticality-conflict",
+        "criticality-unreconciled"
+      ]
+    },
+    {
+      "id": "uncontrolled-exposure",
+      "title": "Uncontrolled exposure",
+      "meaning": "Something is exposed and nothing is recorded against it. A standing condition rather than a deadline, which is why it does not sit under the clocks.",
+      "triggers": [
+        "attack-class-uncontrolled",
+        "exit-untested",
+        "unconfirmed-proposals"
+      ]
+    },
+    {
+      "id": "over-tolerance",
+      "title": "Over tolerance",
+      "meaning": "Past a line the organisation itself drew, and still there.",
+      "triggers": [
+        "appetite-dwell",
+        "acceptance-lapsed"
+      ]
+    }
+  ],
+  "addedAfterDesign": {
+    "note": "The design spec's cluster table was written before ai-register shipped its final trigger set. Checking the mapping against what the producers actually emit found three with no home. Recorded here rather than folded in silently, because the gap is the argument for the unclustered group existing at all.",
+    "triggers": {
+      "autonomy-increased": "moved-under-us — the deployment can reach more than it could when it was assessed",
+      "provider-arrangement-missing": "unowned — the contractual questions this raises have nowhere to be asked",
+      "evidence-expired": "clocks-running-out — the artifact holding up a satisfied requirement has run out"
+    }
+  }
+}
