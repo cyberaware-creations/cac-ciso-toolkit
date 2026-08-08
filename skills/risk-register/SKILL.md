@@ -149,10 +149,18 @@ things about it are deliberate:
   differently from nine of nine, and the figure is a **floor, not the bill**. Both the
   script's own output and the board pack's label carry the denominator — a total without it
   is the false precision this toolkit refuses everywhere else.
-- **`settings.currency` is optional and never guessed.** Set it (`"GBP"`, `"USD"`, `"EUR"`)
-  and the total renders with it; leave it and the number renders bare, labelled *currency not
-  recorded*. A total shown in the wrong currency is worse than one shown in none, because
-  only the second is obviously incomplete to whoever reads it.
+- **`settings.currency` is optional and never guessed.** Set it at `init --currency GBP`, or
+  later with `set-currency --currency GBP --why '...'`, and the total renders with it; leave it
+  and the number renders bare, labelled *currency not recorded*. A total shown in the wrong
+  currency is worse than one shown in none, because only the second is obviously incomplete to
+  whoever reads it. `set-currency` **relabels and never converts** — the amounts are the
+  numbers somebody entered, and re-denominating them would be the tool deciding what a figure
+  means.
+- **A treatment cost is a whole number, and `0` is a real answer.** `--cost 0` means *priced,
+  and the answer is nothing*; omitting `--cost` means nobody has priced it. The two render
+  differently and the register keeps them apart. A negative is refused outright — it would
+  reduce the board's total and there is no reading of it that is true. Entered wrongly at
+  `add`, a cost is corrected with `set-response`, never by editing the file.
 
 ### Step 6 — Maintaining the register (the core loop)
 
@@ -164,10 +172,12 @@ not by memory:
 
 ```bash
 python3 scripts/score_register.py init <reg.rr> --client 'Acme Corp' --assessor 'CISO' \
-    --matrix 5 --appetite medium --scope-note '...'
+    --matrix 5 --appetite medium --scope-note '...' --currency GBP
 python3 scripts/score_register.py add <reg.rr> --title '...' --il 4 --ii 5 --rl 2 --ri 4 \
-    --category PR --owner '...' --theme identity --response mitigate --why '...'
+    --category PR --owner '...' --theme identity --response mitigate --cost 45000 --why '...'
 python3 scripts/score_register.py set-text <reg.rr> <id> --title '...' --description '...' --why '...'
+python3 scripts/score_register.py set-response <reg.rr> <id> --cost 45000 --why '...'
+python3 scripts/score_register.py set-currency <reg.rr> --currency GBP --why '...'
 python3 scripts/score_register.py set-score <reg.rr> <id> --residual L I --why '...'
 python3 scripts/score_register.py accept <reg.rr> <id> --approver '...' --justification '...' \
     --revalidate 2027-01-31 --expiry 2027-07-31 --why '...'
@@ -358,10 +368,17 @@ ink, muted, background, patina, and the steps derived from them — moves.
   contract for the renderers.
 - `assets/brand.md` — Cyber Aware Creations palette, fonts, CVD-safe risk-band colors.
 - `assets/report-layout.md` — the board PDF report structure.
-- `scripts/score_register.py` — scoring, summary, CSF import, **and persistence** (add / set-text /
-  set-score / accept / confirm / set-status / add-theme / set-theme / snapshot / export-csv, all
-  append-only-history and schema-safe). Standard library only; `self-test` verifies parity with the
-  reference engine.
+- `scripts/score_register.py` — scoring, summary, CSF import, **and persistence**. Every command,
+  so this list can be checked against `COMMANDS` rather than trusted:
+  - *read* — `score`, `escalations`, `export-csv`, `export-acceptances`, `self-test`
+  - *intake* — `init`, `import-gaps`, `import-findings`
+  - *mutate a risk* — `add`, `set-text`, `set-score`, `set-response`, `set-status`, `accept`,
+    `confirm`, `set-theme`
+  - *mutate the register* — `add-theme`, `set-currency`, `set-escalation`, `snapshot`
+
+  All append-only-history and schema-safe. Standard library only; `self-test` verifies parity
+  with the reference engine, and asserts that every command either declares the flags it
+  accepts or is named in the shrink-only `_FLAGS_UNDECLARED` list.
 - `renderers/` — `render_dashboard.py` (operational working view), `render_board.py` (executive board
   dashboard), `render_report.py` (printable board report), over a shared `_common.py` derivation
   layer. All three take the register path as an argument; nothing about a client is hardcoded.

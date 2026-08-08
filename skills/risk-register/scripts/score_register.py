@@ -24,7 +24,12 @@ Subcommands:
 Mutations (each appends an append-only history event and writes a schema-valid file):
   init         <register.rr> --client 'Name' [--assessor ..] [--matrix 5] [--appetite medium]
                                          [--scope-note ..] [--appetite-statement ..]
-  add          <register.rr> --title ... --il L --ii I --rl L --ri I [--theme ID] [--why ...]
+                                         [--currency GBP]
+  add          <register.rr> --title ... --il L --ii I --rl L --ri I [--theme ID]
+                                         [--response mitigate] [--response-desc ..]
+                                         [--cost 45000] [--why ...]
+                                         --cost is a whole number; 0 means priced at
+                                         nothing, absent means not priced.
   set-text     <register.rr> <id> [--title ...] [--description ...] --why ...
                                          Reword an imported gap as an if-then event
                                          statement; clears `provisionalTitle`.
@@ -37,6 +42,12 @@ Mutations (each appends an append-only history event and writes a schema-valid f
   set-status   <register.rr> <id> <open|in-treatment|monitoring|closed> [--why ...]
   add-theme    <register.rr> --id ID --name 'Display Name' [--description ...]
   set-theme    <register.rr> <risk-id> <theme-id|none> [--why ...]
+  set-response <register.rr> <id> [--type mitigate] [--response-desc ..] [--cost 45000]
+                                         --why ...
+                                         The correction path for a treatment recorded
+                                         wrongly at `add`. Appends response-changed.
+  set-currency <register.rr> --currency GBP --why ...
+                                         Relabels treatment costs; never converts them.
   set-escalation <register.rr> [--sustained N] [--dwell-days D] [--band-cross on|off]
                                          [--lapsed-acceptance on|off] --why ...
                                          Tune when this register escalates. Logged: a
@@ -1292,6 +1303,33 @@ def _cmd_self_test(_: list[str]) -> int:
     # makes the check above pass over an empty set — green proving nothing.
     eq("the emitted-type scrape found real calls",
        {"risk-added", "score-changed", "risk-confirmed", "status-changed"} - _emitted, set())
+
+    # Every command either declares the flags it accepts, or is named in the shrink-only list
+    # of ones not yet converted. Neither is allowed: a new command that does neither would
+    # silently swallow typos, which is the defect this whole mechanism exists for.
+    #
+    # The undeclared list may ONLY shrink, and its size is printed below so the number is
+    # visible in test output rather than buried in a constant. There is no check that it got
+    # smaller — that would fail every run that changed nothing — so the pressure is the
+    # printed count, which is the same pressure `ai-register`'s battery count applies.
+    _declares = _flag_declaring_commands()
+    eq("the flag-declaration scrape found real declarations",
+       {"init", "add", "set-text", "set-escalation"} - _declares, set())
+    eq("every command either declares its flags or is listed as not yet converted",
+       set(COMMANDS) - _declares - _FLAGS_UNDECLARED, set())
+    # ...and nothing is in both, which would let a converted command keep its exemption and
+    # quietly stop rejecting.
+    eq("no command is both declared and exempt", _declares & _FLAGS_UNDECLARED, set())
+    # The list names only real commands — a stale entry for a deleted command would make the
+    # remaining count look worse than it is and hide the next real one.
+    eq("the exempt list names only real commands", _FLAGS_UNDECLARED - set(COMMANDS), set())
+    # A CEILING, not an equality. Converting a command passes without touching this line;
+    # adding an undeclared one fails. That is the asymmetry "may only shrink" means, and it
+    # is why this is not `== len(...)` — an equality would fail the run that improved things
+    # and train whoever hit it to edit the number rather than read the rule.
+    eq(f"{len(_FLAGS_UNDECLARED)} of {len(COMMANDS)} commands do not yet declare their flags "
+       f"(may only shrink; ceiling {_UNDECLARED_CEILING})",
+       len(_FLAGS_UNDECLARED) <= _UNDECLARED_CEILING, True)
     # Both arms of the unreadable-source sentinel, by rebinding __file__ rather than by
     # trusting the comment. Nothing else in the suite notices if the UnicodeDecodeError arm
     # is removed, and then a .pyc-only install fails with a codec error nobody would ever
@@ -1621,6 +1659,89 @@ def _cmd_self_test(_: list[str]) -> int:
         eq("and logs the policy change with its rationale",
            [(e["type"], e.get("rationale")) for e in _load(_dr)["history"]][-1],
            ("escalation-policy-changed", "tighter cadence"))
+
+        # --- unknown flags fail loudly (BL-104) ---------------------------------
+        # The parser used to collect an unrecognised flag into `opt` and let every command
+        # ignore it, so `init --currency GBP` exited 0 and wrote nothing. Both directions:
+        # the typo is refused AND the file is untouched, because a refusal that had already
+        # half-written the register would be worse than the silence it replaced.
+        eq("a typo'd flag is refused and nothing is written",
+           _rejects(_cmd_add, [_dr, "--title", "T", "--il", "2", "--ii", "2", "--rl", "2",
+                               "--ri", "2", "--ownr", "X"]), (True, True))
+        eq("...and the correctly spelled flag still works",
+           _rejects(_cmd_add, [_dr, "--title", "T", "--il", "2", "--ii", "2", "--rl", "2",
+                               "--ri", "2", "--owner", "X"]), (False, False))
+        def _why_refused(fn, argv):
+            try:
+                _quiet(fn, argv)
+            except ValueError as exc:
+                return str(exc)
+            return ""
+        # A refusal a reader cannot act on is a refusal they work around. It has to name the
+        # flag they typed AND one they could have meant.
+        eq("the refusal names the flag and lists what is accepted",
+           all(s in _why_refused(_cmd_add,
+                                 [_dr, "--title", "T", "--il", "2", "--ii", "2", "--rl", "2",
+                                  "--ri", "2", "--ownr", "X"])
+               for s in ("--ownr", "--owner", "Nothing was written")), True)
+
+        # --- cost validation (BL-105) -------------------------------------------
+        eq("--cost refuses a negative", _rejects(_cmd_add, _add + ["--cost", "-5000"]),
+           (True, True))
+        eq("--cost refuses a non-integer", _rejects(_cmd_add, _add + ["--cost", "45,000"]),
+           (True, True))
+        eq("--cost refuses a bare flag", _rejects(_cmd_add, _add + ["--cost"]), (True, True))
+        # Zero is a real answer — priced, and the answer is nothing — and it must survive
+        # both the write and the round trip, because the renderer distinguishes it from absent.
+        _quiet(_cmd_add, _add + ["--cost", "0", "--title", "Zero-cost"])
+        eq("...and ACCEPTS zero, which round-trips as 0 rather than vanishing",
+           _load(_dr)["risks"][-1]["response"].get("cost"), 0)
+
+        # --- set-response, the correction path (BL-105) --------------------------
+        eq("set-response is reachable from COMMANDS",
+           COMMANDS.get("set-response") is _cmd_set_response, True)
+        eq("response-changed is classified exactly once",
+           (("response-changed" in AGE_AFFIRMING), ("response-changed" in NON_AGE_AFFIRMING)),
+           (False, True))
+        _rid = _load(_dr)["risks"][-1]["id"]
+        eq("set-response refuses without --why",
+           _rejects(_cmd_set_response, [_dr, _rid, "--cost", "10"]), (True, True))
+        eq("set-response refuses a no-op",
+           _rejects(_cmd_set_response, [_dr, _rid, "--cost", "0", "--why", "w"]), (True, True))
+        eq("set-response refuses an unknown response type",
+           _rejects(_cmd_set_response, [_dr, _rid, "--type", "ignore", "--why", "w"]),
+           (True, True))
+        eq("set-response refuses a negative, through the same helper as add",
+           _rejects(_cmd_set_response, [_dr, _rid, "--cost", "-1", "--why", "w"]), (True, True))
+        _quiet(_cmd_set_response, [_dr, _rid, "--cost", "45000", "--why", "typo at entry"])
+        eq("a cost entered wrongly is correctable",
+           _load(_dr)["risks"][-1]["response"]["cost"], 45000)
+        eq("...and the correction lands in history with both ends and its rationale",
+           [(e["type"], e["from"].get("cost"), e["to"].get("cost"), e.get("rationale"))
+            for e in _load(_dr)["history"] if e["type"] == "response-changed"][-1],
+           ("response-changed", 0, 45000, "typo at entry"))
+
+        # --- set-currency (BL-103) -----------------------------------------------
+        eq("set-currency is reachable from COMMANDS",
+           COMMANDS.get("set-currency") is _cmd_set_currency, True)
+        eq("settings-changed is classified exactly once",
+           (("settings-changed" in AGE_AFFIRMING), ("settings-changed" in NON_AGE_AFFIRMING)),
+           (False, True))
+        eq("set-currency refuses without --why",
+           _rejects(_cmd_set_currency, [_dr, "--currency", "GBP"]), (True, True))
+        eq("set-currency refuses a bare --currency",
+           _rejects(_cmd_set_currency, [_dr, "--currency", "--why", "w"]), (True, True))
+        _quiet(_cmd_set_currency, [_dr, "--currency", "GBP", "--why", "group reports in GBP"])
+        eq("set-currency records the code", _load(_dr)["settings"]["currency"], "GBP")
+        eq("...and refuses the same value a second time",
+           _rejects(_cmd_set_currency, [_dr, "--currency", "GBP", "--why", "w"]), (True, True))
+        # Relabels, never converts: the amount recorded above is untouched by the change.
+        eq("changing the currency does NOT convert recorded amounts",
+           _load(_dr)["risks"][-1]["response"]["cost"], 45000)
+        eq("and the total now renders with the currency",
+           summarize(_load(_dr)["risks"], 5, "medium",
+                     _load(_dr)["settings"]["currency"])["treatmentCost"]["currencyRecorded"],
+           True)
 
     # --- escalation derivation (T3/T4/T5) -------------------------------------
     # Built by hand rather than by driving the CLI, so each trigger can be isolated. A
@@ -2023,6 +2144,34 @@ def _emitted_event_types() -> set:
     return set(re.findall(r'_append_event\(\s*reg\s*,\s*"([a-z-]+)"', src))
 
 
+def _flag_declaring_commands() -> set:
+    """Every command function that passes a `known=` set to `parse_flags`, read from source.
+
+    Scraped rather than hand-listed for the reason `_emitted_event_types` gives: if both sides
+    of the check were maintained by hand, whoever added a command would be the same person
+    updating the list, and the check could not fail. Reading the source means the new command
+    itself is what breaks the suite.
+
+    Returns command NAMES as `COMMANDS` spells them — `set-text`, not `_cmd_set_text` — so the
+    self-test compares against `COMMANDS` and `_FLAGS_UNDECLARED` directly.
+    """
+    try:
+        with open(os.path.abspath(__file__), encoding="utf-8") as fh:
+            src = fh.read()
+    except (OSError, UnicodeDecodeError):
+        return {"<source-unreadable>"}
+    out = set()
+    for chunk in re.split(r"\ndef ", src):
+        name = chunk.split("(", 1)[0].strip()
+        if not name.startswith("_cmd_"):
+            continue
+        # The needle is assembled rather than written whole, so this function does not match
+        # its own body and report itself as a declaring command.
+        if re.search(r"parse_flags\(\s*args\s*,\s*" + "known" + r"=", chunk):
+            out.add(name[len("_cmd_"):].replace("_", "-"))
+    return out
+
+
 def _affirming_writers() -> set:
     """Every command function in this file that can write an AGE_AFFIRMING event.
 
@@ -2056,8 +2205,44 @@ def _s(v):
     return " ".join(v) if isinstance(v, list) else v
 
 
-def parse_flags(args: list[str]):
-    """Tiny --flag parser. `--x a b` -> {'x': ['a','b']}; `--x a` -> {'x': 'a'}; `--x` -> {'x': True}."""
+# Commands whose flags are not yet declared to `parse_flags`. **This list may only shrink.**
+#
+# `risk-register` is the one engine in the suite that does not use `argparse`, and it is also
+# the one with the most mutation commands — so an unknown flag was accepted and dropped in
+# silence. `init --currency GBP` exited 0 with a success message and wrote no currency, and
+# `--appetitie medium` produced a register that did not contain what its author believed.
+#
+# The obvious fix is a full argparse conversion. It is deliberately NOT done: that rewrites all
+# twenty commands in one change, in the skill where a mistake costs most, for a benefit strict
+# rejection delivers on its own. Instead each command declares what it accepts, and this names
+# the ones not yet converted.
+#
+# The list is the point rather than the compromise. It turns "twenty commands to fix someday"
+# into a number the self-test prints and asserts, and that number can only go down — the same
+# pattern as `ai-register/evals/exposure.sh`: an absence has to be checked or it grows back.
+# A new command cannot join it without editing this line, and the self-test refuses a command
+# that is neither declared nor listed.
+_FLAGS_UNDECLARED = frozenset({
+    "score", "import-gaps", "import-findings", "self-test", "set-score", "accept",
+    "confirm", "set-status", "snapshot", "export-csv", "export-acceptances",
+    "add-theme", "set-theme", "escalations",
+})
+
+# The self-test asserts the list is no LONGER than this. Lower it when a command is converted;
+# it may never go up. A ceiling rather than an equality on purpose — see the check itself.
+_UNDECLARED_CEILING = 14
+
+
+def parse_flags(args: list[str], known=None):
+    """Tiny --flag parser. `--x a b` -> {'x': ['a','b']}; `--x a` -> {'x': 'a'}; `--x` -> {'x': True}.
+
+    When `known` is supplied, an unrecognised `--flag` RAISES, naming the flag and listing what
+    the command does accept. `known=None` keeps the old permissive behaviour, which is what the
+    commands still in `_FLAGS_UNDECLARED` rely on.
+
+    Rejecting is the whole point. Discarding a flag silently turns a typo into a register that
+    is missing what its author believes is in it, and no later command can detect that.
+    """
     pos, opt, i = [], {}, 0
     while i < len(args):
         a = args[i]
@@ -2069,6 +2254,16 @@ def parse_flags(args: list[str]):
             i = j
         else:
             pos.append(a); i += 1
+    if known is not None:
+        unknown = sorted(k for k in opt if k not in known)
+        if unknown:
+            raise ValueError(
+                "unknown flag%s: %s\n  this command accepts: %s\n  Nothing was written. A flag "
+                "this parser did not recognise used to be discarded in silence, which is how a "
+                "typo became a register missing the thing its author thought they had set."
+                % ("" if len(unknown) == 1 else "s",
+                   ", ".join("--" + k for k in unknown),
+                   ", ".join("--" + k for k in sorted(known))))
     return pos, opt
 
 
@@ -2164,6 +2359,73 @@ def _int_opt(opt, key, default):
         raise ValueError(f"--{key} must be an integer (got {_s(opt[key])!r}).")
 
 
+def _cost_opt(opt, key="cost"):
+    """Read a treatment-cost flag, or None when absent. Rejects negative; ACCEPTS zero.
+
+    Three refusals and one deliberate acceptance:
+
+    * **Negative is refused.** `response.cost` feeds `treatment_cost`, whose total prints on a
+      board page. A negative slipped in at `add` reduced that total and there was no path to
+      correct it — a board figure quietly too low, which is the direction nobody audits.
+    * **A bare `--cost` is refused**, on `_int_opt`'s stated rule: a flag with no value is a
+      typo, not a default. Defaulting it to zero would record "we priced this at nothing".
+    * **A non-integer is refused**, naming the value, so a stray currency symbol or comma
+      fails loudly instead of raising a bare ValueError from `int()`.
+    * **Zero is ACCEPTED**, and that is the point of the rule rather than an edge case. Zero
+      means *priced, and the answer is nothing* — a control already funded, a change absorbed
+      in run costs. It is a different statement from absent, which means nobody has priced it,
+      and the renderer keeps them apart too.
+
+    Integer, not decimal: the display format is `,.0f`, so a decimal would be silently rounded
+    on the way to the page. A stated decision rather than an artifact of `int()`.
+    """
+    if key not in opt:
+        return None
+    if opt[key] is True:
+        raise ValueError(f"--{key} needs a value, e.g. --{key} 45000. A bare flag is a typo, "
+                         f"not a default — recording zero would claim it was priced at nothing.")
+    raw = _s(opt[key]).strip()
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        raise ValueError(f"--{key} must be a whole number of currency units (got {raw!r}). "
+                         f"No symbols, no separators, no decimals — the total renders with "
+                         f"no decimal places, so one here would be silently rounded.")
+    if value < 0:
+        raise ValueError(f"--{key} cannot be negative (got {value}). A treatment cost is what "
+                         f"the response is expected to cost; a negative reduces the board's "
+                         f"total and there is no reading of it that is true. Record 0 for "
+                         f"'priced at nothing', or leave it off for 'not priced'.")
+    return value
+
+
+def _currency_opt(opt):
+    """Read `--currency`, or "" for not recorded. A bare `--currency` is refused.
+
+    `SKILL.md` is explicit that currency is *optional and never guessed*, and this closes the
+    gap rather than relaxing it: the flag existed in the documentation and no command read it,
+    so `init --currency GBP` exited 0 and wrote nothing. Never inferred from a locale, a
+    jurisdiction or an amount — a total shown in the wrong currency is worse than one shown in
+    none, because only the second is obviously incomplete to whoever reads it.
+
+    A bare `--currency` with no value RAISES rather than defaulting. That is the rule
+    `_int_opt`'s docstring states, and this is the first place it is actually enforced.
+    """
+    if "currency" not in opt:
+        return ""
+    if opt["currency"] is True:
+        raise ValueError("--currency needs a value, e.g. --currency GBP. A bare flag is a "
+                         "typo, not a default; currency is never guessed.")
+    code = _s(opt["currency"]).strip()
+    if not code:
+        raise ValueError("--currency needs a value, e.g. --currency GBP.")
+    # Deliberately NOT validated against a code list. The register does not own a currency
+    # taxonomy any more than it owns a criticality scale, and a shipped ISO-4217 list would
+    # be one more dataset to keep current for no gain — the string is printed back, not
+    # computed with.
+    return code
+
+
 def _cmd_init(args):
     """Create an empty register.
 
@@ -2173,11 +2435,13 @@ def _cmd_init(args):
     and its appetite never enter history. Those three are exactly the settings a
     board later asks to see justified.
     """
-    pos, opt = parse_flags(args)
+    pos, opt = parse_flags(args, known={
+        "client", "assessor", "matrix", "appetite", "scope-note", "appetite-statement",
+        "currency", "why"})
     if not pos or "client" not in opt:
         raise ValueError("usage: init <register.rr> --client 'Acme Corp' [--assessor 'CISO'] "
                          "[--matrix 5] [--appetite medium] [--scope-note '...'] "
-                         "[--appetite-statement '...']")
+                         "[--appetite-statement '...'] [--currency GBP]")
     path = pos[0]
     # Never clobber a register. It is the system of record, and a re-run of a setup
     # command is a plausible mistake with an unrecoverable outcome.
@@ -2190,6 +2454,7 @@ def _cmd_init(args):
     appetite = _s(opt.get("appetite", "medium"))
     if appetite not in BAND_ORDER:
         raise ValueError(f"--appetite must be one of {BAND_ORDER} (got {appetite!r}).")
+    currency = _currency_opt(opt)
 
     reg = {
         "schemaVersion": SCHEMA_VERSION,
@@ -2203,7 +2468,11 @@ def _cmd_init(args):
         # Written out rather than left to load_register's default, so a new register is
         # self-documenting: someone opening the file sees the four thresholds and can change
         # them, instead of having to know an invisible default existed.
-        "settings": {"matrixSize": size, "appetite": appetite,
+        # `currency` is written whether or not it was given, and empty means NOT RECORDED —
+        # never a guessed symbol. Writing the key out rather than leaving it to
+        # load_register's default keeps a new register self-documenting, the same reasoning
+        # as the four escalation thresholds beside it.
+        "settings": {"matrixSize": size, "appetite": appetite, "currency": currency,
                      "escalation": dict(ESCALATION_DEFAULTS)},
         "themes": [],
         "risks": [],
@@ -2220,6 +2489,7 @@ def _cmd_init(args):
     print(f"  Assessor: {reg['meta']['assessor'] or '—'}")
     print(f"  Matrix:   {size}x{size}   Appetite: {appetite} "
           f"(worst band still acceptable)")
+    print(f"  Currency: {currency or '— not recorded (treatment costs render bare)'}")
     if not reg["meta"]["scopeNote"]:
         print("  Note: no --scope-note set. An unscoped register is hard to defend; "
               "record what is in and out.")
@@ -2229,11 +2499,14 @@ def _cmd_init(args):
 
 
 def _cmd_add(args):
-    pos, opt = parse_flags(args)
+    pos, opt = parse_flags(args, known={
+        "title", "description", "desc", "il", "ii", "rl", "ri", "category", "owner", "theme",
+        "response", "response-desc", "cost", "review", "csf", "notes", "why"})
     if not pos:
         raise ValueError("usage: add <register.rr> --title '...' --il L --ii I --rl L --ri I "
                          "[--category ..] [--owner ..] [--theme ..] [--response mitigate] "
-                         "[--response-desc ..] [--review DATE] [--csf ID] [--notes ..] [--why ..]")
+                         "[--response-desc ..] [--cost 45000] [--review DATE] [--csf ID] "
+                         "[--notes ..] [--why ..]")
     path = pos[0]
     reg = load_register(path)
     size = reg["settings"]["matrixSize"]
@@ -2253,8 +2526,9 @@ def _cmd_add(args):
         "residual": {"likelihood": _lvl(opt["rl"], size, "--rl"), "impact": _lvl(opt["ri"], size, "--ri")},
         "status": "open", "acceptance": None,
     }
-    if "cost" in opt:
-        risk["response"]["cost"] = int(_s(opt["cost"]))
+    _cost = _cost_opt(opt)
+    if _cost is not None:
+        risk["response"]["cost"] = _cost
     if "review" in opt:
         risk["reviewDate"] = _iso_date(opt["review"], "--review")
     if "csf" in opt:
@@ -2282,7 +2556,7 @@ def _cmd_set_text(args):
     JSON, which bypasses history entirely. This is the command that makes an imported
     candidate into an assessed risk.
     """
-    pos, opt = parse_flags(args)
+    pos, opt = parse_flags(args, known={"title", "description", "why"})
     if len(pos) < 2 or not ({"title", "description"} & set(opt)):
         raise ValueError("usage: set-text <register.rr> <risk-id> [--title '...'] "
                          "[--description '...'] --why '...'")
@@ -2384,7 +2658,8 @@ def _cmd_set_escalation(args):
     Absent flags keep their current value rather than resetting to the shipped defaults —
     tuning one threshold must not silently revert the other three.
     """
-    pos, opt = parse_flags(args)
+    pos, opt = parse_flags(args, known={
+        "sustained", "dwell-days", "band-cross", "lapsed-acceptance", "why"})
     if not pos:
         raise ValueError("usage: set-escalation <register.rr> [--sustained N] [--dwell-days D] "
                          "[--band-cross on|off] [--lapsed-acceptance on|off] --why '...'")
@@ -2419,6 +2694,113 @@ def _cmd_set_escalation(args):
                   frm=cur, to=new, rationale=_s(opt["why"]))
     save_register(reg, path)
     print(f"Escalation policy updated — {moved}")
+    return 0
+
+
+def _cmd_set_currency(args):
+    """Record or change the currency treatment costs are denominated in.
+
+    Modelled on `_cmd_set_escalation`, which is this register's shape for a settings mutator:
+    requires `--why`, refuses a no-op, appends one event. `settings-changed` was already in
+    `KNOWN_EVENT_TYPES` and already classified as non-age-affirming — `confirmation-age.sh`
+    asserts it — so nothing about the taxonomy moves for this.
+
+    Changing the currency of a register that already carries costs does NOT convert them. The
+    amounts are the numbers somebody entered, and re-denominating them would be this tool
+    deciding what a figure means; the event records the change so a reader can see when the
+    label moved and ask what the numbers were.
+    """
+    pos, opt = parse_flags(args, known={"currency", "why"})
+    if not pos:
+        raise ValueError("usage: set-currency <register.rr> --currency GBP --why '...'")
+    path = pos[0]
+    reg = load_register(path)
+    if "why" not in opt:
+        raise ValueError("set-currency: --why is required "
+                         "(material change; the rationale is the audit trail).")
+    if "currency" not in opt:
+        raise ValueError("set-currency: --currency is required, e.g. --currency GBP.")
+    new = _currency_opt(opt)
+    cur = _s(reg["settings"].get("currency", ""))
+    # A no-op write would put "settings changed" in the log where nothing changed — the same
+    # defect `confirm` exists to keep out of `score-changed`.
+    if new == cur:
+        raise ValueError(f"set-currency: the register already records {cur!r}. "
+                         f"Nothing would change.")
+
+    n_costed = sum(1 for r in reg["risks"] if isinstance(r.get("response"), dict)
+                   and r["response"].get("cost") is not None)
+    reg["settings"]["currency"] = new
+    _append_event(reg, "settings-changed", field="settings.currency",
+                  frm=cur or None, to=new, rationale=_s(opt["why"]))
+    save_register(reg, path)
+    print(f"Currency {'set to' if not cur else f'changed {cur} →'} {new}")
+    if n_costed:
+        print(f"  {n_costed} risk(s) already carry a treatment cost. The amounts are "
+              f"unchanged — this relabels them, it does not convert them.")
+    return 0
+
+
+def _cmd_set_response(args):
+    """Correct a risk's treatment response — its type, description or cost.
+
+    Until this existed, `response` was write-once at `add`. A cost typed wrongly was
+    permanent: `SKILL.md` forbids hand-editing the store, and no command touched the field,
+    so the only routes were to leave a wrong number on a board page or to break the rule that
+    makes the audit trail worth anything.
+
+    `set-response` rather than `set-cost`, for two reasons. `response-changed` is the event
+    already in `KNOWN_EVENT_TYPES` and already classified, so no vocabulary moves. And the
+    response object carries three fields that are one decision — changing the type from
+    `mitigate` to `accept` without being able to say what that now costs would be half a
+    correction. `set-text` handles title and description together on the same reasoning.
+
+    `--why` is required, matching `set-text`, `set-score` and `set-escalation`. A cost typo
+    looks immaterial, but the register cannot tell a typo from a re-estimate, and the two have
+    very different meanings to whoever reads the history a year later. The rationale is what
+    distinguishes them.
+
+    Note what this does NOT do: it does not re-score the risk. Response and score are separate
+    judgements and `set-score` owns the second one.
+    """
+    pos, opt = parse_flags(args, known={"type", "response-desc", "cost", "why"})
+    if len(pos) < 2:
+        raise ValueError("usage: set-response <register.rr> <risk-id> [--type mitigate] "
+                         "[--response-desc '...'] [--cost 45000] --why '...'")
+    path, rid = pos[0], pos[1]
+    reg = load_register(path)
+    risk = _find(reg, rid)
+    if "why" not in opt:
+        raise ValueError("set-response: --why is required — the register cannot tell a typo "
+                         "from a re-estimate, and the rationale is what does.")
+    if not ({"type", "response-desc", "cost"} & set(opt)):
+        raise ValueError("set-response: pass at least one of --type, --response-desc, --cost.")
+
+    cur = dict(risk.get("response") or {})
+    new = dict(cur)
+    if "type" in opt:
+        rtype = _s(opt["type"])
+        if rtype not in RESPONSES:
+            raise ValueError(f"--type must be one of {sorted(RESPONSES)} (got {rtype!r}).")
+        new["type"] = rtype
+    if "response-desc" in opt:
+        new["description"] = _s(opt["response-desc"])
+    if "cost" in opt:
+        new["cost"] = _cost_opt(opt)
+
+    # A no-op write would put "response changed" in the log where nothing changed — the same
+    # defect `confirm` exists to keep out of `score-changed`.
+    if new == cur:
+        raise ValueError("set-response: nothing would change. The values given are the ones "
+                         "already recorded.")
+
+    moved = ", ".join(f"{k} {cur.get(k, '—')!r} → {new[k]!r}"
+                      for k in sorted(new) if new.get(k) != cur.get(k))
+    risk["response"] = new
+    _append_event(reg, "response-changed", riskId=risk["id"], field="response",
+                  frm=cur or None, to=new, rationale=_s(opt["why"]))
+    save_register(reg, path)
+    print(f"{risk['id']} response updated — {moved}")
     return 0
 
 
@@ -2837,6 +3219,7 @@ COMMANDS = {
     "export-acceptances": _cmd_export_acceptances,
     "add-theme": _cmd_add_theme, "set-theme": _cmd_set_theme,
     "set-escalation": _cmd_set_escalation, "escalations": _cmd_escalations,
+    "set-currency": _cmd_set_currency, "set-response": _cmd_set_response,
 }
 
 
