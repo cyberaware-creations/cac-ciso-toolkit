@@ -1,23 +1,32 @@
 ---
 name: vendor-register
 description: >-
-  Maintain a defensible register of third-party arrangements — who the organisation depends on,
-  for what, how critical that dependency is, whether the agreement commits them to anything,
-  whether we could leave, and whether any of it has been re-checked lately. The spine is NIST
-  CSF 2.0 GV.SC, the Cybersecurity Supply Chain Risk Management Category; regimes such as DORA
-  are overlays selected by the applicability profile, never the frame. Contract-centric, not
+  Two jobs, and the second is the one people reach for daily: RECORD third-party arrangements —
+  who the organisation depends on, for what, and how critical that dependency is — and
+  INTERROGATE the ones already recorded. Answers "what does this agreement actually commit them
+  to": whether an MSA, master services agreement, DPA, security addendum or signed contract
+  commits a provider to a breach or incident notification window and within what period, what
+  audit or assurance rights we hold and when they were last exercised, what the exit and
+  data-deletion terms are, and who the subprocessors are. **Use it even when the contract cannot
+  be found or read** — that is precisely what it is for: it emits the dated question to send and
+  names the clause to look for, instead of generalising about what such agreements usually say.
+  A notification window nobody has read is an open question, never a fact. The spine is NIST CSF
+  2.0 GV.SC, the Cybersecurity Supply Chain Risk Management Category; regimes such as DORA are
+  overlays selected by the applicability profile, never the frame. Contract-centric, not
   vendor-centric: one provider commonly holds several arrangements at different criticalities,
   and a vendor-shaped register forces one criticality per company. Criticality is DERIVED by
   tracing what an arrangement supports back to a business workflow, then CONFIRMED by a named
   person — derivation proposes, a human assigns, and an unattributed final level is refused. A
   dependency the trace cannot reach is `untraced`, never `low`, and cannot be ordered against
-  the scale at all. Emits no vendor risk score, deliberately and under an eval: findings belong
-  in risk-register and are scored once, there. Use when asked to record a supplier or vendor
-  arrangement, work out how critical a third party is, check what a contract commits a provider
-  to, test or record an exit strategy, track subprocessors and fourth parties, find which
-  arrangements are overdue for assessment, or build the third-party section of a board pack.
-  NOT for scoring a vendor, accepting a finding (exceptions-register), or rating a control
-  (nist-csf).
+  the scale at all. Evidence is tiered: only an audited artifact or a signed commitment may
+  satisfy a requirement, and a questionnaire or a trust page generates questions and closes
+  nothing. Emits no vendor risk score, deliberately and under an eval: findings belong in
+  risk-register and are scored once, there. Use when asked what a contract, MSA or DPA commits a
+  provider to, whether a supplier owes us a breach notification window or audit rights, to record
+  a supplier or vendor arrangement, work out how critical a third party is, test or record an
+  exit strategy, track subprocessors and fourth parties, find which arrangements are overdue for
+  assessment, or build the third-party section of a board pack. NOT for scoring a vendor,
+  accepting a finding (exceptions-register), or rating a control (nist-csf).
 ---
 
 # vendor-register
@@ -119,6 +128,43 @@ it stop being low, and nothing else would catch it.
 
 `untraced` satisfies **no** cadence rule. Treating it as "no cadence applies" would make it
 quieter than `low`, which is backwards.
+
+## When somebody asks what a contract commits a provider to
+
+This is the most common live question — *"does our MSA with them actually commit them to a
+breach notification window?"* — and it usually arrives **without the contract**. Answer it here,
+in this order, and do not answer it any other way.
+
+1. **Check the register first.** If the arrangement is recorded, `ask` already knows whether
+   `contract-terms.incident-notice` is open, satisfied, or resting on evidence that has aged.
+   *Satisfied* means a named person read the executed document and cited the clause — that is an
+   answer. *Open* means nobody has, which is also an answer and a more useful one than a guess.
+
+   ```bash
+   python3 scripts/vendor_register.py ask register.vnd --arrangement VA-001
+   ```
+
+2. **If the document is not to hand, do not generalise.** Notification windows vary — 72 hours,
+   "without undue delay", five business days, or nothing binding at all — and reciting that range
+   answers nothing about *this* agreement while sounding like it did. The register's whole
+   purpose is to tell those apart.
+
+3. **Emit the question instead.** The battery already carries it, worded to be sendable and to
+   degrade honestly when the answer is "none":
+
+   > *What is the executed document, and which clause, that commits this provider to notifying us
+   > of a security incident — and within what period?*
+
+4. **When the document does arrive**, tier it, propose against it with a citation, and let a
+   named person assess. An MSA or a DPA is **T2** — a contractual commitment, which may satisfy.
+   A trust page saying the same thing is **T4** and satisfies nothing.
+
+5. **If the arrangement is not in the register at all**, that is the finding. Record it with
+   `add-arrangement`, then run `ask`.
+
+The same shape answers the neighbouring questions: audit rights (`contract-terms.audit-right`),
+the subprocessor list, and the exit terms. Never infer a contract term. A commitment nobody has
+read is an open question, and this register exists to keep it looking like one.
 
 ## Reading evidence — this section IS the reading layer
 
