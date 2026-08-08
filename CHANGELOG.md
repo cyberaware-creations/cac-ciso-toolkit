@@ -21,6 +21,51 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.40.0 — 2026-08-08
+
+**The assessment layer.** Plan 1 built the record; this builds the work — read what a vendor
+supplied, work out what it genuinely covers, and emit the questions still worth asking.
+
+- **Evidence is tiered, scoped and dated.** Only **T1** (an audited artifact) and **T2** (a
+  contractual commitment) can satisfy a requirement. A T1 refuses without a scope *and* a
+  period: a SOC 2 excluding the subservice organisation running the workload has not covered
+  it, and a report with no period cannot expire. **A bridge letter is T3 and does not extend a
+  T1's currency** — a management assertion is not an audited artifact.
+- **The Layer A / Layer B boundary**, which is the safety property of the whole feature.
+  `propose` refuses without a citation and refuses to cite T3 or T4 at all; only `assess`
+  closes anything, and only with a named person. A model reading a trust page and ticking
+  requirements produces a register full of green from marketing copy — worse than an empty
+  one, because it looks finished.
+- **`ask` subtracts.** Batteries left applicable, minus what T1/T2 evidence covers. **T3 and T4
+  subtract nothing** — that is the product claim, asserted as a comparison: the same three
+  requirements covered by an audited report shrink the set and covered by a trust page do not.
+  Evidence in grace produces a re-confirmation question rather than silence, and an empty
+  result prints a sentence.
+- **The assessment clock now has an act that resets it.** `_last_assessed` had been reading an
+  `assessments` list since v0.39.1 with nothing able to write to it.
+- **The overlay mechanism ships empty, by decision.** No DORA, NYDFS, interagency or SEC
+  content: those were drafted from secondary sources and marked `[verify]`, and a compliance
+  tool asserting an obligation it cannot cite is worse than one that stays quiet.
+  `register_overlay` **refuses an uncited requirement**, so this cannot be relaxed quietly.
+  `export-roi` still ships, gated on a declared `doraScope`, and refuses to look complete when
+  it is not — a named gap and a non-zero exit, never a blank cell.
+- **A one-way findings bridge to `risk-register`**, carrying no likelihood, impact or band.
+  Extended through the existing `merge_import` rather than a second importer. Escalations are
+  deliberately *not* exported: they are derived and stateless, so exporting them would mint a
+  fresh candidate risk every time a clock moved.
+
+Found while building, and fixed:
+
+- **`review_requirements` shipped in v0.39.0 without requiring a named person**, so a
+  requirement could be marked met with nobody's judgement behind it — which made the "only a
+  named person closes anything" claim false. Found by `proposal-boundary.sh`'s static scan on
+  its first run.
+- The board renderer's own new copy failed `board-safety.sh` for saying *"not a rating"* — the
+  guard was right, and the sentence was reworded rather than the list weakened.
+
+Self-test **88 → 224**; `risk-register` **170 → 177**; four new eval suites (`evidence-tiers`
+11, `proposal-boundary` 10, `questions` 8, plus the existing four).
+
 ## v0.39.1 — 2026-08-07
 
 Two follow-ups from the v0.39.0 review, both closed as checks rather than notes.

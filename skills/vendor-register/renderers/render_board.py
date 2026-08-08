@@ -117,6 +117,24 @@ def build(ctx) -> str:
             % C.esc("This covers %s, declared by %s: %s"
                     % (", ".join(ctx.consolidation["entities"]),
                        ctx.consolidation["declaredBy"], ctx.consolidation["basis"])))
+    # A COUNT, not a mark. Open questions are work outstanding; rendering them as a severity
+    # would put a judgement about the provider on this page by another name, on the one
+    # surface that must not carry one. RAG stays reserved for what needs a board decision.
+    #
+    # The wording below avoids the scoring vocabulary `board-safety.sh` bans — including in
+    # the act of DENYING one. The first draft read "that is work in hand, not a rating", and
+    # the guard failed it, correctly: a list that has to reason about negation is a list that
+    # gets it wrong eventually, and rewording costs nothing.
+    outstanding = ctx.a.get("openQuestions", 0)
+    reconfirm = ctx.a.get("reConfirmQuestions", 0)
+    if outstanding or reconfirm:
+        body.append(
+            '<div class="note"><p><strong>Assessment outstanding.</strong> %s</p></div>'
+            % C.esc("%d question%s across these arrangements have no evidence behind them "
+                    "yet%s. That is what is left to check, not a judgement about any provider."
+                    % (outstanding, "" if outstanding == 1 else "s",
+                       ("; a further %d rest on evidence that is ageing" % reconfirm)
+                       if reconfirm else "")))
     body.append(C.section("What we depend on", _cards(ctx)))
     body.append(C.section("Decisions for the board", _decisions(ctx)))
     body.append(ctx.caveat_block())

@@ -120,6 +120,115 @@ it stop being low, and nothing else would catch it.
 `untraced` satisfies **no** cadence rule. Treating it as "no cadence applies" would make it
 quieter than `low`, which is backwards.
 
+## Reading evidence — this section IS the reading layer
+
+Everything above is bookkeeping. This is the part that saves time: read what the vendor
+supplied, work out what it genuinely covers, and produce the questions still worth asking.
+
+**You may propose. You may never satisfy.** A model reading a trust page and ticking
+requirements produces a register full of green derived from marketing copy — worse than an
+empty register, because it looks finished and nobody re-checks a page of ticks. The engine
+enforces this; the instructions below are how to work inside it.
+
+### 1. Tier the artifact before reading its content
+
+Identify what it *is* before what it *says*, because the tier decides whether anything it says
+can close a question:
+
+| It is | Tier |
+|---|---|
+| SOC 2 Type II, ISO 27001 certificate **with its Statement of Applicability**, penetration test report, regulatory examination finding | **T1** |
+| Executed DPA, a clause in the signed agreement, a security addendum | **T2** |
+| Completed questionnaire, trust centre, security whitepaper | **T3** |
+| Privacy policy, website, status page, marketing material | **T4** |
+
+```bash
+python3 scripts/vendor_register.py ingest store.vnd --arrangement VA-001 \
+  --kind soc2-type2 --tier T1 --source "auditor PDF, received 2026-02-10" \
+  --scope "the hosting platform, excluding the payments subservice" \
+  --period-start 2025-01-01 --period-end 2025-12-31
+```
+
+**T1 refuses without a scope and a period, and you should not fight it.** Read the scope
+section and the period from the report and record what it actually says — including the
+exclusions. A SOC 2 that excludes the subservice organisation running our workload has not
+covered our workload, and that exclusion is usually the most valuable sentence in the document.
+
+**A bridge letter is T3.** It is a management assertion, not an audited artifact, and it does
+not extend the currency of the T1 it accompanies.
+
+### 2. Propose, with a citation
+
+```bash
+python3 scripts/vendor_register.py propose store.vnd --arrangement VA-001 \
+  --requirement contract-terms.incident-notice --evidence EV-001 \
+  --citation "SOC 2 section IV, control CC7.3, tested with no exceptions" \
+  --by "reading layer"
+```
+
+`--requirement` takes a **question key** (`battery.question`, as printed by `ask --format json`)
+so the proposal subtracts from the right question. Free text is accepted and simply subtracts
+from nothing.
+
+`--citation` is required and must point at something a person can go and read: a section, a
+control reference, a clause number. "The report covers this" is not a citation.
+
+**Proposing against a T3 or T4 is refused outright.** Do not look for a way round it. Those
+tiers exist to tell you what to *ask*.
+
+### 3. Say what a document does not cover, in these words
+
+When an artifact does not reach a question, record it as a note rather than a proposal, and
+phrase it the same way every time so it reads consistently across a register:
+
+> *The SOC 2 covers the hosting platform for 2025 and does not address subprocessor
+> notification; the report's scope section excludes it.*
+
+Name the document, name what it does cover, and name what it does not. "Not covered" alone
+tells the next reader nothing about whether somebody looked.
+
+### 4. A person assesses
+
+```bash
+python3 scripts/vendor_register.py assess store.vnd --arrangement VA-001 \
+  --by "D. Galleyne" --confirm PR-001 --confirm PR-002 \
+  --reject PR-003 --why "the report describes the vendor's own testing, not an independent test"
+```
+
+This is the only act that closes anything, and it refuses without a name. Rejections are
+retained — that a claim was examined and refused is a record worth having.
+
+### 5. Ask for what remains
+
+```bash
+python3 scripts/vendor_register.py ask store.vnd --arrangement VA-001 --context ctx.json
+```
+
+Every question names why it is being asked and the `GV.SC` outcome it serves. Every skipped
+battery prints its §2.4 sentence with the declarer and the date, so an assessor can tell a
+question ruled out of scope from one nobody asked.
+
+**An empty result prints a sentence, never a blank page.**
+
+### Fetching public material
+
+Trust centre, security page, sub-processor list, status history — all **T3 or T4**, always with
+`--retrieved`. **Nothing behind a login or a click-through NDA**, which is where most real audit
+reports live. Document upload is the primary path and fetching is the supplement.
+
+### The walkthrough, end to end
+
+```
+ask   → 7 open                      nothing supplied yet
+ingest  a SOC 2 as T1
+propose three questions, cited
+ask   → 7 open                      ← the reading layer changed NOTHING
+assess  --by "D. Galleyne" --confirm PR-001 PR-002 PR-003
+ask   → 4 open                      ← a named person closed three
+```
+
+That third line is the whole boundary. If proposing ever moves the count, something is wrong.
+
 ## What this skill will not do
 
 **It emits no vendor risk score.** Every commercial third-party tool does, and it is the same

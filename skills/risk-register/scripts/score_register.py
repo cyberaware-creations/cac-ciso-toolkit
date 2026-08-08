@@ -316,6 +316,44 @@ def gap_row_to_risk(row: dict, risk_id: str) -> dict:
     return risk
 
 
+def vendor_finding_to_risk(finding: dict, risk_id: str) -> dict:
+    """A vendor-register finding as a CANDIDATE risk. Unscored, and provisional in both ways.
+
+    `vendor-register` deliberately produces no likelihood, impact or band — see its
+    `export-findings`. So the seed here is the same neutral middle an unreviewed row gets, and
+    `provisionalScore` says out loud that nobody has assessed it. The alternative, deriving a
+    seed from the arrangement's criticality, would be this register inventing the number the
+    other skill refused to invent, one import removed.
+    """
+    risk = empty_risk(risk_id)
+    risk["title"] = trunc(finding.get("title") or "Third-party finding")
+    risk["description"] = finding.get("description") or ""
+    risk["category"] = "GV.SC"
+    risk["theme"] = "govern" if "govern" in CSF_FUNCTION_THEMES else None
+    risk["sourceRef"] = finding.get("sourceRef") or ""
+    seed = 3
+    risk["inherent"] = {"likelihood": seed, "impact": seed}
+    risk["residual"] = {"likelihood": seed, "impact": seed}
+    risk["provisionalTitle"] = True     # wording came from another register, not an author
+    risk["provisionalScore"] = True     # nobody has scored this; the seed is a placeholder
+    bits = []
+    if finding.get("vendor"):
+        bits.append("Provider: %s" % finding["vendor"])
+    if finding.get("criticality"):
+        bits.append("Arrangement criticality: %s (scale %s, %s)"
+                    % (finding["criticality"],
+                       finding.get("criticalityScaleVersion") or "unstated",
+                       "confirmed" if finding.get("criticalityConfirmed") else "DERIVED, "
+                       "not confirmed by a person"))
+    if finding.get("checkedBy"):
+        bits.append("Checked by %s on %s" % (finding["checkedBy"],
+                                             finding.get("checkedOn") or "an unstated date"))
+    if finding.get("gvsc"):
+        bits.append("GV.SC: %s" % ", ".join(finding["gvsc"]))
+    risk["notes"] = " · ".join(bits) or None
+    return risk
+
+
 def merge_import(existing: list[dict], candidates: list[dict]) -> dict:
     risks = [dict(r) for r in existing]
     added = updated = 0
@@ -323,6 +361,12 @@ def merge_import(existing: list[dict], candidates: list[dict]) -> dict:
         match = None
         if cand.get("csfSubcategoryId"):
             match = next((r for r in risks if r.get("csfSubcategoryId") == cand["csfSubcategoryId"]), None)
+        # `sourceRef` is the generic provenance key, added so vendor findings merge through
+        # THIS function rather than through a second importer. Two merge paths would be two
+        # sets of rules about when a human-authored title may be overwritten, and only one of
+        # them would get the next fix.
+        if match is None and cand.get("sourceRef"):
+            match = next((r for r in risks if r.get("sourceRef") == cand["sourceRef"]), None)
         if match:
             # Only overwrite the wording while nobody has rewritten it. Once a risk has
             # been through set-text it carries a NISTIR 8286 event statement someone
@@ -336,6 +380,8 @@ def merge_import(existing: list[dict], candidates: list[dict]) -> dict:
             # Fill an unset theme, but never overwrite a deliberate re-theme.
             if not match.get("theme") and cand.get("theme"):
                 match["theme"] = cand["theme"]
+            if cand.get("sourceRef"):
+                match["sourceRef"] = cand["sourceRef"]
             updated += 1
         else:
             new = dict(cand)
@@ -893,6 +939,71 @@ def _ensure_csf_themes(reg: dict) -> list[str]:
     return added
 
 
+def _cmd_import_findings(args: list[str]) -> int:
+    """Take vendor-register findings as candidate risks, through the SAME merge path as gaps.
+
+    One-way and idempotent on `sourceRef`. `vendor-register` is the system of record for the
+    arrangement and what was checked about it; this register is the system of record for what
+    that exposure is worth. Neither grows the other's lifecycle.
+    """
+    into = None
+    if "--into" in args:
+        into = args[args.index("--into") + 1]
+    paths = [a for a in args if not a.startswith("--") and a != into]
+    if not paths:
+        print("usage: score_register.py import-findings <findings.json> "
+              "[--into <register.rr>] [--write]\n"
+              "  Previews the mapped candidates by default and writes nothing.\n"
+              "  Produce the input with `vendor_register.py export-findings`.", file=sys.stderr)
+        return 2
+    do_write = "--write" in args
+    if do_write and not into:
+        print("import-findings: --write needs --into <register.rr> to write to.",
+              file=sys.stderr)
+        return 2
+    with open(paths[0], encoding="utf-8") as fh:
+        payload = json.load(fh)
+    if payload.get("export") != "findings":
+        print("import-findings: %s is not a findings export (export=%r). Produce it with "
+              "`vendor_register.py export-findings`."
+              % (paths[0], payload.get("export")), file=sys.stderr)
+        return 2
+    # A scoring key reaching here means the other register started scoring, which is the one
+    # thing this bridge exists to prevent. Refuse rather than quietly import a second opinion.
+    banned = sorted({k for f in (payload.get("findings") or []) for k in f
+                     if k.lower() in ("likelihood", "impact", "score", "band", "severity")})
+    if banned:
+        print("import-findings: the payload carries scoring key(s) %s. This register scores "
+              "third-party findings; the source register must not." % ", ".join(banned),
+              file=sys.stderr)
+        return 2
+    existing = load_register(into)["risks"] if into else []
+    candidates = [vendor_finding_to_risk(f, "R-%03d" % (i + 1))
+                  for i, f in enumerate(payload.get("findings") or [])]
+    result = merge_import(existing, candidates)
+    if do_write and into:
+        reg = load_register(into)
+        reg["risks"] = result["risks"]
+        _ensure_csf_themes(reg)
+        _append_event(reg, "import-merged",
+                      rationale="%d added, %d updated from vendor findings"
+                                % (result["added"], result["updated"]))
+        save_register(reg, into)
+        print("Wrote %s: %d added, %d updated" % (into, result["added"], result["updated"]),
+              file=sys.stderr)
+        print("  Imported findings are provisional in both dimensions: the wording came from "
+              "another register and nobody has scored them.\n"
+              "  Titles stay out of board-facing views until reworded with `set-text`; the "
+              "seeded scores are placeholders until refined with `set-score`.", file=sys.stderr)
+    else:
+        print(json.dumps(result, indent=2))
+        tail = (" (preview only — nothing written; add --write to apply)" if into
+                else " (preview only — pass --into <register.rr> --write to apply)")
+        print("\n# %d added, %d updated%s" % (result["added"], result["updated"], tail),
+              file=sys.stderr)
+    return 0
+
+
 def _cmd_import_gaps(args: list[str]) -> int:
     into = None
     if "--into" in args:
@@ -955,6 +1066,44 @@ def _cmd_self_test(_: list[str]) -> int:
         """
         with contextlib.redirect_stdout(io.StringIO()):
             return fn(argv)
+
+    # --- vendor findings: the one-way bridge from vendor-register ------------
+    #
+    # Extended through the EXISTING merge path rather than a second importer. Two merge
+    # functions would be two sets of rules about when a human-authored title may be
+    # overwritten, and only one of them would get the next fix.
+    _finding = {
+        "sourceRef": "vendor-register:VA-001:breach notice",
+        "title": "Contoso Cloud: breach notice not evidenced",
+        "description": "checked and recorded as not met",
+        "vendor": "Contoso Cloud", "criticality": "high",
+        "criticalityScaleVersion": "v1", "criticalityConfirmed": True,
+        "checkedBy": "General Counsel", "checkedOn": "2026-08-08",
+        "gvsc": ["GV.SC-05"],
+    }
+    _vr = vendor_finding_to_risk(_finding, "R-900")
+    eq("a vendor finding imports provisional in BOTH dimensions",
+       (_vr["provisionalTitle"], _vr["provisionalScore"]), (True, True))
+    eq("...and carries no assessed magnitude, only the neutral seed",
+       (_vr["inherent"], _vr["residual"]),
+       ({"likelihood": 3, "impact": 3}, {"likelihood": 3, "impact": 3}))
+    eq("the scale a criticality was assigned under travels with it",
+       "scale v1" in (_vr["notes"] or ""), True)
+    eq("and whether a person confirmed that level, or only derived it",
+       "confirmed" in (_vr["notes"] or ""), True)
+    # Idempotent on sourceRef, through merge_import — re-running updates rather than doubling.
+    _first = merge_import([], [vendor_finding_to_risk(_finding, "R-900")])
+    _again = merge_import(_first["risks"], [vendor_finding_to_risk(_finding, "R-901")])
+    eq("re-importing a finding updates rather than duplicating",
+       (_again["added"], _again["updated"], len(_again["risks"])), (0, 1, 1))
+    eq("and the provenance key survives the update",
+       _again["risks"][0].get("sourceRef"), _finding["sourceRef"])
+    # A human-authored title is never overwritten by a re-import.
+    _authored = [dict(_first["risks"][0], title="Loss of the CRM through a provider gap",
+                      provisionalTitle=False)]
+    _kept = merge_import(_authored, [vendor_finding_to_risk(_finding, "R-902")])
+    eq("a reworded title survives a re-import",
+       _kept["risks"][0]["title"], "Loss of the CRM through a provider gap")
 
     # exposure / band (scoring.test.ts)
     eq("exposure(4,5)", exposure(4, 5), 20)
@@ -2609,7 +2758,8 @@ def _cmd_export_csv(args):
 
 
 COMMANDS = {
-    "score": _cmd_score, "import-gaps": _cmd_import_gaps, "self-test": _cmd_self_test,
+    "score": _cmd_score, "import-gaps": _cmd_import_gaps,
+    "import-findings": _cmd_import_findings, "self-test": _cmd_self_test,
     "init": _cmd_init, "set-text": _cmd_set_text,
     "add": _cmd_add, "set-score": _cmd_set_score, "accept": _cmd_accept,
     "confirm": _cmd_confirm,
