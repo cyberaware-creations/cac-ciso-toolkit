@@ -1,0 +1,26 @@
+{
+  "section": "vendor",
+  "contractVersion": 1,
+  "asOf": "2026-08-07",
+  "executiveSummary": "Five arrangements carry the group's outsourced dependencies, and two of them we cannot yet explain. The plant historian runs on Contoso and has never been exercised as an exit, which is the single dependency that stops both production lines. Two further arrangements support systems nobody has traced to a business workflow, so we are carrying them without being able to say what they hold up.",
+  "arrangements": {
+    "VA-001": "Production hosting for the plant historian. A day of lost output is roughly a week of aftermarket margin, and the exit strategy has been written but never exercised — so the plan to leave is a document, not a demonstrated capability. The assessment is also past its annual cadence.",
+    "VA-002": "CRM hosting. The dependency traces to a system the business calls critical, but the arrangement owner has assigned a lower level on the basis that renewals continue offline for a fortnight. That disagreement is recorded rather than resolved: the trace and the owner are looking at different things, and both are on the page.",
+    "VA-003": "The marketing attribution sandbox supports nothing we have declared, so its criticality is untraced rather than low. A fourth party was introduced into its chain in June without notice, which is the kind of change a low-criticality arrangement has no cadence to catch.",
+    "VA-005": "Replacement warehouse routing, opened when the Tailspin arrangement was retired in March. The predecessor's data return and deletion are closed and recorded against it. This one has not yet been traced to a workflow."
+  },
+  "decisions": [
+    {
+      "text": "Fund a tested failover for the plant historian, or record the board's acceptance that the group's single production dependency has an untested exit for a further year.",
+      "altitude": "board"
+    },
+    {
+      "text": "Direct that no arrangement stays untraced past one quarter — two of five currently are, and an untraced dependency is one nobody can size.",
+      "altitude": "board"
+    },
+    {
+      "text": "Name an owner for the two untraced arrangements and have them declare what each one supports, so the next review can size them.",
+      "altitude": "management"
+    }
+  ]
+}

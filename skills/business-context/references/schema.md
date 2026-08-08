@@ -73,7 +73,7 @@ register that refuses tomorrow's regime is worse than one that records it unreco
 |---|---|
 | `revenue` | The denominator `incident-materiality`'s financial factor had nowhere to get |
 | `segments` | Impact expressed as *which part of the business*, not "high" |
-| `crownJewels` | `{system, enables, atStake}` — the join between a technical asset and a business consequence |
+| `crownJewels` | `{system, enables, atStake}` — the join between a technical asset and a business consequence. Optionally `criticality` (this organisation's own ranking, recorded as declared and never checked against a scale this skill does not own) and `dependsOn` (components the system relies on, so a consumer can trace a supplied component back to the workflow). Both keys are **absent unless declared**: missing means *not declared*, never *not critical* |
 | `strategicGoals` | Lets a board pack open on the business's year, not security's |
 | `boardTolerance` | The sentence an appetite band was derived from — verbatim, attributed, dated |
 | `obligations` | The commitments an exception is actually deviating from |

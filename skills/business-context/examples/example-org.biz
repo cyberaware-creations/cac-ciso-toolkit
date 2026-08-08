@@ -62,7 +62,11 @@
         "atStake": "the client contact and contract data that 60% of group revenue renews through",
         "declaredBy": "R. Calder",
         "declaredOn": "2026-08-07",
-        "basis": "FY26 planning workshop"
+        "basis": "FY26 planning workshop",
+        "criticality": "high",
+        "dependsOn": [
+          "Identity provider (Okta)"
+        ]
       },
       {
         "system": "Plant historian (Dublin)",
@@ -70,7 +74,11 @@
         "atStake": "a day of lost output is roughly a week of aftermarket margin, and the DORA reporting clock starts",
         "declaredBy": "Head of Engineering",
         "declaredOn": "2026-08-07",
-        "basis": "FY26 planning workshop"
+        "basis": "FY26 planning workshop",
+        "criticality": "high",
+        "dependsOn": [
+          "SCADA gateway"
+        ]
       }
     ],
     "strategicGoals": [

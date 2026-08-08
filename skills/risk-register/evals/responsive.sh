@@ -43,6 +43,7 @@ XR="$repo/skills/exceptions-register"
 IM="$repo/skills/incident-materiality"
 BP="$repo/skills/board-pack"
 BC="$repo/skills/business-context"
+VR="$repo/skills/vendor-register"
 PORT="${CDP_PORT:-9333}"
 export CDP_PORT="$PORT"
 
@@ -160,6 +161,24 @@ done
 (cd "$XR/renderers" && "$PY" render_inventory.py --in "$work/xr.json" \
   --out "$work/xr_inv.html" --offline) >/dev/null || {
     echo "responsive: FIXTURE FAILED — exceptions render_inventory errored"; exit 1; }
+
+# vendor-register, both surfaces. The operational table is seven columns wide and one of them
+# is a trace rendered as `A -> B -> ...`, which is the shape that refuses to wrap; the board
+# view carries its sidecar. Rendered against a REAL exported profile, so the criticality chips
+# on the page are the ones the walk actually produced rather than placeholders.
+"$PY" "$BC/scripts/business_context.py" export "$BC/examples/example-org.biz" \
+  --out "$work/vr_ctx.json" >/dev/null || {
+    echo "responsive: FIXTURE FAILED — business-context export for vendor errored"; exit 1; }
+"$PY" "$VR/scripts/vendor_register.py" analyze "$VR/examples/example-vendors.vnd" \
+  --context "$work/vr_ctx.json" --today 2026-07-31 --out "$work/vr.json" >/dev/null || {
+    echo "responsive: FIXTURE FAILED — vendor analyze errored"; exit 1; }
+(cd "$VR/renderers" && "$PY" render_board.py --in "$work/vr.json" \
+  --translations "$VR/examples/example-translations.json" \
+  --out "$work/vr_board.html" --offline) >/dev/null || {
+    echo "responsive: FIXTURE FAILED — vendor render_board errored"; exit 1; }
+(cd "$VR/renderers" && "$PY" render_operational.py --in "$work/vr.json" \
+  --out "$work/vr_ops.html" --offline) >/dev/null || {
+    echo "responsive: FIXTURE FAILED — vendor render_operational errored"; exit 1; }
 
 # incident-materiality, both surfaces. The worksheet is the densest page in the suite —
 # four incidents, each with a six-row factor table carrying a paragraph of prose per row —
@@ -413,6 +432,7 @@ pages=("$work/render_board.html" "$work/render_dashboard.html" "$work/render_rep
        "$work/im_board.html" "$work/im_ws.html"
        "$work/bp_pack.html" "$work/bp_conflict.html"
        "$work/csf_xw.html" "$work/bc_framing.html"
+       "$work/vr_board.html" "$work/vr_ops.html"
        "$work/mx_exec_brand.html" "$work/im_ws_brand.html"
        "$work/mx_exec_empty.html" "$work/xr_inv_empty.html"
        "$work/im_ws_empty.html" "$work/bc_empty.html")
@@ -440,6 +460,7 @@ covered=(
   "incident-materiality/render_board"   "incident-materiality/render_worksheet"
   "board-pack/render_pack"
   "business-context/render_context"
+  "vendor-register/render_board"        "vendor-register/render_operational"
 )
 shipped=""
 for rp in "$repo"/skills/*/renderers/render_*.py; do

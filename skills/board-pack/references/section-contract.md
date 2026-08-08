@@ -36,7 +36,17 @@ The item key is named for what the section is about, and the spelling is exact.
 | `posture` | `gaps` | `nist-csf` |
 | `metrics` | `metrics` | `metrics-register` |
 | `exceptions` | `acceptances` **and** `exceptions` | `exceptions-register` |
+| `vendor` | `arrangements` | `vendor-register` |
 | `incident` | `incidents` | `incident-materiality` |
+
+`vendor` is keyed on **arrangements, not vendors**. The register is contract-centric: one
+provider commonly holds several agreements at different criticalities — the same cloud
+provider behind a critical production dependency and a marketing sandbox — and a
+vendor-keyed section would force one line per company for facts that differ per agreement.
+
+**`vendor` was added within `contractVersion: 1`, not by bumping it.** The addition is purely
+additive: every sidecar ever written omits it and still validates, and a version bump would
+refuse all of them to gain nothing. Same reasoning as `boundTo`.
 
 `exceptions` is the one section with two item maps, because an acceptance and an exception are
 different objects with one lifecycle. A section may carry both, either, or neither.

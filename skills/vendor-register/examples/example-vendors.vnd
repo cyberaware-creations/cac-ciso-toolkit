@@ -1,0 +1,544 @@
+{
+  "schemaVersion": 1,
+  "family": "vendor-register",
+  "meta": {
+    "orgName": "Northwind Manufacturing",
+    "preparedBy": "R. Calder, CISO",
+    "scopeNote": "Group third-party arrangements, FY26. One legal entity; the Dublin subsidiary is in the same perimeter.",
+    "asOf": "2026-08-07"
+  },
+  "settings": {
+    "criticalityScale": [
+      "low",
+      "moderate",
+      "high"
+    ],
+    "scaleVersion": "v1",
+    "cadenceDays": {
+      "high": 365,
+      "moderate": 730
+    },
+    "exitTestStaleDays": 730,
+    "traceMaxHops": 2
+  },
+  "vendors": [
+    {
+      "id": "V-001",
+      "name": "Contoso Cloud",
+      "jurisdiction": "IE",
+      "groupParent": "",
+      "identifiers": {},
+      "designations": [],
+      "provenance": {
+        "value": "Contoso Cloud",
+        "declaredBy": "R. Calder",
+        "declaredOn": "2026-08-07",
+        "basis": ""
+      }
+    },
+    {
+      "id": "V-002",
+      "name": "Fabrikam Analytics",
+      "jurisdiction": "US",
+      "groupParent": "Fabrikam Holdings",
+      "identifiers": {},
+      "designations": [],
+      "provenance": {
+        "value": "Fabrikam Analytics",
+        "declaredBy": "R. Calder",
+        "declaredOn": "2026-08-07",
+        "basis": ""
+      }
+    },
+    {
+      "id": "V-003",
+      "name": "Tailspin Logistics IT",
+      "jurisdiction": "IE",
+      "groupParent": "",
+      "identifiers": {},
+      "designations": [],
+      "provenance": {
+        "value": "Tailspin Logistics IT",
+        "declaredBy": "R. Calder",
+        "declaredOn": "2026-08-07",
+        "basis": ""
+      }
+    }
+  ],
+  "arrangements": [
+    {
+      "id": "VA-001",
+      "vendorRef": "V-001",
+      "entityRef": "Northwind Manufacturing",
+      "services": "production hosting for the plant historian",
+      "supports": "SCADA gateway",
+      "owner": "Head of Engineering",
+      "startsOn": "2023-04-01",
+      "endsOn": "",
+      "cost": "",
+      "gvsc": [
+        "GV.SC-05",
+        "GV.SC-10"
+      ],
+      "sr": [
+        "SR-6"
+      ],
+      "subcontractors": [],
+      "exit": {
+        "documentedOn": "2024-02-10",
+        "testedOn": "",
+        "note": "Documented failover to a second region, owned by Engineering"
+      },
+      "requirements": [
+        {
+          "requirement": "Breach notification within 24 hours",
+          "evidence": "Executed MSA schedule 3, clause 11.2",
+          "met": true,
+          "checkedOn": "2026-08-07",
+          "checkedBy": "General Counsel"
+        }
+      ],
+      "assessments": [],
+      "criticality": {
+        "derived": "high",
+        "derivedOn": "2026-08-07",
+        "trace": [
+          "SCADA gateway",
+          "Plant historian (Dublin)"
+        ],
+        "truncated": false,
+        "derivedFromLevel": "high",
+        "confirmed": {
+          "value": "high",
+          "by": "Head of Engineering",
+          "on": "2026-08-07",
+          "basis": "FY26 criticality review; the historian stops both lines",
+          "scaleVersion": "v1",
+          "againstDerived": "high"
+        }
+      },
+      "retired": null,
+      "priorArrangementRef": ""
+    },
+    {
+      "id": "VA-002",
+      "vendorRef": "V-001",
+      "entityRef": "Northwind Manufacturing",
+      "services": "CRM hosting and support",
+      "supports": "CRM (Salesforce)",
+      "owner": "Sales Operations Director",
+      "startsOn": "2022-01-15",
+      "endsOn": "",
+      "cost": "",
+      "gvsc": [
+        "GV.SC-05"
+      ],
+      "sr": [
+        "SR-6"
+      ],
+      "subcontractors": [],
+      "exit": {
+        "documentedOn": "",
+        "testedOn": "",
+        "note": ""
+      },
+      "requirements": [],
+      "assessments": [],
+      "criticality": {
+        "derived": "high",
+        "derivedOn": "2026-08-07",
+        "trace": [
+          "CRM (Salesforce)"
+        ],
+        "truncated": false,
+        "derivedFromLevel": "high",
+        "confirmed": {
+          "value": "moderate",
+          "by": "Sales Operations Director",
+          "on": "2026-08-07",
+          "basis": "renewals continue offline for a fortnight; the trace overstates it",
+          "scaleVersion": "v1",
+          "againstDerived": "high"
+        }
+      },
+      "retired": null,
+      "priorArrangementRef": ""
+    },
+    {
+      "id": "VA-003",
+      "vendorRef": "V-002",
+      "entityRef": "Northwind Manufacturing",
+      "services": "marketing attribution sandbox",
+      "supports": "",
+      "owner": "CMO",
+      "startsOn": "2025-11-01",
+      "endsOn": "",
+      "cost": "",
+      "gvsc": [],
+      "sr": [],
+      "subcontractors": [
+        {
+          "name": "Woodgrove Data Services",
+          "effective": "2026-06-15",
+          "note": "Introduced without notice; found during the FY26 review",
+          "recordedOn": "2026-08-07"
+        }
+      ],
+      "exit": {
+        "documentedOn": "",
+        "testedOn": "",
+        "note": ""
+      },
+      "requirements": [],
+      "assessments": [],
+      "criticality": {
+        "derived": "untraced",
+        "derivedOn": "2026-08-07",
+        "trace": [],
+        "truncated": false,
+        "derivedFromLevel": "untraced",
+        "confirmed": null
+      },
+      "retired": null,
+      "priorArrangementRef": ""
+    },
+    {
+      "id": "VA-004",
+      "vendorRef": "V-003",
+      "entityRef": "Northwind Manufacturing",
+      "services": "warehouse routing (superseded)",
+      "supports": "Routing gateway",
+      "owner": "Head of Logistics",
+      "startsOn": "2019-06-01",
+      "endsOn": "",
+      "cost": "",
+      "gvsc": [],
+      "sr": [],
+      "subcontractors": [],
+      "exit": {
+        "documentedOn": "",
+        "testedOn": "",
+        "note": ""
+      },
+      "requirements": [],
+      "assessments": [],
+      "criticality": null,
+      "retired": {
+        "on": "2026-08-07",
+        "dataWent": "Returned on encrypted media and confirmed purged from Tailspin's backups",
+        "deletionConfirmedOn": "2026-03-20",
+        "why": "Routing consolidated onto the Contoso platform",
+        "by": "Head of Logistics"
+      },
+      "priorArrangementRef": ""
+    },
+    {
+      "id": "VA-005",
+      "vendorRef": "V-001",
+      "entityRef": "Northwind Manufacturing",
+      "services": "warehouse routing (replacement)",
+      "supports": "Routing gateway",
+      "owner": "Head of Logistics",
+      "startsOn": "2026-03-21",
+      "endsOn": "",
+      "cost": "",
+      "gvsc": [],
+      "sr": [],
+      "subcontractors": [],
+      "exit": {
+        "documentedOn": "",
+        "testedOn": "",
+        "note": ""
+      },
+      "requirements": [],
+      "assessments": [],
+      "criticality": {
+        "derived": "untraced",
+        "derivedOn": "2026-08-07",
+        "trace": [
+          "Routing gateway"
+        ],
+        "truncated": false,
+        "derivedFromLevel": "untraced",
+        "confirmed": null
+      },
+      "retired": null,
+      "priorArrangementRef": "VA-004"
+    }
+  ],
+  "history": [
+    {
+      "event": "vendor-added",
+      "target": "V-001",
+      "actor": "R. Calder",
+      "ts": "2026-08-07T21:43:01+00:00",
+      "why": "Contoso Cloud"
+    },
+    {
+      "event": "vendor-added",
+      "target": "V-002",
+      "actor": "R. Calder",
+      "ts": "2026-08-07T21:43:01+00:00",
+      "why": "Fabrikam Analytics"
+    },
+    {
+      "event": "vendor-added",
+      "target": "V-003",
+      "actor": "R. Calder",
+      "ts": "2026-08-07T21:43:01+00:00",
+      "why": "Tailspin Logistics IT"
+    },
+    {
+      "event": "arrangement-added",
+      "target": "VA-001",
+      "actor": "R. Calder",
+      "ts": "2026-08-07T21:43:01+00:00",
+      "why": "production hosting for the plant historian",
+      "detail": {
+        "vendorRef": "V-001",
+        "owner": "Head of Engineering"
+      }
+    },
+    {
+      "event": "arrangement-added",
+      "target": "VA-002",
+      "actor": "R. Calder",
+      "ts": "2026-08-07T21:43:01+00:00",
+      "why": "CRM hosting and support",
+      "detail": {
+        "vendorRef": "V-001",
+        "owner": "Sales Operations Director"
+      }
+    },
+    {
+      "event": "arrangement-added",
+      "target": "VA-003",
+      "actor": "R. Calder",
+      "ts": "2026-08-07T21:43:01+00:00",
+      "why": "marketing attribution sandbox",
+      "detail": {
+        "vendorRef": "V-002",
+        "owner": "CMO"
+      }
+    },
+    {
+      "event": "arrangement-added",
+      "target": "VA-004",
+      "actor": "R. Calder",
+      "ts": "2026-08-07T21:43:01+00:00",
+      "why": "warehouse routing (superseded)",
+      "detail": {
+        "vendorRef": "V-003",
+        "owner": "Head of Logistics"
+      }
+    },
+    {
+      "event": "classified",
+      "target": "VA-001",
+      "actor": "Head of Engineering",
+      "ts": "2026-08-07T21:43:01+00:00",
+      "why": "confirmed high",
+      "detail": {
+        "derived": "high",
+        "trace": [
+          "SCADA gateway",
+          "Plant historian (Dublin)"
+        ],
+        "truncated": false
+      }
+    },
+    {
+      "event": "classified",
+      "target": "VA-002",
+      "actor": "Sales Operations Director",
+      "ts": "2026-08-07T21:43:01+00:00",
+      "why": "confirmed moderate",
+      "detail": {
+        "derived": "high",
+        "trace": [
+          "CRM (Salesforce)"
+        ],
+        "truncated": false
+      }
+    },
+    {
+      "event": "classified",
+      "target": "VA-003",
+      "actor": "",
+      "ts": "2026-08-07T21:43:01+00:00",
+      "why": "derived untraced",
+      "detail": {
+        "derived": "untraced",
+        "trace": [],
+        "truncated": false
+      }
+    },
+    {
+      "event": "exit-documented",
+      "target": "VA-001",
+      "actor": "Head of Engineering",
+      "ts": "2026-08-07T21:43:01+00:00",
+      "why": "Documented failover to a second region, owned by Engineering"
+    },
+    {
+      "event": "requirement-reviewed",
+      "target": "VA-001",
+      "actor": "General Counsel",
+      "ts": "2026-08-07T21:43:02+00:00",
+      "why": "Breach notification within 24 hours"
+    },
+    {
+      "event": "subprocessor-recorded",
+      "target": "VA-003",
+      "actor": "CMO",
+      "ts": "2026-08-07T21:43:02+00:00",
+      "why": "Woodgrove Data Services",
+      "detail": {
+        "effective": "2026-06-15"
+      }
+    },
+    {
+      "event": "retired",
+      "target": "VA-004",
+      "actor": "Head of Logistics",
+      "ts": "2026-08-07T21:43:02+00:00",
+      "why": "Routing consolidated onto the Contoso platform"
+    },
+    {
+      "event": "arrangement-added",
+      "target": "VA-005",
+      "actor": "R. Calder",
+      "ts": "2026-08-07T21:43:02+00:00",
+      "why": "warehouse routing (replacement)",
+      "detail": {
+        "vendorRef": "V-001",
+        "owner": "Head of Logistics"
+      }
+    },
+    {
+      "event": "successor-linked",
+      "target": "VA-005",
+      "actor": "",
+      "ts": "2026-08-07T21:43:02+00:00",
+      "why": "VA-004"
+    },
+    {
+      "event": "classified",
+      "target": "VA-005",
+      "actor": "",
+      "ts": "2026-08-07T21:43:02+00:00",
+      "why": "derived untraced",
+      "detail": {
+        "derived": "untraced",
+        "trace": [
+          "Routing gateway"
+        ],
+        "truncated": false
+      }
+    },
+    {
+      "event": "reviewed",
+      "target": "register",
+      "actor": "",
+      "ts": "2026-08-07T21:43:02+00:00",
+      "why": "Quarterly review ahead of the audit committee",
+      "detail": {
+        "label": "FY26 Q3 third-party review"
+      }
+    }
+  ],
+  "snapshots": [
+    {
+      "label": "FY26 Q3 third-party review",
+      "why": "Quarterly review ahead of the audit committee",
+      "ts": "2026-08-07T21:43:02+00:00",
+      "settings": {
+        "criticalityScale": [
+          "low",
+          "moderate",
+          "high"
+        ],
+        "scaleVersion": "v1",
+        "cadenceDays": {
+          "high": 365,
+          "moderate": 730
+        },
+        "exitTestStaleDays": 730,
+        "traceMaxHops": 2
+      },
+      "arrangements": [
+        {
+          "id": "VA-001",
+          "criticality": {
+            "derived": "high",
+            "derivedOn": "2026-08-07",
+            "trace": [
+              "SCADA gateway",
+              "Plant historian (Dublin)"
+            ],
+            "truncated": false,
+            "derivedFromLevel": "high",
+            "confirmed": {
+              "value": "high",
+              "by": "Head of Engineering",
+              "on": "2026-08-07",
+              "basis": "FY26 criticality review; the historian stops both lines",
+              "scaleVersion": "v1",
+              "againstDerived": "high"
+            }
+          }
+        },
+        {
+          "id": "VA-002",
+          "criticality": {
+            "derived": "high",
+            "derivedOn": "2026-08-07",
+            "trace": [
+              "CRM (Salesforce)"
+            ],
+            "truncated": false,
+            "derivedFromLevel": "high",
+            "confirmed": {
+              "value": "moderate",
+              "by": "Sales Operations Director",
+              "on": "2026-08-07",
+              "basis": "renewals continue offline for a fortnight; the trace overstates it",
+              "scaleVersion": "v1",
+              "againstDerived": "high"
+            }
+          }
+        },
+        {
+          "id": "VA-003",
+          "criticality": {
+            "derived": "untraced",
+            "derivedOn": "2026-08-07",
+            "trace": [],
+            "truncated": false,
+            "derivedFromLevel": "untraced",
+            "confirmed": null
+          }
+        },
+        {
+          "id": "VA-004",
+          "criticality": null
+        },
+        {
+          "id": "VA-005",
+          "criticality": {
+            "derived": "untraced",
+            "derivedOn": "2026-08-07",
+            "trace": [
+              "Routing gateway"
+            ],
+            "truncated": false,
+            "derivedFromLevel": "untraced",
+            "confirmed": null
+          }
+        }
+      ]
+    }
+  ],
+  "createdAt": "2026-08-07T21:43:01+00:00",
+  "updatedAt": "2026-08-07T21:43:02+00:00"
+}

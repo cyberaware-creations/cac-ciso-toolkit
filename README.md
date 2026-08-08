@@ -30,9 +30,9 @@ already have; see [Requirements](#requirements).
 
 ## Skills
 
-Eight skills, in three layers. **Six own data** — each is the system of record for one thing and
+Nine skills, in three layers. **Seven own data** — each is the system of record for one thing and
 persists it in a local file: risks, a CSF Profile, metrics, accepted exceptions, incident
-determinations, and the organisation's own business facts. **One owns language** —
+determinations, third-party arrangements, and the organisation's own business facts. **One owns language** —
 `ciso-board-translation` holds the board-facing phrasing the others call rather than each inventing
 its own. **One owns the deliverable** — `board-pack` assembles what the producers wrote into a
 single document, and owns no data at all.
@@ -151,6 +151,23 @@ review actually works from.
 - **Age bands, not expiry** — the same `within` / `approaching` / `beyond` / `wellBeyond` bands as
   the CSF Profile and the register, over reading dates here. Distance from cadence, never a
   confidence claim, and nothing expires on a timer.
+
+### `vendor-register`
+Third-party arrangements — who we depend on, for what, and how critical that dependency actually
+is — persisted in a local `.vnd` file. The spine is CSF 2.0 `GV.SC`; DORA and the rest are
+overlays, never the frame.
+
+- **Contract-centric, not vendor-centric.** One provider commonly holds several arrangements at
+  different criticalities. A vendor-shaped register forces one per company and is wrong in the
+  way an assessor notices first.
+- **Criticality is derived, then confirmed.** The walk traces what an arrangement supports back
+  to a workflow the business declared critical, two hops, following NISTIR 8179's Process E in
+  shape. Derivation proposes; a named person assigns, and an unattributed final level is refused.
+- **`untraced` is a value, not a gap.** Never `low`, never on the scale, and it cannot be ordered
+  against one at all — the engine raises rather than ranking it. A dependency nobody can trace is
+  a question, not a low-priority row.
+- **No vendor score**, deliberately and under an eval with two halves. Findings go to
+  `risk-register` and are scored once, there.
 
 ### `exceptions-register`
 The defensible record of what the organisation knowingly accepted — risk acceptances and control
@@ -320,6 +337,13 @@ skills/
     references/                schema, metrics method, archetype bridge
     examples/                  worked .mtr + its board translations
     evals/                     metric-trend, board-safety, trigger-routing suites
+  vendor-register/
+    SKILL.md
+    scripts/vendor_register.py      arrangements + the criticality walk (stdlib only)
+    renderers/                 render_operational / render_board
+    references/                schema, criticality method, GV.SC and SR mapping
+    examples/                  worked .vnd + its board translations
+    evals/                     no-vendor-score suite
   exceptions-register/
     SKILL.md
     scripts/exceptions_register.py  acceptance + exception lifecycle (stdlib only)
@@ -388,6 +412,7 @@ python3 skills/nist-csf/evals/score-triggers.py self-test         # routing scor
 python3 skills/metrics-register/scripts/metrics_analysis.py self-test      # trend + threshold math
 python3 skills/exceptions-register/scripts/exceptions_register.py self-test  # lifecycle + refusals
 python3 skills/incident-materiality/scripts/incident_analysis.py self-test   # clocks + banding
+python3 skills/vendor-register/scripts/vendor_register.py self-test        # the criticality walk
 python3 skills/business-context/scripts/business_context.py self-test      # §2.2/§2.3 narrowing
 python3 skills/board-pack/scripts/assemble_pack.py self-test               # contract + assembly
 
@@ -403,6 +428,7 @@ python3 skills/board-pack/scripts/assemble_pack.py self-test               # con
 
 ./skills/nist-csf/evals/board-safety.sh                   # each of these six guards its own views
 ./skills/metrics-register/evals/board-safety.sh
+./skills/vendor-register/evals/no-vendor-score.sh   # no score, emitted or computed
 ./skills/exceptions-register/evals/board-safety.sh
 ./skills/incident-materiality/evals/board-safety.sh
 ./skills/business-context/evals/board-safety.sh

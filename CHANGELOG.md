@@ -21,6 +21,52 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.39.0 — 2026-08-07
+
+**`vendor-register`, skill #9** — third-party arrangements, with a criticality that is traced
+rather than asserted. Plan 1 of two; the assessment layer follows.
+
+- **Contract-centric, not vendor-centric.** One provider commonly holds several arrangements at
+  different criticalities, and a vendor-shaped store forces one criticality per company.
+- **Criticality is derived, then confirmed.** The walk traces what an arrangement supports back
+  to a workflow whose criticality the business declared — two hops, following NISTIR 8179's
+  Process E in shape. Derivation proposes; `--confirm` without `--by` is refused. A confirmed
+  level that differs from the derived one is a *finding*, not an error, and escalates.
+- **`untraced` is a value, not a gap.** Never `low`, not a member of the scale, and
+  `criticality_rank` **raises** on it — one `sorted(key=rank)` placing it at the bottom would
+  silently downgrade every untraceable arrangement behind a board table that looked complete. A
+  truncated walk returns `untraced` *and* `truncated`, never a confident level from an
+  unfinished walk. Mutation-tested three ways.
+- **No vendor score**, under an eval with two halves: nothing emitted is named like one, and
+  nothing computes one internally. Proven in both directions — a score renamed to
+  `attentionIndex` escapes the first check and not the second.
+- **Triggers fire at every criticality level.** `low` has no cadence by design, so a
+  subprocessor change on a low arrangement is the only thing that catches it stopping being low.
+- **The D-10 colour split**: criticality is RAG operationally, a classification on the board
+  page, where RAG is reserved for what needs a decision. `untraced` is neutral on both and
+  always carries its word.
+
+- **`decisions-render.sh` found a live defect on its first run**, before this skill had ever
+  shipped. `ciso-board-translation` emits decisions as `{"text", "altitude"}` objects and the
+  board renderer stringified them, printing a raw Python dict where a board decision belongs —
+  the same P1 that shipped across this suite once before. Fixed, and the renderer now separates
+  board asks from management actions rather than listing both as things to vote on.
+- **`board-safety.sh`** inherits the confidence and catastrophizing checks every producer here
+  carries and adds one this skill needs: **no scoring vocabulary on a page**. `no-vendor-score`
+  proves nothing *computes* a score; this proves nothing *says* one.
+
+Supporting changes:
+
+- `business-context` crown jewels may declare `criticality` and `dependsOn`. Optional and
+  additive — absent unless declared, so every `.biz` written before this exports byte-identically
+  (asserted). This is where the walk's top hop lives, because how critical a workflow is, is a
+  business judgement.
+- `board-pack` gains a `vendor` section, **additive within `contractVersion: 1`** on the
+  `boundTo` precedent. It sits after `risk` in both orderings — what we carry, then who we
+  depend on to carry it — and both orderings are recorded as chosen rather than defaulted.
+  A pack with no vendor sidecar is unchanged in every section, decision, headline and
+  escalation; it gains one provenance line naming the section it does not have.
+
 ## v0.38.0 — 2026-08-07
 
 An agenda can be wrong as a whole while every ask on it is right.

@@ -313,7 +313,27 @@ def declare_flag(store: dict, flag: str, raw_value, by: str, basis: str,
 # belong here.
 
 def add_crown_jewel(store: dict, system: str, enables: str, at_stake: str,
-                    by: str = "", basis: str = "") -> dict:
+                    by: str = "", basis: str = "", criticality: str = "",
+                    depends_on=None) -> dict:
+    """Record a system the business cannot lose, and optionally how critical it is.
+
+    `criticality` and `dependsOn` exist for one consumer — a criticality analysis walking
+    from a third-party arrangement back to the workflow it supports. They are the business
+    judgement at the top of that walk, and they live here because that is what they are: a
+    statement about what the organisation cannot lose, not about any vendor.
+
+    Both are OPTIONAL and both are additive by construction. A crown jewel declared without
+    them carries neither key, so every `.biz` written before this existed loads unchanged and
+    exports byte-identically. Absence means not declared, never `not critical` — CAC-AP-1
+    §2.2 applies to this field exactly as it does to a profile flag, and a consumer that read
+    a missing level as the bottom of its scale would silently downgrade every system nobody
+    has got to yet.
+
+    No scale is validated here, deliberately. This skill does not own one: the levels are
+    whatever the organisation ranks by, and the consumer that has a scale checks the value
+    against it and reports a disagreement rather than coercing one. Validating here would
+    mean this skill deciding what a criticality level is allowed to be.
+    """
     missing = [n for n, v in (("--crown-jewel", system), ("--enables", enables),
                               ("--at-stake", at_stake)) if not str(v or "").strip()]
     if missing:
@@ -327,6 +347,11 @@ def add_crown_jewel(store: dict, system: str, enables: str, at_stake: str,
            "atStake": at_stake.strip(),
            "declaredBy": str(by or "").strip(), "declaredOn": utc_today(),
            "basis": str(basis or "").strip()}
+    if str(criticality or "").strip():
+        rec["criticality"] = criticality.strip()
+    depends = [str(d).strip() for d in (depends_on or []) if str(d or "").strip()]
+    if depends:
+        rec["dependsOn"] = depends
     store["context"]["crownJewels"].append(rec)
     append_history(store, "crown-jewel-added", rec["system"], why=rec["atStake"],
                    detail={"enables": rec["enables"]})
@@ -902,6 +927,35 @@ def _cmd_self_test(_args) -> int:
            "a crown jewel records what is lost, not just what it does")
         eq(len(store["context"]["crownJewels"]), 1, "and lands once")
 
+        # Criticality and dependsOn: optional, additive, and never invented.
+        #
+        # The load-bearing case is the first. A crown jewel declared without a level must
+        # carry NO key at all, not an empty string — every `.biz` written before these
+        # fields existed has to load and export byte-identically, and a consumer has to be
+        # able to tell "not declared" from "declared as nothing". An empty string would
+        # collapse those two, which is the CAC-AP-1 §2.2 failure in a different costume.
+        ok("criticality" not in cj and "dependsOn" not in cj,
+           "a crown jewel with no level declared carries neither key, not an empty one")
+        # On a scratch store: the export cases below pin this one to a single crown jewel,
+        # and a fixture quietly gaining rows is how a downstream assertion starts passing
+        # for the wrong reason.
+        scratch = new_store("Scratch Ltd", "R. Calder")
+        rated = add_crown_jewel(scratch, "Plant historian", "production scheduling",
+                                "a day of lost output", by="Head of Engineering",
+                                criticality="high", depends_on=["SCADA gateway", " "])
+        eq(rated["criticality"], "high", "a declared level is recorded as given")
+        eq(rated["dependsOn"], ["SCADA gateway"],
+           "and blank dependencies are dropped rather than stored as empty rows")
+        # No scale is checked here on purpose: this skill does not own one, and validating
+        # would mean deciding what a criticality level is allowed to be for everybody.
+        odd = add_crown_jewel(scratch, "Ledger", "statutory reporting", "the audit opinion",
+                              criticality="tier-0")
+        eq(odd["criticality"], "tier-0",
+           "an organisation's own ranking is recorded, not corrected against a scale")
+        eq([c["system"] for c in context_payload(scratch)["crownJewels"]
+            if c.get("criticality")], ["Plant historian", "Ledger"],
+           "and a declared level travels in the CAC-AP-1 payload")
+
         # The board's own words, verbatim. Quotes and non-ASCII survive a round trip,
         # because the one thing this field must never do is paraphrase.
         quote = ('We will not accept a "material" outage in the payments rail — '
@@ -1243,7 +1297,9 @@ def _cmd_set_fact(args) -> int:
     wrote = []
     if args.crown_jewel or args.enables or args.at_stake:
         cj = add_crown_jewel(store, args.crown_jewel, args.enables, args.at_stake,
-                             by=args.by, basis=args.basis)
+                             by=args.by, basis=args.basis,
+                             criticality=args.criticality,
+                             depends_on=args.depends_on)
         wrote.append("crown jewel %r — at stake: %s" % (cj["system"], cj["atStake"]))
     if args.board_tolerance:
         add_board_tolerance(store, args.board_tolerance, args.by, on=args.on or "")
@@ -1396,6 +1452,14 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--crown-jewel", default="")
     sp.add_argument("--enables", default="")
     sp.add_argument("--at-stake", default="")
+    # Optional, and the key is absent unless given. See add_crown_jewel: this is the top of
+    # a criticality walk a consumer runs, not a level this skill knows how to check.
+    sp.add_argument("--criticality", default="",
+                    help="how critical this system is, in the organisation's own ranking. "
+                         "Optional; absent means not declared, never 'not critical'.")
+    sp.add_argument("--depends-on", action="append", default=[],
+                    help="a component this system relies on. Repeatable. Lets a consumer "
+                         "trace from a supplied component back to this system.")
     sp.add_argument("--board-tolerance", default="",
                     help="the board's words, verbatim — never paraphrased on write")
     sp.add_argument("--segment", action="append", default=[])
