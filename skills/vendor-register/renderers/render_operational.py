@@ -56,8 +56,9 @@ def _escalations(ctx) -> str:
             "<tr><td>%s</td><td><code>%s</code></td><td>%s</td><td>%s</td></tr>"
             % (C.trigger_chip(e["trigger"], e["severity"]), C.esc(e["subjectRef"]),
                C.esc(e["trigger"]), C.esc(e["evidence"])))
-    return ('<table><thead><tr><th>severity</th><th>arrangement</th><th>trigger</th>'
-            "<th>why</th></tr></thead><tbody>%s</tbody></table>" % "".join(rows))
+    return ('<div class="scroll"><table><thead><tr><th>severity</th>'
+            "<th>arrangement</th><th>trigger</th><th>why</th></tr></thead>"
+            "<tbody>%s</tbody></table></div>" % "".join(rows))
 
 
 def _counts(ctx) -> str:
@@ -83,11 +84,14 @@ def build(ctx) -> str:
     for note in ctx.notes:
         body.append('<div class="note"><p>%s</p></div>' % C.esc(note))
     body.append(C.section("How the estate sits", _counts(ctx)))
+    # `.scroll`: seven columns, one of them a trace rendered as `A -> B -> ...` that refuses to
+    # wrap. Wide content scrolls inside its own container so the page body never does — a table
+    # that widens the document is unreadable on a phone in a way nobody notices on a desktop.
     body.append(C.section(
         "Every arrangement",
-        '<table><thead><tr><th>id</th><th>vendor</th><th>services</th>'
-        "<th>criticality</th><th>traced through</th><th>owner</th><th>escalating</th>"
-        "</tr></thead><tbody>%s</tbody></table>" % _rows(ctx)))
+        '<div class="scroll"><table><thead><tr><th>id</th><th>vendor</th>'
+        "<th>services</th><th>criticality</th><th>traced through</th><th>owner</th>"
+        "<th>escalating</th></tr></thead><tbody>%s</tbody></table></div>" % _rows(ctx)))
     body.append(C.section("What is escalating", _escalations(ctx)))
     body.append(ctx.caveat_block())
     body.append(ctx.footer())
