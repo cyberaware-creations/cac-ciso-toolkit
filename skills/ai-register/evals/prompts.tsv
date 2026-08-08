@@ -10,6 +10,6 @@ A9	ai-register	Which AI deployments act without a person in the loop?
 A10	ai-register|board-pack	Build the AI section for the board pack.
 A11	exceptions-register	We want to accept the residual risk on prompt injection for the drafting tool.
 A12	neither	Is our applicant screening model biased?
-A13	risk-register	Score the risk from the unsanctioned writing tool.
+A13	ai-register|risk-register	Score the risk from the unsanctioned writing tool.
 A14	business-context	Are we in scope for the EU AI Act as a deployer?
 A15	nist-csf	How mature is our AI security programme, out of ten?

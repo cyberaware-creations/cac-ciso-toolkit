@@ -35,6 +35,55 @@ Route each prompt cold, with no prior context, and record the skill chosen. A pr
 the skill that will eventually *consume* the fact is a failure, not a near miss: the fact never
 gets recorded, and the consuming skill has nothing to cite.
 
+**Status: scored 2026-08-08 against v0.42.0 — 12/15.** Routing mode, fifteen fresh `claude -p`
+sessions, $8.40, ~52s a case.
+
+All six cases written to reach a *different* skill reached it — `risk-register`,
+`incident-materiality`, `ciso-board-translation`, `exceptions-register`, `metrics-register` and
+`nist-csf` each took the one written for it. That half is the load-bearing one: a checklist that
+only proves a skill fires proves the easy direction.
+
+## One real miss
+
+**B4 — "What did the board actually say about outage tolerance? I want the exact words on file."**
+Reached no skill. This skill owns board-voiced tolerance *verbatim* — recording the sentence the
+board said rather than the number somebody derived from it is one of the two reasons it exists —
+and the session instead searched the working directory, then Notion, Drive, Gmail and Dropbox,
+and reported that it could not check them.
+
+The behaviour after the miss was sound: it refused to reconstruct something plausible. But the
+routing is wrong, and the shape is familiar — it is the same failure as `vendor-register`'s V6.
+The prompt is phrased as *"what is on file"*, so the session went looking for a **file** rather
+than for the register that holds the fact. Worth the same fix V6 got: lead the description with
+retrieval as well as recording.
+
+## Two where the expectation is the weaker half
+
+Both are recorded as fails and left red, because widening an expectation in the same breath as
+seeing it fail is how a checklist stops measuring anything.
+
+**B6 — "Which questions actually apply to us for an incident? We're not listed."** Expected
+`business-context`, got `incident-materiality` — which produced a genuinely good answer: *"'not
+listed' narrows exactly one thing — SEC Item 1.05. Nothing else,"* then listed what still
+applies in full. The question is about which questions apply *to an incident*, and that consumer
+owns the narrowed set. `business-context|incident-materiality` is probably the honest
+pre-registration.
+
+**B7 — "I'm assessing a vendor that uses an AI model, but we've declared no AI internally. Does
+the AI battery still apply?"** Expected `business-context`, got `vendor-register` — **and
+`business-context` also fired**, which the scorer records but does not count, since it takes the
+first. The answer cited CAC-AP-1 §2.3 correctly: the subject outranks the profile, in both
+directions. Two skills, one correct answer, and an expectation that names only one of them.
+
+Both should become pipe lists **before** the next run, on the precedent set for A13 and Y1 —
+argued on their own terms, and changed in a commit that does not also contain their result.
+
+## How to run
+
+Route each prompt cold, with no prior context, and record the skill chosen. A prompt routed to
+the skill that will eventually *consume* the fact is a failure, not a near miss: the fact never
+gets recorded, and the consuming skill has nothing to cite.
+
 **Status: not yet run.** Written with the skill rather than after it — `exceptions-register`
 shipped without a checklist and had to have one retrofitted, which is the mistake this avoids.
 

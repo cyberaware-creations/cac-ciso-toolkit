@@ -4,7 +4,7 @@ Confirms the skill fires on **the arrangement and what is known about it** — w
 how critical that dependency is, what the agreement commits them to, whether we could leave —
 and stays quiet when the question is about scoring, accepting, disclosing or phrasing.
 
-**Status: scored 2026-08-08 against v0.41.0 — 13/15; V6 fixed and re-scored at v0.41.2 — 14/15.** Routing mode (no `ALLOWED_TOOLS`),
+**Status: scored 2026-08-08 against v0.41.0 — 13/15. V6 fixed and re-scored at v0.41.2, Y1 re-scored against a widened expectation at v0.42.0 — 15/15.** Routing mode (no `ALLOWED_TOOLS`),
 fifteen fresh `claude -p` sessions, $8.27, ~50s a case.
 
 All ten `V` cases were written to reach this skill and nine did. All five `Y` cases were written
@@ -48,8 +48,15 @@ Expected `risk-register`, got `vendor-register`. Scored as a fail and recorded a
 expectation is arguably the thing that is wrong: the answer refused the number and explained
 that this register emits none by design, which is precisely what should happen. "Within
 appetite" is `risk-register` vocabulary and the provider is `vendor-register`'s subject, so the
-honest pre-registration is `vendor-register|risk-register`. Left as a recorded fail rather than
-quietly widened — the next run is where that changes.
+honest pre-registration is `vendor-register|risk-register`.
+
+**Changed to that pipe list before the second run**, not after seeing its result. Left red on
+the first run precisely so the change would have to be argued for on its own terms rather than
+justified by an outcome.
+
+**Re-scored PASS at v0.42.0.** It went to `vendor-register` again and refused the number again,
+which is what the widened expectation says is correct. Both halves of the checklist are now
+green: ten cases reach this skill, five reach the skill each was written for.
 
 ## What the run establishes
 

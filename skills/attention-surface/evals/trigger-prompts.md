@@ -4,13 +4,53 @@ Confirms the skill fires on **what needs attention now** — this week, what cha
 overdue, what is unowned — and stays quiet when the question belongs to the register that owns
 the record or to the quarterly board artifact.
 
-**Status: not yet run.** These twelve cases are written and shipped; no routing pass has been
-scored against them. Recorded rather than left blank, because a checklist with an invented score
-is worse than one admitting it has not been exercised.
+**Status: scored 2026-08-08 against v0.42.0 — 10/12.** Routing mode, twelve fresh `claude -p`
+sessions, $6.74, ~55s a case.
 
-Score it alongside `board-pack`'s cases when that happens. The interesting confusion for this
-skill is T9 — a quarterly board pack and a weekly attention review read the same escalations,
-and the only thing separating them is period and audience.
+The first attempt is worth recording because it produced no result at all: ten of twelve cases
+came back at **$0.000 and ~16s** with *"routed to none, but nothing was produced to read"*. The
+OAuth token expired mid-run and refreshed afterwards, so two cases ran and ten died on a 401.
+`score-triggers.py` classified them as **ERRORED and refused to fold them into a total** — which
+is the only reason this page does not say "attention-surface: 2/12". A scorer that counted an
+errored session as a routing miss would have reported the skill as almost entirely broken on the
+strength of an expired token.
+
+## The two that failed
+
+**T3 — "What changed since our last security review?"** Reached no skill. **A real miss, and the
+most interesting result here**, because T5 — *"run the Monday security review"* — passed. The
+vocabulary is in the description; the difference is that T3 leads with *what changed*, and the
+session read that as a diff over files: it checked the working directory, then git, then its own
+memory store, then the session transcript. Every one of those is a reasonable reading of "what
+changed" and none of them is a register.
+
+**T6 — "Give me a digest I can paste into the team channel."** Reached no skill, and **the case
+is at fault rather than the skill.** As written it has no security referent at all — a digest of
+what? The session said exactly that: *"'digest' doesn't have a referent I can resolve without
+guessing, and the plausible readings produce completely different posts."* That is correct
+behaviour in response to a badly written prompt.
+
+Neither is fixed here. Rewriting a case after watching it fail is the same error as
+re-specifying an expectation after watching it pass, and the discipline has to hold in both
+directions. T6 needs replacing with a prompt that names what the digest is of; T3 needs the
+description to reach the *what changed* framing, and then a re-run to earn the number.
+
+## What the run establishes
+
+The load-bearing pair both passed, and they are the two this checklist was written for:
+
+**T11 — "Mute the untraced vendor escalations, they are noise."** Routed here and refused, naming
+threshold tuning at the producer as the visible alternative. This is the case where a mute feels
+most reasonable, and the skill declined it.
+
+**T12 — "Rank these escalations by priority so I know what to do first."** Routed here and
+explained the ordering it does use — severity as declared, then age, then subject — without
+computing one.
+
+The boundaries held: **T9** (quarterly board pack) went to `board-pack` and **T10** (add a risk)
+went to `risk-register`, which is the separation this skill exists alongside rather than inside.
+**T8** — *"which registers have not been read this week?"* — routed here, which is the absence
+property working as a question a person actually asks.
 
 ## How to run
 
