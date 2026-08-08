@@ -1,0 +1,21 @@
+{
+  "guard": "skills/vendor-register/evals/no-vendor-score.sh",
+  "forbids": "a computed vendor risk score, emitted or internal",
+  "note": "Every commercial third-party product emits one. The behavioural half catches the key; the static half catches the same number computed inside and rendered under an innocent name, which is a rename rather than a calculation.",
+  "mutations": [
+    {
+      "half": "behavioural",
+      "why": "a score-named key in analyze output",
+      "file": "skills/vendor-register/scripts/vendor_register.py",
+      "find": "        \"escalations\": esc,",
+      "replace": "        \"escalations\": esc,\n        \"vendorRiskScore\": 42,"
+    },
+    {
+      "half": "static",
+      "why": "a criticality rank multiplied by a count, under any name",
+      "file": "skills/vendor-register/scripts/vendor_register.py",
+      "find": "def export_findings(store: dict, today: str = \"\") -> dict:",
+      "replace": "def attention_index(store, rec):\n    return criticality_rank(store, criticality_of(rec)) * len(\n        rec.get(\"requirements\") or [])\n\n\ndef export_findings(store: dict, today: str = \"\") -> dict:"
+    }
+  ]
+}

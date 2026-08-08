@@ -1,0 +1,21 @@
+{
+  "guard": "skills/business-context/evals/no-derived-materiality.sh",
+  "forbids": "a percent-of-revenue materiality threshold, derived anywhere",
+  "note": "The exact revenue base is stored so a materiality judgement has an honest denominator. The one-line 'helpful' addition is to divide by it and print the answer — which is a legal determination this tool is not entitled to make.",
+  "mutations": [
+    {
+      "half": "static",
+      "why": "the arithmetic itself, wherever it hides",
+      "file": "skills/business-context/scripts/business_context.py",
+      "find": "    snap = last_review(store)\n    rev = store[\"context\"].get(\"revenue\")",
+      "replace": "    snap = last_review(store)\n    rev = store[\"context\"].get(\"revenue\")\n    _pct = (rev or {}).get(\"exact\", 0) / 100.0"
+    },
+    {
+      "half": "behavioural",
+      "why": "a derived figure reaching an emitted payload under any name",
+      "file": "skills/business-context/scripts/business_context.py",
+      "find": "        \"contractVersion\": \"CAC-AP-1\",\n        \"schemaVersion\": SCHEMA_VERSION,",
+      "replace": "        \"contractVersion\": \"CAC-AP-1\",\n        \"materialityThreshold\": 1234.0,\n        \"schemaVersion\": SCHEMA_VERSION,"
+    }
+  ]
+}

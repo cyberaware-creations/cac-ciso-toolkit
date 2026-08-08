@@ -21,6 +21,43 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.41.3 — 2026-08-08
+
+**CAC-GP-1: the guards are now proved on every run, not once at authoring.**
+
+Seven guards protect rules the suite would otherwise lose to a reasonable-sounding change — no
+vendor score, no closed state on an attack class, no percent-of-revenue materiality, no vendor
+assertion closing a requirement. Six recorded, in prose, that they had been mutation-tested.
+That sentence was true and the proof behind it was a paragraph: performed once, against code
+that has since moved, and re-run by nothing. A guard that stops detecting its own defect goes on
+printing `ok` forever, and the printing is indistinguishable from working.
+
+- **`tools/prove-guards.sh`** runs every guard twice on a fresh copy — clean must PASS, then
+  mutated must FAIL. Reporting only the second is the common mistake: a permanently broken guard
+  would "pass" a test that only looks for failure.
+- **Fourteen mutations registered as data**, two per guard, in
+  `skills/*/evals/guard-proofs/*.json`. Each defeats *its own half specifically*. That
+  constraint is load-bearing: a mutation writing `exposure[cls]["mitigated"] = True` trips both
+  halves of `no-closed-state` and therefore proves neither, so the behavioural mutation writes
+  the key as `"mitig" + "ated"` — invisible to a literal AST scan, caught in the store, which is
+  exactly the escape the behavioural half exists for.
+- **An unregistered guard is a failure, not a skip**, and a stale `find` is a failure too. Both
+  paths are tested; so is the clean-copy direction, by breaking a guard deliberately and
+  confirming the runner refuses to draw any conclusion from the mutated run.
+- **`evidence-tiers.sh` is proved for the first time.** It was the one guard with no record of
+  ever having been mutation-tested, and it protects the rule most exposed to commercial pressure
+  — *"the vendor's trust centre says exactly what we need, why can't it count?"* Both halves now
+  proved: removing the T1 scope-and-period refusal, and removing the end of the grace window so
+  nothing can ever expire.
+- Listed individually in CI, on the floor. `tools/guard-proof-standard.md` carries the rules and
+  the registry.
+
+GP-1.5 is not hypothetical. Writing these proofs, a first anchor no longer matched: the mutation
+silently failed to apply, the guard ran against an unmutated tree, and the run printed PASS —
+which reads as *"the guard missed it"* to anybody not checking whether the injection landed.
+
+---
+
 ## v0.41.2 — 2026-08-08
 
 **The V6 routing miss, fixed at its cause.** The first scored routing run found that *"does our

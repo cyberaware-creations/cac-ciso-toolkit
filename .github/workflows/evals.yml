@@ -288,6 +288,12 @@ jobs:
       - name: Decisions render (AI), on the floor
         run: PY="$(command -v python3)" ./skills/ai-register/evals/decisions-render.sh
 
+      # CAC-GP-1. Every guard must FAIL when its defect is present, proved on each run rather
+      # than once at authoring. Listed last because it re-runs each guard twice on a copy —
+      # and listed at all because a guard that quietly stopped guarding prints `ok` forever.
+      - name: Guard proofs (CAC-GP-1), on the floor
+        run: PY="$(command -v python3)" ./tools/prove-guards.sh
+
       # The five decisions-render guards. Each one pins the same shipped P1: the
       # sidecar carries decisions as {"text":..., "altitude":...} objects, the board
       # renderers stringified them, and every board pack printed a raw Python dict
