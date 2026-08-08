@@ -143,7 +143,9 @@ Confirmation age below); everything else leaves it exactly where it was.
 | `snapshot-created` | `snapshot` | no |
 | `import-merged` | `import-gaps --write` | no |
 | `escalation-policy-changed` | `set-escalation` | no |
-| `response-changed`, `risk-closed`, `risk-reopened`, `risk-deleted`, `settings-changed` | *nothing writes them yet* | no |
+| `response-changed` | `set-response` | no |
+| `settings-changed` | `set-currency` | no |
+| `risk-closed`, `risk-reopened`, `risk-deleted` | *nothing writes them yet* | no |
 
 Only an assertion about a risk's **magnitude** or its **treatment decision** affirms age. A
 rewording, a theme move, a status flip and a snapshot deliberately do not: an age that any edit

@@ -545,6 +545,20 @@ const VELCOLOR=__VELCOLOR__;
 // space. Two different jobs, two different tones, one grid either way.
 const BAND_MID=__BANDMID__;const BAND_MID_ON=__BANDMIDON__;
 const size=DB.settings.matrixSize;const appetite=DB.settings.appetite;
+// Treatment cost, rendered the way the engine renders it. Two defects lived in the one
+// expression this replaces:
+//
+//   `r.response.cost ? ... : ''` is a FALSY test, so a cost of 0 rendered as absent. Zero
+//   means "priced, and the answer is nothing" — a control already funded, a change absorbed
+//   in run costs — and absent means nobody has priced it. Those are different statements and
+//   the register keeps them apart, so the page has to as well.
+//
+//   The currency was hardcoded `$`. `settings.currency` is only now settable, so a GBP
+//   register would have printed `$45,000` — and SKILL.md's own rule is that a total shown in
+//   the wrong currency is worse than one shown in none, because only the second is obviously
+//   incomplete. No currency recorded renders the bare number, matching `treatment_cost`.
+const CUR=DB.settings.currency||"";
+const COST=c=>(c===null||c===undefined)?"":` · ${CUR?CUR+" ":""}${c.toLocaleString()}`;
 const BAND_ORDER=["low","medium","high","critical"];
 const THRESH={5:{low:1,medium:5,high:10,critical:15},4:{low:1,medium:4,high:8,critical:12},
   3:{low:1,medium:3,high:5,critical:7}}[size];
@@ -633,7 +647,7 @@ function openDrawer(id){const r=DB.risks.find(x=>x.id===id);const d=document.get
      <span class="k">Since ${DB.baseline||"baseline"}</span><span>${r.priorExposure===null?'<span class="muted">no baseline</span>':`${r.priorExposure} → ${r.residualExposure} ${VELMARK[r.velocity]}`}</span>
      <span class="k">CSF</span><span>${r.csfSubcategoryId||"—"}</span></div>
    <div class="blk"><h3>Risk (event statement)</h3><p>${r.description||'<span class="muted">No event statement recorded.</span>'}</p></div>
-   <div class="blk"><h3>Response — ${r.response.type}${r.response.cost?` · $${r.response.cost.toLocaleString()}`:''}</h3><p>${r.response.description||'<span class="muted">—</span>'}</p></div>
+   <div class="blk"><h3>Response — ${r.response.type}${COST(r.response.cost)}</h3><p>${r.response.description||'<span class="muted">—</span>'}</p></div>
    ${acc?`<div class="blk"><h3>Acceptance ${accNote?`· <span style="color:${BAND.critical}">${accNote}</span>`:''}</h3>
      <div class="accept${stale?' stale':''}"><b>${acc.approver||'<span class="flag">no approver recorded</span>'}</b> · accepted ${acc.acceptedDate||"—"} · re-validate by ${acc.revalidationDate||"—"}${acc.expiryDate?` · expires ${acc.expiryDate}`:''}<br>${acc.justification||'<span class="flag">no justification recorded</span>'}</div></div>`:''}
    ${r.translation?`<div class="blk"><h3>Board translation</h3><p>${r.translation}</p></div>`:''}
