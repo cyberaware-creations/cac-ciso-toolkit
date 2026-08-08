@@ -21,6 +21,63 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.44.0 — 2026-08-08
+
+**The risk-register write path — four defects around `response.cost`, and they were not
+independent.** Fixing the cost without fixing the parser produces a register that still eats
+typos, which is why these ship together.
+
+### Unknown flags now fail (BL-104)
+
+`risk-register` is the **one engine in the suite that does not use `argparse`**, and the one
+with the most mutation commands. `parse_flags` collected an unrecognised key and every command
+ignored it, so `init --currency GBP` exited 0 with a success message and wrote nothing, and
+`--appetitie medium` produced a register that did not contain what its author believed.
+
+**This was the root cause behind the currency defect being silent rather than loud.**
+
+A full argparse conversion was deliberately **not** done — that rewrites twenty commands in one
+change, in the skill where a mistake costs most, for a benefit strict rejection delivers alone.
+Instead `parse_flags` takes an optional `known` set, four commands declare theirs, and
+`_FLAGS_UNDECLARED` names the fourteen not yet converted. **That list is the point, not the
+compromise**: the self-test asserts every command either declares its flags or is on it, prints
+the count, and holds it under a ceiling that can only be lowered. A new command that does
+neither fails the suite — seen to fail before it was believed.
+
+### Currency is settable (BL-103)
+
+`settings.currency` was documented at `SKILL.md:152` and settable by no command. `init` now
+honours `--currency`, and `set-currency` is modelled line-for-line on `set-escalation`: requires
+`--why`, refuses a no-op, appends one event. `settings-changed` was already in
+`KNOWN_EVENT_TYPES` and already classified, so no vocabulary moved.
+
+**It relabels and never converts.** The amounts are the numbers somebody entered; re-denominating
+them would be the tool deciding what a figure means. The command says so when costs are present.
+
+### A cost cannot be negative, and can be corrected (BL-105)
+
+`response.cost` accepted a negative, printed it into the board's treatment total, and was
+**write-once** — `SKILL.md` forbids hand-editing the store and no command touched the field, so
+a typo was permanent. A negative reduces a board figure, which is the direction nobody audits.
+
+`_cost_opt` refuses a negative, a bare flag and a non-integer, and **accepts `0`** — priced, and
+the answer is nothing, which is a different statement from absent. `set-response` is the
+correction path, appending `response-changed`, the other event that had no writer.
+
+### A zero cost rendered as absent (BL-106)
+
+`${r.response.cost ? … : ''}` is a **falsy** test, so the shipped example's `cost: 0` risk showed
+no cost at all. Now an explicit numeric check.
+
+**And the currency beside it was hardcoded `$`** — not in the plan, and reachable only because
+currency became settable an hour earlier: a GBP register would have printed `$45,000`. The rule
+this skill already states is that a total in the wrong currency is worse than one in none.
+
+### SKILL.md lists every command (BL-115)
+
+The file inventory named ten of twenty. It now names all twenty, grouped by what they do, and a
+check compares the list against `COMMANDS`.
+
 ## v0.43.1 — 2026-08-08
 
 **A release test against v0.43.0 found three defects, and two of them were in the tests.** The
