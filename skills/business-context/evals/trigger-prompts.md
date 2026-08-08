@@ -35,8 +35,8 @@ Route each prompt cold, with no prior context, and record the skill chosen. A pr
 the skill that will eventually *consume* the fact is a failure, not a near miss: the fact never
 gets recorded, and the consuming skill has nothing to cite.
 
-**Status: scored 2026-08-08 against v0.42.0 — 12/15.** Routing mode, fifteen fresh `claude -p`
-sessions, $8.40, ~52s a case.
+**Status: scored 2026-08-08 against v0.42.0 — 12/15. B4 fixed and re-scored at v0.42.2 — 13/15.**
+Routing mode, fifteen fresh `claude -p` sessions, $8.40, ~52s a case.
 
 All six cases written to reach a *different* skill reached it — `risk-register`,
 `incident-materiality`, `ciso-board-translation`, `exceptions-register`, `metrics-register` and
@@ -56,6 +56,26 @@ routing is wrong, and the shape is familiar — it is the same failure as `vendo
 The prompt is phrased as *"what is on file"*, so the session went looking for a **file** rather
 than for the register that holds the fact. Worth the same fix V6 got: lead the description with
 retrieval as well as recording.
+
+**Fixed at v0.42.2 and re-scored PASS — and the routing miss was hiding an engine gap.** Chasing
+the fix found that `set-fact --board-tolerance` stored the board's sentence verbatim from the
+first release, refused an unattributed one, and then **`show` never printed it.** The quote was
+reachable only through `--json`. Widening the description on its own would have routed B4 here
+and answered it with a page that does not mention the board — a worse outcome than the miss,
+because it would have looked like it worked. `show` now prints each recorded sentence word for
+word with who said it and when, and prints `NONE RECORDED` otherwise.
+
+The re-scored answer leads with the absence and names the distinction the engine now prints:
+*"Nobody wrote down what the board said about outage tolerance. That is a different fact from the
+board having said nothing."* It declines to reconstruct a plausible version — *"a paraphrase
+offered in answer to a request for exact words is precisely the failure the verbatim rule exists
+to prevent"* — and states the scope rule in the user's own words: *"'On file' here means this
+register. I didn't search Drive, Notion, or a mailbox — a document hunt answers a different
+question."*
+
+**B9–B14 were re-run alongside it** to check the widening pulled nothing in. All six still route
+to the skill each was written for — `risk-register`, `incident-materiality`,
+`ciso-board-translation`, `exceptions-register`, `metrics-register`, `nist-csf`. 7/7, $4.03.
 
 ## Two where the expectation is the weaker half
 
@@ -78,14 +98,18 @@ directions. Two skills, one correct answer, and an expectation that names only o
 Both should become pipe lists **before** the next run, on the precedent set for A13 and Y1 —
 argued on their own terms, and changed in a commit that does not also contain their result.
 
-## How to run
+## Refresh the plugin first
 
-Route each prompt cold, with no prior context, and record the skill chosen. A prompt routed to
-the skill that will eventually *consume* the fact is a failure, not a near miss: the fact never
-gets recorded, and the consuming skill has nothing to cite.
+```bash
+claude plugin update cyber-aware-creations@cyber-aware-creations   # or the run scores a stale build
+```
 
-**Status: not yet run.** Written with the skill rather than after it — `exceptions-register`
-shipped without a checklist and had to have one retrofitted, which is the mistake this avoids.
+```bash
+PROMPTS="$PWD/skills/business-context/evals/prompts.tsv" ./skills/nist-csf/evals/run-triggers.sh /tmp/biz-trigger
+```
+
+`claude plugin update` is a no-op when the version has not moved, so an edited skill is **not**
+under test until the manifest version does.
 
 ---
 

@@ -4,8 +4,8 @@ Confirms the skill fires on **what needs attention now** — this week, what cha
 overdue, what is unowned — and stays quiet when the question belongs to the register that owns
 the record or to the quarterly board artifact.
 
-**Status: scored 2026-08-08 against v0.42.0 — 10/12.** Routing mode, twelve fresh `claude -p`
-sessions, $6.74, ~55s a case.
+**Status: scored 2026-08-08 against v0.42.0 — 10/12. T3 fixed and re-scored at v0.42.2 — 11/12.**
+Routing mode, twelve fresh `claude -p` sessions, $6.74, ~55s a case.
 
 The first attempt is worth recording because it produced no result at all: ten of twelve cases
 came back at **$0.000 and ~16s** with *"routed to none, but nothing was produced to read"*. The
@@ -24,16 +24,35 @@ session read that as a diff over files: it checked the working directory, then g
 memory store, then the session transcript. Every one of those is a reasonable reading of "what
 changed" and none of them is a register.
 
+**Fixed at v0.42.2 and re-scored PASS.** The lesson from V6 is that adding vocabulary to a
+description does not help when the vocabulary is already there — what was missing is the
+*disambiguation*. The description now leads with two jobs rather than one, and names the wrong
+reading outright: what changed means a diff over the escalations the registers hold, **not** over
+files, code, git history, a working directory or a session transcript. A SKILL.md section answers
+the question in order.
+
+The re-scored answer says it back without being asked: *"I deliberately did not diff files, git
+history, or this session; that's the wrong reading of the question and would have produced a
+confident, irrelevant answer."* It then declined to answer at all, because the case's working
+directory holds no `.att` and no producer stores — *"an empty result here means nothing was read,
+not that nothing fired, and reporting the second would be a lie with a comforting shape"* — and
+flagged in advance that a first review is a baseline and that `gone` reads as no longer firing.
+
+**T9 and T10 were re-run alongside it** to check the widening pulled nothing in. Both still route
+where they were written to: the quarterly pack to `board-pack`, adding a risk to `risk-register`.
+3/3, $1.92.
+
 **T6 — "Give me a digest I can paste into the team channel."** Reached no skill, and **the case
 is at fault rather than the skill.** As written it has no security referent at all — a digest of
 what? The session said exactly that: *"'digest' doesn't have a referent I can resolve without
 guessing, and the plausible readings produce completely different posts."* That is correct
 behaviour in response to a badly written prompt.
 
-Neither is fixed here. Rewriting a case after watching it fail is the same error as
-re-specifying an expectation after watching it pass, and the discipline has to hold in both
-directions. T6 needs replacing with a prompt that names what the digest is of; T3 needs the
-description to reach the *what changed* framing, and then a re-run to earn the number.
+Neither was fixed in the commit that recorded them. Rewriting a case after watching it fail is
+the same error as re-specifying an expectation after watching it pass, and the discipline has to
+hold in both directions. T3 was fixed in a later commit, at cause and in the skill rather than in
+the prompt, and re-scored. **T6 still needs replacing** with a prompt that names what the digest
+is of — that is a change to the case, so it must be argued and made before a run, never after.
 
 ## What the run establishes
 

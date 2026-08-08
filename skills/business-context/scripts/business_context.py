@@ -968,6 +968,22 @@ def _cmd_self_test(_args) -> int:
         eq(load(path)["context"]["boardTolerance"][0]["quote"], quote,
            "a tolerance quote round-trips with its quotes and non-ASCII unchanged")
 
+        # ...and is READABLE. Storing the sentence and having no way to read it back is the
+        # gap B4 found: the question arrives as "I want the exact words on file", and a skill
+        # that cannot print them sends the reader looking for a document instead.
+        lines = []
+        eq(print_board_tolerance(store, lines.append), 1, "one quote is on file")
+        ok(any(quote in ln for ln in lines),
+           "and `show` prints it verbatim, not a paraphrase or a count")
+        ok(any("Chair" in ln and "2026-07-14" in ln for ln in lines),
+           "with the person who said it and the date, so it can be cited")
+        empty = []
+        eq(print_board_tolerance(new_store("Nobody Ltd"), empty.append), 0, "none on file")
+        ok(any("NONE RECORDED" in ln for ln in empty),
+           "and an empty store SAYS nothing is recorded rather than omitting the heading")
+        ok(any("different fact" in ln for ln in empty),
+           "...naming the distinction, because unrecorded is not the same as unsaid")
+
         # --- T5: revenue, and the ladder --------------------------------------
         # Every boundary belongs to the band ABOVE it. A ladder whose edges fall the other
         # way reports a company sitting exactly on a round number as smaller than it is,
@@ -1367,7 +1383,47 @@ def _cmd_show(args) -> int:
                                            % (len(unattributed), ", ".join(unattributed))))
     for cj in store["context"]["crownJewels"]:
         print("  crown jewel: %s -> %s" % (cj["system"], cj["atStake"]))
+    for seg in store["context"]["segments"]:
+        print("  segment: %s" % seg)
+    for goal in store["context"]["strategicGoals"]:
+        print("  strategic goal: %s" % goal)
+    for ob in store["context"]["obligations"]:
+        print("  contractual obligation: %s" % ob)
+    print_board_tolerance(store)
     return 0
+
+
+# The read side of the one thing this skill is most often asked out loud: *what did the board
+# actually say?* The write side stored the sentence verbatim from the first release, refused an
+# unattributed one, and then nothing rendered it — `show` printed the org, the profile version,
+# the revenue band and the crown jewels, and the quote was reachable only through `--json`.
+#
+# That gap is what B4 found. Asked "I want the exact words on file", a session with no read path
+# goes looking for a *file*: the working directory, then Drive, then Notion. Adding retrieval
+# vocabulary to the description without this would have routed the question here and then
+# answered it with a page that does not mention the board.
+#
+# Absence prints too, and prints loudly. "Nothing recorded" and "the board said nothing" are
+# different facts, and the first is the one that can be fixed this afternoon — the same rule
+# CAC-AP-1 §2.2 applies to a profile flag, and the same reason `attention-surface` prints
+# NOT READ rather than showing a short list.
+
+def print_board_tolerance(store: dict, emit=print) -> int:
+    """The board's own words, read back unparaphrased. Returns how many were on file."""
+    quotes = store["context"]["boardTolerance"]
+    if not quotes:
+        emit("  the board's words on tolerance: NONE RECORDED — nobody has written down what "
+             "the board said.")
+        emit("    That is a different fact from the board having said nothing, and it is not "
+             "answered by searching for a document: this register is where the sentence "
+             "lives. Ask whoever was in the room and record it with --board-tolerance.")
+        return 0
+    emit("  the board's words on tolerance (%d), verbatim — this is what is on file:"
+         % len(quotes))
+    for rec in quotes:
+        emit("    “%s”" % rec["quote"])
+        emit("      — %s, %s" % (rec["declaredBy"], rec["declaredOn"]))
+    return len(quotes)
 
 
 def _cmd_applies(args) -> int:

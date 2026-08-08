@@ -1,8 +1,17 @@
 ---
 name: attention-surface
 description: >-
-  What needs the CISO this week, derived from what every other skill already computes. Reads the
-  escalations the seven producing skills emit — risk-register, metrics-register,
+  Two jobs, and the second is the one people ask for in exactly those words: WHAT NEEDS THE CISO
+  THIS WEEK, and WHAT CHANGED SINCE THE LAST REVIEW — including the last *security* review, the
+  last Monday review, or last week. Both are derived from what every other skill already
+  computes. "What changed" here means a diff over the ESCALATIONS the registers hold — new since
+  the last recorded review, still open, and no longer firing — and NOT a diff of files, code, git
+  history, a working directory or a session transcript, which is the wrong reading of the same
+  words and answers a question nobody asked. **Use it even when no earlier review is recorded**:
+  the first one is a baseline, and the page says so outright rather than reporting that nothing
+  changed. What stopped firing is reported as *no longer firing*, never as *resolved* — the
+  underlying record may simply have been edited, and this surface cannot tell those apart. Reads
+  the escalations the seven producing skills emit — risk-register, metrics-register,
   exceptions-register, incident-materiality, vendor-register, ai-register and business-context —
   groups them by DECISION rather than by producer (clocks running out, something moved under us,
   nobody owns it, we disagree with ourselves, uncontrolled exposure, over tolerance), orders them
@@ -16,8 +25,9 @@ description: >-
   whose store is missing is reported as NOT READ, never as clean, because a quiet list and an
   unread one must not look the same. An unmapped trigger surfaces in an explicit unclustered
   group rather than disappearing. Use when asked what needs attention this week, what is on fire,
-  what changed since the last review, what is overdue across the whole programme, to run a weekly
-  or Monday security review, to prepare a stand-up or one-to-one digest, or to see every
+  what changed since the last review or the last security review, what is new since last week,
+  what moved under us, what came off the list, what is overdue across the whole programme, to run
+  a weekly or Monday security review, to prepare a stand-up or one-to-one digest, or to see every
   escalation in one place. NOT for the quarterly board pack (board-pack), for creating or
   changing any escalation (the producer that computes it), for assigning or tracking tasks, or
   for scoring anything.
@@ -97,6 +107,38 @@ everything as new every week — the same as reporting nothing as new.
 `gone` is reported as **no longer firing**, never as *resolved*. The trigger stopped; the
 underlying record may have been fixed or may have changed. This surface cannot tell those apart,
 and saying so is cheaper than being wrong.
+
+## When somebody asks what changed since the last review
+
+*"What changed since our last security review?"* is this skill's second job, and the phrasing
+has a trap in it. **"What changed" has an obvious wrong reading** — a diff of the working
+directory, the git history, or the session so far. Every one of those is a reasonable thing to
+compute and none of them is a security review. What changed here is *which escalations the
+registers are raising now that they were not raising then*, which is a fact about the
+organisation rather than about a repository.
+
+Answer it in this order:
+
+1. **Run the review against the recorded baseline.** The diff keys on producer + trigger +
+   subject, so an item is *new* because that combination was absent last time — not because its
+   evidence string moved.
+
+   ```bash
+   python3 scripts/attention_surface.py review week.att --today 2026-08-07
+   ```
+
+2. **If no earlier review is recorded, say so and set the baseline.** The page prints it: *no
+   earlier review is recorded, so nothing can be marked new.* An empty diff at that point means
+   there is nothing to compare against, and reporting it as "nothing changed" would be a lie
+   with a comforting shape. Record it with `--record --by "Name"` so the next one is a
+   comparison.
+
+3. **Read `gone` out loud as "no longer firing".** Never as fixed, closed or resolved. The three
+   are different and only the producer knows which happened.
+
+4. **Do not go looking for files.** If a source cannot be read the page already says NOT READ
+   and names it. Searching the filesystem for a "last review" document answers a different
+   question, and this skill holds the review events itself — `reviews` lists them.
 
 ## What it stores, and the one thing it must not
 
