@@ -416,6 +416,10 @@ def deploy(store: dict, system_ref: str, purpose: str, owner: str, autonomy: str
                                if str(x or "").strip()],
         "consequentialDecision": bool(consequential),
         "supports": str(supports or "").strip(),
+        # The cadence clock has to start somewhere. A deployment never assessed is measured
+        # from the day it was recorded, not from nothing — otherwise the deployment nobody has
+        # ever looked at is the one `assessment-overdue` stays silent about.
+        "addedOn": utc_today(),
         "criticality": None,
         "exposure": {},
         "evidence": [],
@@ -1549,6 +1553,369 @@ def ask(store: dict, did: str, context: dict = None, today: str = "") -> dict:
     return out
 
 
+# --- Escalations (CAC-EL-1 §1.3) ----------------------------------------------
+#
+# `subjectKind` is `deployment`, because that is where risk lives here. Derived on every run,
+# never stored, and nothing blocks: a register full of escalations still loads, still
+# classifies, still renders.
+#
+# Three of these fire at EVERY criticality level, including the lowest, and that is the design
+# decision worth arguing with rather than a missing filter:
+#
+#   model-changed          the model under a deployment was swapped
+#   base-model-changed     what it is BUILT ON was swapped, product version unchanged
+#   unsanctioned-in-use    something nobody approved is in production
+#
+# A silent model swap is precisely the event that makes a low-criticality deployment stop
+# being low. `low` has no cadence by design, so if these were gated on criticality nothing
+# would ever look at the deployments most likely to change without anybody noticing.
+
+ESCALATION_SEVERITY_ORDER = ["critical", "high", "medium"]
+
+
+def _cadence_days(store: dict, level: str):
+    """None means no cadence for this level — a decision, not an oversight.
+
+    `low` has no interval. The always-fire triggers above are what catch a low-criticality
+    deployment that quietly stopped being low.
+    """
+    return (store["settings"].get("cadenceDays") or {}).get(level)
+
+
+def _last_assessment(rec: dict) -> dict:
+    dated = [a for a in (rec.get("assessments") or []) if a.get("on")]
+    return max(dated, key=lambda a: a["on"]) if dated else {}
+
+
+def _last_assessed(rec: dict) -> str:
+    return _last_assessment(rec).get("on") or ""
+
+
+def escalations(store: dict, today: str = "") -> list:
+    today = today or utc_today()
+    out = []
+
+    def add(trigger, rec, severity, since, evidence):
+        out.append({"trigger": trigger, "subjectKind": "deployment",
+                    "subjectRef": rec["id"], "severity": severity,
+                    "since": since or today, "evidence": evidence})
+
+    for rec in store["deployments"]:
+        if rec.get("retired"):
+            continue
+        system = next((s for s in store["systems"] if s.get("id") == rec.get("systemRef")), {})
+        block = rec.get("criticality") or {}
+        level = criticality_of(rec)
+        last = _last_assessment(rec)
+        consequential = (rec.get("consequentialDecision")
+                         or (rec.get("autonomy") in AUTONOMY
+                             and autonomy_rank(rec["autonomy"]) >= autonomy_rank("decides")))
+
+        # --- the same two words as vendor-register, with the same meanings ----
+        if level == UNCLASSIFIED:
+            add("unclassified", rec, "high", "",
+                "no criticality has been derived or assigned, so this deployment is asked "
+                "the full question set and nobody has been told")
+        elif level == UNTRACED:
+            add("untraced", rec, "high", block.get("derivedOn") or "",
+                "the trace could not reach a workflow with a declared criticality%s. This is "
+                "not low criticality; it is an unanswered question about what this deployment "
+                "holds up"
+                % (" and stopped with more chain to follow" if block.get("truncated") else ""))
+
+        # --- exposure with nothing recorded against it ------------------------
+        #
+        # ONE escalation per deployment naming every uncontrolled class, rather than one per
+        # class. A newly recorded deployment derives five classes and has controls against
+        # none of them; five rows would say the same thing five times and bury the deployment
+        # that has four of five covered.
+        uncontrolled = sorted(cls for cls, entry in (rec.get("exposure") or {}).items()
+                              if not (entry.get("controls") or [])
+                              and not entry.get("noLongerDerived"))
+        if uncontrolled:
+            add("attack-class-uncontrolled", rec,
+                "high" if consequential else "medium", "",
+                "%s %s no control recorded against %s. Recording one does not close the "
+                "class — there is no closed state here — but nothing at all recorded is a "
+                "different fact"
+                % (", ".join(uncontrolled), "has" if len(uncontrolled) == 1 else "have",
+                   "it" if len(uncontrolled) == 1 else "them"))
+
+        # --- what changed under an assessment ---------------------------------
+        prior = last.get("againstSystem") or {}
+        if last:
+            if prior.get("systemRef") and prior["systemRef"] != rec.get("systemRef"):
+                add("model-changed", rec, "high", last.get("on") or "",
+                    "the deployment now uses %s; it was assessed against %s on %s"
+                    % (rec.get("systemRef"), prior["systemRef"], last.get("on")))
+            elif prior.get("version") and prior["version"] != (system.get("version") or ""):
+                add("model-changed", rec, "high", last.get("on") or "",
+                    "%s is now version %s; the assessment on %s was made against %s. Every "
+                    "answer in it was about a different model"
+                    % (system.get("id") or rec.get("systemRef"), system.get("version"),
+                       last.get("on"), prior["version"]))
+            elif prior.get("hosting") and prior["hosting"] != (system.get("hosting") or ""):
+                add("model-changed", rec, "high", last.get("on") or "",
+                    "hosting moved from %s to %s since the assessment on %s"
+                    % (prior["hosting"], system.get("hosting"), last.get("on")))
+
+            # Separate from the above, and deliberately: a provider re-basing a product on a
+            # different foundation model without changing its version number is the change
+            # that nothing else in this file would notice.
+            now_base = str(system.get("baseModel") or "")
+            was_base = str(prior.get("baseModel") or "")
+            if now_base and now_base != was_base:
+                add("base-model-changed", rec, "high", last.get("on") or "",
+                    ("the disclosed base model is now %s; the assessment on %s was made "
+                     "against %s, with the product version unchanged at %s"
+                     % (now_base, last.get("on"), was_base, system.get("version") or "?"))
+                    if was_base else
+                    ("the disclosed base model is %s; the assessment on %s was made when the "
+                     "provider had disclosed none, so nobody looked at what this is built on"
+                     % (now_base, last.get("on"))))
+
+            was_autonomy = str(last.get("againstAutonomy") or "")
+            now_autonomy = str(rec.get("autonomy") or "")
+            if was_autonomy in AUTONOMY and now_autonomy in AUTONOMY \
+                    and autonomy_rank(now_autonomy) > autonomy_rank(was_autonomy):
+                add("autonomy-increased", rec, "high", last.get("on") or "",
+                    "autonomy rose from %s to %s since the assessment on %s"
+                    % (was_autonomy, now_autonomy, last.get("on")))
+            else:
+                was_res = set(last.get("againstConnectedResources") or [])
+                now_res = set(rec.get("connectedResources") or [])
+                grew = sorted(now_res - was_res)
+                if grew:
+                    add("autonomy-increased", rec, "medium", last.get("on") or "",
+                        "it now reaches %s, which it did not when it was assessed on %s"
+                        % (", ".join(grew), last.get("on")))
+
+        # --- cadence ----------------------------------------------------------
+        #
+        # `untraced` satisfies NO cadence rule — there is no level to look one up for, and
+        # treating it as "no cadence applies" would make it quieter than `low`.
+        if level not in (UNTRACED, UNCLASSIFIED):
+            cadence = _cadence_days(store, level)
+            since = _last_assessed(rec) or str(rec.get("addedOn") or "")
+            if cadence and since and days_between(since, today) > int(cadence):
+                add("assessment-overdue", rec, "high", since,
+                    "last assessed %s; cadence for %s is %d days"
+                    % (_last_assessed(rec) or "never (dated from when it was recorded)",
+                       level, int(cadence)))
+
+        # --- facts about the record itself ------------------------------------
+        if not str(rec.get("owner") or "").strip():
+            add("unowned", rec, "high", "",
+                "no owner is recorded. `deploy` refuses one without an owner, so this row "
+                "was written some other way — and every escalation above has nobody to land on")
+
+        provider = str(system.get("provider") or "").strip().lower()
+        external = provider not in ("", "in-house", "internal")
+        if external and system.get("hosting") in ("saas", "hybrid") \
+                and not str(system.get("arrangementRef") or "").strip():
+            add("provider-arrangement-missing", rec, "medium", "",
+                "%s runs on %s's infrastructure and names no arrangement in the third-party "
+                "register. The contractual questions this raises — incident notice, "
+                "subprocessors, exit — are asked there, of the provider, not here"
+                % (system.get("id") or "the system", system.get("provider")))
+
+        # Fires at every level, including the lowest.
+        if system.get("sanction") == "unsanctioned":
+            add("unsanctioned-in-use", rec, "critical" if consequential else "high", "",
+                "%s is recorded as unsanctioned and has a live deployment%s. Somebody is "
+                "using it either way; the only question is whether the organisation knows "
+                "what it agreed to"
+                % (system.get("id") or "the system",
+                   " making a consequential decision" if consequential else ""))
+
+    order = {s: i for i, s in enumerate(ESCALATION_SEVERITY_ORDER)}
+    out.sort(key=lambda e: (order.get(e["severity"], 99), e["subjectRef"], e["trigger"]))
+    return out
+
+
+# --- Context ------------------------------------------------------------------
+
+def load_context(path: str) -> dict:
+    """Read a CAC-AP-1 payload exported by `business-context`.
+
+    Data, never an import (§2.6). A raw `.biz` is refused with the command that turns one into
+    a payload, because reading the store directly would put the narrowing decision in the
+    wrong skill.
+    """
+    with open(path, encoding="utf-8") as fh:
+        payload = json.load(fh)
+    if payload.get("family") == "business-context":
+        raise Refusal(
+            "%s is a raw .biz store, not an exported payload. Run `business_context.py export "
+            "%s --out ctx.json` and pass that: CAC-AP-1 §2.6 makes the transport between "
+            "skills data rather than an import." % (path, path))
+    return payload
+
+
+# --- Multi-entity -------------------------------------------------------------
+
+def organisations(store: dict) -> list:
+    seen = []
+    for rec in store["deployments"]:
+        name = str(rec.get("entityRef") or "").strip()
+        if name and name not in seen:
+            seen.append(name)
+    return sorted(seen)
+
+
+def check_one_organisation(store: dict) -> dict:
+    """Refuse to render a register spanning legal entities as a single-org view.
+
+    Same shape and same reasoning as everywhere else in this suite: a view built from more
+    than one entity can be true about every row and wrong as a document, because the reader
+    takes the whole thing to be about one company.
+    """
+    names = organisations(store)
+    consolidation = (store.get("settings") or {}).get("consolidation") or {}
+    if len(names) <= 1:
+        return {"organisation": names[0] if names else "", "consolidated": None}
+    by = str(consolidation.get("declaredBy") or "").strip()
+    basis = str(consolidation.get("basis") or "").strip()
+    if not by or not basis:
+        raise Refusal(
+            "this register holds deployments for %d legal entities (%s) and no consolidation "
+            "is declared.\n"
+            "  A single-organisation view built from several entities is true about every row "
+            "and wrong as a document. Declare it: settings.consolidation = {\"declaredBy\": "
+            "\"...\", \"basis\": \"...\"}. A consolidation with no basis is refused too, "
+            "because the basis is the part a reviewer actually needs."
+            % (len(names), ", ".join(names)))
+    return {"organisation": ", ".join(names),
+            "consolidated": {"declaredBy": by, "basis": basis, "entities": names}}
+
+
+# --- Analysis -----------------------------------------------------------------
+
+def analyze(store: dict, today: str = "", context: dict = None) -> dict:
+    """Everything a surface needs, computed once. No score is produced here or anywhere.
+
+    Counts are counts of things that exist. There is deliberately no aggregate: a register
+    with three top-criticality deployments and one untraced one has three top-criticality
+    deployments and one untraced one, and any single number standing for that is an opinion
+    the tool is not entitled to.
+    """
+    today = today or utc_today()
+    entity = check_one_organisation(store)
+    scale = store["settings"]["criticalityScale"]
+    grace = int(store["settings"].get("evidenceGraceDays") or 365)
+
+    live = [r for r in store["deployments"] if not r.get("retired")]
+    by_level = {}
+    for rec in live:
+        by_level.setdefault(criticality_of(rec), []).append(rec["id"])
+
+    rows = []
+    for rec in sorted(store["deployments"], key=lambda r: r["id"]):
+        block = rec.get("criticality") or {}
+        conf = block.get("confirmed") or {}
+        system = next((s for s in store["systems"] if s.get("id") == rec.get("systemRef")), {})
+        exposure = rec.get("exposure") or {}
+        row = {
+            "id": rec["id"],
+            "systemRef": rec.get("systemRef") or "",
+            "system": system.get("name") or rec.get("systemRef") or "",
+            "provider": system.get("provider") or "",
+            "version": system.get("version") or "",
+            "baseModel": system.get("baseModel") or "",
+            "hosting": system.get("hosting") or "",
+            "genAI": bool(system.get("genAI")),
+            "sanction": system.get("sanction") or "",
+            "provenance": system.get("provenance") or "",
+            "arrangementRef": system.get("arrangementRef") or "",
+            "entityRef": rec.get("entityRef") or "",
+            "purpose": rec.get("purpose") or "",
+            "owner": rec.get("owner") or "",
+            "autonomy": rec.get("autonomy") or "",
+            "consequentialDecision": bool(rec.get("consequentialDecision")),
+            "connectedResources": list(rec.get("connectedResources") or []),
+            "dataClasses": list(rec.get("dataClasses") or []),
+            "supports": rec.get("supports") or "",
+            "criticality": criticality_of(rec),
+            "derived": block.get("derived") or "",
+            "confirmedBy": conf.get("by") or "",
+            "scaleVersion": conf.get("scaleVersion") or "",
+            "trace": block.get("trace") or [],
+            "truncated": bool(block.get("truncated")),
+            "lastAssessed": _last_assessed(rec),
+            "retired": bool(rec.get("retired")),
+            # Per class, with its control count and its state. Never rolled into a number:
+            # "three of five classes have a control" is a fact, and any average of it is an
+            # opinion about which classes matter.
+            "exposure": [
+                {"class": cls,
+                 "name": entry.get("name") or "",
+                 "concern": entry.get("concern") or "",
+                 "because": entry.get("because") or "",
+                 "controls": len(entry.get("controls") or []),
+                 "state": exposure_state(entry),
+                 "noLongerDerived": bool(entry.get("noLongerDerived"))}
+                for cls, entry in sorted(exposure.items())],
+            "autonomyWarnings": autonomy_warnings(rec) if rec.get("autonomy") in AUTONOMY
+                                else [],
+        }
+        if not rec.get("retired"):
+            asked = ask(store, rec["id"], context, today=today)
+            row["openQuestions"] = asked["open"]
+            row["reConfirmQuestions"] = asked["reConfirm"]
+            row["skippedBatteries"] = len(asked["skipped"])
+            row["openProposals"] = len(open_proposals(rec))
+            by_status = {}
+            for ev in (rec.get("evidence") or []):
+                st = evidence_status(ev, today, grace)
+                by_status[st] = by_status.get(st, 0) + 1
+            row["evidence"] = {"total": len(rec.get("evidence") or []), "byStatus": by_status}
+        rows.append(row)
+
+    out = {
+        "family": FAMILY,
+        "asOf": today,
+        "organisation": entity["organisation"],
+        "scale": list(scale),
+        "scaleVersion": store["settings"].get("scaleVersion") or "",
+        "counts": {
+            "systems": len(store["systems"]),
+            "deployments": len(store["deployments"]),
+            "live": len(live),
+            "retired": len(store["deployments"]) - len(live),
+            "generative": sum(1 for r in rows if r["genAI"] and not r["retired"]),
+            "unsanctioned": sum(1 for r in rows
+                                if r["sanction"] == "unsanctioned" and not r["retired"]),
+            "discovered": sum(1 for s in store["systems"]
+                              if s.get("provenance") == "discovered"),
+            "byCriticality": {k: len(v) for k, v in sorted(by_level.items())},
+            "byAutonomy": {a: sum(1 for r in rows if r["autonomy"] == a and not r["retired"])
+                           for a in AUTONOMY},
+        },
+        "deployments": rows,
+        "openQuestions": sum(r.get("openQuestions", 0) for r in rows),
+        "reConfirmQuestions": sum(r.get("reConfirmQuestions", 0) for r in rows),
+        "openProposals": sum(r.get("openProposals", 0) for r in rows),
+        "uncontrolledClasses": sum(1 for r in rows for e in r["exposure"]
+                                   if e["state"] == "no-controls-recorded"
+                                   and not e["noLongerDerived"] and not r["retired"]),
+        "escalations": escalations(store, today),
+        "notes": [],
+    }
+    if entity["consolidated"]:
+        out["consolidation"] = entity["consolidated"]
+        out["notes"].append(
+            "this view consolidates %d legal entities (%s), declared by %s: %s"
+            % (len(entity["consolidated"]["entities"]),
+               ", ".join(entity["consolidated"]["entities"]),
+               entity["consolidated"]["declaredBy"], entity["consolidated"]["basis"]))
+    if context is None:
+        out["notes"].append(
+            "no applicability profile was supplied, so every criticality that has not been "
+            "assigned by hand is 'untraced' — the walk had no workflows to reach. This is the "
+            "safe direction and never a refusal.")
+    return out
+
+
 # --- Self-test ----------------------------------------------------------------
 
 def _cmd_self_test(_args):
@@ -1897,6 +2264,115 @@ def _cmd_self_test(_args):
                                            "the DPA, clause 8", met=False),
                 "recording a requirement with no name is refused", "needs a name on it")
 
+        # --- T11: escalations -------------------------------------------------
+        #
+        # Each trigger gets a fixture built for it, on its own store, so a fixture that
+        # accidentally fires two triggers cannot make a broken one look alive.
+        def fresh():
+            s = new_store("Escalation Ltd")
+            sysrec = add_system(s, "Contoso Assist", "Contoso", "2026.4",
+                                base_model="GPT-cx-2", hosting="saas",
+                                arrangement_ref="VA-001")
+            d = deploy(s, sysrec["id"], "drafting", "CMO", "informs", by="CIO")
+            map_exposure(s, d["id"])
+            classify(s, d["id"], {"crownJewels": [{"system": "CRM", "criticality": "low"}]},
+                     confirm="low", by="D. Galleyne")
+            assess(s, d["id"], "CISO", on="2026-06-01")
+            return s, sysrec, d
+
+        def triggers(s, when="2026-07-01"):
+            return {e["trigger"] for e in escalations(s, when)}
+
+        base, _, _ = fresh()
+        # Baseline. Everything below is measured against this, so anything that shows up
+        # here is noise the register would emit about a well-kept deployment.
+        base_fired = triggers(base)
+        ok("model-changed" not in base_fired and "base-model-changed" not in base_fired
+           and "autonomy-increased" not in base_fired and "unowned" not in base_fired
+           and "unsanctioned-in-use" not in base_fired
+           and "provider-arrangement-missing" not in base_fired,
+           "a classified, assessed, owned, sanctioned deployment escalates none of the "
+           "change triggers")
+        ok("attack-class-uncontrolled" in base_fired,
+           "...while a deployment with no control recorded against any class does escalate")
+        ok("assessment-overdue" not in base_fired,
+           "and a low-criticality deployment has no cadence to be overdue against")
+
+        s, sysrec, dep_e = fresh()
+        sysrec["version"] = "2026.5"
+        ok("model-changed" in triggers(s),
+           "a version change since the last assessment fires model-changed")
+        ok(criticality_of(find_deployment(s, dep_e["id"])) == "low",
+           "...at the LOWEST criticality level, where there is no cadence to catch it")
+
+        s, sysrec, _ = fresh()
+        sysrec["baseModel"] = "GPT-cx-3"                 # product version untouched
+        fired = triggers(s)
+        ok("base-model-changed" in fired,
+           "a disclosed base-model change fires with the product version unchanged")
+        ok("model-changed" not in fired,
+           "...and it is a DIFFERENT trigger, because nothing else would have noticed")
+
+        s, _, dep_e = fresh()
+        find_deployment(s, dep_e["id"])["autonomy"] = "acts"
+        ok("autonomy-increased" in triggers(s), "autonomy rising since the assessment fires")
+        s, _, dep_e = fresh()
+        find_deployment(s, dep_e["id"])["connectedResources"] = ["the ticketing system"]
+        ok("autonomy-increased" in triggers(s), "and so does reaching something new")
+
+        s, _, dep_e = fresh()
+        find_deployment(s, dep_e["id"])["owner"] = ""
+        ok("unowned" in triggers(s), "a deployment with no owner fires unowned")
+
+        s, sysrec, _ = fresh()
+        sysrec["arrangementRef"] = ""
+        ok("provider-arrangement-missing" in triggers(s),
+           "SaaS with no third-party arrangement recorded fires")
+
+        s, sysrec, _ = fresh()
+        sysrec["sanction"] = "unsanctioned"
+        fired = [e for e in escalations(s, "2026-07-01")
+                 if e["trigger"] == "unsanctioned-in-use"]
+        eq(len(fired), 1, "an unsanctioned system with a live deployment fires")
+        eq(at(fired, 0, "severity"), "high", "...as high on an 'informs' deployment")
+        find_deployment(s, "D-001")["autonomy"] = "decides"
+        eq(at([e for e in escalations(s, "2026-07-01")
+               if e["trigger"] == "unsanctioned-in-use"], 0, "severity"), "critical",
+           "...and critical where it makes the decision")
+
+        s, _, dep_e = fresh()
+        classify(s, dep_e["id"], {"crownJewels": [{"system": "CRM", "criticality": "high"}]},
+                 confirm="high", by="D. Galleyne")
+        ok("assessment-overdue" in triggers(s, "2027-08-01"),
+           "a high-criticality deployment past its cadence fires assessment-overdue")
+        ok("assessment-overdue" not in triggers(s, "2026-07-01"),
+           "...and not before it")
+
+        s, _, dep_e = fresh()
+        record_control(s, dep_e["id"], "NISTAML.01", "rate limiting", "config export",
+                       on="2026-05-01", by="Head of Security")
+        left = [e for e in escalations(s, "2026-07-01")
+                if e["trigger"] == "attack-class-uncontrolled"]
+        eq(len(left), 1, "uncontrolled classes are ONE escalation, not one per class")
+        ok("NISTAML.01" not in at(left, 0, "evidence", ""),
+           "...naming only the classes with nothing recorded against them")
+        ok(all(set(e) == {"trigger", "subjectKind", "subjectRef", "severity", "since",
+                          "evidence"} for e in escalations(s, "2026-07-01")),
+           "and every escalation carries exactly the CAC-EL-1 six-key shape")
+        ok(all(e["subjectKind"] == "deployment" for e in escalations(s, "2026-07-01")),
+           "with subjectKind 'deployment' — where risk lives here")
+
+        # --- analyze ----------------------------------------------------------
+        out = analyze(store, today="2026-08-01")
+        eq(out["family"], FAMILY, "analyze declares its family")
+        ok(out["counts"]["deployments"] >= 4, "and counts what is there")
+        ok("byCriticality" in out["counts"] and "byAutonomy" in out["counts"],
+           "criticality and autonomy are counted per named level, never aggregated")
+        ok(not any(k in out for k in ("score", "rating", "grade", "postureScore")),
+           "and there is no aggregate anywhere in the output")
+        ok(any("no applicability profile was supplied" in n for n in out["notes"]),
+           "an analysis with no profile says so on its face")
+
     finally:
         shutil.rmtree(work, ignore_errors=True)
 
@@ -1913,16 +2389,7 @@ def _cmd_self_test(_args):
 # --- CLI ----------------------------------------------------------------------
 
 def _ctx(args):
-    if not getattr(args, "context", ""):
-        return None
-    with open(args.context, encoding="utf-8") as fh:
-        payload = json.load(fh)
-    if payload.get("family") == "business-context":
-        raise Refusal(
-            "%s is a raw .biz store, not an exported payload. Run `business_context.py export "
-            "%s --out ctx.json` and pass that: CAC-AP-1 §2.6 makes the transport between "
-            "skills data rather than an import." % (args.context, args.context))
-    return payload
+    return load_context(args.context) if getattr(args, "context", "") else None
 
 
 def _cmd_init(args) -> int:
@@ -2111,6 +2578,42 @@ def _cmd_ask(args) -> int:
     return 0
 
 
+def _cmd_analyze(args) -> int:
+    store = load(args.store)
+    out = analyze(store, today=args.today, context=_ctx(args))
+    if args.out:
+        with open(args.out, "w", encoding="utf-8") as fh:
+            json.dump(out, fh, indent=2, ensure_ascii=False)
+            fh.write("\n")
+    if args.json:
+        print(json.dumps(out, indent=2, ensure_ascii=False))
+        return 0
+    print("%s — %d deployment(s) of %d system(s), as at %s"
+          % (out["organisation"] or "(no entity recorded)", out["counts"]["deployments"],
+             out["counts"]["systems"], out["asOf"]))
+    print("  generative %d · unsanctioned %d · discovered %d"
+          % (out["counts"]["generative"], out["counts"]["unsanctioned"],
+             out["counts"]["discovered"]))
+    print("  by criticality: %s"
+          % (", ".join("%s %d" % (k, v)
+                       for k, v in out["counts"]["byCriticality"].items()) or "none"))
+    print("  by autonomy: %s"
+          % ", ".join("%s %d" % (k, v) for k, v in out["counts"]["byAutonomy"].items()))
+    print("  %d question(s) open, %d to re-confirm, %d proposal(s) awaiting a person"
+          % (out["openQuestions"], out["reConfirmQuestions"], out["openProposals"]))
+    print("  %d attack class(es) with no control recorded" % out["uncontrolledClasses"])
+    for note in out["notes"]:
+        print("  note: %s" % note)
+    if out["escalations"]:
+        print("\nEscalations")
+        for e in out["escalations"]:
+            print("  [%s] %s  %s" % (e["severity"], e["subjectRef"], e["trigger"]))
+            print("        %s" % e["evidence"])
+    if args.out:
+        print("\nWrote %s" % args.out)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="ai_register.py",
                                 description=__doc__.split("\n")[0])
@@ -2253,6 +2756,13 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--today", default="")
     sp.add_argument("--json", action="store_true")
     sp.set_defaults(fn=_cmd_ask)
+
+    sp = store_arg(sub.add_parser("analyze"))
+    sp.add_argument("--today", default="")
+    sp.add_argument("--context", default="")
+    sp.add_argument("--out", default="")
+    sp.add_argument("--json", action="store_true")
+    sp.set_defaults(fn=_cmd_analyze)
 
     sub.add_parser("self-test").set_defaults(fn=_cmd_self_test)
     return p
