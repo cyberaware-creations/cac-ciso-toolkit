@@ -110,6 +110,17 @@ jobs:
       - name: Section contract, on the floor
         run: PY="$(command -v python3)" ./skills/board-pack/evals/section-contract.sh
 
+      # C-1. Every board-safety suite in the repo tested for ABSENCE and none for PRESENCE, so
+      # a sidecar reading "Patch compliance fell to 88%." passed all of them. Listed here
+      # individually for the reason stated two lines above this one.
+      - name: Outcome framing (consequence, decision, no blending), on the floor
+        run: PY="$(command -v python3)" ./skills/board-pack/evals/outcome-framing.sh
+
+      # The release blocker from the v0.42.0 readiness test: two of the seven shipped sections
+      # could not reach a page, because every eval here built on a five-section specimen.
+      - name: Mixed evidence shapes reach both deliverables, on the floor
+        run: PY="$(command -v python3)" ./skills/board-pack/evals/mixed-evidence.sh
+
       # The rest of board-pack. Phase D wired only the contract suite in, so the assembler's
       # own engine and its two behavioural suites shipped green and then never ran again —
       # exactly the failure the comment above names, committed one section below it.

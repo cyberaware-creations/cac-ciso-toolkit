@@ -22,7 +22,7 @@ repo="$(cd "$here/../../.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=51
+EXPECTED_CHECKS=54
 checks=0
 fails=0
 
@@ -510,6 +510,135 @@ if len(a.PRODUCERS) < 7:
   ok "the assembler and the renderer name every section identically"
 else
   bad "the two SECTION_TITLE maps agree" "$(cat "$work/title.err")"
+fi
+
+# --- `opportunities`, additive within contractVersion 1 -----------------------
+#
+# Third use of the precedent documented above ENVELOPE_KEYS, after `boundTo` and after the
+# `vendor` and `ai` sections. Serves CSF 2.0 GV.RM-07, which the suite had no element for.
+#
+# The load-bearing pair: a sidecar that omits it must be unaffected, and one that carries an
+# UNCITED entry must be refused rather than warned. The second is the whole design — an
+# opportunity with no declared goal behind it is marketing copy on a board page, and a rule
+# that lives only in guidance is the rule this repo keeps having to convert into a check.
+BP="$repo/skills/board-pack"
+if "$PY" -c '
+import importlib.util, json, os, sys
+spec = importlib.util.spec_from_file_location("ap", sys.argv[1])
+ap = importlib.util.module_from_spec(spec); spec.loader.exec_module(ap)
+work = sys.argv[2]
+
+# 1. absent -> empty list, and nothing else moves.
+assert ap.validate_opportunities(None, "x") == [], "absent"
+assert ap.validate_opportunities([], "x") == [], "empty"
+
+# 2. cited -> carried, with GV.RM-07 defaulted rather than demanded.
+got = ap.validate_opportunities([{"text": "t", "cites": "goal:g"}], "x")
+assert got == [{"text": "t", "cites": "goal:g", "gvsc": "GV.RM-07"}], got
+
+# 3. uncited -> REFUSED, and the refusal has to say why and what to do instead.
+for bad_entry in ({"text": "Stronger assurance would be a real differentiator."},
+                  {"text": "t", "cites": "   "}):
+    try:
+        ap.validate_opportunities([bad_entry], "x")
+    except ap.Refusal as exc:
+        msg = str(exc)
+        for needle in ("cites", "business-context", "Absence renders nothing"):
+            assert needle in msg, "the refusal never mentions %r: %s" % (needle, msg)
+        continue
+    raise AssertionError("accepted an uncited opportunity: %r" % bad_entry)
+
+# 4. a text-less entry is refused too, so an empty box cannot render as a heading.
+try:
+    ap.validate_opportunities([{"cites": "goal:g"}], "x")
+except ap.Refusal:
+    pass
+else:
+    raise AssertionError("accepted an opportunity with no text")
+' "$BP/scripts/assemble_pack.py" "$work" 2>"$work/opp.err"; then
+  ok "an opportunity is carried when it cites a declared goal, and REFUSED when it does not"
+else
+  bad "an uncited opportunity is refused at the assembler" "$(tail -3 "$work/opp.err")"
+fi
+
+# Byte-identity: strip `opportunities` from the one shipped sidecar that has it and the rest
+# of that section must render exactly as it did before the key existed.
+"$PY" - "$repo/skills/vendor-register/examples/example-translations.json" \
+       "$work/no-opp.json" <<'PYEOF'
+import json, sys
+d = json.load(open(sys.argv[1], encoding="utf-8"))
+d.pop("opportunities", None)
+json.dump(d, open(sys.argv[2], "w", encoding="utf-8"), indent=2, ensure_ascii=False)
+PYEOF
+if "$PY" -c '
+import importlib.util, json, sys
+spec = importlib.util.spec_from_file_location("ap", sys.argv[1])
+ap = importlib.util.module_from_spec(spec); spec.loader.exec_module(ap)
+def load(path):
+    with open(path, encoding="utf-8") as fh:
+        return ap.validate_section("vendor", json.load(fh), path)
+with_opp = load(sys.argv[2])
+without = load(sys.argv[3])
+a = {k: v for k, v in with_opp.items() if k not in ("opportunities", "path")}
+b = {k: v for k, v in without.items() if k not in ("opportunities", "path")}
+if a != b:
+    print("the key changed something other than itself", file=sys.stderr); sys.exit(1)
+if without["opportunities"] != []:
+    print("a sidecar without the key did not get an empty list", file=sys.stderr); sys.exit(1)
+if len(with_opp["opportunities"]) != 1:
+    print("the shipped worked example lost its opportunity", file=sys.stderr); sys.exit(1)
+' "$BP/scripts/assemble_pack.py" \
+  "$repo/skills/vendor-register/examples/example-translations.json" "$work/no-opp.json" \
+  2>"$work/ident.err"; then
+  ok "...and a sidecar without the key is otherwise identical to one with it"
+else
+  bad "the key is additive" "$(cat "$work/ident.err")"
+fi
+
+# Colour: patina, never RAG. The brand system is explicit that patina does not signal "safe",
+# and an opportunity is not a low-severity risk. Checked on the rendered page rather than in
+# the source, because the source is where the intention lives and the page is where a reader
+# would be misled.
+"$PY" "$BP/scripts/assemble_pack.py" assemble "$BP/examples/pack.manifest.json" \
+  --out "$work/opp-pack.json" >/dev/null 2>&1
+(cd "$BP/renderers" && "$PY" render_pack.py --in "$work/opp-pack.json" \
+   --html "$work/opp.html") >/dev/null 2>&1
+if "$PY" -c '
+import re, sys
+page = open(sys.argv[1], encoding="utf-8").read()
+if "Positive risk" not in page:
+    print("the opportunity block did not render at all", file=sys.stderr); sys.exit(1)
+if "cites goal:" not in page:
+    print("the citation is not on the page beside the claim", file=sys.stderr); sys.exit(1)
+# The rule the graphics standard states: a RAG value must never appear on this block, in any
+# form. Read the block out of the page and look at what colour reaches it.
+block = re.search(r"opp-h.*?</ol>", page, re.S)
+if not block:
+    print("could not isolate the opportunity block", file=sys.stderr); sys.exit(1)
+css = re.search(r"h3\.opp-h\{[^}]*\}.*?ol\.opps\{[^}]*\}", page, re.S)
+if not css:
+    print("no styling for the opportunity block", file=sys.stderr); sys.exit(1)
+# Tested against the RAG palette BY VALUE, not by hue. Patina is itself a green-leaning teal
+# (#2FA98C), so a hue test would reject the one colour this block is supposed to wear — the
+# first version of this check did exactly that. What must never appear is a value from the
+# severity scale, because that is what makes a reader read the block as a band.
+import importlib.util
+gspec = importlib.util.spec_from_file_location("g", sys.argv[2])
+G = importlib.util.module_from_spec(gspec); gspec.loader.exec_module(G)
+rag = {v.lower() for band in G._RAG.values() for v in band.values()}
+used = {h.lower() for h in re.findall(r"#[0-9A-Fa-f]{6}", css.group(0))}
+hit = sorted(used & rag)
+if hit:
+    print("a RAG palette value reached the opportunity block: %s" % ", ".join(hit),
+          file=sys.stderr)
+    sys.exit(1)
+if G._PATINA.lower() not in used:
+    print("the block is not in patina; it uses %s" % sorted(used), file=sys.stderr)
+    sys.exit(1)
+' "$work/opp.html" "$repo/tools/cac_graphics.py" 2>"$work/rag.err"; then
+  ok "the block renders with its citation, in patina, with no RAG green anywhere on it"
+else
+  bad "the opportunity block is patina, not RAG green" "$(cat "$work/rag.err")"
 fi
 
 echo

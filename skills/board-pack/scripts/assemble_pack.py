@@ -84,8 +84,14 @@ DEPRECATED_ALIASES = {"posture": {"subcategories": "gaps"}}
 # against, and carries no sentence a board reads. Added to the envelope rather than bumping
 # CONTRACT_VERSION because it is purely additive — every sidecar ever written omits it and
 # still validates, and a version bump would refuse all of them to gain nothing.
+# `opportunities` joins on the same terms and for the same reason — third use of the precedent
+# above. It serves CSF 2.0 `GV.RM-07`, *"Strategic opportunities (i.e., positive risks) are
+# characterized and are included in organizational cybersecurity risk discussions"*, which the
+# suite had no element for. It is an ENVELOPE key rather than an item map so the mis-spelled-map
+# detector does not flag it, and it is an array of `{text, cites, gvsc}` — see
+# `validate_opportunities`, which refuses one with no `cites`.
 ENVELOPE_KEYS = ("section", "executiveSummary", "decisions", "asOf", "contractVersion",
-                 "boundTo")
+                 "boundTo", "opportunities")
 
 # Both orderings are a JUDGEMENT, written down as chosen rather than left to look defaulted.
 SECTION_ORDER = {
@@ -323,10 +329,71 @@ def validate_section(name: str, raw: dict, path: str) -> dict:
         "items": items,
         "itemCount": total,
         "decisions": normalise_decisions(raw.get("decisions"), path),
+        "opportunities": validate_opportunities(raw.get("opportunities"), path),
         "asOf": raw.get("asOf") or None,
         "contractVersion": version,
         "warnings": warnings,
     }
+
+
+def validate_opportunities(raw, path: str) -> list:
+    """Positive risk, and the citation that is the whole point of it.
+
+    CSF 2.0 `GV.RM-07` asks that strategic opportunities be characterised and included in
+    cybersecurity risk discussions. Nothing in this suite served that Subcategory, and the
+    reason it was defensible to skip is worth stating: `ciso-board-translation` warns that
+    overclaiming destroys credibility faster than saying nothing, and *"better security helps
+    the business move faster"* is unfalsifiable. Until `business-context` shipped there was
+    nothing in the toolkit for an upside claim to cite, so silence was correct.
+
+    That constraint is gone. `business-context` holds declared strategic goals, crown jewels
+    and what each one enables — so the rule is:
+
+    **An opportunity must cite one.** No citation, no entry. REFUSED, not warned, and refused
+    here at the assembler rather than only discouraged in guidance, because a rule that lives
+    only in prose is the rule this repo keeps having to convert into a check.
+
+    That single requirement is what separates positive risk from sales language. *"This is what
+    makes the renewal negotiable, against the cost-reduction goal recorded for the year"* is a
+    claim with a source, and the source is a fact somebody in the business declared and signed
+    their name to.
+
+    Absent is normal and is NOT a finding. `GV.RM-07` asks that opportunities be characterised
+    where they exist, not that every section invent one — and an "opportunities: none
+    identified" placeholder would manufacture exactly the pressure to fill it that turns this
+    into marketing copy.
+    """
+    if raw in (None, [], ()):
+        return []
+    if not isinstance(raw, list):
+        raise Refusal(
+            "%s: `opportunities` must be a list of {text, cites, gvsc}, got %s. It is not an "
+            "item map — an opportunity has no register id, because it is a statement about a "
+            "declared goal rather than about a record." % (path, type(raw).__name__))
+    out = []
+    for i, entry in enumerate(raw):
+        where = "%s: opportunities[%d]" % (path, i)
+        if not isinstance(entry, dict):
+            raise Refusal("%s must be an object with `text` and `cites`, got %s"
+                          % (where, type(entry).__name__))
+        text = str(entry.get("text") or "").strip()
+        cites = str(entry.get("cites") or "").strip()
+        if not text:
+            raise Refusal("%s has no `text`" % where)
+        if not cites:
+            raise Refusal(
+                "%s has no `cites`, and an uncited opportunity is refused rather than warned.\n"
+                "  An opportunity must name a declared strategic goal or crown-jewel "
+                "dependency from `business-context` — `goal:<id>` or `crown-jewel:<system>`. "
+                "Ungrounded upside on a board page costs more credibility than silence, which "
+                "is the same reason this suite refuses to overclaim a regulatory obligation.\n"
+                "  If there is nothing to cite, write no opportunity. Absence renders nothing "
+                "and is not a finding: GV.RM-07 asks that opportunities be characterised where "
+                "they exist, not that every section produce one.\n"
+                "  The sentence was: %r" % (where, text[:120]))
+        out.append({"text": text, "cites": cites,
+                    "gvsc": str(entry.get("gvsc") or "GV.RM-07").strip()})
+    return out
 
 
 ALTITUDES = ("board", "management")

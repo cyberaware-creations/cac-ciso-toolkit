@@ -12,9 +12,12 @@ version so producers and the assembler can evolve together.
 
 ```json
 {
-  "section": "risk" | "posture" | "metrics" | "exceptions" | "incident",
+  "section": "risk" | "posture" | "vendor" | "ai" | "metrics" | "exceptions" | "incident",
   "executiveSummary": "One paragraph, board language, carrying a trend.",
   "<itemsKey>": { "<id>": "One sentence about this item, in board language." },
+  "opportunities": [{"text": "What good would unlock.",
+                     "cites": "goal:<declared goal> | crown-jewel:<system>",
+                     "gvsc": "GV.RM-07"}],
   "decisions": ["Each ends on a decision — fund, accept, or decide.",
                 {"text": "Or this shape, to declare an altitude.",
                  "altitude": "board" | "management"}],
@@ -25,6 +28,37 @@ version so producers and the assembler can evolve together.
 
 Every key is optional on read. An absent key renders a marked placeholder; it never renders
 invented content. That rule is older than this contract and outranks it.
+
+### `opportunities` — positive risk, and the one thing it will not bend on
+
+Added within `contractVersion: 1`, third use of the additive precedent after `boundTo` and
+after the `vendor` and `ai` sections. It serves CSF 2.0 **`GV.RM-07`** — *"Strategic
+opportunities (i.e., positive risks) are characterized and are included in organizational
+cybersecurity risk discussions"* — which this suite had no element for.
+
+**`cites` is required and the assembler REFUSES an entry without it.** Refused, not warned. An
+opportunity must name a declared strategic goal or crown-jewel dependency from
+`business-context`. That single requirement is what separates positive risk from marketing
+copy: *"better security helps the business move faster"* is unfalsifiable and costs more
+credibility than silence — and a rule that lives only in guidance is the rule this repo keeps
+having to convert into a check.
+
+**It is an envelope key, not an item map.** An opportunity has no register id, because it is a
+statement about a declared goal rather than about a record. Keeping it out of the item maps is
+also what stops the mis-spelled-map detector flagging it.
+
+**Absent renders nothing, and that is correct output.** No heading, no "none identified"
+placeholder. `GV.RM-07` asks that opportunities be characterised where they exist, not that
+every section invent one, and a placeholder is a box that manufactures pressure to fill it.
+
+**Never blended into a risk sentence.** Its own array, its own block, rendered after the items
+and before the decisions — *here is the exposure, here is what it costs us, here is what good
+would unlock, here is the decision.* An optimistic tail welded onto a loss statement reads as
+softening the loss. `outcome-framing.sh` fails a sidecar that tries it, naming the sentence and
+the word.
+
+The full argument and both worked examples, one accepted and one refused:
+`ciso-board-translation/references/positive-risk.md`.
 
 ## Per-section item keys
 
