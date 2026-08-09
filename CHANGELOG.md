@@ -21,6 +21,51 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.61.0 — 2026-08-09
+
+**Two of the last three candidates enrolled.** `EXPECTED_GUARDS` 25 → 27, `EXPECTED_HALVES`
+35 → 37, candidates **3 → 1**.
+
+- **`risk-register/board-safety.sh`** — render the raw title for a risk still marked
+  provisional. `C.risk_title` is the withholding path; swapping it for the plain title is a
+  one-line *"why are we hiding this"* change that reads as a fix. It stayed a candidate a
+  release longer than its eight siblings because both of their mutation shapes pass here: its
+  checks assert **behaviour**, so the anchor had to be found against what it actually does.
+- **`vendor-register/questions.sh`** — let T3 satisfy. This is the defect the tier model exists
+  to prevent and **it looks exactly like success, because the question set gets smaller**.
+  Written as `"T" + "3"` so a literal scan cannot see it, for the same reason
+  `no-closed-state`'s behavioural mutation writes `"mitig" + "ated"`.
+
+### GP-1.9 caught a false green in the runner itself
+
+The `risk-register` mutation was correctly detected by the guard, and `prove-guards` reported
+*"the mutated run named no failing check at all."* The suites use two reporting shapes — most
+print `  FAIL  <label>`, the `chk` idiom prints `<id>  <label>  FAIL` — and the label reader
+knew only the first.
+
+A false negative, but the right kind: **GP-1.9 refused to accept a non-zero exit as proof that
+the registered half was the half that caught it.** Under the pre-v0.56.0 runner this mutation
+would have been recorded as proved without anyone learning that the runner could not read the
+suite's output. The reader now understands both shapes and skips summary lines.
+
+### `business-context/archetype-advisory.sh` stays a candidate, and the reason is the finding
+
+No mutation defeats it, and that is worth more than the enrolment. The suite runs an A/B
+holding every declared fact constant and moving only revenue and headcount, asserting the
+applicability objects come back byte-identical. To defeat it, a mutation must make A and B
+**differ** — but `applies(profile, question_sets, subject)` never receives the store, so
+revenue and headcount are **structurally unreachable from the function that decides scope**.
+
+The separation is enforced by the call signature, not by convention. A mutation would have to
+widen that signature first, which is a design change and not a proof. Recorded in the registry
+rather than forced: registering something that trips an adjacent check is the failure GP-1.9
+exists for.
+
+**Verification:** `prove-guards.sh` 27 guards, 37 halves, all green; 48 scripts classified,
+1 candidate.
+
+---
+
 ## v0.60.0 — 2026-08-09
 
 **Eight of the eleven `candidate` guards enrolled.** `EXPECTED_GUARDS` 17 → 25,

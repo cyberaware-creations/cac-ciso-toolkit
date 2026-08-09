@@ -90,7 +90,7 @@
     {
       "path": "skills/business-context/evals/archetype-advisory.sh",
       "role": "candidate",
-      "reason": "Guard-shaped — 'the archetype layer is ADVICE ABOUT DEPTH. The day it becomes scope, this fails.' That is an absence property. Not enrolled: no registered mutation yet."
+      "reason": "Guard-shaped, and the LAST candidate. Deliberately not enrolled: no mutation found that defeats it, and the reason is worth more than the enrolment. The suite runs an A/B holding every declared fact constant and moving only revenue and headcount, asserting the applicability objects come back byte-identical. To defeat it a mutation must make A and B DIFFER — but `applies(profile, question_sets, subject)` never receives the store, so revenue and headcount are structurally unreachable from the function that decides scope. The separation is enforced by the call signature, not by convention. A mutation would have to widen that signature first, which is a design change, not a proof. Recorded rather than forced: registering something that trips an adjacent check is the failure GP-1.9 exists for."
     },
     {
       "path": "skills/business-context/evals/board-safety.sh",
@@ -189,8 +189,8 @@
     },
     {
       "path": "skills/risk-register/evals/board-safety.sh",
-      "role": "candidate",
-      "reason": "Guard-shaped and still a candidate. Its checks use the `chk` registration idiom rather than the shared ok/bad harness, and no source-scan or footer mutation trips it — the anchor has to be found against what it actually asserts (provisional titles, accepted-risk grouping, closure rationale). Enrol it with a mutation derived by running, never assumed from its siblings."
+      "role": "guard",
+      "forbids": "raw framework wording reaching a board renderer before a human has translated it"
     },
     {
       "path": "skills/risk-register/evals/confirmation-age.sh",
@@ -244,8 +244,8 @@
     },
     {
       "path": "skills/vendor-register/evals/questions.sh",
-      "role": "candidate",
-      "reason": "Guard-shaped — pins the T1/T3 subtraction boundary, and its own header names the failure mode 'looks like success'. BL-101 flagged it as arguably a second escapee. Needs a mutation per half before enrolment."
+      "role": "guard",
+      "forbids": "a vendor assertion shrinking the question set — subtraction on evidence that satisfies nothing"
     }
   ]
 }

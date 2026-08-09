@@ -1,0 +1,17 @@
+{
+  "guard": "skills/vendor-register/evals/questions.sh",
+  "forbids": "a vendor assertion shrinking the question set — subtraction on evidence that satisfies nothing",
+  "note": "Enrolled in v0.61.0, the last of the eleven candidates BL-101's registry surfaced. Guard-shaped since it was written and named nowhere until the registry made a verdict compulsory.",
+  "mutations": [
+    {
+      "half": "subtraction",
+      "why": "Let T3 satisfy. This is THE defect the tier model exists to prevent and it looks exactly like success, because the question set gets smaller. Written as \"T\" + \"3\" so a literal scan cannot see it — the same reasoning as no-closed-state's \"mitig\" + \"ated\", and the reason proposal-boundary's behavioural mutation was rewritten under BL-102.",
+      "defeats": [
+        "a trust page cannot be proposed against"
+      ],
+      "file": "skills/vendor-register/scripts/vendor_register.py",
+      "find": "SATISFYING_TIERS = (\"T1\", \"T2\")",
+      "replace": "SATISFYING_TIERS = (\"T1\", \"T2\", \"T\" + \"3\")"
+    }
+  ]
+}
