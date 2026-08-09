@@ -157,23 +157,61 @@ handing the regulator a record of the day you crossed it.
 
 **SEC Item 1.05 of Form 8-K** — a registrant must disclose a cybersecurity incident it determines
 to be material, describing the material aspects of its nature, scope and timing, and the material
-impact or reasonably likely material impact. **Limits:** it applies to SEC registrants and nobody
-else; its technical-detail carve-out covers the *planned response*, the *systems* and the
-*vulnerabilities* — **not the incident**, whose nature, scope and timing Item 1.05(a) requires
-(see `disclosure-clocks.md`); the determination is a company-specific judgment; and the rules have faced
-rescission pressure and a materially reduced enforcement posture. Cite it as a preparedness
-obligation, never as an imminent enforcement threat.
+impact or reasonably likely material impact.
+
+**Limits, outward:** it applies to SEC registrants and nobody else; its technical-detail
+carve-out covers the *planned response*, the *systems* and the *vulnerabilities* — **not the
+incident**, whose nature, scope and timing Item 1.05(a) requires (see `disclosure-clocks.md`);
+the determination is a company-specific judgment; and the rules have faced rescission pressure
+and a materially reduced enforcement posture. Cite it as a preparedness obligation, never as an
+imminent enforcement threat.
+
+**Limits, inward:** which organisations are registrants is declared as `secItem105Scope` and
+never inferred from a listing — an unlisted issuer reporting under Exchange Act s.15(d) is
+inside the perimeter and a listed company may be outside it (CAC-AP-1 §2.4.1 covers what happens
+when nobody has declared it). Inside the perimeter, **Item 1.05(c)** and **Item 1.05(d)** are
+delay mechanisms, and the engine models neither. `disclosure-clocks.md` carries both, with the
+Form 8-K boundary beside them.
 
 **SEC Item 106 of Regulation S-K** — annual disclosure of cybersecurity risk management, strategy
 and governance, including board oversight. **Limit:** it is an annual narrative obligation, not an
 incident clock; it is listed here because it is the other half of what a board is asked about.
+**Inward:** 17 CFR 229.106 carries **no exemption** — read in full, it is definitions, risk
+management and strategy, governance, and a structured-data requirement, with no scaled or
+omitted disclosure for any registrant inside its perimeter. Its one inward variation is
+**Instruction 1 to Item 106(c)**, which reads "board of directors" as the supervisory or
+non-management board for a foreign private issuer with a two-tier board, and as the board of
+auditors for one other foreign-private-issuer board structure the Instruction cross-refers to.
+That is an accommodation, not a carve-out: nobody inside the perimeter is relieved of the
+disclosure.
 
 **DORA (Regulation (EU) 2022/2554, applicable from 17 Jan. 2025) and its reporting RTS,
 Commission Delegated Regulation (EU) 2025/301** — in-scope financial entities must
-classify ICT-related incidents and report major ones on the Art. 5 windows. **Limits:** it binds
-in-scope EU financial entities only; classification as *major* is itself a criteria-based judgment
-this tool does not make; and the windows are counted in clock hours, not business days. See
-`disclosure-clocks.md`.
+classify ICT-related incidents and report major ones on the Art. 5 windows. **Limits, outward:**
+it binds in-scope EU financial entities only; classification as *major* is itself a
+criteria-based judgment this tool does not make; and the windows are counted in clock hours, not
+business days. See `disclosure-clocks.md`.
+
+**Limits, inward — who is excluded from inside that perimeter.** **Art. 2(3)** takes six
+categories out of DORA altogether even though they sit in the financial-entity list: AIFMs
+under Art. 3(2) of Directive 2011/61/EU; insurance and reinsurance undertakings under Art. 4 of
+Directive 2009/138/EC; IORPs whose schemes together have **no more than 15 members**; persons
+exempted under Arts. 2 and 3 of Directive 2014/65/EU; insurance, reinsurance and ancillary
+insurance intermediaries that are **micro, small or medium-sized enterprises**; and post office
+giro institutions under Art. 2(5)(3) of Directive 2013/36/EU. **Art. 2(4)** lets a Member State
+exclude certain Directive 2013/36/EU entities on its own territory, so the answer can differ by
+country.
+
+**The exemption that does NOT apply here, and it is the tempting one.** DORA's **Art. 16
+simplified ICT risk management framework** disapplies **"Articles 5 to 15"** and nothing else.
+Incident reporting lives in **Chapter III (Arts. 17–23)**, with major-incident reporting at
+Art. 19 — untouched by Art. 16. So an Art. 16 entity carries the full reporting obligation, and
+the only mention of microenterprises anywhere in Chapter III is a mandate to the ESAs to bear
+their capacity in mind when setting the Art. 18 classification criteria, which is not an
+exemption. The Art. 16 limit **is** correctly attached to the residual-risk inventory receipts
+in `exceptions-register` and `ciso-board-translation`, which cite RTS 2024/1774; carrying it
+across to this one because the wording matches would be an invented exemption in a disclosure
+record.
 
 **Delaware oversight (the *Caremark* line)** — *In re Caremark Int'l Inc. Derivative Litig.*,
 698 A.2d 959 (Del. Ch. 1996), as restated in *Stone v. Ritter*, 911 A.2d 362 (Del. 2006). A board

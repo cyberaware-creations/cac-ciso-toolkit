@@ -1,0 +1,27 @@
+{
+  "guard": "skills/incident-materiality/evals/two-directional-limits.sh",
+  "forbids": "a regulatory limit that scopes only outward, or DORA Art. 16 named beside reporting without what it actually disapplies",
+  "note": "The generalisation of BL-188 (D-4). Three outward-only limits survived that item's sweep because answering them meant reading DORA and 17 CFR 229.106 rather than pattern-matching. The registry in _limitcheck.py is a record of those reads; the guard only checks the shipped prose still carries them. The second half freezes a near-miss: two shipped files correctly attach the Art. 16 simplified-framework limit to the residual-risk receipts under RTS 2024/1774, so copying it into the reporting receipt under RTS 2025/301 looks like consistency and would be a fabricated exemption — Art. 16 disapplies Articles 5 to 15 only, and reporting is Chapter III.",
+  "mutations": [
+    {
+      "half": "inward-stated",
+      "why": "the inward limit removed — the receipt goes back to naming a perimeter with nobody excluded from inside it, which is BL-188 in a different regime",
+      "defeats": [
+        "the shipped prose passes the inward-stated half"
+      ],
+      "file": "skills/incident-materiality/references/materiality-factors.md",
+      "find": "**Art. 2(3)** takes six\ncategories out of DORA altogether",
+      "replace": "**Art. 2** takes six\ncategories out of DORA altogether"
+    },
+    {
+      "half": "no-borrowed-limit",
+      "why": "the correction dropped while Art. 16 is still named beside reporting — the wrong reading becomes available again, and it is the one that was a single line from being written",
+      "defeats": [
+        "the shipped prose passes the no-borrowed-limit half"
+      ],
+      "file": "skills/incident-materiality/references/materiality-factors.md",
+      "find": "simplified ICT risk management framework** disapplies **\"Articles 5 to 15\"** and nothing else.",
+      "replace": "simplified ICT risk management framework** disapplies a list of articles and nothing else."
+    }
+  ]
+}
