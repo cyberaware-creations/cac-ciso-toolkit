@@ -665,15 +665,23 @@ def compute_completeness(assessments: list[dict], index: dict, core: dict) -> di
 # rating sitting exactly on the boundary. With 180 and 365 alone, flipping _age()'s
 # `>` to `>=` breaks the identity and every test still passes.
 #
-# A byte-identical twin of this function lives in
-# skills/risk-register/scripts/score_register.py, which carries the matching note back to
-# here. The duplication is deliberate. The obvious cleanup — one shared module, say
+# THREE copies of this function ship, not two:
+#   skills/risk-register/scripts/score_register.py
+#   skills/metrics-register/scripts/metrics_analysis.py
+# and both now carry the matching note back to here. The third was missing from this list
+# for its whole life. Its own note said "each carries a note pointing at the others" —
+# neither of the other two mentioned it, so a maintainer moving a boundary here would grep
+# one sibling and change two of three copies. That is not a hypothetical: it is the exact
+# shape of the drift this comment warns about.
+#
+# The duplication is deliberate. The obvious cleanup — one shared module, say
 # skills/_shared/age.py — is rejected: every shipped script must run standalone (this
 # one also resolves its assets from _SKILL_ROOT off __file__), so a cross-skill import
 # needs sys.path surgery and breaks outright the moment a single skill directory is used
-# on its own. The obligation that replaces it: the two copies are edited together, and
-# each skill's own self-test is the only thing pinning them to the same semantics.
-# Grep the sibling path above before changing any boundary below.
+# on its own. The obligation that replaces it: the copies are edited together — and
+# tools/check-twins.py now executes all three over a shared corpus, because each skill's
+# own self-test cannot see the other copies, by construction.
+# Grep the sibling paths above before changing any boundary below.
 #
 # What must match is the SEMANTICS — the four boundaries and the band names. What must
 # NOT converge is the rendered wording: each skill's AGE_BAND_LABEL sits in a different

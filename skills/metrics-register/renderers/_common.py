@@ -114,6 +114,13 @@ AGE_LABEL = {
 # The statusless states map to None rather than to a band. A metric with no agreed
 # limit is not a status, so it renders in the measure colour -- returning a band
 # here would invent the threshold the engine declined to assert.
+#
+# TWINNED with METRIC_STATUS_SEV in skills/board-pack/scripts/assemble_pack.py, which cites
+# this table by name so a metric chip on a board page carries the same band as the metric's
+# own bullet. That end declared the dependency and this end said nothing back, so a rename
+# here would have moved a board severity with nothing pointing at it. The pack's copy holds
+# the three statused keys only -- a statusless metric is not a severity and the pack never
+# renders one -- and tools/check-twins.py compares them on that basis every push.
 STATUS_SEV = {
     "ok": "good",
     "warn": "high",

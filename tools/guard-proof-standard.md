@@ -4,7 +4,11 @@
 **Implemented by:** `tools/prove-guards.sh`, run in CI on the 3.9 floor
 **In force since:** v0.41.3 — GP-1.7 added in v0.45.0, GP-1.8 and GP-1.9 in v0.56.0,
 GP-1.10 in v0.64.1, GP-1.11 in v0.67.0
-**Sibling standard:** [CAC-LE-1](eval-lint-standard.md), the eval-harness lint
+**Sibling standards:** [CAC-LE-1](eval-lint-standard.md), the eval-harness lint ·
+**CAC-TW-1** (`tools/check-twins.py`, in force since v0.68.0), which executes the deliberately
+duplicated functions against one another. That is the case this standard structurally cannot
+reach: every guard here lives inside one skill, and a skill's own suite cannot see its twin in
+another skill. `evidence_text` drifted for four releases with both suites green.
 
 *"Since", not "as of", deliberately. The line here read `as of v0.41.3` and was two minors
 behind within a fortnight. A version that claims currency rots; one that marks a starting point
