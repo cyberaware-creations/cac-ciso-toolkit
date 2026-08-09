@@ -335,6 +335,22 @@ jobs:
       - name: Eval harness lint (CAC-LE-1), on the floor
         run: python3 ./tools/lint-evals.py
 
+      # CAC-RW-1. Before v0.52.0 exactly two source families in the product carried a
+      # freshness stamp; every legal citation was undated at the point of use. The
+      # v0.48.0-v0.51.0 pass read six families against their primary sources and found twelve
+      # defects — every one an amendment failure that re-reading the repo could never have
+      # caught. Three steps, listed individually per the house rule: the self-test proves the
+      # checker still detects a drifted citation, the check runs it, and the release gate is
+      # separate so a stale source is distinguishable from a broken manifest.
+      - name: Source manifest (CAC-RW-1) self-test, on the floor
+        run: python3 ./tools/check-sources.py --self-test
+
+      - name: Source manifest (CAC-RW-1), on the floor
+        run: python3 ./tools/check-sources.py
+
+      - name: Source freshness release gate (CAC-RW-1.6), on the floor
+        run: python3 ./tools/check-sources.py --release-gate
+
       # The five decisions-render guards. Each one pins the same shipped P1: the
       # sidecar carries decisions as {"text":..., "altitude":...} objects, the board
       # renderers stringified them, and every board pack printed a raw Python dict

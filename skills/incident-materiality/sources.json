@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "skill": "incident-materiality",
+  "sources": [
+    {
+      "id": "sec-cyber-rule",
+      "label": "SEC cybersecurity disclosure rule",
+      "publisher": "US Securities and Exchange Commission",
+      "instrument": "Release Nos. 33-11216; 34-97989, File No. S7-09-22",
+      "version": "88 FR 51896, 4 Aug. 2023; effective 5 Sep. 2023",
+      "checkedOn": "2026-08-08",
+      "checkedBy": "claude-code",
+      "gated": true,
+      "reviewIntervalDays": 365,
+      "usedFor": [
+        "references/disclosure-clocks.md",
+        "references/materiality-factors.md"
+      ]
+    },
+    {
+      "id": "dora-l1",
+      "label": "DORA (Level 1)",
+      "publisher": "European Parliament and Council",
+      "instrument": "Regulation (EU) 2022/2554",
+      "version": "applicable from 17 Jan. 2025 (Art. 64)",
+      "checkedOn": "2026-08-08",
+      "checkedBy": "claude-code",
+      "gated": true,
+      "reviewIntervalDays": 365,
+      "usedFor": [
+        "references/disclosure-clocks.md",
+        "references/materiality-factors.md"
+      ]
+    },
+    {
+      "id": "dora-rts-2025-301",
+      "label": "DORA incident-reporting RTS",
+      "publisher": "European Commission",
+      "instrument": "Commission Delegated Regulation (EU) 2025/301, Art. 5",
+      "version": "OJ 20.2.2025; made under DORA Art. 19(4)",
+      "checkedOn": "2026-08-08",
+      "checkedBy": "claude-code",
+      "gated": true,
+      "reviewIntervalDays": 365,
+      "usedFor": [
+        "references/disclosure-clocks.md",
+        "scripts/incident_analysis.py"
+      ]
+    },
+    {
+      "id": "sec-item-106",
+      "label": "SEC Item 106 of Regulation S-K",
+      "publisher": "US Securities and Exchange Commission",
+      "instrument": "17 C.F.R. s 229.106; Form 8-K Item 1.05 (s 249.308)",
+      "version": "adopted text at 88 FR 51942 and 51945",
+      "checkedOn": "2026-08-08",
+      "checkedBy": "claude-code",
+      "gated": true,
+      "reviewIntervalDays": 365,
+      "usedFor": [
+        "references/materiality-factors.md"
+      ]
+    },
+    {
+      "id": "reg-st-13",
+      "label": "EDGAR filing cut-off",
+      "publisher": "US Securities and Exchange Commission",
+      "instrument": "17 CFR 232.13(a)(2) (Regulation S-T Rule 13)",
+      "version": "5:30 p.m. Eastern same-day cut-off",
+      "checkedOn": "2026-08-08",
+      "checkedBy": "claude-code",
+      "gated": false,
+      "usedFor": [
+        "references/disclosure-clocks.md"
+      ]
+    },
+    {
+      "id": "caremark-line",
+      "label": "Delaware oversight line",
+      "publisher": "Delaware courts",
+      "instrument": "In re Caremark Int'l Inc. Derivative Litig., 698 A.2d 959 (Del. Ch. 1996); Stone v. Ritter, 911 A.2d 362 (Del. 2006)",
+      "version": "698 A.2d 959; 911 A.2d 362",
+      "checkedOn": "2026-08-08",
+      "checkedBy": "claude-code",
+      "gated": false,
+      "usedFor": [
+        "references/materiality-factors.md"
+      ]
+    },
+    {
+      "id": "materiality-standard",
+      "label": "Federal securities materiality standard",
+      "publisher": "US Supreme Court",
+      "instrument": "TSC Indus., Inc. v. Northway, Inc., 426 U.S. 438 (1976); Basic Inc. v. Levinson, 485 U.S. 224 (1988)",
+      "version": "426 U.S. 438; 485 U.S. 224 (cited for materiality only)",
+      "checkedOn": "2026-08-08",
+      "checkedBy": "claude-code",
+      "gated": false,
+      "usedFor": [
+        "references/materiality-factors.md",
+        "SKILL.md"
+      ]
+    }
+  ]
+}

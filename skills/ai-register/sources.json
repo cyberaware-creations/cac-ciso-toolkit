@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "skill": "ai-register",
+  "sources": [
+    {
+      "id": "ai-100-2",
+      "label": "NIST adversarial ML taxonomy",
+      "publisher": "NIST",
+      "instrument": "NIST AI 100-2 E2025, Adversarial Machine Learning: A Taxonomy and Terminology of Attacks and Mitigations",
+      "version": "final 24 Mar. 2025; class ids NISTAML.01-05 are this tool's own labels, not NIST's",
+      "checkedOn": "2026-08-08",
+      "checkedBy": "claude-code",
+      "gated": true,
+      "reviewIntervalDays": 365,
+      "usedFor": [
+        "references/nistaml-exposure.md"
+      ]
+    },
+    {
+      "id": "csf-2-0",
+      "label": "NIST Cybersecurity Framework 2.0",
+      "publisher": "NIST",
+      "instrument": "NIST CSWP 29",
+      "version": "CSF 2.0, 26 Feb. 2024",
+      "checkedOn": "2026-08-08",
+      "checkedBy": "claude-code",
+      "gated": false,
+      "usedFor": [
+        "SKILL.md"
+      ]
+    }
+  ]
+}

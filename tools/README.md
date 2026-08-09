@@ -238,3 +238,20 @@ suite prints `all checks passed`. See `eval-lint-standard.md`.
 python3 ./tools/lint-evals.py --self-test  # the matcher, in both directions
 python3 ./tools/lint-evals.py              # every discovered suite
 ```
+
+## `check-sources.py` — CAC-RW-1
+
+Every skill declares the sources it cites in `skills/<skill>/sources.json`, and the citations
+that reach a rendered page must match the manifest byte-for-byte. Before this existed, exactly
+two source families in the product carried a freshness stamp, and the v0.48.0–v0.51.0
+verification pass found twelve defects across six reference families — every one an *amendment*
+failure the repo could not have caught by reading itself. See `sources-schema.md`.
+
+The run prints how many declared sources are **not yet verified** against a primary source. That
+number, not the green tick, is what the standard exists to drive down.
+
+```bash
+python3 ./tools/check-sources.py --self-test     # C1–C4 and the gate, both directions
+python3 ./tools/check-sources.py                 # presence, shape, rendered citations, paths
+python3 ./tools/check-sources.py --release-gate  # a stale gated source blocks the release
+```

@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "skill": "risk-register",
+  "sources": [
+    {
+      "id": "sp-800-30r1",
+      "label": "SP 800-30 Rev. 1",
+      "publisher": "NIST",
+      "instrument": "NIST SP 800-30 Rev. 1, Guide for Conducting Risk Assessments",
+      "version": "Sep. 2012; five-level qualitative scale (Table I-2 is a lookup, not a product)",
+      "checkedOn": "2026-08-08",
+      "checkedBy": "claude-code",
+      "gated": false,
+      "usedFor": [
+        "scripts/score_register.py",
+        "references/schema.md",
+        "SKILL.md"
+      ]
+    },
+    {
+      "id": "ir-8286-series",
+      "label": "NISTIR 8286r1 / 8286A r1",
+      "publisher": "NIST",
+      "instrument": "NIST IR 8286r1; NIST IR 8286A r1 s 2.2",
+      "version": "both final 18 Dec. 2025",
+      "checkedOn": "2026-08-08",
+      "checkedBy": "claude-code",
+      "gated": true,
+      "reviewIntervalDays": 365,
+      "usedFor": [
+        "SKILL.md",
+        "references/schema.md"
+      ]
+    },
+    {
+      "id": "csf-2-0",
+      "label": "NIST Cybersecurity Framework 2.0",
+      "publisher": "NIST",
+      "instrument": "NIST CSWP 29",
+      "version": "CSF 2.0, 26 Feb. 2024",
+      "checkedOn": "2026-08-08",
+      "checkedBy": "claude-code",
+      "gated": false,
+      "usedFor": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "id": "dora-rts-2024-1774",
+      "label": "DORA ICT risk-management RTS",
+      "publisher": "European Commission",
+      "instrument": "Commission Delegated Regulation (EU) 2024/1774, Art. 3, point (d)(iii)-(iv)",
+      "version": "OJ 25.6.2024; in force 15 Jul. 2024",
+      "checkedOn": "2026-08-08",
+      "checkedBy": "claude-code",
+      "gated": true,
+      "reviewIntervalDays": 365,
+      "usedFor": [
+        "renderers/render_report.py",
+        "references/schema.md",
+        "references/history-and-review.md"
+      ],
+      "renderedAs": "DORA RTS (EU) 2024/1774 Art. 3(d)"
+    },
+    {
+      "id": "nydfs-part-500",
+      "label": "NYDFS Part 500",
+      "publisher": "New York State Department of Financial Services",
+      "instrument": "23 NYCRR Part 500, ss 500.9, 500.12, 500.15, 500.17",
+      "version": "Second Amendment, effective 1 Nov. 2023; all transitional periods expired",
+      "checkedOn": "2026-08-08",
+      "checkedBy": "claude-code",
+      "gated": true,
+      "reviewIntervalDays": 365,
+      "usedFor": [
+        "renderers/render_report.py",
+        "references/schema.md",
+        "references/history-and-review.md"
+      ],
+      "renderedAs": "NYDFS 23 NYCRR 500"
+    }
+  ]
+}
