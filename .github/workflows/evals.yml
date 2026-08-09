@@ -205,6 +205,16 @@ jobs:
       - name: One fact per flag, on the floor
         run: PY="$(command -v python3)" ./skills/business-context/evals/one-fact-per-flag.sh
 
+      # BL-188, and it covers two skills — `ciso-board-translation` ships no evals directory,
+      # so the guard lives with the other two locations. §500.19 was absent from `skills/`
+      # entirely across five release tests: every NYDFS limit in the suite scoped OUTWARD, at
+      # who the rule does not reach, and none said which covered entities inside the perimeter
+      # are exempt. An exempt firm was told a lawful gap was non-compliance, and the toolkit's
+      # own guidance then had it log an exception with a remediation timeline for an
+      # obligation it does not have.
+      - name: NYDFS exemptions stated and never computed, on the floor
+        run: PY="$(command -v python3)" ./skills/exceptions-register/evals/nydfs-exemptions.sh
+
       # Every consumer of CAC-AP-1, held to the contract from the side that DEFINES it.
       # Each consumer's own suite pins that consumer; none of them can see four engines
       # implementing the same six clauses and drifting apart one release at a time, each

@@ -124,6 +124,11 @@
       "forbids": "a decision rendered as a raw Python dict repr instead of its text"
     },
     {
+      "path": "skills/exceptions-register/evals/nydfs-exemptions.sh",
+      "role": "guard",
+      "forbids": "a stated NYDFS obligation with no §500.19 exemption beside it, or a qualification threshold printed without its determination caveat"
+    },
+    {
       "path": "skills/exceptions-register/evals/revalidation-lifecycle.sh",
       "role": "not-a-guard",
       "reason": "Behavioural suite over the real CLI. Asserts what the engine DOES, not a defect it forbids."

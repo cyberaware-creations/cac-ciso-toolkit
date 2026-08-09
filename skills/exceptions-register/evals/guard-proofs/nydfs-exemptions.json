@@ -1,0 +1,27 @@
+{
+  "guard": "skills/exceptions-register/evals/nydfs-exemptions.sh",
+  "forbids": "a stated NYDFS obligation with no §500.19 exemption beside it, or a qualification threshold printed without its determination caveat",
+  "note": "BL-188. Three shipped locations told a covered entity that §500.12 and §500.15 bind it, and §500.19 appeared nowhere in skills/ at all. Each of the three carried a careful limit and every limit scoped OUTWARD — who the rule does not reach — with no equivalent habit for who inside the perimeter is exempt. The guard covers two skills; it lives in exceptions-register because ciso-board-translation ships no evals directory.",
+  "mutations": [
+    {
+      "half": "stated",
+      "why": "the exemption stated as a bare section number, with the limbs collapsed — a receipt a reader cannot check, because (a) reaches §500.15 and not §500.12 while (c) and (d) reach both",
+      "defeats": [
+        "the shipped locations pass the stated half"
+      ],
+      "file": "skills/exceptions-register/references/exceptions.md",
+      "find": "- **§500.19(a), the limited exemption** — an entity meeting **any one** of three tests",
+      "replace": "- **§500.19, the limited exemption** — an entity meeting **any one** of three tests"
+    },
+    {
+      "half": "not-computed",
+      "why": "the thresholds kept and the determination caveat deleted — everything still reads correct, and a reader is invited to self-assess off three numbers that are not arithmetic",
+      "defeats": [
+        "the shipped locations pass the not-computed half"
+      ],
+      "file": "skills/exceptions-register/references/exceptions.md",
+      "find": "**Whether a given entity qualifies is a legal determination and this suite does not make it.**",
+      "replace": "**Whether a given entity qualifies is settled elsewhere.**"
+    }
+  ]
+}
