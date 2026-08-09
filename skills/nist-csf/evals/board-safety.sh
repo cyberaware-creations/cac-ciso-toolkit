@@ -47,6 +47,7 @@ PY="${PY:-$(command -v python3)}"
 here="$(cd "$(dirname "$0")" && pwd)"
 skill="$(cd "$here/.." && pwd)"
 work="$(mktemp -d)"
+. "$here/../../../tools/eval-probe.sh"   # `probe` — a crashed check is not a clean one (BL-121)
 trap 'rm -rf "$work"' EXIT
 
 EXPECTED_CHECKS=19
@@ -111,7 +112,7 @@ done
 # 1-2. Rendered output, narrow list. A user's own source label could legitimately read
 # "vendor trust review", so only the words that make a claim about our own certainty.
 for page in board op; do
-  hit=$($PY - "$work/$page.txt" <<'PY'
+  hit=$(probe "$work/$page.txt" <<'PY'
 import sys
 text = open(sys.argv[1], encoding="utf-8").read().lower()
 banned = ("confidence", "degrading", "degraded", "decaying", "decay",
@@ -127,7 +128,7 @@ done
 # "major": those are the frameworks' own classification vocabulary, and banning them would
 # ban the subject matter.
 for page in board op; do
-  hit=$($PY - "$work/$page.txt" <<'PY'
+  hit=$(probe "$work/$page.txt" <<'PY'
 import sys
 text = open(sys.argv[1], encoding="utf-8").read().lower()
 banned = ("catastroph", "devastat", "existential", "crippl", "disastrous", "nightmare",
@@ -143,7 +144,7 @@ done
 # 5. Our source, by stem. Docstrings and the engine's self-test are exempt: the refusal has
 # to be explainable and assertable, and every file here carries a paragraph naming the claim
 # it declines to make. `trust` is absent from STEMS on purpose -- see the header, and 8.
-res=$($PY - "$skill" <<'PY'
+res=$(probe "$skill" <<'PY'
 import ast, pathlib, sys
 root = pathlib.Path(sys.argv[1])
 STEMS = ("confiden", "degrad", "decay", "reliab", "certainty", "uncertain", "doubt",
@@ -220,7 +221,7 @@ fi
 # figure is withheld; the ratio is the derived number itself, so it is the thing to look for
 # rather than any one page's wording. The guard suppresses rather than caveats, but it must
 # still say that it did -- a figure that is silently absent reads as a figure of zero.
-ratio=$($PY - "$work/open.json" <<'PY'
+ratio=$(probe "$work/open.json" <<'PY'
 import json, sys
 cov = json.load(open(sys.argv[1], encoding="utf-8"))["coverage"]["overall"]
 print("({}/{})".format(cov["n"], cov["d"]))

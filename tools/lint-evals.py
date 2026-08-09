@@ -64,12 +64,24 @@ def _strip_heredocs(text):
     A body is BLANKED, never deleted, so every line number reported below is the line number
     in the file the reader is about to open. A linter that points three lines above the defect
     gets argued with rather than fixed.
+
+    A heredoc opener inside a COMMENT is not an opener. Documenting the idiom in prose —
+    `probe "$f" <<'PY' ... PY` — used to start a heredoc the stripper could never terminate,
+    because the closing line was commented too and so never matched bare `PY`. Everything from
+    that comment to the end of file was blanked, which meant the functions below it did not
+    exist as far as this linter was concerned. `tools/eval-probe.sh` documents its own call
+    shapes that way, so `probe` vanished and every suite sourcing it was reported as calling a
+    helper nobody defines (BL-121).
+
+    Worth naming plainly: **a comment could switch this linter off for the rest of a file**,
+    and the only symptom was a confident, wrong failure. A silent pass would have been worse.
     """
     out, lines, i = [], text.split("\n"), 0
     while i < len(lines):
         line = lines[i]
         out.append(line)
-        m = re.search(r"<<-?\s*(['\"])([A-Za-z_][A-Za-z0-9_]*)\1", line)
+        m = None if line.lstrip().startswith("#") else re.search(
+            r"<<-?\s*(['\"])([A-Za-z_][A-Za-z0-9_]*)\1", line)
         i += 1
         if not m:
             continue
@@ -99,8 +111,16 @@ def defined_in(path, _seen=None):
     body = _uncommented(_strip_inline_c(_strip_heredocs(raw)))
     names = set(DEF_RE.findall(body))
     for target in SOURCE_RE.findall(body):
-        if "$" in target:
-            continue  # a computed path; not resolvable here and not guessed at
+        target = target.strip().strip('"').strip("'")
+        # `$here` is this repo's universal convention for the sourcing script's own directory
+        # — every eval sets `here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"` — so a
+        # `$here/`-rooted source IS resolvable, and refusing to resolve it made every suite
+        # sourcing `tools/eval-probe.sh` fail this lint with "calls `probe`, never defines it"
+        # (BL-121). Any OTHER computed path is still skipped rather than guessed at.
+        if target.startswith("$here/"):
+            target = target[len("$here/"):]
+        elif "$" in target:
+            continue
         cand = target if os.path.isabs(target) else os.path.join(os.path.dirname(real), target)
         names |= defined_in(cand, _seen)
     return names
@@ -131,9 +151,41 @@ def called_in(path):
     return found
 
 
+# LE-1.2 (BL-121). A suite that has adopted `probe` must not keep a raw inline capture.
+#
+# `hit=$($PY - "$f" <<'PY' ... PY)` discards the exit status, so a traceback leaves stdout
+# empty — byte-for-byte what a clean run produces. The caller reads "nothing to report" and
+# prints `ok`. Nine board-safety suites ran that idiom for fourteen versions after the fix was
+# written in `assembly.sh` and copied nowhere.
+#
+# Scoped to files that source `tools/eval-probe.sh`, deliberately. Plenty of other captures in
+# this repo take a VALUE and compare it — `n=$($PY -c '...print(count)')` then `[ "$n" -eq 5 ]`
+# — where a crash yields an empty string and the comparison fails loudly. Those are a
+# different shape and flagging them would be noise. What this stops is a migrated suite
+# drifting back one line at a time.
+_RAW_CAPTURE = re.compile(r"""\$\(\s*"?\$PY"?\s+-(?:c\b|\s)""")
+_PROBE_SOURCE = "eval-probe.sh"
+
+
 def lint(paths):
     problems = []
     for path in paths:
+        try:
+            with open(path, encoding="utf-8") as fh:
+                text = fh.read()
+        except (OSError, UnicodeDecodeError):
+            text = ""
+        if _PROBE_SOURCE in text:
+            for n, line in enumerate(text.split("\n"), 1):
+                if line.lstrip().startswith("#") or _PROBE_SOURCE in line:
+                    continue
+                if _RAW_CAPTURE.search(line):
+                    problems.append(
+                        "%s:%d: captures an inline Python script directly. This suite sources "
+                        "%s — route it through `probe`. Command substitution discards the exit "
+                        "status, so a traceback and a clean run both leave stdout empty, and "
+                        "the check reports `ok` without having examined anything."
+                        % (os.path.relpath(path), n, _PROBE_SOURCE))
         defined = defined_in(path)
         for name, line in sorted(called_in(path).items()):
             if name not in defined:
@@ -165,11 +217,18 @@ def _self_test():
     import tempfile
     checks = 0
 
-    def case(label, body, expect_problem):
+    def case(label, body, expect_problem, siblings=None):
+        """`siblings` writes extra files beside the fixture, for the `source` cases."""
         nonlocal checks
         with tempfile.NamedTemporaryFile("w", suffix=".sh", delete=False) as fh:
             fh.write(body)
             name = fh.name
+        extra = []
+        for rel, text in (siblings or {}).items():
+            p = os.path.join(os.path.dirname(name), rel)
+            with open(p, "w", encoding="utf-8") as fh:
+                fh.write(text)
+            extra.append(p)
         try:
             got = bool(lint([name]))
             checks += 1
@@ -178,6 +237,8 @@ def _self_test():
             return got == expect_problem
         finally:
             os.unlink(name)
+            for p in extra:
+                os.unlink(p)
 
     results = [
         # The exact v0.43.0 defect.
@@ -203,6 +264,34 @@ def _self_test():
              'chk() { :; }\npython3 -c \'\nbad = [1]\nprint(bad)\n\'\n', False),
         case("a spaced assignment is not a call",
              'chk() { :; }\nok = 1\n', False),
+
+        # --- BL-121. Three behaviours, each of which was wrong before v0.59.0. ---
+        #
+        # A heredoc opener inside a comment used to start a heredoc nothing could terminate,
+        # blanking every definition below it. `tools/eval-probe.sh` documents its own call
+        # shapes in prose, so `probe` disappeared and every suite sourcing it was reported as
+        # calling a helper nobody defines.
+        case("a heredoc opener inside a COMMENT does not blank the rest of the file",
+             "# usage:  probe \"$f\" <<'PY' ... PY\nok() { :; }\nok \"y\"\n", False),
+        case("...and a real quoted heredoc still is stripped",
+             'ok() { :; }\npython3 - <<\'PY\'\nbad = 1\nPY\nok "y"\n', False),
+        # `$here` is the repo's universal name for the sourcing script's own directory, so a
+        # `$here/`-rooted source is resolvable. Skipping it as "computed" made the sourced
+        # helper invisible, which is the same can't-see-it defect one level up.
+        case("a `$here/`-rooted source is followed, so its helpers count as defined",
+             'here="x"\n. "$here/le1-fixture.sh"\nprobe -c "print(1)"\n', False,
+             {"le1-fixture.sh": "probe() { :; }\n"}),
+        case("...and an unresolvable `$here/` source still reports the undefined helper",
+             'here="x"\n. "$here/le1-absent.sh"\nprobe -c "print(1)"\n', True),
+        # LE-1.2 itself, both directions.
+        case("LE-1.2: a suite sourcing eval-probe.sh with a raw inline capture is caught",
+             'here="x"\n. "$here/eval-probe.sh"\nhit=$($PY - "$f")\n', True,
+             {"eval-probe.sh": "probe() { :; }\n"}),
+        case("LE-1.2: the same suite routing through `probe` is clean",
+             'here="x"\n. "$here/eval-probe.sh"\nhit=$(probe "$f")\n', False,
+             {"eval-probe.sh": "probe() { :; }\n"}),
+        case("LE-1.2: a suite that does NOT source it keeps its raw captures",
+             'ok() { :; }\nn=$($PY -c \'print(1)\')\nok "y"\n', False),
     ]
     print("\nlint-evals self-test: %d checks, %d failed"
           % (checks, sum(1 for r in results if not r)))

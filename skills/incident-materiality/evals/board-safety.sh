@@ -28,6 +28,7 @@ PY="${PY:-$(command -v python3)}"
 here="$(cd "$(dirname "$0")" && pwd)"
 skill="$(cd "$here/.." && pwd)"
 work="$(mktemp -d)"
+. "$here/../../../tools/eval-probe.sh"   # `probe` — a crashed check is not a clean one (BL-121)
 trap 'rm -rf "$work"' EXIT
 
 EXPECTED_CHECKS=20
@@ -82,7 +83,7 @@ done
 
 # 7. Our source, by stem. Docstrings are exempt — every refusal has to be explainable, and
 # every file here carries a paragraph naming the claim it declines to make.
-res=$($PY - "$skill" <<'PY'
+res=$(probe "$skill" <<'PY'
 import ast, pathlib, sys
 root = pathlib.Path(sys.argv[1])
 STEMS = ("confiden", "degrad", "decay", "reliab", "assumed", "certainty", "uncertain",
@@ -167,7 +168,7 @@ done
 # 16. Every determination rendered on the worksheet is attributed to a named decider. An
 # unattributed determination reads as the tool's own, which is the exact failure this whole
 # skill is built to avoid.
-expected=$($PY -c 'import json,sys
+expected=$(probe -c 'import json,sys
 a = json.load(open(sys.argv[1]))
 print(sum(len(r["determinations"]) for r in a["incidents"]))' "$work/a.json")
 actual=$(grep -o "recorded by" "$work/ws.html" | wc -l | tr -d ' ')

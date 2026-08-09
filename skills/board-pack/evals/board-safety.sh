@@ -19,6 +19,7 @@ PY="${PY:-$(command -v python3)}"
 here="$(cd "$(dirname "$0")" && pwd)"
 skill="$(cd "$here/.." && pwd)"
 work="$(mktemp -d)"
+. "$here/../../../tools/eval-probe.sh"   # `probe` — a crashed check is not a clean one (BL-121)
 trap 'rm -rf "$work"' EXIT
 
 EXPECTED_CHECKS=12
@@ -74,7 +75,7 @@ done
 
 # 5. Our own source, by stem. Docstrings exempt: every file here carries a paragraph naming
 # the claim it declines to make, and those paragraphs have to be allowed to name it.
-res=$("$PY" - "$skill" <<'PY'
+res=$(probe "$skill" <<'PY'
 import ast, pathlib, sys
 root = pathlib.Path(sys.argv[1])
 STEMS = ("confiden", "degrad", "decay", "reliab", "certainty", "uncertain", "doubt",
@@ -116,7 +117,7 @@ else bad "no banned vocabulary in the source of either renderer" "$res"; fi
 if grep -q "Not affiliated with NIST" "$work/pack.html.txt"; then
   ok "the HTML carries the footer"
 else bad "the HTML carries the footer" "absent"; fi
-res=$("$PY" - "$work/pack.pptx" <<'PY'
+res=$(probe "$work/pack.pptx" <<'PY'
 import re, sys, zipfile
 zf = zipfile.ZipFile(sys.argv[1])
 slides = sorted(n for n in zf.namelist()
@@ -141,7 +142,7 @@ fi
 
 # 9. THE check. Every paragraph the pack presents as board prose appears verbatim in a
 # sidecar. Not paraphrased, not trimmed, not joined — carried.
-res=$("$PY" - "$skill" "$work/pack.html" <<'PY'
+res=$(probe "$skill" "$work/pack.html" <<'PY'
 import html as H, json, os, re, sys
 skill, page = sys.argv[1], sys.argv[2]
 sys.path.insert(0, os.path.join(skill, "scripts"))
@@ -207,7 +208,7 @@ if [ -n "$inj" ]; then
 else
   bad "injected fear framing IS caught by the guard" "the scanner passed it"
 fi
-res=$("$PY" - "$skill" "$work/injected.html" <<'PY'
+res=$(probe "$skill" "$work/injected.html" <<'PY'
 import html as H, json, os, re, sys
 skill, page = sys.argv[1], sys.argv[2]
 sys.path.insert(0, os.path.join(skill, "scripts"))

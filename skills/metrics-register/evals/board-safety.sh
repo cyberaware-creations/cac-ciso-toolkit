@@ -15,6 +15,7 @@ PY="${PY:-$(command -v python3)}"
 here="$(cd "$(dirname "$0")" && pwd)"
 skill="$(cd "$here/.." && pwd)"
 work="$(mktemp -d)"
+. "$here/../../../tools/eval-probe.sh"   # `probe` — a crashed check is not a clean one (BL-121)
 trap 'rm -rf "$work"' EXIT
 
 EXPECTED_CHECKS=10
@@ -35,7 +36,7 @@ $PY "$skill/scripts/metrics_analysis.py" analyze "$skill/examples/example-metric
 # 1-2. Rendered output. Narrow list: a user's own metric could legitimately be named
 # "vendor trust score", so only the words that make a claim about our own certainty.
 for page in board op; do
-  hit=$($PY - "$work/$page.html" <<'PY'
+  hit=$(probe "$work/$page.html" <<'PY'
 import re, sys
 text = re.sub(r"<[^>]+>", " ", open(sys.argv[1], encoding="utf-8").read()).lower()
 banned = ("confidence", "degrading", "degraded", "decaying", "decay",
@@ -53,7 +54,7 @@ done
 # "critical" or "major": those are the classification vocabulary the frameworks themselves
 # use, and banning them would ban the subject matter.
 for page in board op; do
-  hit=$($PY - "$work/$page.html" <<'PY'
+  hit=$(probe "$work/$page.html" <<'PY'
 import re, sys
 text = re.sub(r"<[^>]+>", " ", open(sys.argv[1], encoding="utf-8").read()).lower()
 banned = ("catastroph", "devastat", "existential", "crippl", "disastrous", "nightmare",
@@ -68,7 +69,7 @@ done
 
 # 3. Our source, by stem. Docstrings are exempt — the refusal has to be explainable, and
 # every file here carries a paragraph naming the claim it declines to make.
-res=$($PY - "$skill" <<'PY'
+res=$(probe "$skill" <<'PY'
 import ast, pathlib, sys
 root = pathlib.Path(sys.argv[1])
 STEMS = ("confiden", "degrad", "decay", "reliab", "assumed",

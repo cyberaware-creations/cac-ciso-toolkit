@@ -18,6 +18,7 @@ set -u
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo="$(cd "$here/../../.." && pwd)"
 work="${1:-$(mktemp -d)}"
+. "$here/../../../tools/eval-probe.sh"   # `probe` — a crashed check is not a clean one (BL-121)
 # Overridable so the suite can be run on the supported Python floor, not just the
 # author's interpreter:  PY=/usr/bin/python3 ./board-safety.sh
 PY="${PY:-python3}"
@@ -25,9 +26,24 @@ RR="$repo/skills/risk-register"
 CSF="$repo/skills/nist-csf"
 mkdir -p "$work"
 
+# BL-163. Every other board-safety suite in the toolkit asserts how many checks it ran. This
+# one — the largest, and the one whose scanner has the most to say — counted only failures.
+#
+# `chk` registers a check, so a check written with the wrong helper name cannot pass silently.
+# That is the argument made at the bottom of this file, and it closes exactly one hole. It
+# does not close the other. A check that stops *executing* — an early `exit`, a fixture step
+# that returns non-zero and skips the block beneath it, a branch that stops being taken —
+# deregisters itself. `fails` stays at zero, the suite prints "all checks passed", and the
+# number of things actually proved falls with nothing saying so.
+#
+# Counting is what tells those apart. `fails` answers *did anything I ran complain?*;
+# EXPECTED_CHECKS answers *did I run what I think I run?* Only the second can see an absence.
+EXPECTED_CHECKS=12
 fails=0
+checks=0
 chk() {  # chk <id> <description> <PASS|FAIL>
   printf '%-5s %-58s %s\n' "$1" "$2" "$3"
+  checks=$((checks + 1))
   [ "$3" = PASS ] || fails=$((fails + 1))
 }
 yn() { [ "$1" -eq 0 ] && echo PASS || echo FAIL; }
@@ -94,7 +110,7 @@ done
 echo
 
 # 1. No provisional raw title appears in any board-facing renderer.
-raw=$("$PY" - "$work" <<'PY'
+raw=$(probe "$work" <<'PY'
 import json, re, sys, pathlib
 work = pathlib.Path(sys.argv[1])
 reg = json.loads((work / "r.rr").read_text())
@@ -112,13 +128,13 @@ PY
 chk 1 "no provisional raw title in any board renderer" "$([ -z "$raw" ] && echo PASS || echo "FAIL $raw")"
 
 # 2. Score review alone does not authorize raw framework wording for a board.
-chk 2 "score-only review keeps the title withheld" "$("$PY" -c "
+chk 2 "score-only review keeps the title withheld" "$(probe -c "
 import json;d=json.load(open('$work/r.rr'))
 r=[x for x in d['risks'] if x['id']=='R-001'][0]
 print('PASS' if r['provisionalTitle'] and not r['provisionalScore'] else 'FAIL')")"
 
 # 3. A current accepted risk is never grouped under 'board decision needed'.
-chk 3 "accepted risk kept out of 'board decision needed'" "$("$PY" -c "
+chk 3 "accepted risk kept out of 'board decision needed'" "$(probe -c "
 s=open('$work/render_report.html',encoding='utf-8').read()
 if 'board decision needed' not in s: print('FAIL no such section')
 else:
@@ -159,7 +175,7 @@ chk 6 "--offline emits no external request" "$([ $? -ne 0 ] && echo PASS || echo
 # as risks are treated out is a board figure that cannot be acted on, and the same page
 # was reporting the count two different ways (KPI tile from summary, attention panel from
 # the live set) inches apart.
-chk 7 "closed risk excluded from board over-appetite figures" "$("$PY" - "$work" "$RR" <<'PY'
+chk 7 "closed risk excluded from board over-appetite figures" "$(probe "$work" "$RR" <<'PY'
 import json, re, sys, pathlib
 work, rr = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
 sys.path.insert(0, str(rr / "scripts"))
@@ -217,7 +233,7 @@ PY
 # _common.py and both call it, which is the arrangement this suite's own header argues for:
 # a board guard written for one renderer and not the other is how the printable report kept
 # exposing raw framework wording for a full release.
-chk 8 "board freshness line present and counts live risks" "$("$PY" - "$work" <<'PY'
+chk 8 "board freshness line present and counts live risks" "$(probe "$work" <<'PY'
 import json, pathlib, re, sys
 work = pathlib.Path(sys.argv[1])
 reg = json.loads((work / "r.rr").read_text())
@@ -295,7 +311,7 @@ PY
 #
 # render_dashboard is NOT scanned. It is the operational work queue and may legitimately
 # say things a board page must not — the same board-facing-only distinction as check 1.
-chk 9 "no confidence vocabulary in any board-facing view" "$("$PY" - "$work" <<'PY'
+chk 9 "no confidence vocabulary in any board-facing view" "$(probe "$work" <<'PY'
 import pathlib, sys
 work = pathlib.Path(sys.argv[1])
 banned = ("confidence", "degrading", "degraded", "decaying", "decay",
@@ -349,7 +365,7 @@ PY
 # Stems chosen against the whole-word forms they would otherwise ban: `assumed` not `assum`
 # (an "assumption" is a legitimate word), `certainty`/`uncertain` not `certain` ("certain
 # risks" means "some"). Verified zero hits at the time of writing, so a hit is a change.
-chk 10 "no confidence vocabulary in the source of any board-facing view" "$("$PY" - "$repo" <<'PY'
+chk 10 "no confidence vocabulary in the source of any board-facing view" "$(probe "$repo" <<'PY'
 import ast, pathlib, sys
 repo = pathlib.Path(sys.argv[1])
 STEMS = ("confiden", "degrad", "decay", "reliab", "assumed",
@@ -443,9 +459,16 @@ else
 fi
 
 echo
+# The count is asserted BEFORE the pass/fail verdict, because a suite that ran the wrong
+# number of checks has not earned the right to report either answer.
+if [ "$checks" -ne "$EXPECTED_CHECKS" ]; then
+  printf 'board-safety (risk): ran %s checks, expected %s — a check stopped executing, or a '\
+'new one was added without moving EXPECTED_CHECKS\n' "$checks" "$EXPECTED_CHECKS"
+  exit 1
+fi
 if [ "$fails" -eq 0 ]; then
-  echo "board-safety: all checks passed"
+  echo "board-safety: all $checks checks passed"
 else
-  echo "board-safety: $fails check(s) FAILED"
+  echo "board-safety: $fails of $checks check(s) FAILED"
 fi
 exit $([ "$fails" -eq 0 ] && echo 0 || echo 1)
