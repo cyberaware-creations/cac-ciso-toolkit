@@ -150,6 +150,43 @@
       "reviewIntervalDays": 365,
       "usedFor": [
         "references/positive-risk.md"
+      ],
+      "designations": [
+        "ir-8286r1",
+        "ir-8286ar1",
+        "ir-8286cr1"
+      ]
+    },
+    {
+      "id": "ir-8286-bd-upd1",
+      "label": "NIST IR 8286B-upd1 and 8286D-upd1",
+      "publisher": "NIST",
+      "instrument": "NIST IR 8286B-upd1, Prioritizing Cybersecurity Risk for Enterprise Risk Management; NIST IR 8286D-upd1, Using Business Impact Analysis to Inform Risk Prioritization and Response",
+      "version": "Both Update 1, Final, 26 February 2025. B supersedes the 10 February 2022 edition; D supersedes the 17 November 2022 edition. Kept separate from `ir-8286-series` because that row's members are the 18 December 2025 r1 publications and these two are -upd1 on a different date — one row cannot state both truthfully.",
+      "checkedOn": "2026-08-09",
+      "checkedBy": "claude-code",
+      "designations": [
+        "ir-8286b",
+        "ir-8286d"
+      ],
+      "gated": true,
+      "reviewIntervalDays": 365,
+      "usedFor": [
+        "references/positive-risk.md"
+      ]
+    },
+    {
+      "id": "sec-item-106",
+      "label": "SEC Regulation S-K Item 106",
+      "publisher": "U.S. Securities and Exchange Commission",
+      "instrument": "17 C.F.R. s 229.106; Form 8-K Item 1.05 (s 249.308)",
+      "version": "Effective for annual reports for fiscal years ending on or after 15 December 2023",
+      "checkedOn": "2026-08-09",
+      "checkedBy": "claude-code",
+      "gated": true,
+      "reviewIntervalDays": 365,
+      "usedFor": [
+        "references/regulatory-receipts.md"
       ]
     }
   ]

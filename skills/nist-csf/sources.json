@@ -55,6 +55,10 @@
       "checkedOn": "2026-08-08",
       "usedFor": [
         "SKILL.md"
+      ],
+      "designations": [
+        "sp-800-53r5",
+        "sp-800-53"
       ]
     },
     {
@@ -85,6 +89,12 @@
         "references/crosswalks/iso-27001-2022.catalog.json",
         "references/crosswalks/csf-2.0__iso-27001-2022.map.json"
       ]
+    }
+  ],
+  "citationAllowlist": [
+    {
+      "designation": "iso-27002",
+      "reason": "Named once in SKILL.md as a crosswalk target a reader may hold, alongside ISO 27001 and CIS. CAC has no ISO licence, so no ISO/IEC text can be read or reproduced and a verified row would be a claim nobody checked. The 27001 row records the same constraint: identifiers only, labels paraphrased, control text null. Permanent, not pending."
     }
   ]
 }

@@ -251,8 +251,8 @@ The run prints how many declared sources are **not yet verified** against a prim
 number, not the green tick, is what the standard exists to drive down.
 
 ```bash
-python3 ./tools/check-sources.py --self-test     # C1–C5 and the gate, both directions
-python3 ./tools/check-sources.py                 # presence, shape, rendered citations, paths, do-not-cite
+python3 ./tools/check-sources.py --self-test     # C1–C6 and the gate, both directions
+python3 ./tools/check-sources.py                 # presence, shape, rendered, paths, do-not-cite, declared
 python3 ./tools/check-sources.py --release-gate  # a stale gated source blocks the release
 ```
 
@@ -260,4 +260,17 @@ python3 ./tools/check-sources.py --release-gate  # a stale gated source blocks t
 cannot see a withdrawn publication it has not cited yet — the more dangerous class, because that
 defect arrives fresh. `tools/do-not-cite.json` names withdrawn and superseded publications and C5
 scans shipped prose for them. Naming one *to say it is withdrawn* is fine and expected; the check
-looks for a withdrawal marker within about a paragraph. A bare citation with none fails.
+requires a withdrawal marker **on the same line, nearest this publication** (RW-1.9.1). A bare
+citation with none fails. C5 reads the whole tree bar the few files that must carry the
+designations in order to police them — `docs/` and `research/` were exempt until v0.57.0 for no
+reason beyond their names, which made C5 blind to 24 shipped files (BL-194).
+
+**C6, the converse of C4.** C4 reads the manifest and asks whether the tree still matches it.
+C6 reads the tree and asks whether the manifest covers it. Until v0.57.0 only C4 existed, so a
+citation added to a reference file and never added to `sources.json` was invisible here —
+never reviewed, never gated, and indistinguishable from one that had been verified (BL-190).
+C6 found ten on its first run across five skills. Designations are canonical keys, so
+`ISO/IEC 27001:2022` and `ISO 27001` are one thing; an ISO edition year is dropped, a NIST
+revision is not. A citation that is genuinely not a source goes in `citationAllowlist` with a
+**reason** — an entry with an empty reason fails, because otherwise the allowlist is an off
+switch that reads like judgement.

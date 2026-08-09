@@ -10,16 +10,25 @@ AMENDMENT failure, where the citation was right when written and the instrument 
 it. None would have been caught by re-reading the repo. This manifest records what to open and
 when it was last opened.
 
-Four checks:
+Six checks:
 
   C1  presence  -- every skill has a parsing sources.json (an empty `sources` array is valid)
   C2  shape     -- required fields present, ids unique per skill, checkedOn sane, gate coherent
   C3  rendered  -- a `renderedAs` string appears byte-for-byte in the files the row claims
   C4  usedFor   -- every path a row lists exists in the tree
+  C5  do-not-cite -- no withdrawn publication is cited as current, anywhere in the tree
+  C6  declared  -- every designation cited in a covered file is declared, or allowlisted
 
 C3 is the one this standard is named for. Renderers keep their literal string rather than
 reading this file at runtime (RW-1.5), because every shipped script here runs standalone; the
 byte-equality check is what keeps the two copies honest.
+
+C4 and C6 are converses and both are needed. C4 reads the manifest and asks whether the tree
+still matches it; C6 reads the tree and asks whether the manifest covers it. Only C4 existed
+until v0.57.0, so a citation added to a reference file and never added to sources.json was
+invisible to every check here -- never reviewed, never re-checked, never gated, and
+indistinguishable from one that had been verified (BL-190). C6 found ten of them on its first
+run, in five shipped skills.
 
 Exit 0 when clean, 1 otherwise.
 
@@ -147,6 +156,154 @@ def check_used_for(root, skill, doc):
     return problems
 
 
+# ---------------------------------------------------------------------------
+# C6 (CAC-RW-1.10) -- the converse of C4.
+#
+# C4 asks "does every path a row claims exist?" -- manifest against tree. It cannot ask the
+# question that matters more: **is every instrument this skill cites actually declared?** A
+# citation added to a reference file and never added to sources.json is invisible to every
+# check in this file. It is never reviewed, never re-checked, and never gated -- and it looks
+# exactly like a citation that was verified, because nothing distinguishes them (BL-190).
+#
+# The detector is a vocabulary of designation shapes, canonicalised to a stable key so that
+# "ISO/IEC 27001:2022" and "ISO 27001" are one designation rather than two. Substring matching
+# was tried first and produced false positives on exactly that pair, which is the failure mode
+# that gets a check switched off in a fortnight.
+#
+# Every entry carries a `mustMatch` fixture and the key it must produce, asserted in the
+# self-test. A pattern that stops matching would otherwise reduce C6's coverage silently --
+# the same reasoning as `mustFlag` in do-not-cite.json (RW-1.9.2).
+_CITE_VOCAB = (
+    {"id": "nist-sp",
+     "pattern": r"\bSP\s*(?P<n>800-\d+[A-Za-z]?)(?:\s*(?:r|rev\.?|revision)\s*(?P<r>\d+))?",
+     "key": "sp-{n}{r}",
+     "mustMatch": "NIST SP 800-53 Rev. 5, Security and Privacy Controls",
+     "expect": "sp-800-53r5"},
+    {"id": "nist-ir",
+     "pattern": r"\b(?:NIST\s*)?(?:NISTIR|IR)\s*(?P<n>\d{4}[A-Za-z]?)"
+                r"(?:\s*(?:r|rev\.?|revision)\s*(?P<r>\d+))?",
+     "key": "ir-{n}{r}",
+     "mustMatch": "NISTIR 8286A r1 — Identifying and Estimating",
+     "expect": "ir-8286ar1"},
+    {"id": "nist-cswp",
+     "pattern": r"\bCSWP\s*(?P<n>\d+)", "key": "cswp-{n}",
+     "mustMatch": "NIST CSWP 29", "expect": "cswp-29"},
+    # The E-year is dropped for the same reason ISO's edition year is, below.
+    {"id": "nist-ai",
+     "pattern": r"\bAI\s*(?P<n>100-\d+)(?:\s*E\d{4})?", "key": "ai-{n}",
+     "mustMatch": "NIST AI 100-2 E2025, Adversarial Machine Learning",
+     "expect": "ai-100-2"},
+    # The edition year is deliberately dropped: a skill declaring ISO/IEC 27001:2022 and prose
+    # naming ISO 27001 are the same instrument. Edition drift is C2's job, not C6's.
+    #
+    # A NIST *revision* is NOT dropped, and the asymmetry is deliberate. `SP 800-171 Rev. 2`
+    # and `Rev. 3` are different documents with different obligations — do-not-cite.json
+    # watches exactly that distinction — whereas an ISO edition year is how the same standard
+    # is written when somebody is being precise. Collapsing revisions would make C6 blind to
+    # the amendment failure that every reference defect in this repo has turned out to be.
+    {"id": "iso",
+     "pattern": r"\bISO(?:/IEC)?\s*(?P<n>\d{4,5}(?:-\d+)?)(?::\d{4})?", "key": "iso-{n}",
+     "mustMatch": "ISO/IEC 27001:2022 Annex A", "expect": "iso-27001"},
+    {"id": "eu-instrument",
+     "pattern": r"\b(?:Regulation|Directive)\s*\(EU\)\s*(?P<n>\d{4}/\d+)", "key": "eu-{n}",
+     "mustMatch": "Regulation (EU) 2022/2554", "expect": "eu-2022/2554"},
+    # `ss?` is in the section-marker alternation because this repo writes § as ASCII `s` —
+    # `17 C.F.R. s 229.106`, `23 NYCRR Part 500, ss 500.9`. Without it the pattern read the
+    # prose and not the manifests, so two rows added in the same commit as this check went on
+    # reporting themselves undeclared. Anchored immediately after CFR, so a bare `s` elsewhere
+    # cannot trigger it.
+    {"id": "cfr",
+     "pattern": r"\b(?P<t>\d+)\s*C\.?\s?F\.?R\.?\s*(?:§{1,2}|ss?)?\s*(?P<n>\d[\d.]*\d)",
+     "key": "cfr-{t}-{n}",
+     "mustMatch": "17 C.F.R. § 229.106", "expect": "cfr-17-229.106",
+     "alsoMatch": ("17 C.F.R. s 229.106", "47 CFR 64.2011", "17 CFR 232.13")},
+    {"id": "nycrr",
+     "pattern": r"\b(?P<t>\d+)\s*NYCRR\s*Part\s*(?P<n>\d+)", "key": "nycrr-{t}-{n}",
+     "mustMatch": "23 NYCRR Part 500, ss 500.9", "expect": "nycrr-23-500"},
+)
+_CITE_COMPILED = [(v, re.compile(v["pattern"], re.I)) for v in _CITE_VOCAB]
+
+
+def cite_keys(text):
+    """Every canonical designation key in `text`. Typography is folded first, as for C5."""
+    keys = set()
+    folded = _dnc_fold(text or "")
+    for vocab, pat in _CITE_COMPILED:
+        for m in pat.finditer(folded):
+            parts = {k: (v or "") for k, v in m.groupdict().items()}
+            if "r" in parts and parts["r"]:
+                parts["r"] = "r" + parts["r"]
+            keys.add(vocab["key"].format(**parts).lower().replace(" ", ""))
+    return keys
+
+
+def check_declared(root, skill, doc):
+    """C6. Every designation cited in a covered file is declared, or allowlisted with a reason.
+
+    "Covered file" means a file some row already claims in `usedFor` -- the set C4 validates.
+    Widening beyond that would be a different check with a different argument; this one asks
+    only that the files a manifest already points at agree with the manifest.
+
+    A row declares whatever designations appear in its own `instrument`, `label` or
+    `renderedAs`, plus anything in an optional explicit `designations` list. The explicit list
+    exists for series rows: `"NIST IR 8286r1, 8286A r1, 8286C r1"` names three publications and
+    the detector can only see the first, because a bare `8286A r1` with no `IR` prefix is not a
+    shape worth matching in open prose. Guessing there would trade false negatives for false
+    positives, and a noisy check is a check somebody turns off.
+    """
+    problems = []
+    declared, covered = set(), []
+    for row in doc["sources"]:
+        if not isinstance(row, dict):
+            continue
+        for field in ("instrument", "label", "renderedAs"):
+            declared |= cite_keys(str(row.get(field) or ""))
+        extra = row.get("designations")
+        if isinstance(extra, list):
+            for d in extra:
+                if isinstance(d, str) and d.strip():
+                    declared.add(d.strip().lower())
+        for rel in (row.get("usedFor") or []):
+            if isinstance(rel, str) and rel not in covered:
+                covered.append(rel)
+
+    allow = {}
+    raw_allow = doc.get("citationAllowlist")
+    if raw_allow is not None:
+        if not isinstance(raw_allow, list):
+            return ["%s: citationAllowlist must be a list" % skill]
+        for i, item in enumerate(raw_allow):
+            if not isinstance(item, dict):
+                problems.append("%s: citationAllowlist[%d] must be an object" % (skill, i))
+                continue
+            key = str(item.get("designation") or "").strip().lower()
+            why = str(item.get("reason") or "").strip()
+            if not key:
+                problems.append("%s: citationAllowlist[%d] has no `designation`" % (skill, i))
+                continue
+            # An allowlist whose entries need no reason is a way to switch C6 off one line at a
+            # time, and it would read as considered judgement while being the opposite.
+            if not why:
+                problems.append("%s: citationAllowlist entry %r has no `reason` — an "
+                                "undeclared citation is allowed only with an argument for why"
+                                % (skill, key))
+                continue
+            allow[key] = why
+
+    for rel in covered:
+        path = os.path.join(root, "skills", skill, rel)
+        try:
+            with open(path, encoding="utf-8") as fh:
+                text = fh.read()
+        except (OSError, UnicodeDecodeError):
+            continue
+        for key in sorted(cite_keys(text) - declared - set(allow)):
+            problems.append("%s/%s: cites %s, which no row in sources.json declares — add a "
+                            "verified row, or allowlist it with a reason" % (skill, rel, key))
+
+    return problems
+
+
 def check_rendered(root, skill, doc):
     """C3. `renderedAs` must appear byte-for-byte in at least one file the row claims.
 
@@ -182,7 +339,21 @@ def check_rendered(root, skill, doc):
     return problems
 
 
-_DNC_EXEMPT = ("CHANGELOG.md", "docs/", "research/", "tools/do-not-cite.json",
+# Every path here is a file that must contain watched designations in order to do its job:
+# the registry itself, the code that reads it, the schema that documents it, and the changelog
+# that records why each was added. They are exempt because a citation in them is the subject,
+# not a recommendation.
+#
+# `docs/` and `research/` were on this list until v0.57.0 and had no such justification
+# (BL-194). Nothing in either directory is about the registry; they are ordinary prose, which
+# is exactly where a withdrawn publication gets cited by reflex. The exemption was reasoning by
+# directory name rather than by role, and it made C5 blind to 24 shipped files. Removing them
+# found no existing violation — which is the outcome to expect and not a reason to have left
+# the hole open, because C5's whole purpose is the citation nobody has written yet.
+#
+# The test for adding anything here: does this file need the string in order to police the
+# string? If not, it is in scope.
+_DNC_EXEMPT = ("CHANGELOG.md", "tools/do-not-cite.json",
                "tools/check-sources.py", "tools/sources-schema.md")
 _DNC_NAMES = ("NOTICE", "README")
 
@@ -434,6 +605,7 @@ def check_sources(root="."):
         problems.extend(check_shape(skill, doc, _today()))
         problems.extend(check_used_for(root, skill, doc))
         problems.extend(check_rendered(root, skill, doc))
+        problems.extend(check_declared(root, skill, doc))
     if problems:
         print("ERROR: source manifest problems (CAC-RW-1):")
         for p in problems:
@@ -638,18 +810,106 @@ def _self_test():
            "C5 with no do-not-cite.json fails rather than checking nothing")
         shutil.rmtree(bare, ignore_errors=True)
 
+        # -- C6 (BL-190). The converse of C4: a citation nothing declares.
+        #
+        # The vocabulary fixtures come first. A detector that has quietly stopped matching
+        # reports "no undeclared citations" in exactly the tone of a detector that works, so
+        # each pattern must be seen to produce the key it claims. This is `mustFlag` from
+        # do-not-cite.json applied to the other direction.
+        for v in _CITE_VOCAB:
+            ok(v["expect"] in cite_keys(v["mustMatch"]),
+               "C6 vocab %s: %r yields %s" % (v["id"], v["mustMatch"][:34], v["expect"]))
+            for extra in v.get("alsoMatch", ()):
+                ok(cite_keys(extra), "C6 vocab %s: %r is still matched" % (v["id"], extra))
+        ok(not cite_keys("no designations here, just prose about risk appetite"),
+           "C6 vocab: ordinary prose yields no keys -- the detector is not matching noise")
+
+        def c6(name, skill_files, sources, allowlist=None):
+            root = os.path.join(tmp, name)
+            sk = os.path.join(root, "skills", "demo")
+            os.makedirs(sk)
+            with open(os.path.join(sk, "SKILL.md"), "w", encoding="utf-8") as fh:
+                fh.write("# demo\n")
+            for rel, body in skill_files.items():
+                p = os.path.join(sk, *rel.split("/"))
+                os.makedirs(os.path.dirname(p), exist_ok=True)
+                with open(p, "w", encoding="utf-8") as fh:
+                    fh.write(body)
+            doc = {"schemaVersion": 1, "skill": "demo", "sources": sources}
+            if allowlist is not None:
+                doc["citationAllowlist"] = allowlist
+            with open(os.path.join(sk, "sources.json"), "w", encoding="utf-8") as fh:
+                json.dump(doc, fh)
+            return root
+
+        cited = {"references/r.md": "We follow NIST SP 800-53 Rev. 5 for controls.\n"}
+        ok(check_sources(c6("c6bad", cited,
+                            [row(usedFor=["references/r.md"])])) is False,
+           "C6: a citation in a covered file that no row declares fails")
+        ok(check_sources(c6("c6ok", cited,
+                            [row(instrument="NIST SP 800-53 Rev. 5",
+                                 usedFor=["references/r.md"])])) is True,
+           "C6: the same citation passes once a row declares it")
+        # Revisions are NOT collapsed. This is the amendment failure every reference defect in
+        # this repo has turned out to be, so a row pinned to r4 must not launder a r5 citation.
+        ok(check_sources(c6("c6rev", cited,
+                            [row(instrument="NIST SP 800-53 Rev. 4",
+                                 usedFor=["references/r.md"])])) is False,
+           "C6: a row declaring Rev. 4 does not cover a Rev. 5 citation")
+        ok(check_sources(c6("c6iso",
+                            {"references/r.md": "held an ISO 27001 certificate\n"},
+                            [row(instrument="ISO/IEC 27001:2022 Annex A",
+                                 usedFor=["references/r.md"])])) is True,
+           "C6: an ISO edition year IS collapsed -- 27001:2022 declares ISO 27001")
+        ok(check_sources(c6("c6desig", cited,
+                            [row(instrument="the 800-53 family",
+                                 designations=["sp-800-53r5"],
+                                 usedFor=["references/r.md"])])) is True,
+           "C6: an explicit `designations` list declares what prose cannot be parsed for")
+        # Scope. C6 asks only that the files a manifest already points at agree with it.
+        ok(check_sources(c6("c6scope", dict(cited, **{"references/other.md":
+                                                      "See NIST IR 8179.\n"}),
+                            [row(instrument="NIST SP 800-53 Rev. 5",
+                                 usedFor=["references/r.md"])])) is True,
+           "C6: a file no row claims is out of scope -- C6 is the converse of C4, not a "
+           "whole-tree scan")
+
+        # The allowlist, and the reason that makes it an argument rather than an off switch.
+        ok(check_sources(c6("c6allow", cited, [row(usedFor=["references/r.md"])],
+                            allowlist=[{"designation": "sp-800-53r5",
+                                        "reason": "named as a crosswalk target, not relied on"}])
+           ) is True, "C6: an allowlisted designation with a reason passes")
+        ok(check_sources(c6("c6noreason", cited, [row(usedFor=["references/r.md"])],
+                            allowlist=[{"designation": "sp-800-53r5", "reason": ""}])) is False,
+           "C6: an allowlist entry with an EMPTY reason fails -- otherwise the allowlist is a "
+           "way to switch C6 off one line at a time")
+        ok(check_sources(c6("c6nokey", cited, [row(usedFor=["references/r.md"])],
+                            allowlist=[{"reason": "because"}])) is False,
+           "C6: an allowlist entry with no `designation` fails")
+        ok(check_sources(c6("c6wrongkey", cited, [row(usedFor=["references/r.md"])],
+                            allowlist=[{"designation": "sp-800-53r4",
+                                        "reason": "wrong revision"}])) is False,
+           "C6: allowlisting a DIFFERENT designation does not excuse this one")
+
         # -- C5, both directions --
         #
         # The rule is not "never write the string". Naming a withdrawn publication in order to
         # say it is withdrawn is what this repo should do. Both cases are registered, because a
         # ban that also forbids the warning would get switched off within a week.
-        def dnc(name, body, entries=None, markers=None):
+        def dnc(name, body, entries=None, markers=None, files=None):
             root = os.path.join(tmp, name)
             os.makedirs(os.path.join(root, "tools"))
             os.makedirs(os.path.join(root, "skills", "demo"))
             with open(os.path.join(root, "skills", "demo", "SKILL.md"), "w",
                       encoding="utf-8") as fh:
                 fh.write(body)
+            # `files` plants content at an arbitrary repo-relative path. Needed for BL-194's
+            # scope cases: the defect there was WHICH files C5 read, not what it did with them.
+            for rel, text in (files or {}).items():
+                p = os.path.join(root, *rel.split("/"))
+                os.makedirs(os.path.dirname(p), exist_ok=True)
+                with open(p, "w", encoding="utf-8") as fh:
+                    fh.write(text)
             with open(os.path.join(root, "tools", "do-not-cite.json"), "w",
                       encoding="utf-8") as fh:
                 json.dump({"schemaVersion": 1,
@@ -718,6 +978,35 @@ def _self_test():
            "BL-194/B: a marker as a substring of an identifier is not a warning")
         ok(check_do_not_cite(dnc("u7", "SP 800-61 Rev. 2 is withdrawn; use Rev. 3.\n")) is True,
            "BL-194 control: a genuine same-line warning still passes")
+
+        # -- BL-194, second half. WHICH files C5 reads.
+        #
+        # Every case above tests what C5 does with a line it reads. `docs/` and `research/`
+        # were exempt by directory name, so C5 never read them at all — a check that reports
+        # success without having tested anything, in the most literal form the repo has found
+        # yet. The cases below fix the scope in place: if either name returns to _DNC_EXEMPT,
+        # these fail.
+        planted = "Follow SP 800-61 Rev. 2 for incident handling.\n"
+        ok(check_do_not_cite(dnc("x1", "clean\n", files={"docs/guide.md": planted})) is False,
+           "BL-194: a forbidden citation planted under docs/ fails — docs/ is in scope")
+        ok(check_do_not_cite(dnc("x2", "clean\n",
+                                 files={"research/notes.md": planted})) is False,
+           "BL-194: and under research/ — the other removed exemption")
+        ok(check_do_not_cite(dnc("x3", "clean\n",
+                                 files={"docs/deep/nested/note.md": planted})) is False,
+           "BL-194: nested under docs/ too, not just its top level")
+        ok(check_do_not_cite(dnc("x4", "clean\n",
+                                 files={"docs/guide.md":
+                                        "SP 800-61 Rev. 2 is withdrawn; use Rev. 3.\n"}))
+           is True, "BL-194 control: a genuine warning under docs/ still passes — the "
+                    "directory came into scope, the rule did not change")
+        # The exemptions that REMAIN are load-bearing, and deleting them is the opposite
+        # over-correction. Each of these files must carry watched designations to do its job.
+        ok(check_do_not_cite(dnc("x5", "clean\n", files={"CHANGELOG.md": planted})) is True,
+           "BL-194: CHANGELOG.md stays exempt — it records why an entry was added")
+        ok(check_do_not_cite(dnc("x6", "clean\n",
+                                 files={"tools/sources-schema.md": planted})) is True,
+           "BL-194: tools/sources-schema.md stays exempt — it documents the registry")
 
         # -- BL-195. The registry is trusted, so it is validated before use.
         ok(check_do_not_cite(dnc("r1", "clean\n",
