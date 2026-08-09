@@ -5,14 +5,20 @@
   "mutations": [
     {
       "half": "behavioural",
-      "why": "letting a vendor assertion be proposed against",
+      "why": "letting a vendor assertion be proposed against. The tier is assembled as \"T\" + \"3\" for the same reason no-closed-state's behavioural mutation writes \"mitig\" + \"ated\": a plain (\"T1\", \"T2\", \"T3\") is a literal the STATIC half flags as an inlined tier list, so it defeated both halves at once and proved neither independently (BL-102). Split across an expression, it is invisible to a literal scan and caught only where it must be — in the behaviour.",
+      "defeats": [
+        "a T3 evidence item cannot be proposed against"
+      ],
       "file": "skills/vendor-register/scripts/vendor_register.py",
       "find": "SATISFYING_TIERS = (\"T1\", \"T2\")",
-      "replace": "SATISFYING_TIERS = (\"T1\", \"T2\", \"T3\")"
+      "replace": "SATISFYING_TIERS = (\"T1\", \"T2\", \"T\" + \"3\")"
     },
     {
       "half": "static",
       "why": "a second code path marking a requirement met, outside assess()",
+      "defeats": [
+        "static scan --met"
+      ],
       "file": "skills/vendor-register/scripts/vendor_register.py",
       "find": "def open_proposals(rec: dict) -> list:",
       "replace": "def quick_close(rec, requirement):\n    rec.setdefault(\"requirements\", []).append(\n        {\"requirement\": requirement, \"met\": True})\n\n\ndef open_proposals(rec: dict) -> list:"

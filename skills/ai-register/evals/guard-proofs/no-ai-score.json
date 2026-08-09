@@ -6,6 +6,9 @@
     {
       "half": "behavioural",
       "why": "a score-named key written into the store under a COMPUTED name, which the static dict-key scan cannot see",
+      "defeats": [
+        "no key the engine emits is named like a score"
+      ],
       "file": "skills/ai-register/scripts/ai_register.py",
       "find": "    store[\"deployments\"].append(rec)",
       "replace": "    rec[\"posture\" + \"Score\"] = 0\n    store[\"deployments\"].append(rec)"
@@ -13,6 +16,9 @@
     {
       "half": "static",
       "why": "a criticality rank multiplied by an exposure count, under any name",
+      "defeats": [
+        "no shipped .py computes a score internally"
+      ],
       "file": "skills/ai-register/scripts/ai_register.py",
       "find": "def export_findings(store: dict, today: str = \"\") -> dict:",
       "replace": "def attention_index(store, rec):\n    return criticality_rank(store, criticality_of(rec)) * len(\n        rec.get(\"exposure\") or {})\n\n\ndef export_findings(store: dict, today: str = \"\") -> dict:"

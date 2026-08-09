@@ -1,0 +1,251 @@
+{
+  "schemaVersion": 1,
+  "note": "CAC-GP-1.8. The source of truth for what is a guard. Discovery used to glob four filename patterns, which let eight real guards escape — seven copies of decisions-render.sh plus ai-register/exposure.sh, none of them ever mutation-tested, and the GP-1.7 registry check filtered through the same list so it confirmed its own blind spot (BL-101). Filename convention could never have caught both: seven shared a name no convention anticipated, and the eighth shared nothing with anything. This file classifies EVERY skills/*/evals/*.sh. A script in none of these lists fails the run — that is the whole point, and it is why the registry lists non-guards too.",
+  "roles": {
+    "guard": "Proved under CAC-GP-1. Must have skills/<skill>/evals/guard-proofs/<name>.json with one mutation per half.",
+    "candidate": "Guard-shaped by the standard's own definition, not yet enrolled because it has no registered mutation. Counted and printed on every run so the number is visible rather than implied. Enrolment is BL-99.",
+    "not-a-guard": "Asserts what the product DOES, or checks the environment. Not a defect-cannot-occur property."
+  },
+  "scripts": [
+    {
+      "path": "skills/ai-register/evals/board-safety.sh",
+      "role": "candidate",
+      "reason": "Guard-shaped — it forbids confidence vocabulary and unsupportable claims reaching a board view. Not enrolled yet: its crashed-probe defect is BL-121, and enrolling nine of these needs nine mutation sets. Enrol as part of BL-99 once BL-121 lands."
+    },
+    {
+      "path": "skills/ai-register/evals/decisions-render.sh",
+      "role": "guard",
+      "forbids": "a decision rendered as a raw Python dict repr instead of its text"
+    },
+    {
+      "path": "skills/ai-register/evals/exposure.sh",
+      "role": "guard",
+      "forbids": "a hand-selectable exposure class — the guard is the ABSENCE of a command"
+    },
+    {
+      "path": "skills/ai-register/evals/no-ai-score.sh",
+      "role": "guard",
+      "forbids": "a computed AI risk score"
+    },
+    {
+      "path": "skills/ai-register/evals/no-closed-state.sh",
+      "role": "guard",
+      "forbids": "a mitigated/resolved/accepted state on an attack class"
+    },
+    {
+      "path": "skills/ai-register/evals/no-regime-dates.sh",
+      "role": "guard",
+      "forbids": "a regulatory date in prose; an uncited obligation"
+    },
+    {
+      "path": "skills/ai-register/evals/questions.sh",
+      "role": "not-a-guard",
+      "reason": "Behavioural suite over the real CLI. Asserts what the engine DOES, not a defect it forbids."
+    },
+    {
+      "path": "skills/attention-surface/evals/clusters.sh",
+      "role": "not-a-guard",
+      "reason": "Behavioural suite over the real CLI. Asserts what the engine DOES, not a defect it forbids."
+    },
+    {
+      "path": "skills/attention-surface/evals/no-priority-score.sh",
+      "role": "guard",
+      "forbids": "a computed priority ordering the escalations"
+    },
+    {
+      "path": "skills/board-pack/evals/assembly.sh",
+      "role": "not-a-guard",
+      "reason": "Behavioural suite over the real CLI. Asserts what the engine DOES, not a defect it forbids."
+    },
+    {
+      "path": "skills/board-pack/evals/board-safety.sh",
+      "role": "candidate",
+      "reason": "Guard-shaped — it forbids confidence vocabulary and unsupportable claims reaching a board view. Not enrolled yet: its crashed-probe defect is BL-121, and enrolling nine of these needs nine mutation sets. Enrol as part of BL-99 once BL-121 lands."
+    },
+    {
+      "path": "skills/board-pack/evals/deck-contrast.sh",
+      "role": "not-a-guard",
+      "reason": "Rendering/contract suite. Asserts output shape and chrome, not an absence property."
+    },
+    {
+      "path": "skills/board-pack/evals/deck-fit.sh",
+      "role": "not-a-guard",
+      "reason": "Rendering/contract suite. Asserts output shape and chrome, not an absence property."
+    },
+    {
+      "path": "skills/board-pack/evals/mixed-evidence.sh",
+      "role": "not-a-guard",
+      "reason": "Behavioural suite over the real CLI. Asserts what the engine DOES, not a defect it forbids."
+    },
+    {
+      "path": "skills/board-pack/evals/outcome-framing.sh",
+      "role": "guard",
+      "forbids": "a board sentence with no consequence; a decision that decides nothing"
+    },
+    {
+      "path": "skills/board-pack/evals/section-contract.sh",
+      "role": "not-a-guard",
+      "reason": "Behavioural suite over the real CLI. Asserts what the engine DOES, not a defect it forbids."
+    },
+    {
+      "path": "skills/business-context/evals/archetype-advisory.sh",
+      "role": "candidate",
+      "reason": "Guard-shaped — 'the archetype layer is ADVICE ABOUT DEPTH. The day it becomes scope, this fails.' That is an absence property. Not enrolled: no registered mutation yet."
+    },
+    {
+      "path": "skills/business-context/evals/board-safety.sh",
+      "role": "candidate",
+      "reason": "Guard-shaped — it forbids confidence vocabulary and unsupportable claims reaching a board view. Not enrolled yet: its crashed-probe defect is BL-121, and enrolling nine of these needs nine mutation sets. Enrol as part of BL-99 once BL-121 lands."
+    },
+    {
+      "path": "skills/business-context/evals/consumers.sh",
+      "role": "not-a-guard",
+      "reason": "Behavioural suite over the real CLI. Asserts what the engine DOES, not a defect it forbids."
+    },
+    {
+      "path": "skills/business-context/evals/no-derived-materiality.sh",
+      "role": "guard",
+      "forbids": "a percent-of-revenue materiality threshold"
+    },
+    {
+      "path": "skills/exceptions-register/evals/board-safety.sh",
+      "role": "candidate",
+      "reason": "Guard-shaped — it forbids confidence vocabulary and unsupportable claims reaching a board view. Not enrolled yet: its crashed-probe defect is BL-121, and enrolling nine of these needs nine mutation sets. Enrol as part of BL-99 once BL-121 lands."
+    },
+    {
+      "path": "skills/exceptions-register/evals/decisions-render.sh",
+      "role": "guard",
+      "forbids": "a decision rendered as a raw Python dict repr instead of its text"
+    },
+    {
+      "path": "skills/exceptions-register/evals/revalidation-lifecycle.sh",
+      "role": "not-a-guard",
+      "reason": "Behavioural suite over the real CLI. Asserts what the engine DOES, not a defect it forbids."
+    },
+    {
+      "path": "skills/incident-materiality/evals/applicability.sh",
+      "role": "not-a-guard",
+      "reason": "Behavioural suite over the real CLI. Asserts what the engine DOES, not a defect it forbids."
+    },
+    {
+      "path": "skills/incident-materiality/evals/board-safety.sh",
+      "role": "candidate",
+      "reason": "Guard-shaped — it forbids confidence vocabulary and unsupportable claims reaching a board view. Not enrolled yet: its crashed-probe defect is BL-121, and enrolling nine of these needs nine mutation sets. Enrol as part of BL-99 once BL-121 lands."
+    },
+    {
+      "path": "skills/incident-materiality/evals/decisions-render.sh",
+      "role": "guard",
+      "forbids": "a decision rendered as a raw Python dict repr instead of its text"
+    },
+    {
+      "path": "skills/incident-materiality/evals/disclosure-clock.sh",
+      "role": "not-a-guard",
+      "reason": "Behavioural suite over the real CLI. Asserts what the engine DOES, not a defect it forbids."
+    },
+    {
+      "path": "skills/metrics-register/evals/board-safety.sh",
+      "role": "candidate",
+      "reason": "Guard-shaped — it forbids confidence vocabulary and unsupportable claims reaching a board view. Not enrolled yet: its crashed-probe defect is BL-121, and enrolling nine of these needs nine mutation sets. Enrol as part of BL-99 once BL-121 lands."
+    },
+    {
+      "path": "skills/metrics-register/evals/decisions-render.sh",
+      "role": "guard",
+      "forbids": "a decision rendered as a raw Python dict repr instead of its text"
+    },
+    {
+      "path": "skills/metrics-register/evals/graphics-contract.sh",
+      "role": "not-a-guard",
+      "reason": "Rendering/contract suite. Asserts output shape and chrome, not an absence property."
+    },
+    {
+      "path": "skills/metrics-register/evals/metric-trend.sh",
+      "role": "not-a-guard",
+      "reason": "Behavioural suite over the real CLI. Asserts what the engine DOES, not a defect it forbids."
+    },
+    {
+      "path": "skills/nist-csf/evals/board-safety.sh",
+      "role": "candidate",
+      "reason": "Guard-shaped — it forbids confidence vocabulary and unsupportable claims reaching a board view. Not enrolled yet: its crashed-probe defect is BL-121, and enrolling nine of these needs nine mutation sets. Enrol as part of BL-99 once BL-121 lands."
+    },
+    {
+      "path": "skills/nist-csf/evals/crosswalk-e2e.sh",
+      "role": "not-a-guard",
+      "reason": "Behavioural suite over the real CLI. Asserts what the engine DOES, not a defect it forbids."
+    },
+    {
+      "path": "skills/nist-csf/evals/decisions-render.sh",
+      "role": "guard",
+      "forbids": "a decision rendered as a raw Python dict repr instead of its text"
+    },
+    {
+      "path": "skills/nist-csf/evals/run-conversations.sh",
+      "role": "not-a-guard",
+      "reason": "Harness or runner, not an assertion suite. Takes an output directory and shells out."
+    },
+    {
+      "path": "skills/nist-csf/evals/run-triggers.sh",
+      "role": "not-a-guard",
+      "reason": "Harness or runner, not an assertion suite. Takes an output directory and shells out."
+    },
+    {
+      "path": "skills/risk-register/evals/board-safety.sh",
+      "role": "candidate",
+      "reason": "Guard-shaped — it forbids confidence vocabulary and unsupportable claims reaching a board view. Not enrolled yet: its crashed-probe defect is BL-121, and enrolling nine of these needs nine mutation sets. Enrol as part of BL-99 once BL-121 lands."
+    },
+    {
+      "path": "skills/risk-register/evals/confirmation-age.sh",
+      "role": "not-a-guard",
+      "reason": "Behavioural suite over the real CLI. Asserts what the engine DOES, not a defect it forbids."
+    },
+    {
+      "path": "skills/risk-register/evals/decisions-render.sh",
+      "role": "guard",
+      "forbids": "a decision rendered as a raw Python dict repr instead of its text"
+    },
+    {
+      "path": "skills/risk-register/evals/python-compat.sh",
+      "role": "not-a-guard",
+      "reason": "Environment check, not a property of the product's behaviour."
+    },
+    {
+      "path": "skills/risk-register/evals/responsive.sh",
+      "role": "not-a-guard",
+      "reason": "Rendering/contract suite. Asserts output shape and chrome, not an absence property."
+    },
+    {
+      "path": "skills/vendor-register/evals/board-safety.sh",
+      "role": "candidate",
+      "reason": "Guard-shaped — it forbids confidence vocabulary and unsupportable claims reaching a board view. Not enrolled yet: its crashed-probe defect is BL-121, and enrolling nine of these needs nine mutation sets. Enrol as part of BL-99 once BL-121 lands."
+    },
+    {
+      "path": "skills/vendor-register/evals/criticality.sh",
+      "role": "not-a-guard",
+      "reason": "Behavioural suite over the real CLI. Asserts what the engine DOES, not a defect it forbids."
+    },
+    {
+      "path": "skills/vendor-register/evals/decisions-render.sh",
+      "role": "guard",
+      "forbids": "a decision rendered as a raw Python dict repr instead of its text"
+    },
+    {
+      "path": "skills/vendor-register/evals/evidence-tiers.sh",
+      "role": "guard",
+      "forbids": "a T1 with no scope or period; a bridge letter extending currency"
+    },
+    {
+      "path": "skills/vendor-register/evals/no-vendor-score.sh",
+      "role": "guard",
+      "forbids": "a computed vendor risk score"
+    },
+    {
+      "path": "skills/vendor-register/evals/proposal-boundary.sh",
+      "role": "guard",
+      "forbids": "the reading layer closing anything; T3/T4 satisfying"
+    },
+    {
+      "path": "skills/vendor-register/evals/questions.sh",
+      "role": "candidate",
+      "reason": "Guard-shaped — pins the T1/T3 subtraction boundary, and its own header names the failure mode 'looks like success'. BL-101 flagged it as arguably a second escapee. Needs a mutation per half before enrolment."
+    }
+  ]
+}

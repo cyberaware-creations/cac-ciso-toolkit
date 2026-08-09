@@ -28,6 +28,11 @@
 #   GP-1.5  A stale mutation is a FAILURE. If `find` no longer matches, the code moved and the
 #           proof did not follow it, which is precisely when a guard quietly stops guarding.
 #   GP-1.6  Runs in CI, on the floor, listed individually.
+#   GP-1.9  A mutation names the checks it defeats, and the mutated run must fail EXACTLY
+#           those. "The guard exited non-zero" is not evidence that the registered half was
+#           the half that caught it — a two-half guard whose halves both trip on one mutation
+#           proves neither of them independently, and reports a clean pass/fail pair while
+#           doing it. Naming the checks makes the blast radius data.
 #
 # Usage: tools/prove-guards.sh [guard-name ...]
 set -u
@@ -38,8 +43,8 @@ only=("$@")
 
 # Anti-vacuity, matching the house convention. A proof run that silently exercised nothing is
 # the thing this file exists to prevent, so the counts are asserted rather than printed.
-EXPECTED_GUARDS=9
-EXPECTED_HALVES=18
+EXPECTED_GUARDS=17
+EXPECTED_HALVES=27
 
 guards_seen=0
 halves_seen=0
@@ -53,21 +58,86 @@ echo
 
 # --- discover guards by convention (GP-1.2) -----------------------------------
 #
-# The same convention the registry documents: `no-*.sh`, plus the two named guards whose
-# subject is a boundary rather than an absence. Discovered rather than listed, so a new guard
-# is registered or fails — it cannot be quietly omitted.
-# Built with `while read` rather than `mapfile`, which is bash 4 and macOS ships 3.2 — the
-# same floor discipline the Python 3.9 rule applies to the engines.
+# GP-1.8 — discovery reads tools/guard-registry.json, and the registry must account for EVERY
+# skills/*/evals/*.sh on disk.
+#
+# It used to glob four filename patterns. Eight real guards escaped: seven copies of
+# decisions-render.sh and ai-register/exposure.sh, none ever mutation-tested — and because the
+# GP-1.7 registry check filtered through the same globs, it compared the doc against the blind
+# spot and reported a clean bill (BL-101).
+#
+# No filename rule could have caught both: seven shared a name no convention anticipated and
+# the eighth shared nothing with anything. A marker line inside each guard was the other
+# candidate and was rejected, because a marker cannot detect its own absence — the failure
+# here is an OMISSION, and only a list that must cover everything can fail on one.
+#
+# Hence the coverage assertion below. Classifying non-guards is not bookkeeping overhead; it
+# is the mechanism. A new eval script in none of the three roles fails this run.
+registry="$repo/tools/guard-registry.json"
+if [ ! -f "$registry" ]; then
+  echo "prove-guards: $registry is missing — discovery has no source of truth"
+  exit 1
+fi
+
+coverage=$("$PY" - "$registry" "$repo" <<'PYEOF'
+import glob, json, os, sys
+reg_path, repo = sys.argv[1], sys.argv[2]
+try:
+    doc = json.load(open(reg_path, encoding="utf-8"))
+    rows = doc["scripts"]
+except (OSError, ValueError, KeyError) as exc:
+    print("BAD registry unusable: %s" % exc); raise SystemExit(0)
+ROLES = ("guard", "candidate", "not-a-guard")
+listed, bad = {}, []
+for i, r in enumerate(rows):
+    p, role = r.get("path"), r.get("role")
+    if not isinstance(p, str) or role not in ROLES:
+        bad.append("scripts[%d]: needs `path` and a `role` of %s" % (i, "/".join(ROLES)))
+        continue
+    if p in listed:
+        bad.append("%s: listed twice" % p)
+    listed[p] = role
+    if role == "guard" and not str(r.get("forbids") or "").strip():
+        bad.append("%s: a guard must say what it `forbids`" % p)
+    if role != "guard" and not str(r.get("reason") or "").strip():
+        bad.append("%s: a %s must carry a `reason`" % (p, role))
+on_disk = set(os.path.relpath(p, repo) for p in glob.glob(os.path.join(repo, "skills/*/evals/*.sh")))
+missing = sorted(on_disk - set(listed))
+phantom = sorted(set(listed) - on_disk)
+for m in missing:
+    bad.append("%s exists on disk and is in no role — classify it, or a guard can be born "
+               "invisible again" % m)
+for p in phantom:
+    bad.append("%s is in the registry and not on disk" % p)
+if bad:
+    print("BAD " + " | ".join(bad)); raise SystemExit(0)
+guards = sorted(p for p, r in listed.items() if r == "guard")
+cands = sorted(p for p, r in listed.items() if r == "candidate")
+print("OK %d %d" % (len(on_disk), len(cands)))
+for g in guards:
+    print(g)
+PYEOF
+)
+if [ "${coverage%% *}" = "BAD" ]; then
+  echo "prove-guards: guard-registry.json does not account for the tree"
+  printf '  %s\n' "${coverage#BAD }"
+  exit 1
+fi
+
 guards=()
+scripts_seen=0
+candidates_seen=0
 while IFS= read -r line; do
-  [ -n "$line" ] && guards+=("$line")
-done < <(ls "$repo"/skills/*/evals/no-*.sh \
-            "$repo"/skills/*/evals/proposal-boundary.sh \
-            "$repo"/skills/*/evals/evidence-tiers.sh \
-            "$repo"/skills/*/evals/outcome-framing.sh 2>/dev/null | sort)
+  case "$line" in
+    OK\ *) scripts_seen="$(echo "$line" | cut -d' ' -f2)"
+           candidates_seen="$(echo "$line" | cut -d' ' -f3)" ;;
+    "")    ;;
+    *)     guards+=("$repo/$line") ;;
+  esac
+done <<< "$coverage"
 
 if [ "${#guards[@]}" -eq 0 ]; then
-  echo "prove-guards: found no guards at all — the layout moved and this proved nothing"
+  echo "prove-guards: the registry declares no guards — this proved nothing"
   exit 1
 fi
 
@@ -96,6 +166,44 @@ proof = json.load(open(sys.argv[1], encoding="utf-8"))
 print(len(proof.get("mutations") or []))' "$proof")
   if [ "${halves:-0}" -lt 1 ]; then
     fail_line "$name registers at least one mutation" "the proof file lists none"
+    continue
+  fi
+
+  # GP-1.9 (first half) — the halves must be TELLABLE APART before any of them is run.
+  #
+  # GP-1.1 has always required that a mutation defeat its own half specifically. Nothing
+  # enforced it, and two guards were violating it. `proposal-boundary`'s behavioural mutation
+  # added "T3" to SATISFYING_TIERS, which is also an inlined tier list, so the static half
+  # caught it too; `evidence-tiers`' scope-and-period mutation let an undated T1 into the store
+  # at index 0, which the expiry half was reading positionally. Both reported the textbook
+  # clean-pass/mutated-fail on both halves while proving one thing twice (BL-102).
+  #
+  # The rule is distinguishability, not disjointness. `outcome-framing`'s two mutations both
+  # trip "the checker's own tests pass" — a meta-check belonging to neither half — and that is
+  # legitimate. What is not legitimate is two halves with identical failure signatures.
+  distinct=$("$PY" - "$proof" <<'PYEOF'
+import json, sys
+muts = json.load(open(sys.argv[1], encoding="utf-8"))["mutations"]
+bad = []
+sets = []
+for i, m in enumerate(muts):
+    d = m.get("defeats")
+    half = m.get("half") or "unnamed"
+    if not isinstance(d, list) or not d or not all(isinstance(x, str) and x.strip() for x in d):
+        bad.append("[%s] has no `defeats` list — name the checks the mutated run must fail, "
+                   "or a non-zero exit for any reason at all counts as proof" % half)
+    sets.append((half, set(d if isinstance(d, list) else [])))
+if not bad and len(sets) > 1:
+    for i, (half, s) in enumerate(sets):
+        others = set().union(*[o for j, (_, o) in enumerate(sets) if j != i])
+        if not (s - others):
+            bad.append("[%s] defeats nothing the other half/halves do not also defeat — the "
+                       "two halves are indistinguishable, so one of them is unproved" % half)
+print(" | ".join(bad))
+PYEOF
+)
+  if [ -n "$distinct" ]; then
+    fail_line "$name: each half is separately identifiable (GP-1.9)" "$distinct"
     continue
   fi
 
@@ -146,12 +254,51 @@ PYEOF
           rm -rf "$work"; i=$((i + 1)); continue ;;
     esac
 
-    # GP-1.4 step 2 — mutated must FAIL.
+    # GP-1.4 step 2 — mutated must FAIL, and GP-1.9 — it must fail EXACTLY the named checks.
     if PY="$PY" bash "$work/$rel" >"$work/.dirty.out" 2>&1; then
       fail_line "$label: the guard FAILS on the mutated copy" \
                 "it passed — the guard no longer detects the defect it exists for"
     else
-      pass_line "$label — passes clean, fails mutated"
+      aimed=$("$PY" - "$proof" "$i" "$work/.clean.out" "$work/.dirty.out" <<'PYEOF'
+import json, re, sys
+proof_path, index, clean_path, dirty_path = sys.argv[1], int(sys.argv[2]), sys.argv[3], sys.argv[4]
+FAIL = re.compile(r"^ *FAIL +(\S.*?) *$")
+
+
+def labels(path):
+    seen = []
+    for line in open(path, encoding="utf-8", errors="replace"):
+        m = FAIL.match(line.rstrip("\n"))
+        if m and m.group(1) not in seen:
+            seen.append(m.group(1))
+    return seen
+
+
+want = json.load(open(proof_path, encoding="utf-8"))["mutations"][index]["defeats"]
+got, clean = labels(dirty_path), labels(clean_path)
+bad = []
+already = [x for x in want if x in clean]
+if already:
+    bad.append("already failing before the mutation: %s" % "; ".join(already))
+missing = [x for x in want if x not in got]
+if missing:
+    bad.append("registered but not defeated: %s" % "; ".join(missing))
+extra = [x for x in got if x not in want]
+if extra:
+    bad.append("defeated but not registered: %s" % "; ".join(extra))
+if not got:
+    bad.append("the mutated run named no failing check at all — it failed for some reason "
+               "this proof cannot see, which is not the same as being caught")
+print(" | ".join(bad))
+PYEOF
+)
+      if [ -n "$aimed" ]; then
+        fail_line "$label: the mutation defeats exactly its registered checks (GP-1.9)" "$aimed"
+      else
+        pass_line "$label — passes clean, fails mutated on exactly its $(
+          "$PY" -c 'import json,sys;print(len(json.load(open(sys.argv[1]))["mutations"][int(sys.argv[2])]["defeats"]))' \
+          "$proof" "$i") registered check(s)"
+      fi
     fi
     rm -rf "$work"
     i=$((i + 1))
@@ -210,3 +357,5 @@ if [ "$fails" -ne 0 ]; then
 fi
 printf 'prove-guards: %s guard(s), %s half/halves, each proved in both directions\n' \
        "$guards_seen" "$halves_seen"
+printf '             %s eval script(s) classified; %s guard-shaped candidate(s) not yet enrolled\n' \
+       "$scripts_seen" "$candidates_seen"

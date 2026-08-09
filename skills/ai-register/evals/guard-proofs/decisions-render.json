@@ -1,0 +1,17 @@
+{
+  "guard": "skills/ai-register/evals/decisions-render.sh",
+  "forbids": "a board decision rendered as a raw Python dict repr instead of its text",
+  "note": "Enrolled in v0.56.0 by BL-101/BL-99. This guard ships in seven skills and was discovered by none of them: filename convention globbed no-*.sh plus three literal names, and decisions-render.sh matched nothing. Never mutation-tested until now.",
+  "mutations": [
+    {
+      "half": "render",
+      "why": "The shipped P1: the sidecar carries decisions as {\"text\", \"altitude\"} objects and the renderer stringified them, so the board read a raw Python dict. One half, because the guard asserts one property — the rendered page carries the decision TEXT and never the dict repr. The mutation restores the defect at the one expression that produced it.",
+      "defeats": [
+        "no decision renders as a raw dict"
+      ],
+      "file": "skills/ai-register/renderers/render_board.py",
+      "find": "        return str(decision.get(\"text\") or \"\")",
+      "replace": "        return str(decision)"
+    }
+  ]
+}
