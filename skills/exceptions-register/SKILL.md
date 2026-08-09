@@ -249,7 +249,10 @@ that decided nothing applied.
 
 `references/exceptions.md` carries the receipts **with their limits attached** — DORA RTS
 Art. 3(d) is real but satisfiable by free text and exempts Art. 16 entities; NYDFS §500.12
-binds covered entities in New York and nobody else.
+binds covered entities in New York and nobody else, and its sibling **§500.15 permits
+compensating controls for encryption at rest only** — the in-transit route was deleted by the
+Second Amendment, so an in-transit gap is non-compliance to acknowledge under §500.17, not an
+exception to log here.
 
 It also carries the **discoverability caveat**, which is surfaced on every rendered view
 rather than buried: a permanent, dated inventory of accepted risk is a governance asset and

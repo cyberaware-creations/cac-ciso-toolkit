@@ -82,9 +82,24 @@ risk, with justification and periodic re-validation. Real and dated. **Limits:**
 satisfiable by free text, so nobody is required to buy a tool for it; and Art. 16 simplified
 -framework entities are outside it. Cite the RTS, never DORA Level 1, which does not say this.
 
-**NYDFS Part 500 §500.12 / §500.15** — where MFA or encryption is not implemented as
-specified, a written approval of compensating controls is required, reviewed at least
-annually. **Limit:** it binds covered entities in New York financial services and nobody else.
+**NYDFS Part 500 §500.12 / §500.15** — a written CISO approval of compensating controls,
+reviewed at least annually. The two sections are **not symmetrical**, and the difference decides
+whether an exception is loggable at all:
+
+- **§500.12(b) — MFA.** *"If the covered entity has a CISO, the CISO may approve in writing the
+  use of reasonably equivalent or more secure compensating controls. Such controls shall be
+  reviewed periodically, but at a minimum annually."* Note the condition: an entity with no CISO
+  has no compensating-controls route here.
+- **§500.15(b) — encryption AT REST only.** Where encryption of nonpublic information at rest is
+  infeasible, compensating controls may be used with the CISO's written approval, and the CISO
+  reviews feasibility and effectiveness at least annually.
+- **Encryption IN TRANSIT has no compensating-controls route.** The Second Amendment **deleted**
+  the provision that used to allow one. §500.15(a) now requires encryption of nonpublic
+  information *"both in transit over external networks and at rest"*, full stop. **An in-transit
+  exception is not a deviation you can log and compensate — it is non-compliance**, and belongs
+  in the §500.17 acknowledgment rather than in this register as a controlled exception.
+
+**Limit:** it binds covered entities in New York financial services and nobody else.
 
 **ISO/IEC 27001 Clause 6.1.3 / 8.3** — risk treatment and residual risk acceptance by risk
 owners. **Limit:** the standard requires the acceptance, not any particular register format.
