@@ -243,7 +243,7 @@ def load_manifest(path: str) -> dict:
 
 # --- The section contract -----------------------------------------------------
 
-def validate_section(name: str, raw: dict, path: str) -> dict:
+def validate_section(name: str, raw: dict, path: str, grounded=None) -> dict:
     """Check one `*.board.json` against the contract. Returns {'warnings': [...], ...}.
 
     Errors are refusals — a section that half-renders is worse than one that does not render,
@@ -329,14 +329,63 @@ def validate_section(name: str, raw: dict, path: str) -> dict:
         "items": items,
         "itemCount": total,
         "decisions": normalise_decisions(raw.get("decisions"), path),
-        "opportunities": validate_opportunities(raw.get("opportunities"), path),
+        "opportunities": validate_opportunities(raw.get("opportunities"), path, grounded),
         "asOf": raw.get("asOf") or None,
         "contractVersion": version,
         "warnings": warnings,
     }
 
 
-def validate_opportunities(raw, path: str) -> list:
+def grounding_key(text: str) -> str:
+    """A stable id for a declared goal or crown jewel, derived from its own words.
+
+    `business-context` stores strategic goals as plain strings — `add_listed` appends the
+    sentence and nothing else. There is no id to cite, which matters, because the refusal
+    below has always told authors to write `goal:<id>`. It named a format the data model could
+    not supply, and nothing noticed because nothing resolved the reference (BL-95).
+
+    Slugging the declared text supplies the id without changing the store, so every `.biz`
+    written before this exists grounds correctly and exports byte-identically. Both sides are
+    slugged, so `goal:Reduce time to market` and `goal:reduce-time-to-market` are one citation.
+    """
+    return re.sub(r"-+", "-", re.sub(r"[^a-z0-9]+", "-", str(text or "").lower())).strip("-")
+
+
+def grounding_keys(context_path):
+    """Every `goal:` / `crown-jewel:` reference a pack MAY cite, or None if none is bound.
+
+    None and the empty set are different answers and the caller treats them differently. None
+    means no applicability profile was bound, which CAC-AP-1 §2.2 calls the normal case — such
+    a pack assembles exactly as it did before, so `cites` can only be checked for presence. An
+    empty set means a context WAS bound and declares nothing citable, so every opportunity in
+    that pack is ungrounded and is refused.
+
+    An unreadable or malformed context yields None rather than raising, matching
+    `store_organisation`: refusing a pack because one store is quiet would block the honest
+    case to catch nothing.
+    """
+    if not context_path:
+        return None
+    try:
+        with open(context_path, encoding="utf-8") as fh:
+            doc = json.load(fh)
+    except (OSError, ValueError):
+        return None
+    ctx = doc.get("context") if isinstance(doc, dict) else None
+    if not isinstance(ctx, dict):
+        return None
+    keys = set()
+    for goal in (ctx.get("strategicGoals") or []):
+        key = grounding_key(goal)
+        if key:
+            keys.add("goal:" + key)
+    for cj in (ctx.get("crownJewels") or []):
+        if isinstance(cj, dict) and grounding_key(cj.get("system")):
+            keys.add("crown-jewel:" + grounding_key(cj.get("system")))
+    return keys
+
+
+def validate_opportunities(raw, path: str, grounded=None) -> list:
     """Positive risk, and the citation that is the whole point of it.
 
     CSF 2.0 `GV.RM-07` asks that strategic opportunities be characterised and included in
@@ -391,9 +440,36 @@ def validate_opportunities(raw, path: str) -> list:
                 "and is not a finding: GV.RM-07 asks that opportunities be characterised where "
                 "they exist, not that every section produce one.\n"
                 "  The sentence was: %r" % (where, text[:120]))
+        # BL-95. Presence was all this ever checked, so `goal:no-such-goal` assembled onto a
+        # board page while the refusal above told the author to name a DECLARED goal. A
+        # citation nothing resolves is indistinguishable from one that does, which makes the
+        # rule decorative — and a decorative grounding rule on positive risk is worse than
+        # none, because the page reads as evidenced.
+        if grounded is not None and grounding_key_of(cites) not in grounded:
+            available = ", ".join(sorted(grounded)) or "nothing citable is declared"
+            raise Refusal(
+                "%s cites %r, which the bound applicability profile does not declare.\n"
+                "  An opportunity has to name a strategic goal or crown jewel somebody in the "
+                "business declared and signed their name to. An unresolvable reference reads "
+                "on the page exactly like a resolved one, which is how upside gets asserted "
+                "against a goal nobody set.\n"
+                "  Declared and citable here: %s\n"
+                "  Add the goal with `business-context set-fact --goal`, cite one of the "
+                "above, or write no opportunity.\n"
+                "  The sentence was: %r" % (where, cites, available, text[:120]))
         out.append({"text": text, "cites": cites,
                     "gvsc": str(entry.get("gvsc") or "GV.RM-07").strip()})
     return out
+
+
+def grounding_key_of(cites: str) -> str:
+    """Normalise a `cites` value to the key space `grounding_keys` produces.
+
+    Split on the FIRST colon only: `crown-jewel:` contains no colon but a goal's text might,
+    and slugging the whole string would silently turn `goal:x` into `goal-x` and never match.
+    """
+    prefix, _, rest = str(cites or "").partition(":")
+    return "%s:%s" % (prefix.strip().lower(), grounding_key(rest))
 
 
 ALTITUDES = ("board", "management")
@@ -659,6 +735,9 @@ def check_sidecar_bindings(manifest: dict, profile_version: str = "") -> dict:
 def validate_pack(manifest: dict) -> dict:
     """Validate every declared section. Collects warnings; raises on the first error."""
     sections, warnings, missing = [], [], []
+    # Read once for the whole pack. None when no applicability profile is bound, which is the
+    # normal case and leaves `cites` checked for presence only (CAC-AP-1 §2.2).
+    grounded = grounding_keys(manifest.get("contextPath"))
     for entry in manifest["sections"]:
         name = entry["section"]
         path = entry.get("translationsPath")
@@ -671,7 +750,7 @@ def validate_pack(manifest: dict) -> dict:
                              "contractVersion": CONTRACT_VERSION, "warnings": []})
             continue
         raw = _read_json(path, f"{name} section sidecar")
-        result = validate_section(name, raw, path)
+        result = validate_section(name, raw, path, grounded)
         warnings.extend(result["warnings"])
         sections.append(result)
         store = entry.get("storePath")

@@ -556,19 +556,73 @@ except ap.Refusal:
 else:
     raise AssertionError("accepted an opportunity with no text")
 
-# 5. What this does NOT check, pinned so the label above stays honest. The assembler tests
-#    that `cites` is non-empty; it never resolves the reference. `goal:no-such-goal` is
-#    accepted today, and the refusal message names the format without anything enforcing it.
-#    Grounding the reference against a declared goal in `business-context` is BL-95. When it
-#    lands, this assertion fails — which is the point: the check and the sentence describing
-#    it have to move together, and the previous label claimed the grounding rule was under
-#    test when only presence was.
+# 5. BL-95. This block used to pin the OPPOSITE: it asserted `goal:no-such-goal` was accepted,
+#    and said in its own comment that the assertion would have to flip when grounding landed.
+#    It has. Flipped rather than deleted — deleting it would remove the only record that the
+#    check ever had this hole, and the comment above it is the argument for why the hole
+#    mattered.
+#
+#    `grounded` is the set of resolvable keys. None means no applicability profile was bound,
+#    which CAC-AP-1 §2.2 makes the normal case and which must behave exactly as before.
+declared = {"goal:reduce-time-to-market", "crown-jewel:crm"}
+
+# 5a. No profile bound -> presence only, byte-for-byte the old behaviour.
 got = ap.validate_opportunities([{"text": "t", "cites": "goal:no-such-goal"}], "x")
 assert got and got[0]["cites"] == "goal:no-such-goal", got
+got = ap.validate_opportunities([{"text": "t", "cites": "goal:x"}], "x", None)
+assert got, "an explicit None must behave as no profile bound"
+
+# 5b. Profile bound -> the reference has to resolve, and the refusal has to be actionable.
+try:
+    ap.validate_opportunities([{"text": "t", "cites": "goal:no-such-goal"}], "x", declared)
+except ap.Refusal as exc:
+    msg = str(exc)
+    for needle in ("does not declare", "reduce-time-to-market", "crown-jewel:crm",
+                   "set-fact --goal"):
+        assert needle in msg, "the refusal never mentions %r: %s" % (needle, msg)
+else:
+    raise AssertionError("accepted an opportunity citing a goal nobody declared")
+
+# 5c. A declared goal resolves, by slug or by its own words.
+for good in ("goal:reduce-time-to-market", "goal:Reduce time to market",
+             "GOAL: Reduce  Time To Market", "crown-jewel:CRM"):
+    got = ap.validate_opportunities([{"text": "t", "cites": good}], "x", declared)
+    assert got and got[0]["cites"] == good, (good, got)
+
+# 5d. An empty set is NOT None. A bound profile declaring nothing citable makes every
+#     opportunity ungrounded, and that must be said rather than waved through.
+try:
+    ap.validate_opportunities([{"text": "t", "cites": "goal:anything"}], "x", set())
+except ap.Refusal as exc:
+    assert "nothing citable is declared" in str(exc), str(exc)
+else:
+    raise AssertionError("an empty grounding set behaved like no profile at all")
+
+# 5e. The wrong prefix does not resolve against the right name.
+try:
+    ap.validate_opportunities([{"text": "t", "cites": "crown-jewel:reduce-time-to-market"}],
+                              "x", declared)
+except ap.Refusal:
+    pass
+else:
+    raise AssertionError("a crown-jewel: prefix resolved against a goal")
+
+# 5f. grounding_keys reads a real .biz shape and distinguishes absent from empty.
+assert ap.grounding_keys(None) is None, "no context path must yield None"
+assert ap.grounding_keys(os.path.join(work, "nope.biz")) is None, "unreadable must yield None"
+biz = os.path.join(work, "g.biz")
+with open(biz, "w", encoding="utf-8") as fh:
+    json.dump({"context": {"strategicGoals": ["Reduce time to market", "  "],
+                           "crownJewels": [{"system": "CRM"}, {"noSystem": True}]}}, fh)
+assert ap.grounding_keys(biz) == declared, ap.grounding_keys(biz)
+with open(biz, "w", encoding="utf-8") as fh:
+    json.dump({"context": {"strategicGoals": [], "crownJewels": []}}, fh)
+assert ap.grounding_keys(biz) == set(), "a context declaring nothing is an empty set, not None"
 ' "$BP/scripts/assemble_pack.py" "$work" 2>"$work/opp.err"; then
-  ok "an opportunity is carried when its cites field is filled, and REFUSED when it is blank or missing"
+  ok "an opportunity is refused when uncited, and when its citation resolves to no declared goal or crown jewel (BL-95)"
 else
-  bad "an uncited opportunity is refused at the assembler" "$(tail -3 "$work/opp.err")"
+  bad "an uncited or ungrounded opportunity is refused at the assembler" \
+      "$(tail -3 "$work/opp.err")"
 fi
 
 # Byte-identity: strip `opportunities` from the one shipped sidecar that has it and the rest
