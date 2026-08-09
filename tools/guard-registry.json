@@ -109,6 +109,11 @@
       "forbids": "a percent-of-revenue materiality threshold"
     },
     {
+      "path": "skills/business-context/evals/one-fact-per-flag.sh",
+      "role": "guard",
+      "forbids": "a profile flag that states two facts, or a battery gated on a flag that does not name its regime"
+    },
+    {
       "path": "skills/exceptions-register/evals/board-safety.sh",
       "role": "guard",
       "forbids": "catastrophizing or false-confidence vocabulary in any board-facing renderer"
@@ -142,6 +147,11 @@
       "path": "skills/incident-materiality/evals/disclosure-clock.sh",
       "role": "not-a-guard",
       "reason": "Behavioural suite over the real CLI. Asserts what the engine DOES, not a defect it forbids."
+    },
+    {
+      "path": "skills/incident-materiality/evals/scope-withheld.sh",
+      "role": "guard",
+      "forbids": "a statutory deadline computed for a perimeter nobody declared, or withheld without saying so"
     },
     {
       "path": "skills/metrics-register/evals/board-safety.sh",

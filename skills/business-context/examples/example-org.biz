@@ -47,6 +47,12 @@
       "declaredBy": "DPO",
       "declaredOn": "2026-02-11",
       "basis": "Employee health records under occupational health; card data is tokenised at the PSP."
+    },
+    "secItem105Scope": {
+      "value": false,
+      "declaredBy": "General Counsel",
+      "declaredOn": "2026-03-02",
+      "basis": "No class of securities registered under Exchange Act s.12 and no s.15(d) reporting obligation; confirmed with outside counsel at the FY26 audit."
     }
   },
   "context": {
@@ -251,6 +257,18 @@
       "target": "FY26 close",
       "ts": "2026-08-07T05:28:03+00:00",
       "why": "Annual profile review with the GC, the CFO and the Head of Engineering. Dublin authorisation confirmed in scope for DORA; AI re-confirmed as not in production."
+    },
+    {
+      "event": "flag-declared",
+      "target": "secItem105Scope",
+      "ts": "2026-08-09T18:27:13+00:00",
+      "why": "No class of securities registered under Exchange Act s.12 and no s.15(d) reporting obligation; confirmed with outside counsel at the FY26 audit.",
+      "detail": {
+        "from": null,
+        "to": false,
+        "declaredBy": "General Counsel",
+        "declaredOn": "2026-03-02"
+      }
     }
   ],
   "snapshots": [
@@ -347,5 +365,5 @@
     }
   ],
   "createdAt": "2026-08-07T05:28:02+00:00",
-  "updatedAt": "2026-08-07T05:28:03+00:00"
+  "updatedAt": "2026-08-09T18:27:13+00:00"
 }

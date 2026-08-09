@@ -36,7 +36,7 @@ trap 'rm -rf "$work"' EXIT
 
 E="$skill/scripts/business_context.py"
 
-EXPECTED_CHECKS=36
+EXPECTED_CHECKS=37
 checks=0
 fails=0
 ok()  { checks=$((checks + 1)); printf '  ok    %s\n' "$1"; }
@@ -76,7 +76,27 @@ fi
 # false. §2.2 says the first must ask AT LEAST as much as the second.
 "$PY" "$E" init "$work/undeclared.biz" --org "Proportionality Ltd" >/dev/null 2>&1
 "$PY" "$E" init "$work/declaring.biz" --org "Proportionality Ltd" >/dev/null 2>&1
-for flag in listedEntity doraScope nydfsScope otPresent aiInUse regulatedDataHeld; do
+# EVERY gating flag, read from the engine rather than typed. A hand-written list stops being
+# every flag the moment one is added, and `declaring.biz` would then be silently identical to
+# `undeclared.biz` on the new battery — which is the comparison below reporting a pass because
+# there was nothing to compare (BL-175 added `secItem105Scope` to exactly this list).
+gates="$("$PY" -c 'import ast,sys
+tree = ast.parse(open(sys.argv[1], encoding="utf-8").read())
+out = set()
+for n in ast.walk(tree):
+    if isinstance(n, ast.Assign) and any(
+            isinstance(t, ast.Name) and t.id == "QUESTION_SETS" for t in n.targets):
+        for inner in n.value.values:
+            for v in inner.values:
+                if isinstance(v, ast.Constant):
+                    out.add(v.value)
+print(" ".join(sorted(out)))' "$E")"
+if [ -n "$gates" ]; then
+  ok "the gating flags were read from the engine: $gates"
+else
+  bad "the gating flags were read from the engine" "the scan found none"
+fi
+for flag in $gates; do
   "$PY" "$E" declare "$work/declaring.biz" --flag "$flag" --value false \
     --by "Eval" --basis "declared out of scope for this fixture" >/dev/null 2>&1
 done

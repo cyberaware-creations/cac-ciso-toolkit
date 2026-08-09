@@ -160,9 +160,9 @@ appears in an un-narrowed run.
 still gets the Item 1.05 battery, declared on the incident itself:
 
 ```bash
-python3 $E declare-context incidents.inc --id I-003 --flag listedEntity --value true \
+python3 $E declare-context incidents.inc --id I-003 --flag secItem105Scope --value true \
     --by "General Counsel" --on 2026-07-22 \
-    --basis "The affected entity is the US subsidiary whose shares are admitted to trading."
+    --basis "The affected entity is the US subsidiary, itself an Exchange Act registrant."
 ```
 
 `--by` and `--basis` are required, for the same reason `business-context` requires them: a
@@ -173,12 +173,28 @@ override the organisation profile.
 
 **Every narrowed battery is on the page**, with who declared it and when:
 
-> *SEC Item 1.05 disclosure window — not assessed. Organisation profile: `listedEntity:
-> false`, declared 2026-03-02 by General Counsel — Privately held; no securities admitted to
-> trading.*
+> *SEC Item 1.05 disclosure window — not assessed. Organisation profile:
+> `secItem105Scope: false`, declared 2026-03-02 by General Counsel — no class registered under
+> the Exchange Act and no s.15(d) obligation.*
 
 A disclosure record that silently omits a question is worse than one that asks it: an auditor
 cannot otherwise tell a battery that was correctly out of scope from one nobody got to.
+
+**No perimeter declared means no deadline computed — and it says so.** Where nobody has
+declared whether a regime reaches this organisation, the battery is asked in full and the
+window renders as `scope not declared`, naming the flag that would settle it:
+
+> *no window is computed: `secItem105Scope` is not declared, so whether this regime reaches
+> this organisation has not been established. Declare it on the organisation profile, or on
+> this incident with `declare-context`, and the window computes from the same anchor it always
+> would. This is not a finding that the regime does not apply.*
+
+This is decision AP-2, and both halves of it are deliberate. Computing would manufacture a
+four-business-day Form 8-K deadline for an organisation that may owe no such filing, and a
+manufactured legal date gets acted on. Dropping the row would leave a firm that has simply not
+filled in its profile looking identical to one that is genuinely out of scope. So the window is
+withheld, visibly — and where the incident is tracked against that regime anyway, it escalates
+as `scope-undeclared`, so the attention survives the withholding.
 
 **A disagreement is reported, never resolved.** An incident tracked against `sec-1.05` while
 the profile says the organisation is not listed keeps its window and raises a conflict. The

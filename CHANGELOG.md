@@ -21,6 +21,65 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.65.0 — 2026-08-09
+
+**A statutory filing deadline was computed off the wrong fact for twelve releases.**
+`business-context` documented a profile flag as:
+
+> `"listedEntity": "shares admitted to trading — the SEC Item 1.05 perimeter"`
+
+Two facts, joined by an em dash. The first is a listing fact, true of any exchange anywhere;
+the second is a US securities-law fact about who must file current reports on Form 8-K. The
+definition asserted they were the same thing, and `QUESTION_SETS["incident"]["sec-item-105"]`
+then drove a four-business-day clock off it.
+
+It failed in both directions, and eight release tests reproduced both. A London-listed company
+with no Exchange Act obligation was handed an 8-K deadline it does not owe — a manufactured
+legal date, in a compliance product, which gets acted on. An unlisted US issuer reporting under
+Exchange Act s.15(d) was denied one it does, and the skip sentence **quoted the disqualifying
+fact as its own justification**: named declarer, date, basis, every provenance signal a
+reviewer looks for, and wrong.
+
+Nothing in that is an inference the engine performs. The arithmetic was right and every review
+passed, because the wrong fact was selected one layer up — in a dictionary of English sentences
+and a mapping, neither of which any test read (BL-175, decision AP-2).
+
+**The fix, in three parts.**
+
+- **`secItem105Scope` is its own declared flag** — required to file current reports on Form 8-K
+  under the Exchange Act, declared by counsel, inferred from nothing. `listedEntity` keeps its
+  narrow meaning and gates nothing.
+- **CAC-AP-1 gains §2.4.1.** §2.2 already said absence asks; it never said the asking leaves a
+  trace, so a battery asked on a declaration and one asked on a silence reached the consumer as
+  the same entry in the same list. `applies()` now also returns `undeclared` — a subset of
+  `ask`, with its own sentence that never says "not assessed", because the battery *was*
+  assessed.
+- **No perimeter, no clock — and no silence either.** Where SEC scope is undeclared,
+  `incident-materiality` asks the battery in full and renders the window as
+  `scope-not-declared`, naming the flag that would settle it. Where the incident is tracked
+  against the regime anyway, `scopeUndeclared` escalates the missing declaration. Both halves:
+  withholding alone would trade a false date for a blank one, and a firm that had simply not
+  filled in its profile would then look identical to one genuinely out of scope.
+
+**Existing stores need no migration.** A `.biz` carrying only `listedEntity` has not declared
+SEC scope, so it asks and withholds — by the rule, with no migration step. Asserted on the
+unmodified worked example rather than claimed.
+
+**Two guards, four halves, both seen to fail.** `one-fact-per-flag.sh` (business-context) fails
+on a definition that joins two facts *and* on a battery gated by a flag that does not name its
+regime — separately, because the repo shipped a clean-looking definition on a wrongly-gated
+battery and either check alone passes that state. `scope-withheld.sh` (incident-materiality)
+fails on a computed deadline and on a withheld one that stops escalating.
+
+Counts: `business_context` 172 → **193**; `incident_analysis` 177 → **198**;
+`prove-guards` 32 guards / 45 halves → **34 / 49**; `applicability.sh` 58; `consumers.sh` 36 →
+**37**; new `one-fact-per-flag` 8 and `scope-withheld` 14. Full suite green.
+
+**Not closed with it, and filed rather than left implied:** BL-188 — the NYDFS §500.19
+exemption, which AP-2 pairs with this item on the same declared-fact design.
+
+---
+
 ## v0.64.1 — 2026-08-09
 
 **C5's fourth fail-open, closed three releases after the other three.** This sentence passed the

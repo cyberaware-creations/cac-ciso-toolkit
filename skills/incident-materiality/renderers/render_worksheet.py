@@ -102,6 +102,18 @@ def applicability_block(row: dict) -> str:
         parts.append(f'<li>{C.esc(rec["sentence"])}</li>')
     for rec in ctxb["overrides"]:
         parts.append(f'<li>{C.esc(rec["sentence"])}</li>')
+    # §2.4.1, in its OWN list under its own heading. Folding these in with the skips would put
+    # "nobody has said" and "counsel said no" in one bulleted run, and a reader scanning a
+    # disclosure worksheet would have to parse each sentence to tell which is which — the
+    # distinction AP-2 exists to make unmissable (BL-175).
+    undeclared = "".join(f'<li>{C.esc(rec["sentence"])}</li>'
+                         for rec in (ctxb.get("undeclared") or []))
+    undeclared = (f'<h4>Questions asked with nothing declared</h4>'
+                  f'<ul class="list">{undeclared}</ul>'
+                  f'<p class="muted">These were asked in full. What is missing is the '
+                  f'declaration that would say whether the regime reaches this organisation '
+                  f'— so where a window depends on one, no deadline is computed, and nothing '
+                  f'is read into the silence in either direction.</p>') if undeclared else ""
     conflicts = "".join(
         f'<p class="rec"><strong>Disagreement:</strong> {C.esc(c["sentence"])}</p>'
         for c in ctxb["conflicts"])
@@ -109,9 +121,9 @@ def applicability_block(row: dict) -> str:
         return ('<h4>Questions narrowed by the profile</h4>'
                 '<p class="muted">None. Every conditional battery was asked of this '
                 f'incident, against applicability profile '
-                f'{C.esc(ctxb["profileVersion"] or "unreviewed")}.</p>')
+                f'{C.esc(ctxb["profileVersion"] or "unreviewed")}.</p>{undeclared}')
     listing = f'<ul class="list">{"".join(parts)}</ul>' if parts else ""
-    return (f'<h4>Questions narrowed by the profile</h4>{listing}{conflicts}'
+    return (f'<h4>Questions narrowed by the profile</h4>{listing}{conflicts}{undeclared}'
             f'<p class="muted">Applicability profile '
             f'{C.esc(ctxb["profileVersion"] or "unreviewed")}. A narrowed question set is '
             f'the profile keeping this worksheet proportionate; it is not an answer to any '

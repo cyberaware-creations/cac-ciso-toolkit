@@ -58,8 +58,9 @@ assessor standing in front of the evidence.
 When a skill omits a battery because the profile said it did not apply, it **records that it
 skipped it, and why** — carried into the artifact, not swallowed.
 
-> *SEC Item 1.05 disclosure window — not assessed. Organisation profile: `listedEntity: false`,
-> declared 2026-03-02 by General Counsel — Privately held; no securities admitted to trading.*
+> *SEC Item 1.05 disclosure window — not assessed. Organisation profile:
+> `secItem105Scope: false`, declared 2026-03-02 by General Counsel — no class of securities
+> registered under the Exchange Act and no s.15(d) reporting obligation.*
 
 An auditor cannot otherwise distinguish a question that was correctly out of scope from one
 nobody asked, and those are very different findings. This mirrors the provenance page
@@ -69,12 +70,64 @@ The skip record carries everything the sentence needs:
 
 ```json
 {"battery": "sec-item-105", "label": "SEC Item 1.05 disclosure window",
- "flag": "listedEntity", "source": "profile",
+ "flag": "secItem105Scope", "source": "profile",
  "declaredBy": "General Counsel", "declaredOn": "2026-03-02", "basis": "..."}
 ```
 
 `source` is `profile` or `subject`. A skip attributed to the wrong one tells an auditor the
 subject declined a question the subject never mentioned.
+
+**The gate must be the flag that names the regime.** `sec-item-105` is gated on
+`secItem105Scope` — an Exchange Act reporting obligation, declared by counsel — and NOT on
+`listedEntity`, which states only that shares trade somewhere. Those are different facts in
+both directions: an unlisted US issuer reporting under s.15(d) is inside the Item 1.05
+perimeter, and plenty of listed companies are outside it. Gating a statutory deadline on the
+neighbouring fact is BL-175, and `one-fact-per-flag.sh` fails the build on it now — in both
+directions, because the repo shipped a clean-looking definition on a battery gated by the
+wrong flag for twelve releases.
+
+### §2.4.1 An answered question and an unanswered one are not the same record
+
+§2.2 says absence asks. What it did not say, until BL-175, is that the asking must **leave a
+trace** — and the omission was not cosmetic.
+
+A battery asked because somebody declared its gate true, and a battery asked because nobody
+has declared it at all, arrived at the consumer as the same entry in the same `ask` list. For a
+question set that costs a few minutes, they really are the same. For a **statutory filing
+deadline** they are not: computing a four-business-day Form 8-K window for an organisation that
+may owe no such filing manufactures a legal date, and a manufactured date gets acted on.
+
+So `applies()` also returns `undeclared` — a **subset of `ask`**, never a third alternative to
+it:
+
+```json
+{"battery": "sec-item-105", "label": "SEC Item 1.05 disclosure window",
+ "flag": "secItem105Scope", "source": "absent",
+ "declaredBy": "", "declaredOn": "", "basis": "",
+ "sentence": "SEC Item 1.05 disclosure window — asked in full. Organisation profile: ..."}
+```
+
+`source` is `absent` where the flag was never entered, or `profile` where somebody entered it
+with a null value — the second carries a declarer, a date and a basis, because *we do not know
+yet, and here is who said so* is a different record from silence, and a reader chasing the gap
+needs to know whether there is anyone to chase.
+
+**The sentence never says "not assessed".** The battery *was* assessed. Per decision AP-2 a
+reader must never have to work out whether a missing window means *nobody said* or *counsel
+said no*, so the two sentences share no wording and, on a rendered page, no heading.
+
+What a consumer does with the list is the consumer's own rule; this clause only guarantees the
+list exists. `incident-materiality` withholds the deadline, renders the window as
+`scope-not-declared` naming the flag, and escalates the missing declaration where the incident
+is tracked against that regime — the withholding and the attention together, because either
+alone fails in one of the two directions. A consumer with nothing to compute may ignore the
+list; it changes no question set.
+
+**Reading it is optional and its absence is not `true`.** A payload written before this clause
+carries no `undeclared` key, and the honest reading of that is *the profile layer never said* —
+so a consumer must treat the missing key as an empty list and compute exactly as it always did.
+Reading it as "everything is undeclared" would withhold every deadline in the store the moment
+one skill was upgraded ahead of another.
 
 ## §2.5 The profile is frozen by snapshot
 
@@ -105,15 +158,19 @@ each consuming skill, read as data. **No skill imports another.**
   "orgName": "Northwind Manufacturing",
   "profileVersion": "FY26 close",
   "profileReviewedOn": "2026-08-07",
-  "profile": { "listedEntity": {"value": false, "declaredBy": "...", "declaredOn": "...", "basis": "..."} },
+  "profile": { "secItem105Scope": {"value": false, "declaredBy": "...", "declaredOn": "...", "basis": "..."} },
   "applicability": {
     "incident": {
-      "ask": ["dora-windows"],
+      "ask": ["dora-windows", "nydfs-notification"],
       "skipped": [{"battery": "sec-item-105", "label": "SEC Item 1.05 disclosure window",
-                   "flag": "listedEntity", "source": "profile",
+                   "flag": "secItem105Scope", "source": "profile",
                    "declaredBy": "General Counsel", "declaredOn": "2026-03-02",
-                   "basis": "Privately held; no securities admitted to trading.",
-                   "sentence": "SEC Item 1.05 disclosure window — not assessed. ..."}]
+                   "basis": "No registered class and no s.15(d) obligation.",
+                   "sentence": "SEC Item 1.05 disclosure window — not assessed. ..."}],
+      "undeclared": [{"battery": "nydfs-notification", "label": "NYDFS Part 500 notification",
+                      "flag": "nydfsScope", "source": "absent",
+                      "declaredBy": "", "declaredOn": "", "basis": "",
+                      "sentence": "NYDFS Part 500 notification — asked in full. ..."}]
     }
   },
   "revenue": {"exact": 412000000.0, "currency": "EUR", "fiscalYear": "FY26", "...": "..."},

@@ -1,0 +1,29 @@
+{
+  "guard": "skills/incident-materiality/evals/scope-withheld.sh",
+  "forbids": "a statutory deadline computed for a perimeter nobody declared, or withheld without saying so",
+  "note": "Decision AP-2, as a check. The two halves fail in opposite directions and neither alone is the rule: computing manufactures a legal date for an organisation that may owe no filing, and withholding silently leaves a registrant who simply has not filled in the profile looking identical to one that is genuinely out of scope.",
+  "mutations": [
+    {
+      "half": "no-manufactured-date",
+      "why": "the date put back on the withheld row — everything else still reads correctly, which is exactly how a manufactured legal date would return",
+      "note": "Targeted rather than wholesale. Deleting the withholding outright also silences the escalation, because the escalation is derived from the withheld row — the two halves would then be one check wearing two names (GP-1.9). This mutation isolates the date: the state, the row, the note and the escalation are all still right, and the output carries a four-business-day Form 8-K deadline nobody was entitled to.",
+      "defeats": [
+        "an undeclared perimeter computes no deadline at all"
+      ],
+      "file": "skills/incident-materiality/scripts/incident_analysis.py",
+      "find": "            c[\"regime\"], c[\"window\"], CLOCK_SCOPE_UNDECLARED,\n            note=(",
+      "replace": "            c[\"regime\"], c[\"window\"], CLOCK_SCOPE_UNDECLARED,\n            deadline=c[\"deadline\"],\n            note=("
+    },
+    {
+      "half": "no-silent-withholding",
+      "why": "the attention removed — the date is still withheld and nothing on any surface says why",
+      "defeats": [
+        "...and it escalates, so the attention survives the withholding",
+        "...at high, not critical: a fact nobody recorded is not a deadline that passed"
+      ],
+      "file": "skills/incident-materiality/scripts/incident_analysis.py",
+      "find": "        if policy.get(\"scopeUndeclared\"):",
+      "replace": "        if False and policy.get(\"scopeUndeclared\"):"
+    }
+  ]
+}

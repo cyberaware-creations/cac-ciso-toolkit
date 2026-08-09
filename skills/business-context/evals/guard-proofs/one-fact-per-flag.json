@@ -1,0 +1,27 @@
+{
+  "guard": "skills/business-context/evals/one-fact-per-flag.sh",
+  "forbids": "a profile flag that states two facts, or a battery gated on a flag that does not name its regime",
+  "note": "BL-175. `listedEntity` was defined as 'shares admitted to trading — the SEC Item 1.05 perimeter' and that second clause gated a four-business-day Form 8-K deadline for twelve releases. The defect lives in a dictionary of English sentences and in a mapping, neither of which any test read. Both halves are needed: the repo shipped a clean-looking definition on a battery gated by the wrong flag, and each half alone passes that state.",
+  "mutations": [
+    {
+      "half": "static",
+      "why": "the conflation as it is written — a second clause explaining what a flag is 'really for'",
+      "defeats": [
+        "the shipped flags pass the conflation half"
+      ],
+      "file": "skills/business-context/scripts/business_context.py",
+      "find": "    \"listedEntity\": \"shares admitted to trading on a public exchange\",",
+      "replace": "    \"listedEntity\": \"shares admitted to trading — the SEC Item 1.05 perimeter\","
+    },
+    {
+      "half": "mapping",
+      "why": "the conflation arriving the other way — definitions kept clean, the gate repointed",
+      "defeats": [
+        "the shipped flags pass the mapping half"
+      ],
+      "file": "skills/business-context/scripts/business_context.py",
+      "find": "        \"sec-item-105\": \"secItem105Scope\",",
+      "replace": "        \"sec-item-105\": \"listedEntity\","
+    }
+  ]
+}
