@@ -218,6 +218,39 @@ says so.
 *Proved against itself.* Deleting a `defeats` list fails the run; giving two halves the same
 list fails it; naming a check the guard never prints fails it. All three were run.
 
+### GP-1.10 A check is read at n=0 and n=1, not at n=typical
+
+**Five checks in this repository have now failed the same way**, which is what promotes this
+from an observation to a clause:
+
+| | The check | What it could not tell apart |
+|---|---|---|
+| BL-121 | `[ -z "$res" ]` | a clean scan from a crashed one — 51 checks, nine suites |
+| BL-176 | `len(bounds) == 1` | a missing anchor from a legally excluded one |
+| BL-201 | `all(...)` over a singleton | *nearest* from *only* — shipped clean for three releases |
+| BL-194/B | a fixture that never set up the thing it tested | nothing; the assertion was right and the setup was not |
+| BL-204 | two whole functions called by no test | a guard that works from one that has never run |
+
+Every one of them **returned the correct answer on every case its author wrote.** That is the
+defining property: these are not sloppy checks, they are checks whose discriminating power
+disappears exactly where nobody looked.
+
+So, when writing or reviewing a guard:
+
+* **Ask what it does when its input is empty or has one element.** A comparison needs something
+  to compare against; an `all()` over nothing is true; an empty scan reports success.
+* **A count that is printed is not a count that is asserted.** `check-sources.py` and
+  `check-versions.py` both printed their own check totals for months while asserting nothing
+  about them. Both now carry a floor.
+* **Prove it by breaking it.** This is the only step that actually finds the shape. BL-204 swept
+  274 mechanical mutations across the five tool checks; the two most valuable findings —
+  `check_maker_name` and `check_import_time_palette`, both shipping in CI, both printing a
+  reassuring line every run — were called by **nothing** in their own suite, and no amount of
+  reading had noticed in the releases they had been there.
+
+GP-1.1 already requires this of `skills/*/evals/*.sh`. The tool checks in `tools/` sit outside
+that registry and had no equivalent discipline; this clause is what they are held to instead.
+
 ---
 
 ## Registry
