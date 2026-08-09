@@ -21,6 +21,72 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.59.0 — 2026-08-09
+
+**BL-163 and BL-121 — two ways a board-safety suite reports a pass it did not earn.**
+
+### BL-163 — the largest suite counted failures and not checks
+
+Every other `board-safety.sh` asserts how many checks it ran. `risk-register`'s — the biggest,
+and the one whose scanner has the most to say — asserted only that none of the checks it
+happened to run had complained.
+
+Its `chk` helper already closes one hole: a check written with the wrong helper name cannot
+pass silently. It does not close the other. A check that stops **executing** — an early exit, a
+fixture step that returns non-zero and skips the block beneath it, a branch that stops being
+taken — deregisters itself. `fails` stays at zero and the suite prints "all checks passed".
+
+`fails` answers *did anything I ran complain?*; `EXPECTED_CHECKS` answers *did I run what I
+think I run?* Only the second can see an absence. Now `EXPECTED_CHECKS=12`, asserted **before**
+the pass/fail verdict — a suite that ran the wrong number of checks has not earned the right to
+report either answer.
+
+### BL-121 — 51 checks across nine files read a crashed probe as a pass
+
+```bash
+hit=$($PY - "$file" <<'PY' ... PY)
+if [ -z "$hit" ]; then ok "nothing wrong"; fi
+```
+
+**Command substitution discards the exit status.** A traceback goes to stderr and leaves stdout
+empty — byte-for-byte what a clean run produces. The check prints `ok`, the suite exits zero,
+and the thing it was written to examine was never examined.
+
+The fix was written once, in `board-pack/evals/assembly.sh` at v0.43.1, and copied nowhere.
+**Nine suites ran the broken idiom for fourteen versions.**
+
+`probe` now lives in `tools/eval-probe.sh` and is **sourced, not copied** — a helper that must
+be re-typed into each suite will diverge again. 26 capture sites across nine suites migrated.
+`lint-evals.py` gains **LE-1.2**, which flags a raw inline capture in any file that sources the
+helper, so a migrated suite cannot drift back one line at a time.
+
+**Proved, not asserted.** Injecting `raise KeyError` into a probed block made
+`metrics-register/board-safety.sh` print *"all 10 checks passed"* and exit 0 before the change,
+and FAIL with the traceback quoted and exit 1 after it. Every suite's full output was diffed
+against its pre-migration output: all nine identical bar BL-163's intentional count line.
+
+### Three defects found while making the change
+
+- **`probe -c` would have re-created the exact defect.** `probe` reads its script from stdin,
+  so `probe -c "code"` ran `python - -c "code"`: an empty program, no output, exit 0, and the
+  caller reads it as clean. Caught by diffing outputs rather than by reading the change. `probe`
+  now handles both call shapes.
+- **A heredoc opener inside a comment blanked the rest of a file from the linter.**
+  `_strip_heredocs` never found a closing delimiter, because the closing line was commented too.
+  `tools/eval-probe.sh` documents its own call shapes in prose, so `probe` vanished and every
+  suite sourcing it was reported as calling a helper nobody defines. **A comment could switch
+  this linter off for the rest of a file.**
+- **A `$here/`-rooted `source` was skipped as "computed".** `$here` is this repo's universal
+  name for the sourcing script's own directory, so it is resolvable. Skipping it made a sourced
+  helper invisible — the same can't-see-it defect one level up.
+
+**Verification:** `lint-evals` self-test 10 → **17 checks**, 50 suites clean; `risk-register`
+board-safety 12/12 with the count assertion proved to bite; all nine suites byte-identical
+pre/post migration; 46/48 eval scripts; `prove-guards` 17/27; `check-sources` 82 self-test and
+clean; `check-versions` all six.
+
+---
+
 ## v0.58.0 — 2026-08-09
 
 **BL-95 — C-2 opportunity grounding. The rule existed; nothing enforced it.**
