@@ -43,6 +43,24 @@ copy: *"better security helps the business move faster"* is unfalsifiable and co
 credibility than silence — and a rule that lives only in guidance is the rule this repo keeps
 having to convert into a check.
 
+**Since v0.58.0 the reference is RESOLVED, not merely present (BL-95).** Until then the
+assembler checked that `cites` was non-empty and never looked the reference up, so
+`goal:no-such-goal` assembled onto a board page while this very paragraph told authors to name
+a declared goal. A citation nothing resolves reads exactly like one that does, which made the
+rule decorative — and a decorative grounding rule on positive risk is worse than none, because
+the page looks evidenced.
+
+When the manifest binds a `context`, every `cites` must resolve against a goal or crown jewel
+that profile declares, and the refusal lists what is citable. `business-context` stores goals
+as plain sentences with no id, so the id is the sentence slugged; both sides are slugged, which
+makes `goal:Reduce time to market` and `goal:reduce-time-to-market` one citation and leaves
+every `.biz` written before this unchanged.
+
+When the manifest binds **no** context — the normal case under CAC-AP-1 §2.2 — `cites` is
+checked for presence only and the pack assembles exactly as it did before. A bound profile
+that declares nothing citable is *not* the same as no profile: every opportunity in it is
+ungrounded, and refused.
+
 **It is an envelope key, not an item map.** An opportunity has no register id, because it is a
 statement about a declared goal rather than about a record. Keeping it out of the item maps is
 also what stops the mis-spelled-map detector flagging it.
