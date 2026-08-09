@@ -21,6 +21,35 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.67.1 — 2026-08-09
+
+**The crosswalk licensing gate had never been seen to fire.** `validate_crosswalks.py` refuses
+an ISO or CIS control that carries normative text — the invariant the whole crosswalk design
+rests on, and the one this project has no licence to breach. It runs in CI on every push.
+BL-204's mutation sweep suppressed each of the file's twelve guards in turn so it could never
+report, and **ten survived `--self-test`**, that one among them (BL-205).
+
+The shipped data could never have caught it. The real catalogues are clean, so the file prints
+`3 catalogs · 0 errors · 0 warnings` whether its guards work or not — which is exactly the
+condition under which a broken guard is invisible.
+
+The self-test goes from **4 checks to 28**, built on synthetic three-framework catalogues that
+are valid and then broken one rule at a time. Each case asserts the **specific message** and the
+**error and warning counts**, not merely a non-zero exit: a carelessly built duplicate-id fixture
+also trips the required-catalogue rule, and then one guard is proved by another guard's finding.
+Most rules also get an acceptance case — 800-53 *may* carry its text, `text: ""` is an absent
+field rather than a breach, a control in no grouping is fine, a column headed *"Not the official
+title"* is allowed — because a guard that fires on everything discriminates nothing (GP-1.10).
+
+Re-swept in both directions: every guard forced to `if False:` (never reports) and to `if True:`
+(always reports). **0 of 24 mutations survive**, from 10 of 12.
+
+Also removed from the module docstring: *"if a catalog declares expectedCounts and is marked
+complete, counts must match."* No catalogue declares `expectedCounts` and no code reads it, so
+the line described a rule that has never run. Removed rather than implemented — inventing an
+enforcement contract for data that does not exist is how a docstring becomes the only place a
+rule lives.
+
 ## v0.67.0 — 2026-08-09
 
 **`51 halves, each proved in both directions` was true and misleading at once.** Halves are
