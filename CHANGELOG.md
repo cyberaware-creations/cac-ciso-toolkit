@@ -21,6 +21,28 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.52.1 — 2026-08-08
+
+**D-9 confirmed: the release gate stays, and the manifest keeps its two gate fields.**
+
+`gated` and `reviewIntervalDays` ship in `sources.json`, narrowing the original rule that no
+cadence appears in a shipped file. The maintainer confirmed the narrowing on 2026-08-08: a boolean
+and an integer are policy rather than monitoring state, and a self-contained release gate is worth
+it — it is what let Phase 0 ship complete instead of waiting on the private store.
+
+Recorded in `tools/sources-schema.md` rather than left in a chat log. The alternative reading was
+defensible, and a future maintainer is entitled to know this was decided rather than overlooked.
+
+The coupling this confirms is the one that matters: **rendered citations may carry instrument
+identifiers and dates only while something keeps them current.** The gate is that something. If it
+is ever removed, RW-1.3's converse applies and rendered citations fall back to identifier-only.
+
+Still open, and not decided by this: whether `checkedBy: "claude-code"` should be replaced by a
+human signature on the legal rows, and whether 365 days is the right interval for the SEC rule
+specifically, given it is under active rescission pressure.
+
+---
+
 ## v0.52.0 — 2026-08-08
 
 **Reference Watch Phase 0 — `sources.json` and CAC-RW-1.** The structural fix the last four
