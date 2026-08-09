@@ -218,6 +218,14 @@ list fails it; naming a check the guard never prints fails it. All three were ru
 | `decisions-render.sh` | `risk-register` | a decision rendered as a raw Python dict repr instead of its text | render |
 | `decisions-render.sh` | `vendor-register` | a decision rendered as a raw Python dict repr instead of its text | render |
 | `exposure.sh` | `ai-register` | a hand-selectable exposure class — the guard is the ABSENCE of a command | absence · derivation |
+| `board-safety.sh` | `ai-register` | a board artifact that does not say it is not legal advice | legal-advice |
+| `board-safety.sh` | `board-pack` | catastrophizing or false-confidence vocabulary in a board renderer | source-scan |
+| `board-safety.sh` | `business-context` | catastrophizing or false-confidence vocabulary in a board renderer | source-scan |
+| `board-safety.sh` | `exceptions-register` | catastrophizing or false-confidence vocabulary in a board renderer | source-scan |
+| `board-safety.sh` | `incident-materiality` | catastrophizing, false confidence, or a materiality conclusion stated as fact | source-scan |
+| `board-safety.sh` | `metrics-register` | catastrophizing or false-confidence vocabulary in a board renderer | source-scan |
+| `board-safety.sh` | `nist-csf` | catastrophizing or false-confidence vocabulary in a board renderer | source-scan |
+| `board-safety.sh` | `vendor-register` | a board artifact that does not say it is not legal advice | legal-advice |
 
 Every guard above, both halves, proved in both directions on every run. **The table is checked,
 not maintained by memory** — `prove-guards.sh` fails if a guard on disk is missing a row, or a

@@ -1,0 +1,17 @@
+{
+  "guard": "skills/incident-materiality/evals/board-safety.sh",
+  "forbids": "catastrophizing, false confidence, or a materiality conclusion stated as fact",
+  "note": "Enrolled in v0.60.0. Guard-shaped since it was written and classified `candidate` by BL-101's registry, which is how it became countable. BL-121 was the blocker: 51 checks across these nine suites read a crashed probe as a pass, so a mutation registered here would have been registered against a check that could not fail. That closed in v0.59.0.",
+  "mutations": [
+    {
+      "half": "source-scan",
+      "why": "A sentence of catastrophizing prose added to a shipped renderer. This is the way in that matters: nobody writes `catastrophic` into a board pack on purpose, they write it into a helper's default string and it reaches the page months later. The mutation is a module-level constant rather than an edit to live output, so it proves the SOURCE scan specifically — the half that exists because a string can ship without ever being rendered in the fixture.",
+      "defeats": [
+        "no banned vocabulary in the source of any board-facing view"
+      ],
+      "file": "skills/incident-materiality/renderers/_common.py",
+      "find": "def _rebuild_derived() -> None:",
+      "replace": "_BOARD_NOTE = \"the outcome would be catastrophic and devastating\"\n\n\ndef _rebuild_derived() -> None:"
+    }
+  ]
+}

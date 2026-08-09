@@ -9,8 +9,8 @@
   "scripts": [
     {
       "path": "skills/ai-register/evals/board-safety.sh",
-      "role": "candidate",
-      "reason": "Guard-shaped — it forbids confidence vocabulary and unsupportable claims reaching a board view. Not enrolled yet: its crashed-probe defect is BL-121, and enrolling nine of these needs nine mutation sets. Enrol as part of BL-99 once BL-121 lands."
+      "role": "guard",
+      "forbids": "a board artifact that does not say it is not legal advice"
     },
     {
       "path": "skills/ai-register/evals/decisions-render.sh",
@@ -59,8 +59,8 @@
     },
     {
       "path": "skills/board-pack/evals/board-safety.sh",
-      "role": "candidate",
-      "reason": "Guard-shaped — it forbids confidence vocabulary and unsupportable claims reaching a board view. Not enrolled yet: its crashed-probe defect is BL-121, and enrolling nine of these needs nine mutation sets. Enrol as part of BL-99 once BL-121 lands."
+      "role": "guard",
+      "forbids": "catastrophizing or false-confidence vocabulary in any board-facing renderer"
     },
     {
       "path": "skills/board-pack/evals/deck-contrast.sh",
@@ -94,8 +94,8 @@
     },
     {
       "path": "skills/business-context/evals/board-safety.sh",
-      "role": "candidate",
-      "reason": "Guard-shaped — it forbids confidence vocabulary and unsupportable claims reaching a board view. Not enrolled yet: its crashed-probe defect is BL-121, and enrolling nine of these needs nine mutation sets. Enrol as part of BL-99 once BL-121 lands."
+      "role": "guard",
+      "forbids": "catastrophizing or false-confidence vocabulary in any board-facing renderer"
     },
     {
       "path": "skills/business-context/evals/consumers.sh",
@@ -109,8 +109,8 @@
     },
     {
       "path": "skills/exceptions-register/evals/board-safety.sh",
-      "role": "candidate",
-      "reason": "Guard-shaped — it forbids confidence vocabulary and unsupportable claims reaching a board view. Not enrolled yet: its crashed-probe defect is BL-121, and enrolling nine of these needs nine mutation sets. Enrol as part of BL-99 once BL-121 lands."
+      "role": "guard",
+      "forbids": "catastrophizing or false-confidence vocabulary in any board-facing renderer"
     },
     {
       "path": "skills/exceptions-register/evals/decisions-render.sh",
@@ -129,8 +129,8 @@
     },
     {
       "path": "skills/incident-materiality/evals/board-safety.sh",
-      "role": "candidate",
-      "reason": "Guard-shaped — it forbids confidence vocabulary and unsupportable claims reaching a board view. Not enrolled yet: its crashed-probe defect is BL-121, and enrolling nine of these needs nine mutation sets. Enrol as part of BL-99 once BL-121 lands."
+      "role": "guard",
+      "forbids": "catastrophizing, false confidence, or a materiality conclusion stated as fact"
     },
     {
       "path": "skills/incident-materiality/evals/decisions-render.sh",
@@ -144,8 +144,8 @@
     },
     {
       "path": "skills/metrics-register/evals/board-safety.sh",
-      "role": "candidate",
-      "reason": "Guard-shaped — it forbids confidence vocabulary and unsupportable claims reaching a board view. Not enrolled yet: its crashed-probe defect is BL-121, and enrolling nine of these needs nine mutation sets. Enrol as part of BL-99 once BL-121 lands."
+      "role": "guard",
+      "forbids": "catastrophizing or false-confidence vocabulary in any board-facing renderer"
     },
     {
       "path": "skills/metrics-register/evals/decisions-render.sh",
@@ -164,8 +164,8 @@
     },
     {
       "path": "skills/nist-csf/evals/board-safety.sh",
-      "role": "candidate",
-      "reason": "Guard-shaped — it forbids confidence vocabulary and unsupportable claims reaching a board view. Not enrolled yet: its crashed-probe defect is BL-121, and enrolling nine of these needs nine mutation sets. Enrol as part of BL-99 once BL-121 lands."
+      "role": "guard",
+      "forbids": "catastrophizing or false-confidence vocabulary in any board-facing renderer"
     },
     {
       "path": "skills/nist-csf/evals/crosswalk-e2e.sh",
@@ -190,7 +190,7 @@
     {
       "path": "skills/risk-register/evals/board-safety.sh",
       "role": "candidate",
-      "reason": "Guard-shaped — it forbids confidence vocabulary and unsupportable claims reaching a board view. Not enrolled yet: its crashed-probe defect is BL-121, and enrolling nine of these needs nine mutation sets. Enrol as part of BL-99 once BL-121 lands."
+      "reason": "Guard-shaped and still a candidate. Its checks use the `chk` registration idiom rather than the shared ok/bad harness, and no source-scan or footer mutation trips it — the anchor has to be found against what it actually asserts (provisional titles, accepted-risk grouping, closure rationale). Enrol it with a mutation derived by running, never assumed from its siblings."
     },
     {
       "path": "skills/risk-register/evals/confirmation-age.sh",
@@ -214,8 +214,8 @@
     },
     {
       "path": "skills/vendor-register/evals/board-safety.sh",
-      "role": "candidate",
-      "reason": "Guard-shaped — it forbids confidence vocabulary and unsupportable claims reaching a board view. Not enrolled yet: its crashed-probe defect is BL-121, and enrolling nine of these needs nine mutation sets. Enrol as part of BL-99 once BL-121 lands."
+      "role": "guard",
+      "forbids": "a board artifact that does not say it is not legal advice"
     },
     {
       "path": "skills/vendor-register/evals/criticality.sh",
