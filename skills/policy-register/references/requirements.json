@@ -1,0 +1,178 @@
+{
+  "schemaVersion": 1,
+  "note": "The requirement spine, VENDORED. Every shipped script must run from its own skill directory with no path surgery and without assuming any other skill is installed (BL-169 D-1), so this skill carries its own copy rather than reading nist-csf. evals/requirement-drift.sh regenerates this file from the two nist-csf artifacts named below and fails on any difference, so the copy cannot drift silently.",
+  "derivedFrom": {
+    "controls": "skills/nist-csf/references/crosswalks/800-53-r5.catalog.json — every control whose id matches ^[A-Z]{2}-1$, sorted by id. Twenty of 206.",
+    "subcategories": "skills/nist-csf/references/nist-csf-2.0-core.json — hierarchy GV > GV.PO, both subcategories, with their implementation examples verbatim."
+  },
+  "whyTheseTwenty": "NIST publishes nothing dedicated to security policy management. The legitimate anchors are the '-1' Policy and Procedures control in every SP 800-53 Rev. 5 family and CSF 2.0 GV.PO. The join is not this project's invention: the CSF Core's own informativeReferences for GV.PO-01 and GV.PO-02 name all twenty, AC-01 through SR-01.",
+  "requirements": [
+    {
+      "id": "AC-1",
+      "catalogue": "sp-800-53r5",
+      "label": "Policy and Procedures",
+      "familyId": "AC",
+      "familyLabel": "Access Control"
+    },
+    {
+      "id": "AT-1",
+      "catalogue": "sp-800-53r5",
+      "label": "Policy and Procedures",
+      "familyId": "AT",
+      "familyLabel": "Awareness and Training"
+    },
+    {
+      "id": "AU-1",
+      "catalogue": "sp-800-53r5",
+      "label": "Policy and Procedures",
+      "familyId": "AU",
+      "familyLabel": "Audit and Accountability"
+    },
+    {
+      "id": "CA-1",
+      "catalogue": "sp-800-53r5",
+      "label": "Policy and Procedures",
+      "familyId": "CA",
+      "familyLabel": "Assessment, Authorization, and Monitoring"
+    },
+    {
+      "id": "CM-1",
+      "catalogue": "sp-800-53r5",
+      "label": "Policy and Procedures",
+      "familyId": "CM",
+      "familyLabel": "Configuration Management"
+    },
+    {
+      "id": "CP-1",
+      "catalogue": "sp-800-53r5",
+      "label": "Policy and Procedures",
+      "familyId": "CP",
+      "familyLabel": "Contingency Planning"
+    },
+    {
+      "id": "IA-1",
+      "catalogue": "sp-800-53r5",
+      "label": "Policy and Procedures",
+      "familyId": "IA",
+      "familyLabel": "Identification and Authentication"
+    },
+    {
+      "id": "IR-1",
+      "catalogue": "sp-800-53r5",
+      "label": "Policy and Procedures",
+      "familyId": "IR",
+      "familyLabel": "Incident Response"
+    },
+    {
+      "id": "MA-1",
+      "catalogue": "sp-800-53r5",
+      "label": "Policy and Procedures",
+      "familyId": "MA",
+      "familyLabel": "Maintenance"
+    },
+    {
+      "id": "MP-1",
+      "catalogue": "sp-800-53r5",
+      "label": "Policy and Procedures",
+      "familyId": "MP",
+      "familyLabel": "Media Protection"
+    },
+    {
+      "id": "PE-1",
+      "catalogue": "sp-800-53r5",
+      "label": "Policy and Procedures",
+      "familyId": "PE",
+      "familyLabel": "Physical and Environmental Protection"
+    },
+    {
+      "id": "PL-1",
+      "catalogue": "sp-800-53r5",
+      "label": "Policy and Procedures",
+      "familyId": "PL",
+      "familyLabel": "Planning"
+    },
+    {
+      "id": "PM-1",
+      "catalogue": "sp-800-53r5",
+      "label": "Information Security Program Plan",
+      "familyId": "PM",
+      "familyLabel": "Program Management"
+    },
+    {
+      "id": "PS-1",
+      "catalogue": "sp-800-53r5",
+      "label": "Policy and Procedures",
+      "familyId": "PS",
+      "familyLabel": "Personnel Security"
+    },
+    {
+      "id": "PT-1",
+      "catalogue": "sp-800-53r5",
+      "label": "Policy and Procedures",
+      "familyId": "PT",
+      "familyLabel": "PII Processing and Transparency"
+    },
+    {
+      "id": "RA-1",
+      "catalogue": "sp-800-53r5",
+      "label": "Policy and Procedures",
+      "familyId": "RA",
+      "familyLabel": "Risk Assessment"
+    },
+    {
+      "id": "SA-1",
+      "catalogue": "sp-800-53r5",
+      "label": "Policy and Procedures",
+      "familyId": "SA",
+      "familyLabel": "System and Services Acquisition"
+    },
+    {
+      "id": "SC-1",
+      "catalogue": "sp-800-53r5",
+      "label": "Policy and Procedures",
+      "familyId": "SC",
+      "familyLabel": "System and Communications Protection"
+    },
+    {
+      "id": "SI-1",
+      "catalogue": "sp-800-53r5",
+      "label": "Policy and Procedures",
+      "familyId": "SI",
+      "familyLabel": "System and Information Integrity"
+    },
+    {
+      "id": "SR-1",
+      "catalogue": "sp-800-53r5",
+      "label": "Policy and Procedures",
+      "familyId": "SR",
+      "familyLabel": "Supply Chain Risk Management"
+    },
+    {
+      "id": "GV.PO-01",
+      "catalogue": "csf-2-0",
+      "label": "Policy for managing cybersecurity risks is established based on organizational context, cybersecurity strategy, and priorities and is communicated and enforced",
+      "familyId": "GV.PO",
+      "familyLabel": "Policy",
+      "implementationExamples": [
+        "Create, disseminate, and maintain an understandable, usable risk management policy with statements of management intent, expectations, and direction",
+        "Periodically review policy and supporting processes and procedures to ensure that they align with risk management strategy objectives and priorities, as well as the high-level direction of the cybersecurity policy",
+        "Require approval from senior management on policy",
+        "Communicate cybersecurity risk management policy and supporting processes and procedures across the organization",
+        "Require personnel to acknowledge receipt of policy when first hired, annually, and whenever policy is updated"
+      ]
+    },
+    {
+      "id": "GV.PO-02",
+      "catalogue": "csf-2-0",
+      "label": "Policy for managing cybersecurity risks is reviewed, updated, communicated, and enforced to reflect changes in requirements, threats, technology, and organizational mission",
+      "familyId": "GV.PO",
+      "familyLabel": "Policy",
+      "implementationExamples": [
+        "Update policy based on periodic reviews of cybersecurity risk management results to ensure that policy and supporting processes and procedures adequately maintain risk at an acceptable level",
+        "Provide a timeline for reviewing changes to the organization's risk environment (e.g., changes in risk or in the organization's mission objectives), and communicate recommended policy updates",
+        "Update policy to reflect changes in legal and regulatory requirements",
+        "Update policy to reflect changes in technology (e.g., adoption of artificial intelligence) and changes to the business (e.g., acquisition of a new business, new contract requirements)"
+      ]
+    }
+  ]
+}
