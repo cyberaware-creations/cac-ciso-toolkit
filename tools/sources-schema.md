@@ -121,7 +121,7 @@ the run. The same anti-vacuity rule CAC-GP-1 applies to guards and CAC-LE-1 to s
 
 ---
 
-## The four checks
+## The six checks
 
 | | Check | Fails when |
 |---|---|---|
@@ -129,9 +129,68 @@ the run. The same anti-vacuity rule CAC-GP-1 applies to guards and CAC-LE-1 to s
 | **C2** | Shape | a required field is missing or empty, an id repeats within a skill, `checkedOn` is malformed or in the future, `gated` is true with no positive `reviewIntervalDays` |
 | **C3** | Rendered citation | a `renderedAs` string is not found byte-for-byte in the files its row lists under `usedFor` |
 | **C4** | `usedFor` exists | a listed path is not in the tree |
+| **C5** | Do-not-cite | a withdrawn publication is cited as current, anywhere in the tree |
+| **C6** | Declared | a designation cited in a covered file is in no row and no allowlist |
 
 C3 is the one that catches the failure this standard is named for: a renderer whose citation
 drifts from the manifest, or a manifest that was updated without touching the renderer.
+
+---
+
+### RW-1.10 Every citation in a covered file is declared, or allowlisted with an argument
+
+**C4 and C6 are converses, and C4 alone is half a check.** C4 reads the manifest and asks
+whether the tree still matches it. C6 reads the tree and asks whether the manifest covers it.
+
+Until v0.57.0 only C4 existed, so a citation added to a reference file and never added to
+`sources.json` was invisible to everything in this standard: never reviewed, never re-checked
+against its publisher, never gated — and **indistinguishable from a citation that had been
+verified**, because nothing recorded the difference (BL-190). C6 found ten on its first run,
+across five shipped skills, including `NIST IR 8179` carrying `vendor-register`'s whole
+two-hop criticality model and `47 CFR 64.2011` carrying a disclosure delay window.
+
+**Covered file** means a file some row already lists in `usedFor` — the set C4 validates.
+Widening past that is a different check with a different argument.
+
+**Designations are canonical keys, not substrings.** `ISO/IEC 27001:2022` and `ISO 27001` are
+one designation; substring matching was tried first and produced false positives on exactly
+that pair, which is how a check earns being switched off. An ISO **edition year** is dropped;
+a NIST **revision** is not, because `Rev. 2` and `Rev. 3` are different documents with
+different obligations — the distinction `do-not-cite.json` exists to police.
+
+Each pattern in the vocabulary carries a fixture asserting the key it produces, for the same
+reason `mustFlag` does (RW-1.9.2): a detector that has stopped detecting reports "no
+undeclared citations" in the same tone as one that works.
+
+#### `designations` — for rows prose cannot be parsed for
+
+Optional per row. A series row such as `"NIST IR 8286r1, 8286A r1, 8286C r1"` names three
+publications and the detector can only see the first, because a bare `8286A r1` with no `IR`
+prefix is not a shape worth matching in open prose. Guessing there trades false negatives for
+false positives, and a noisy check gets turned off.
+
+```json
+{ "id": "ir-8286-series",
+  "instrument": "NIST IR 8286r1, 8286A r1, 8286C r1",
+  "designations": ["ir-8286r1", "ir-8286ar1", "ir-8286cr1"] }
+```
+
+#### `citationAllowlist` — an argument, never an off switch
+
+Top-level in `sources.json`. Each entry needs a `designation` **and a non-empty `reason`**; an
+entry with an empty reason **fails the run**. Without that rule the allowlist would be a way to
+switch C6 off one line at a time, while reading as considered judgement.
+
+```json
+"citationAllowlist": [
+  { "designation": "iso-27001",
+    "reason": "Named in the evidence-tier table as a KIND OF ARTIFACT a vendor hands over — 'ISO 27001 certificate with its Statement of Applicability' — not a citation to the standard's text. CAC also holds no ISO licence. Permanent, not pending." }
+]
+```
+
+A good reason says why the designation is **not a source this skill relies on**, or why it
+cannot be verified. "Pending verification" is a legitimate reason exactly once; a repo full of
+them means C6 is being routed around rather than answered.
 
 ---
 
