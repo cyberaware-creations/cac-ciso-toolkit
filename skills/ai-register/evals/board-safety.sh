@@ -24,6 +24,7 @@ PY="${PY:-$(command -v python3)}"
 here="$(cd "$(dirname "$0")" && pwd)"
 skill="$(cd "$here/.." && pwd)"
 work="$(mktemp -d)"
+. "$here/../../../tools/eval-probe.sh"   # `probe` — a crashed check is not a clean one (BL-121)
 trap 'rm -rf "$work"' EXIT
 
 EXPECTED_CHECKS=20
