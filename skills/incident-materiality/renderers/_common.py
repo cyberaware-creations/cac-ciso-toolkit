@@ -71,6 +71,13 @@ CLOCK_FILL = {
     "not-applicable": ("#EFEDE7", MUTED),
     "not-started":    ("#EDEAE2", MUTED),
     "anchor-missing": ("#EDE0EA", "#5E3660"),
+    # NOT the attention palette, and not the `not in scope` grey either. A withheld window is
+    # not an exposure — nothing has gone wrong on this incident — so it may not borrow
+    # `high`. But it is also not the settled "not in scope", and painting it the same grey
+    # would make an unanswered question look like an answered one, which is the whole of
+    # BL-175 arriving through the stylesheet. Its own tone, next to `anchor-missing` because
+    # it is the same family: a computation that cannot honestly run yet.
+    "scope-not-declared": ("#E5E7F2", "#3A3F6B"),
     "due":            G.chip("high"),
     "overdue":        G.chip("critical"),
     "filed":          G.chip("good"),
@@ -79,6 +86,7 @@ CLOCK_LABEL = {
     "not-applicable": "not in scope",
     "not-started": "not started",
     "anchor-missing": "anchor not recorded",
+    "scope-not-declared": "scope not declared",
     "due": "window open",
     "overdue": "past the deadline",
     "filed": "reported",
@@ -115,6 +123,7 @@ def _rebuild_derived() -> None:
         "not-applicable": ("#EFEDE7", MUTED),
         "not-started":    ("#EDEAE2", MUTED),
         "anchor-missing": ("#EDE0EA", "#5E3660"),
+        "scope-not-declared": ("#E5E7F2", "#3A3F6B"),
         "due":            G.chip("high"),
         "overdue":        G.chip("critical"),
         "filed":          G.chip("good"),

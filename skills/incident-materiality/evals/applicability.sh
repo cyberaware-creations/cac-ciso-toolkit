@@ -73,6 +73,12 @@ def declared(v, by, on, basis):
 profile = {
     "listedEntity": declared(False, "General Counsel", "2026-03-02",
                              "Privately held; no securities admitted to trading."),
+    # The gate the SEC battery actually reads. Declared SEPARATELY from the listing fact
+    # above, and the two disagree on purpose: this fixture is a private company that files
+    # nothing, and the point of BL-175 is that neither flag implies the other.
+    "secItem105Scope": declared(False, "General Counsel", "2026-03-02",
+                                "No class registered under the Exchange Act and no s.15(d) "
+                                "reporting obligation."),
     "doraScope": declared(True, "General Counsel", "2026-04-11",
                           "Dublin subsidiary authorised as a payment institution."),
     "nydfsScope": declared(False, "General Counsel", "2026-03-02",
@@ -89,11 +95,12 @@ skipped = [
      "sentence": sentence("NYDFS Part 500 notification", "nydfsScope",
                           profile["nydfsScope"])},
     {"battery": "sec-item-105", "label": "SEC Item 1.05 disclosure window",
-     "flag": "listedEntity", "source": "profile", "declaredBy": "General Counsel",
+     "flag": "secItem105Scope", "source": "profile", "declaredBy": "General Counsel",
      "declaredOn": "2026-03-02",
-     "basis": "Privately held; no securities admitted to trading.",
-     "sentence": sentence("SEC Item 1.05 disclosure window", "listedEntity",
-                          profile["listedEntity"])},
+     "basis": "No class registered under the Exchange Act and no s.15(d) reporting "
+              "obligation.",
+     "sentence": sentence("SEC Item 1.05 disclosure window", "secItem105Scope",
+                          profile["secItem105Scope"])},
 ]
 payload = {
     "contractVersion": "CAC-AP-1",
@@ -134,15 +141,15 @@ PYEOF
 "$PY" "$E" open "$S" --title "Tracked against Item 1.05 anyway" --discovered 2026-07-25 \
   --regime sec-1.05 --actor eval >/dev/null
 
-"$PY" "$E" declare-context "$S" --id I-003 --flag listedEntity --value true \
+"$PY" "$E" declare-context "$S" --id I-003 --flag secItem105Scope --value true \
   --by "General Counsel" --on 2026-07-22 \
-  --basis "The affected entity is the US subsidiary whose shares are admitted to trading." \
+  --basis "The affected entity is the US subsidiary, itself an Exchange Act registrant." \
   --actor eval >/dev/null
 "$PY" "$E" declare-context "$S" --id I-004 --flag doraScope --value false \
   --by "General Counsel" --on 2026-07-23 \
   --basis "The affiliate is outside the authorised entity and holds no ICT contract." \
   --actor eval >/dev/null
-"$PY" "$E" declare-context "$S" --id I-005 --flag listedEntity --value null \
+"$PY" "$E" declare-context "$S" --id I-005 --flag secItem105Scope --value null \
   --by "General Counsel" --on 2026-07-24 \
   --basis "Entity boundary not yet established; recorded so the gap is visible." \
   --actor eval >/dev/null
@@ -252,7 +259,7 @@ eq "...attributed to the profile, not to the subject" \
 a=json.load(open(sys.argv[1]))
 r=[x for x in a["incidents"] if x["id"]=="I-001"][0]
 open(sys.argv[2],"w").write(r["context"]["skipped"][0]["sentence"])' "$NARROW" "$work/sent.txt"
-has "the §2.4 sentence names the flag" "listedEntity" "$work/sent.txt"
+has "the §2.4 sentence names the flag" "secItem105Scope" "$work/sent.txt"
 has "...the date it was declared" "2026-03-02" "$work/sent.txt"
 has "...and who declared it" "General Counsel" "$work/sent.txt"
 eq "the Item 1.05 window is not computed at all for a skipped battery" \
@@ -279,7 +286,7 @@ eq "the override is recorded, not just acted on" \
 a=json.load(open(sys.argv[1]))
 r=[x for x in a["incidents"] if x["id"]=="I-003"][0]
 open(sys.argv[2],"w").write(r["context"]["overrides"][0]["sentence"])' "$NARROW" "$work/ovr.txt"
-has "...with the subject's own basis in the sentence" "US subsidiary" "$work/ovr.txt"
+has "...with the subject's own basis in the sentence" "Exchange Act registrant" "$work/ovr.txt"
 has "...and its own declarer, which the org-level record cannot supply" \
     "General Counsel" "$work/ovr.txt"
 eq "a subject declaring itself out of DORA removes a battery the profile kept" \
@@ -291,7 +298,7 @@ eq "...and none of its DORA windows are computed" \
 eq "a subject declaring null does not override the profile" \
    "profile" "$(row "$NARROW" I-005 '[s["source"] for s in r["context"]["skipped"] if s["battery"] == "sec-item-105"][0]')"
 eq "...and the null declaration is still visible in the record" \
-   "True" "$(row "$NARROW" I-005 '"listedEntity" in (r["context"]["subjectDeclared"] or {})')"
+   "True" "$(row "$NARROW" I-005 '"secItem105Scope" in (r["context"]["subjectDeclared"] or {})')"
 
 # --- 4. the conflict: the incident tracks a regime the profile says is out -----
 eq "an incident tracking Item 1.05 against a not-listed profile is a conflict" \
@@ -369,13 +376,13 @@ else
   ok "a payload with no decided applicability is refused, not silently un-narrowed"
 fi
 has "...naming the command that produces one" "business_context.py export" "$work/err2.txt"
-if "$PY" "$E" declare-context "$S" --id I-001 --flag listedEntity --value true \
+if "$PY" "$E" declare-context "$S" --id I-001 --flag secItem105Scope --value true \
    --by "GC" --actor eval > /dev/null 2>&1; then
   bad "a subject declaration with no --basis is refused" "it was accepted"
 else
   ok "a subject declaration with no --basis is refused"
 fi
-if "$PY" "$E" declare-context "$S" --id I-001 --flag listedEntity --value true \
+if "$PY" "$E" declare-context "$S" --id I-001 --flag secItem105Scope --value true \
    --basis "because" --actor eval > /dev/null 2>&1; then
   bad "a subject declaration with no --by is refused" "it was accepted"
 else

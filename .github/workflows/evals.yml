@@ -197,6 +197,14 @@ jobs:
       - name: Board-safety (business-context), on the floor
         run: PY="$(command -v python3)" ./skills/business-context/evals/board-safety.sh
 
+      # BL-175, both directions. A profile flag is a dictionary of English sentences plus a
+      # mapping, and nothing in this repo ever read either — so `listedEntity`, documented as
+      # "shares admitted to trading — the SEC Item 1.05 perimeter", gated a four-business-day
+      # Form 8-K deadline for twelve releases. Eight release tests reported it, and every one
+      # of them had to notice it by reading. This is the check that fails instead.
+      - name: One fact per flag, on the floor
+        run: PY="$(command -v python3)" ./skills/business-context/evals/one-fact-per-flag.sh
+
       # Every consumer of CAC-AP-1, held to the contract from the side that DEFINES it.
       # Each consumer's own suite pins that consumer; none of them can see four engines
       # implementing the same six clauses and drifting apart one release at a time, each
@@ -216,6 +224,14 @@ jobs:
       # flag that quietly changed the output of every run that never passes it.
       - name: Applicability contract (incident), on the floor
         run: PY="$(command -v python3)" ./skills/incident-materiality/evals/applicability.sh
+
+      # Decision AP-2, on every push. The two directions it settles are the ones eight
+      # release tests reproduced: a manufactured 8-K deadline for a non-registrant, and a
+      # suppressed one for an unlisted s.15(d) reporter. Both are one flag apart, and a
+      # withheld deadline that stops escalating is the second failure wearing the fix's
+      # clothes — so this asserts the withholding AND the attention that survives it.
+      - name: No clock without a declared perimeter, on the floor
+        run: PY="$(command -v python3)" ./skills/incident-materiality/evals/scope-withheld.sh
 
       # metrics-register: the engine's own parity discipline, then the derivations through
       # the real CLI. Polarity is the case both exist for — a lower-better metric that

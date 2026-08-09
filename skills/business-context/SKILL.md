@@ -77,9 +77,19 @@ python3 $E init context.biz --org "Northwind Manufacturing" --prepared-by "R. Ca
 
 python3 $E declare context.biz --flag listedEntity --value false \
   --by "General Counsel" --basis "Privately held; no securities admitted to trading."
+python3 $E declare context.biz --flag secItem105Scope --value false \
+  --by "General Counsel" \
+  --basis "No class registered under the Exchange Act and no s.15(d) obligation."
 python3 $E declare context.biz --flag doraScope --value true \
   --by "General Counsel" --basis "Dublin subsidiary authorised as a payment institution."
 ```
+
+**One flag, one fact — and the two above are two facts.** A listing is not an Exchange Act
+reporting obligation in either direction: an unlisted US issuer reporting under s.15(d) is
+inside the SEC Item 1.05 perimeter, and plenty of listed companies are outside it. Only
+`secItem105Scope` gates the Item 1.05 battery, and only counsel declares it. Where nobody has,
+the battery is asked in full and **no filing deadline is computed** — a manufactured legal date
+is worse than a missing one, because it gets acted on.
 
 **`--basis` is required, and so is `--by`.** A flag narrows what every other skill asks. One
 that cannot say why is worse than an absent flag, because absence asks everything — so the only
@@ -186,12 +196,23 @@ directions, and a subject that declares nothing does not override.
 
 **Every skip is visible**, carried into the artifact rather than swallowed:
 
-> *SEC Item 1.05 disclosure window — not assessed. Organisation profile: `listedEntity: false`,
-> declared 2026-03-02 by General Counsel — Privately held; no securities admitted to trading.*
+> *SEC Item 1.05 disclosure window — not assessed. Organisation profile:
+> `secItem105Scope: false`, declared 2026-03-02 by General Counsel — no class registered under
+> the Exchange Act and no s.15(d) obligation.*
 
 An auditor cannot otherwise tell a question that was correctly out of scope from one nobody
-asked. The full contract, written for skill authors implementing `--context`, is in
-`references/applicability-contract.md`.
+asked.
+
+**And so is every question asked on a silence** — in its own list, in wording that could not be
+mistaken for the sentence above:
+
+> *SEC Item 1.05 disclosure window — asked in full. Organisation profile: `secItem105Scope` is
+> not declared. Nobody has said whether this applies, which is not the same as saying it does
+> not (CAC-AP-1 §2.2), so the battery is asked and nothing is inferred from the silence.*
+
+*No answer because nobody said* and *no answer because counsel said no* are different facts,
+and a reader must never have to guess which one is in front of them. The full contract, written
+for skill authors implementing `--context`, is in `references/applicability-contract.md`.
 
 ## The archetype layer — depth, never scope
 

@@ -58,7 +58,7 @@ EU entity does not set DORA scope, and a lawyer decides that.
 
 | Group | Flags |
 |---|---|
-| Regulatory perimeter | `listedEntity` · `doraScope` · `nydfsScope` · `euEntity` · `ukEntity` |
+| Regulatory perimeter | `listedEntity` · `secItem105Scope` · `doraScope` · `nydfsScope` · `euEntity` · `ukEntity` |
 | Technology posture | `aiInUse` · `otPresent` · `cloudPosture` · `regulatedDataHeld` |
 | Third-party posture | `criticalVendorCount` · `concentrationConcern` |
 | Shape and size | `primarySector` · `secondarySector` · `headcountBand` · `jurisdictions` |
@@ -66,6 +66,20 @@ EU entity does not set DORA scope, and a lawyer decides that.
 The enumeration is **documentation, not a gate**. An unknown flag is accepted with a warning
 rather than refused: the regulatory perimeter list will outgrow anything written here, and a
 register that refuses tomorrow's regime is worse than one that records it unrecognised.
+
+**One flag, one fact.** `listedEntity` says shares trade on an exchange. `secItem105Scope` says
+the organisation must file current reports on Form 8-K under the Exchange Act. They are
+separate flags because they are separate facts and neither implies the other — an unlisted US
+issuer reporting under s.15(d) is inside the Item 1.05 perimeter, and plenty of listed
+companies are outside it. A single flag documented as both gated a four-business-day filing
+deadline off the wrong one for twelve releases (BL-175), so `one-fact-per-flag.sh` now fails
+the build on a definition that joins two facts, and on a battery gated by a flag that does not
+name its regime.
+
+`secItem105Scope` is **declared by counsel and never inferred**, on the same reasoning that
+stops `incident-materiality` emitting a materiality verdict: a generated answer would be
+discoverable alongside the filing it disagreed with. Undeclared means *not declared* — the
+battery is asked and no window is computed. See CAC-AP-1 §2.4.1.
 
 ## The context record
 
