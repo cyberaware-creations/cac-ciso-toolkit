@@ -440,7 +440,11 @@ General categories: Operational · Financial · Third-Party / Supply-Chain · Co
 
 ## Matrix sizes and rating labels
 
-`matrixSize` ∈ {3, 4, 5} (5×5 default). Likelihood and impact run `1..matrixSize`. Labels (SP 800-30):
+`matrixSize` ∈ {3, 4, 5} (5×5 default). Likelihood and impact run `1..matrixSize`.
+
+**The 5-level labels are SP 800-30 Rev. 1's qualitative scale; the 4- and 3-level sets are this
+tool's own.** 800-30 defines one five-level scale — Very Low / Low / Moderate / High / Very High —
+and no shorter variants, so a smaller matrix is a CAC convenience, not a NIST one. Labels:
 
 | Level | 5×5 | 4×4 | 3×3 |
 |---|---|---|---|

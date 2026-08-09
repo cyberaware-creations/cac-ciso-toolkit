@@ -6,6 +6,10 @@ The five classes below follow the **shape** of NIST's work on adversarial machin
 (the AI 100-2 series): a taxonomy of attacks on AI systems organised by what the attacker is
 trying to achieve, split between predictive and generative systems.
 
+**The current edition is `NIST AI 100-2 E2025`** — *Adversarial Machine Learning: A Taxonomy and
+Terminology of Attacks and Mitigations*, final 24 March 2025. Named here so a reader checking this
+file knows which document to open, and knows the earlier E2023 edition is not it.
+
 **That publication is not bundled in this repository**, the way the CSF 2.0 Core and the
 800-53 crosswalk are. This file describes what the engine implements. It does not quote the
 publication, it does not reproduce its attack taxonomy, and **nothing here should be relied on

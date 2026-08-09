@@ -6,10 +6,24 @@ Ported verbatim from the Cyber Aware Creations web engine (lib/risk/scoring.ts, 
 import.ts) so a skill run bands risks identically to the original tool instead of
 eyeballing thresholds. Standard library only — no dependencies.
 
-NIST anchors:
-  - Exposure = Likelihood x Impact   (SP 800-30 Rev. 1, qualitative model)
+NIST anchors, stated at the altitude the sources actually support:
+  - Rating LABELS are SP 800-30 Rev. 1's five-level qualitative scale
+    (Very Low / Low / Moderate / High / Very High)
   - Bands scale with matrix size     (documented per size below)
   - Appetite = worst band still acceptable  (CSF 2.0 GV.RM)
+
+  The ARITHMETIC is this tool's own, and saying so is the point. SP 800-30 Rev. 1
+  does not multiply likelihood by impact -- the phrase appears nowhere in it --
+  and it sets no numeric band thresholds. It combines the two through Table I-2,
+  a 5x5 LOOKUP returning one of the same five qualitative levels. That table is
+  not a product and does not agree with one: at Likelihood=Very High with
+  Impact=Very Low it returns Very Low, where 5 x 1 = 5 lands mid-scale here.
+
+  So exposure = likelihood x impact, the numeric thresholds and the four bands
+  (low/medium/high/critical) are the CAC model, held in parity with the Cyber
+  Aware Creations web engine -- 800-30-INFORMED, not 800-30-defined. This is the
+  same correction SKILL.md's if-then note makes about NISTIR 8286A r1 and risk
+  WORDING. It was overdue on the scoring.
 
 Subcommands:
   score        <register.rr> [--json] [--today YYYY-MM-DD]
@@ -93,8 +107,10 @@ SUPPORTED_SCHEMA = {1, 2}   # v1 files load and are normalized to v2 shape in me
 BAND_ORDER = ["low", "medium", "high", "critical"]
 
 # Inclusive lower bound for each band, per matrix size. First band (scanning
-# critical -> low) whose threshold <= exposure wins. Values match the 800-30
-# banding used in the tool; 5x5 is the standard 1..25 spread.
+# critical -> low) whose threshold <= exposure wins. These are the CAC model's
+# thresholds, held in parity with the web engine — NOT 800-30's, which sets no
+# numeric thresholds at all and resolves to five qualitative levels rather than
+# four bands. 5x5 is the standard 1..25 spread.
 BAND_THRESHOLDS = {
     5: {"low": 1, "medium": 5, "high": 10, "critical": 15},
     4: {"low": 1, "medium": 4, "high": 8, "critical": 12},
