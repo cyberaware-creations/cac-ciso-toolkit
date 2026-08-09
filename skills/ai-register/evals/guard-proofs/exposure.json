@@ -1,0 +1,28 @@
+{
+  "guard": "skills/ai-register/evals/exposure.sh",
+  "forbids": "a hand-selectable exposure class — any command or function letting somebody trim a derived class — and a derivation that silently stops deriving",
+  "note": "Enrolled in v0.56.0 by BL-101/BL-99. Its own header says 'the guard is the ABSENCE of a command, and an absence has to be checked or it grows back' — and it had never been mutation-tested, because filename discovery never saw it.",
+  "mutations": [
+    {
+      "half": "absence",
+      "why": "The way in. A subcommand named for deselecting a class is exactly the 'helpful' addition the guard refuses, and needs no implementation to defeat it, because the guard reads --help.",
+      "defeats": [
+        "no subcommand selects, excludes or accepts a class"
+      ],
+      "file": "skills/ai-register/scripts/ai_register.py",
+      "find": "    sp = store_arg(sub.add_parser(\"sanction\"))",
+      "replace": "    sp = store_arg(sub.add_parser(\"deselect-exposure\"))\n    sp = store_arg(sub.add_parser(\"sanction\"))"
+    },
+    {
+      "half": "derivation",
+      "why": "The other direction: leave the CLI alone and stop deriving. A generative deployment that no longer picks up NISTAML.04 has quietly narrowed what the register claims to watch — invisible to the absence half. Narrowed in v0.56.0 under BL-102: the first version renamed `add` to an undefined `_disabled_04`, which raised NameError and took 03, 05 and the availability pair down with it. A mutation that crashes its subject proves the guard notices a crash, not that it notices the defect.",
+      "defeats": [
+        "NISTAML.04 derives for a generative deployment",
+        "flipping genAI recomputes exposure"
+      ],
+      "file": "skills/ai-register/scripts/ai_register.py",
+      "find": "    if gen:\n        add(\"04\", \"the deployment is generative, so its capability can be turned to an ",
+      "replace": "    if False:\n        add(\"04\", \"the deployment is generative, so its capability can be turned to an "
+    }
+  ]
+}

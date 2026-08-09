@@ -82,13 +82,24 @@ fi
 
 # --- 7-9. grace has boundaries ------------------------------------------------
 status() {  # status <today>
+  # Selects the dated T1 by its period, NOT by position. It read `evidence[0]` until v0.56.0,
+  # which silently made this half depend on the one above it: the first three ingests are
+  # refused, so index 0 is the complete T1 *only while the refusals hold*. Disable the T1
+  # scope-and-period refusal and the incomplete T1 lands at index 0, every expiry assertion
+  # reads an undated record, and three checks that belong to this half fail for a reason that
+  # has nothing to do with expiry. Proving each half separately (CAC-GP-1.9) is what surfaced
+  # it — the scope-and-period mutation was defeating both halves and proving neither.
   "$PY" -c '
 import importlib.util, json, sys
 spec = importlib.util.spec_from_file_location("vr", sys.argv[1])
 vr = importlib.util.module_from_spec(spec); spec.loader.exec_module(vr)
 store = json.load(open(sys.argv[2], encoding="utf-8"))
-ev = store["arrangements"][0]["evidence"][0]
-print(vr.evidence_status(ev, sys.argv[3], 365))' "$V" "$S" "$1"
+dated = [e for e in store["arrangements"][0]["evidence"]
+         if e.get("tier") == "T1" and e.get("periodEnd")]
+if len(dated) != 1:
+    print("fixture-error: %d dated T1(s), expected exactly 1" % len(dated))
+    raise SystemExit(0)
+print(vr.evidence_status(dated[0], sys.argv[3], 365))' "$V" "$S" "$1"
 }
 [ "$(status 2025-06-01)" = "current" ] \
   && ok "inside its period, a T1 is current" \

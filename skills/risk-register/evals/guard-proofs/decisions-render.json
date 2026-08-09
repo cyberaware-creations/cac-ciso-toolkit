@@ -1,0 +1,17 @@
+{
+  "guard": "skills/risk-register/evals/decisions-render.sh",
+  "forbids": "a board decision rendered as a raw Python dict repr instead of its text",
+  "note": "Enrolled in v0.56.0 by BL-101/BL-99. This guard ships in seven skills and was discovered by none of them: filename convention globbed no-*.sh plus three literal names, and decisions-render.sh matched nothing. Never mutation-tested until now.",
+  "mutations": [
+    {
+      "half": "render",
+      "why": "The shipped P1: the sidecar carries decisions as {\"text\", \"altitude\"} objects and the renderer stringified them, so the board read a raw Python dict. One half, because the guard asserts one property — the rendered page carries the decision TEXT and never the dict repr. The mutation restores the defect at the one expression that produced it. NOTE on the choice of replacement. Two obvious mutations do NOT defeat this guard, and both failures are informative. Returning the dict makes esc() raise, the renderer dies, no HTML is written — and the guard's greps then find nothing and report clean, which is the crashed-probe blindness of BL-121 showing up inside the guard itself. Returning str(d) does render the repr, but esc() turns the quotes into &#x27; so the literal {'text' the guard greps for never appears. So the mutation defeats the half the guard can actually see: the decision text must reach the board, and an empty string means it does not.",
+      "defeats": [
+        "board decision text renders as prose"
+      ],
+      "file": "skills/risk-register/renderers/render_board.py",
+      "find": "def _dtext(d): return d.get(\"text\") if isinstance(d, dict) else d",
+      "replace": "def _dtext(d): return \"\""
+    }
+  ]
+}

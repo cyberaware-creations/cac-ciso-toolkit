@@ -6,6 +6,9 @@
     {
       "half": "static",
       "why": "the arithmetic itself, wherever it hides",
+      "defeats": [
+        "no shipped .py divides by or percentages the revenue base"
+      ],
       "file": "skills/business-context/scripts/business_context.py",
       "find": "    snap = last_review(store)\n    rev = store[\"context\"].get(\"revenue\")",
       "replace": "    snap = last_review(store)\n    rev = store[\"context\"].get(\"revenue\")\n    _pct = (rev or {}).get(\"exact\", 0) / 100.0"
@@ -13,6 +16,9 @@
     {
       "half": "behavioural",
       "why": "a derived figure reaching an emitted payload under any name",
+      "defeats": [
+        "no derived materiality figure in `export` output"
+      ],
       "file": "skills/business-context/scripts/business_context.py",
       "find": "        \"contractVersion\": \"CAC-AP-1\",\n        \"schemaVersion\": SCHEMA_VERSION,",
       "replace": "        \"contractVersion\": \"CAC-AP-1\",\n        \"materialityThreshold\": 1234.0,\n        \"schemaVersion\": SCHEMA_VERSION,"
