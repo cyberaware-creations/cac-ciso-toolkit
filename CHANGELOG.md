@@ -21,6 +21,69 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.52.0 — 2026-08-08
+
+**Reference Watch Phase 0 — `sources.json` and CAC-RW-1.** The structural fix the last four
+releases argued for. Every skill now declares the sources it cites, when each was last read
+against its primary text, and by whom.
+
+### Why a manifest and not another sweep
+
+v0.48.0–v0.51.0 read six reference families against their instruments and found **twelve
+defects**. Every one was an *amendment* failure — the citation was correct when written and the
+instrument moved underneath it. **Not one could have been caught by re-reading the repo.** Four
+sweeps fixed four families; nothing recorded that they had been swept, so the fifth pass would
+have started from zero.
+
+The pattern being copied was already in the tree: the crosswalk bundle is the one place with a
+freshness stamp, and the one place a validator enforces one.
+
+### Four checks, and the one that matters
+
+`tools/check-sources.py` runs **C1** presence, **C2** shape, **C3** rendered-citation
+byte-equality and **C4** `usedFor` paths exist. C3 is the point: a renderer keeps its literal
+string — renderers never read the manifest at runtime, because every shipped script here runs
+standalone — and CI compares the two byte-for-byte. The same technique `CROSSWALK_EXPECTED`
+already uses to pin counts.
+
+C3 earned itself immediately. It failed on first run against `render_report.py`, which still
+emitted the undated *"(DORA RTS Art. 3(d); NYDFS §500)"*. That string now names its instrument:
+**(DORA RTS (EU) 2024/1774 Art. 3(d); NYDFS 23 NYCRR 500)**. C4 caught two manifests where a
+shared row had carried another skill's file paths.
+
+### RW-1.8 — `unverified` is a first-class value
+
+A design addition made while authoring, and the most important decision in this release.
+**5 of 37 rows record a citation nobody has yet read against its primary source**, and they say
+so: `checkedBy: "unverified"`. The run prints that count on every invocation.
+
+The alternative — stamping every row as checked on the day the manifest was authored — would have
+been a **worse lie than the undated citations it replaced**, because it would look supervised.
+An unverified row may never be `gated`; the check refuses it, since the gate would otherwise be
+timing a check that never happened.
+
+### The release gate
+
+`--release-gate` fails when a gated source passes its `reviewIntervalDays` (365 for the legal
+instruments). An override needs a reason, an owner and a date, and **an empty reason still
+fails** — the same discipline `exceptions-register` applies to an unapproved acceptance.
+
+That gate is what makes precise dated citations safe to ship. If it is ever relaxed, rendered
+citations must fall back to identifier-only: a confident citation nobody maintains is worse than
+the vague one it replaced.
+
+### What it cannot do, stated in the standard
+
+**A manifest watches what a skill cites. It cannot see a withdrawn publication the skill does not
+cite.** SP 800-61 Rev. 2 was withdrawn on 2025-04-03; its four-phase incident lifecycle is still
+repeated by nearly every secondary source. This toolkit cites it nowhere, so there is nothing to
+fix — and no manifest would ever catch the first author who reaches for it by reflex. A
+do-not-cite list is the complement, and is tracked separately.
+
+Self-test 31 checks. Three CI steps, listed individually.
+
+---
+
 ## v0.51.0 — 2026-08-08
 
 **The last three reference families: SP 800-30 Rev. 1, NIST AI 100-2, and NIS2.** Small surfaces,

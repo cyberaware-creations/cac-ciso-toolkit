@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "skill": "board-pack",
+  "sources": [
+    {
+      "id": "csf-2-0",
+      "label": "NIST Cybersecurity Framework 2.0",
+      "publisher": "NIST",
+      "instrument": "NIST CSWP 29",
+      "version": "CSF 2.0, 26 Feb. 2024",
+      "checkedOn": "2026-08-08",
+      "checkedBy": "claude-code",
+      "gated": false,
+      "usedFor": [
+        "renderers/render_pack.py"
+      ]
+    },
+    {
+      "id": "ir-8286c",
+      "label": "NISTIR 8286C r1",
+      "publisher": "NIST",
+      "instrument": "NIST IR 8286C r1",
+      "version": "final 18 Dec. 2025",
+      "checkedOn": "2026-08-08",
+      "checkedBy": "claude-code",
+      "gated": true,
+      "reviewIntervalDays": 365,
+      "usedFor": [
+        "renderers/render_pack.py"
+      ]
+    }
+  ]
+}

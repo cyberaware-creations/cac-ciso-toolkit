@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "skill": "nist-csf",
+  "sources": [
+    {
+      "id": "csf-2-0",
+      "label": "NIST Cybersecurity Framework 2.0",
+      "publisher": "NIST",
+      "instrument": "NIST CSWP 29",
+      "version": "CSF 2.0, 26 Feb. 2024",
+      "checkedOn": "2026-08-08",
+      "checkedBy": "claude-code",
+      "gated": false,
+      "usedFor": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "id": "cyber-ai-profile",
+      "label": "NIST Cyber AI Profile",
+      "publisher": "NIST",
+      "instrument": "NIST IR 8596",
+      "version": "as bundled; see references/",
+      "checkedOn": "2026-08-08",
+      "checkedBy": "unverified",
+      "gated": false,
+      "usedFor": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "id": "crosswalk-catalogues",
+      "label": "Crosswalk target catalogues",
+      "publisher": "ISO/IEC; CIS; NIST",
+      "instrument": "ISO/IEC 27001:2022; CIS Controls v8.1; NIST SP 800-53 Rev. 5",
+      "version": "as bundled in references/, validated by tools/crosswalks/validate_crosswalks.py",
+      "checkedOn": "2026-08-08",
+      "checkedBy": "unverified",
+      "gated": false,
+      "usedFor": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "id": "sp-1300",
+      "label": "NIST SP 1300",
+      "publisher": "NIST",
+      "instrument": "NIST SP 1300",
+      "version": "informs the cold-start rank only",
+      "checkedOn": "2026-08-08",
+      "checkedBy": "unverified",
+      "gated": false,
+      "usedFor": [
+        "references/cold-start-rank.json"
+      ]
+    }
+  ]
+}

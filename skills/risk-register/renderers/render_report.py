@@ -255,7 +255,8 @@ def register_note(ctx: C.Context) -> str:
                     f'at this review point.')
     if any(r["acceptance"] for r in ctx.risks):
         bits.append('Recorded acceptance — approver, justification, re-validation and expiry — is '
-                    'the audit-defensible layer (DORA RTS Art. 3(d); NYDFS §500). Not legal advice.')
+                    'the audit-defensible layer (DORA RTS (EU) 2024/1774 Art. 3(d); '
+                    'NYDFS 23 NYCRR 500). Not legal advice.')
     return " ".join(bits)
 
 
