@@ -43,7 +43,7 @@
       "usedFor": [
         "references/exceptions.md"
       ],
-      "whyUnverified": "ISO/IEC standards are paywalled and iso.org's Online Browsing Platform returns HTTP 403 to this environment. Verifying the clause numbering needs a licensed copy. This is a structural limit, not a transient failure — do not re-attempt from the web."
+      "whyUnverified": "This row asserts what ISO/IEC 27001:2022 Cl. 6.1.3 and 8.3 REQUIRE — a claim about the standard's text, not just its numbering. ISO text is paywalled, iso.org's Online Browsing Platform returns HTTP 403 here, and the maintainer confirmed on 2026-08-08 that this project holds no ISO licence. This is permanent, not pending: do not re-attempt from the web. Two ways to close it — read a licensed copy, or narrow the claim in references/exceptions.md to the clause numbering alone, which the nist-csf crosswalk already verifies via NIST's own reference export."
     }
   ]
 }
