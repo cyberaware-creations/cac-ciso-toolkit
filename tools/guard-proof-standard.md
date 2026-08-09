@@ -156,10 +156,33 @@ disk exactly one of three roles — `guard`, `candidate`, `not-a-guard` — and 
 of them fails the run.** Classifying non-guards is not bookkeeping; it is the mechanism. Only a
 list obliged to cover everything can fail on something missing.
 
-`candidate` is a real verdict, not a waiting room: guard-shaped, deliberately not yet enrolled.
-The count prints on every run — currently **eleven**, the nine `board-safety.sh`,
-`vendor-register/questions.sh` and `business-context/archetype-advisory.sh`. It was invisible
-before; a number that prints is a number somebody eventually reduces.
+`candidate` is a real verdict, not a waiting room: guard-shaped, deliberately not enrolled.
+The count prints on every run, and it fell from eleven to one across v0.60.0 and v0.61.0 —
+which is what a printed number is for.
+
+**A candidate may be `permanent`, and one is.** `business-context/evals/archetype-advisory.sh`
+cannot be mutation-tested, and the reason is worth more than an enrolment would have been. It
+runs an A/B holding every declared fact constant and moving only revenue and headcount,
+asserting the applicability objects come back byte-identical. To defeat it, a mutation must
+make A and B **differ** — but `applies(profile, question_sets, subject)` never receives the
+store, so revenue and headcount are **structurally unreachable from the function that decides
+scope**. The separation this suite protects is enforced by the call signature, not by
+convention, and a mutation would have to widen that signature first, which is a design change
+and not a proof.
+
+Enrolling it would mean registering a mutation that trips an adjacent check and calling the
+guard proved: the exact failure GP-1.9 exists for. So the third answer is recorded as data —
+`"permanent": true` on the registry row — and the run counts the two kinds apart:
+
+```
+48 eval script(s) classified; 0 candidate(s) awaiting enrolment, 1 permanent (unmutatable by design)
+```
+
+Printing a settled verdict as *"not yet enrolled"* would be a small, permanent untruth in the
+one line a reader trusts for scope. `permanent` is valid on a candidate and nowhere else, and
+the registry check enforces that. **If `applies()` ever gains access to the store the row must
+be revisited** — the defect becomes expressible, and a mutation becomes both possible and
+required.
 
 ### GP-1.9 A mutation names the checks it defeats, and defeats exactly those
 
