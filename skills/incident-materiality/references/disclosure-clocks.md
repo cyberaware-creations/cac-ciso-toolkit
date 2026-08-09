@@ -109,9 +109,14 @@ windows the engine implements:
 
 | window | deadline |
 |---|---|
-| `initial` | **4 hours** from classification as major, and no later than **24 hours** from becoming aware of the incident — whichever comes first |
-| `intermediate` | **72 hours** from the initial notification |
-| `final` | **one month** from the latest intermediate report |
+| `initial` | **4 hours** from classification as major, and no later than **24 hours** from becoming aware — the earlier of the two, **except** where classification came more than 24 hours after awareness, when it is 4 hours from classification alone |
+| `intermediate` | **72 hours** from submission of the initial notification |
+| `final` | **one month** from the intermediate report, or the latest updated intermediate report |
+
+All three are **Article 5 of Commission Delegated Regulation (EU) 2025/301** — the RTS on the
+content and time limits for the initial notification and the intermediate and final reports,
+made under Article 19(4) of DORA. Cite that instrument for the windows, not RTS 2024/1774, which
+is the ICT risk-management RTS and sets no reporting deadline.
 
 ### Why these anchors are timestamps
 
@@ -123,9 +128,23 @@ else is a date, and that asymmetry is deliberate — see `schema.md`.
 will not read a bare date as midnight to manufacture hour precision. A deadline that looks exact
 and is not is worse than a visible gap.
 
-The `initial` deadline is the **earlier** of the two computed bounds, so an entity that classifies
-late does not thereby extend the 24-hour awareness cap. Where only `awareAt` is set, the 24-hour
-bound is used alone and the output says so.
+### The `initial` deadline, and the carve-out that is easy to miss
+
+Normally the deadline is the **earlier** of the two bounds: an entity that classifies promptly
+cannot use the four-hour bound to run past the 24-hour awareness cap. Where only `awareAt` is
+set, the 24-hour bound is used alone and the output says so.
+
+**Article 5(2) is the exception, and it runs the other way.** Where the entity has *not*
+classified the incident as major within 24 hours of awareness and classifies it later, the
+notification is due *"within four hours from the classification"* — full stop. The awareness cap
+has already lapsed and does not bind.
+
+Until v0.49.0 this engine applied the earlier-of rule unconditionally, which on a
+late-classified incident produced a deadline **already in the past** and reported it
+**overdue** while four hours still remained. That is a false overdue, and this file argues
+elsewhere that a false overdue is the worst way for a clock to fail: it pushes somebody into
+filing before they are ready. The engine now applies 5(2), the note names the provision that
+governed, and the self-test pins both the deadline and the `due` state.
 
 `intermediate` and `final` anchor on the **previous filing**, not on the incident — so they are
 `not-started` until `dora:initial` and `dora:intermediate` respectively are recorded in
@@ -137,10 +156,18 @@ not silently produce a phantom intermediate deadline.
 - **Classification as *major* is a criteria-based judgment** made against the classification RTS
   thresholds. This engine does not make it, and does not check it. It runs the clock from the
   moment you record that you made it.
-- **The engine does not apply the next-working-day allowance.** The reporting rules provide relief
-  where a deadline falls outside working hours or on a weekend or public holiday; the engine
-  computes the raw hour deadline instead. That is **earlier** than the relieved deadline — the
-  safe direction — but it is not the letter of the rule, and it should not be quoted as such.
+- **The engine does not apply the next-working-day allowance, and the allowance is narrower than
+  it sounds.** Article 5(4) of RTS 2025/301 gives relief only where a deadline falls **on a
+  weekend day or a bank holiday** in the entity's Member State — not merely outside working
+  hours — and then only until **noon of the next working day**. Article 5(5) withdraws it
+  entirely for the initial notification and the intermediate report by **credit institutions,
+  central counterparties, operators of trading venues, and entities identified as essential or
+  important under Article 3 of NIS2 (Directive (EU) 2022/2555)**. The engine computes the raw
+  hour deadline for everyone. That is **earlier** than any relieved deadline — the safe
+  direction — but it is not the letter of the rule and should not be quoted as such.
+- **A deadline you cannot meet still has to be told to the regulator.** Article 5(3) requires an
+  entity that cannot file in time to inform the competent authority **before the deadline
+  passes** and explain why. The engine tracks the deadline, not that obligation.
 - **Windows and content requirements are set by the RTS/ITS and are amendable.** Verify against
   the current text before relying on a date this tool prints.
 - **DORA binds in-scope EU financial entities only.** `regimes` is set per incident for exactly

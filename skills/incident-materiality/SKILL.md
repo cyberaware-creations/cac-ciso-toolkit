@@ -196,7 +196,9 @@ ask into the determination record (§2.5), so a reader a year later can tell whi
 the judgment was made against. The full contract is
 `../business-context/references/applicability-contract.md`.
 
-`initial` is the **earlier** of classification + 4h and awareness + 24h. `intermediate` runs
+`initial` is the **earlier** of classification + 4h and awareness + 24h — **except** where
+classification came more than 24h after awareness, when Art. 5(2) of RTS 2025/301 gives four
+hours from classification and the lapsed awareness cap does not bind. `intermediate` runs
 72h from the initial notification actually filed, and `final` one month from the intermediate
 — each anchored on the previous filing, so a missed initial produces no phantom deadline.
 

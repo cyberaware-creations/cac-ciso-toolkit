@@ -168,8 +168,9 @@ obligation, never as an imminent enforcement threat.
 and governance, including board oversight. **Limit:** it is an annual narrative obligation, not an
 incident clock; it is listed here because it is the other half of what a board is asked about.
 
-**DORA (Regulation (EU) 2022/2554) and its reporting RTS/ITS** — in-scope financial entities must
-classify ICT-related incidents and report major ones on defined windows. **Limits:** it binds
+**DORA (Regulation (EU) 2022/2554, applicable from 17 Jan. 2025) and its reporting RTS,
+Commission Delegated Regulation (EU) 2025/301** — in-scope financial entities must
+classify ICT-related incidents and report major ones on the Art. 5 windows. **Limits:** it binds
 in-scope EU financial entities only; classification as *major* is itself a criteria-based judgment
 this tool does not make; and the windows are counted in clock hours, not business days. See
 `disclosure-clocks.md`.

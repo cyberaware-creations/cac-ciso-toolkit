@@ -866,16 +866,34 @@ def dora_clocks(inc: dict, now_iso: str) -> list:
                       deadline=deadline, filed=filed,
                       hoursRemaining=round(hours_between(now_iso, deadline), 2), note=note)
 
-    # initial — the EARLIER of classification+4h and awareness+24h, so classifying late does
-    # not extend the awareness cap.
+    # initial — Article 5(1)(a) and Article 5(2) of Commission Delegated Regulation (EU)
+    # 2025/301.
+    #
+    # 5(1)(a) sets two bounds: four hours from classification as major, AND no later than 24
+    # hours from awareness. Both bind, so the EARLIER governs — classifying promptly cannot be
+    # used to run past the awareness cap.
+    #
+    # 5(2) is the carve-out this engine had wrong until v0.49.0. Where the entity has NOT
+    # classified the incident as major within 24 hours of awareness and classifies it later,
+    # the notification is due "within four hours from the classification". The awareness cap
+    # has already lapsed; it does not make the report retrospectively overdue. Taking min()
+    # unconditionally produced a deadline in the past and reported OVERDUE on an incident that
+    # was inside its window — a FALSE OVERDUE, the one direction this file argues a clock must
+    # never fail in, because it pushes somebody into filing before they are ready.
     aware, classified = anchors.get("awareAt"), anchors.get("classifiedAt")
+    late_classification = bool(
+        aware and classified
+        and parse_ts(classified) > parse_ts(aware) + timedelta(hours=DORA_INITIAL_FROM_AWARE_H))
     bounds = []
     if classified:
         bounds.append((fmt_ts(parse_ts(classified)
                               + timedelta(hours=DORA_INITIAL_FROM_CLASSIFIED_H)),
                        classified, "classification",
-                       f"{DORA_INITIAL_FROM_CLASSIFIED_H} hours from classification as major"))
-    if aware:
+                       f"{DORA_INITIAL_FROM_CLASSIFIED_H} hours from classification as major"
+                       + (f"; classification came more than {DORA_INITIAL_FROM_AWARE_H}h after "
+                          "awareness, so Art. 5(2) of RTS 2025/301 governs and the awareness "
+                          "cap no longer binds" if late_classification else "")))
+    if aware and not late_classification:
         bounds.append((fmt_ts(parse_ts(aware) + timedelta(hours=DORA_INITIAL_FROM_AWARE_H)),
                        aware, "awareness",
                        f"{DORA_INITIAL_FROM_AWARE_H} hours from becoming aware"))
@@ -1460,6 +1478,28 @@ def _cmd_self_test(_args):
         d = analyze(store, "2026-07-06", "2026-07-06T14:00:00+00:00")["incidents"][1]
         eq([c for c in d["clocks"] if c["window"] == "initial"][0]["state"], CLOCK_OVERDUE,
            "and overdue an hour after")
+
+        # Art. 5(2) of RTS 2025/301 — the carve-out this engine had wrong until v0.49.0.
+        # Aware 07-06T06:00, classified 07-08T09:00: more than 24h later. Under 5(2) the
+        # deadline is classification + 4h = 07-08T13:00. Taking the earlier bound would give
+        # 07-07T06:00, a deadline already in the past, and report OVERDUE on an incident with
+        # four hours still to run. A false overdue is the one direction a clock must not fail
+        # in, so it is pinned here in both the deadline and the state.
+        set_anchor(store, "I-002", aware="2026-07-06T06:00:00+00:00",
+                   classified="2026-07-08T09:00:00+00:00", actor="t")
+        d = analyze(store, "2026-07-08", "2026-07-08T10:00:00+00:00")["incidents"][1]
+        init = [c for c in d["clocks"] if c["window"] == "initial"][0]
+        eq(init["deadline"], "2026-07-08T13:00:00+00:00",
+           "late classification: Art. 5(2) gives four hours from classification")
+        eq(init["anchorKind"], "classification", "and the awareness cap does not govern")
+        eq(init["state"], CLOCK_DUE,
+           "NOT overdue — the lapsed awareness cap must not backdate the deadline")
+        eq(init["hoursRemaining"], 3.0, "three hours remain under 5(2)")
+        ok("Art. 5(2)" in init["note"], "and the note cites the provision that governed")
+        # Restore the prompt-classification anchors the rest of this block builds on.
+        set_anchor(store, "I-002", aware="2026-07-06T06:00:00+00:00",
+                   classified="2026-07-06T09:00:00+00:00", actor="t")
+        d = analyze(store, "2026-07-06", "2026-07-06T14:00:00+00:00")["incidents"][1]
 
         inter = [c for c in d["clocks"] if c["window"] == "intermediate"][0]
         eq(inter["state"], CLOCK_NOT_STARTED,
