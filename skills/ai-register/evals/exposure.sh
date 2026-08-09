@@ -60,7 +60,7 @@ if printf '%s' "$help_text" | grep -qiE 'select|deselect|exclude|mark-|set-class
   bad "no subcommand selects, excludes or accepts a class" \
       "$(printf '%s' "$help_text" | grep -iE 'select|exclude|mark-|dismiss|accept' | head -3)"
 else
-  ok "no subcommand selects, excludes, dismisses or accepts an exposure class"
+  ok "no subcommand selects, excludes or accepts a class"
 fi
 if "$PY" -c '
 import importlib.util, inspect, re, sys
@@ -97,7 +97,7 @@ case "$gen" in
   *) bad "NISTAML.03 derives for a generative deployment on personal data" "got: $gen" ;;
 esac
 case "$gen" in
-  *NISTAML.04*) ok "...and to misuse, because it is generative" ;;
+  *NISTAML.04*) ok "NISTAML.04 derives for a generative deployment" ;;
   *) bad "NISTAML.04 derives for a generative deployment" "got: $gen" ;;
 esac
 case "$gen" in
@@ -129,7 +129,7 @@ next(s for s in store["systems"] if s["id"] == "S-002")["genAI"] = True
 json.dump(store, open(sys.argv[1], "w", encoding="utf-8"), indent=2)' "$S"
 "$PY" "$A" map-exposure "$S" --deployment D-002 --by CISO >/dev/null 2>&1
 case "$(cls D-002)" in
-  *NISTAML.04*) ok "flipping genAI recomputes the exposure without anybody selecting a class" ;;
+  *NISTAML.04*) ok "flipping genAI recomputes exposure" ;;
   *) bad "flipping genAI recomputes exposure" "got: $(cls D-002)" ;;
 esac
 n=$("$PY" -c '

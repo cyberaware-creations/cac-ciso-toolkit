@@ -44,10 +44,28 @@ only=("$@")
 # Anti-vacuity, matching the house convention. A proof run that silently exercised nothing is
 # the thing this file exists to prevent, so the counts are asserted rather than printed.
 EXPECTED_GUARDS=36
-EXPECTED_HALVES=59
+EXPECTED_HALVES=64
+
+# GP-1.11 — a RATCHET, not an equality. `EXPECTED_GUARDS` and `EXPECTED_HALVES` are exact
+# because a guard appearing or vanishing is always worth a human look. This one is a floor:
+# the number of checks demonstrated to fail may rise freely and may never fall.
+#
+# A floor rather than a target because the honest end state is not 356 of 356. Some checks are
+# preconditions — a fixture was built, a scan read four files — and a mutation for those would
+# only prove the fixture still works. Others are the guarded property itself and genuinely
+# need one. Sorting the 273 into those two piles is real work and is filed separately; what
+# this line does is stop the ratio sliding backwards while nobody is looking, which is exactly
+# how it reached 14% without anyone deciding to.
+EXPECTED_PROVED=83
 
 guards_seen=0
 halves_seen=0
+
+# GP-1.11 — where each guard's PUBLISHED check labels are collected, harvested from the clean
+# run the runner already performs. Nothing new is executed for this; what was missing was ever
+# reading the clean output for anything but its exit status.
+labels_dir="$(mktemp -d)"
+trap 'rm -rf "$labels_dir"' EXIT
 fails=0
 
 pass_line() { printf '  ok    %s\n' "$1"; }
@@ -249,6 +267,24 @@ print(m.get("half") or "unnamed")' "$proof" "$i")
       continue
     fi
 
+    # GP-1.11 — harvest what the clean run PUBLISHED. Two reporting shapes, the same two
+    # `labels()` below reads for the mutated run, so a check is named identically on the way in
+    # and on the way out. Written once per guard; every half runs the same script.
+    lkey="${rel//\//__}"
+    if [ ! -f "$labels_dir/$lkey" ]; then
+      "$PY" - "$work/.clean.out" > "$labels_dir/$lkey" <<'PYEOF'
+import re, sys
+OK = re.compile(r"^ *ok +(\S.*?) *$")
+CHK = re.compile(r"^\S{1,6} +(\S.*?) +PASS\b.*$")
+seen = []
+for line in open(sys.argv[1], encoding="utf-8", errors="replace"):
+    m = OK.match(line.rstrip("\n")) or CHK.match(line.rstrip("\n"))
+    if m and m.group(1) not in seen:
+        seen.append(m.group(1))
+print("\n".join(seen))
+PYEOF
+    fi
+
     # GP-1.5 — apply, and a `find` that no longer matches is a failure.
     applied=$("$PY" - "$work" "$proof" "$i" <<'PYEOF'
 import json, pathlib, sys
@@ -361,6 +397,45 @@ PYEOF
   fi
 fi
 
+# GP-1.11 — how much of each guard has been DEMONSTRATED, not merely declared.
+#
+# `51 halves, each proved` was true and misleading at once: halves are counted from the proof
+# file, so a guard running twenty checks and registering one mutation was "fully proved" by
+# definition. Measured across the tree, 50 of 356 checks had ever been shown to fail. The
+# number now travels with the claim (BL-210).
+cov_line=""
+if [ ${#only[@]} -eq 0 ]; then
+  cov_out=$("$PY" "$repo/tools/proof-coverage.py" "$labels_dir" "$repo")
+  cov_rc=$?
+  cov_line=$(printf '%s\n' "$cov_out" | "$PY" -c '
+import sys
+for line in sys.stdin:
+    if line.startswith("COVERAGE "):
+        _, g, total, proved, waived, pct = line.split()
+        print("%s of %s checks proved by a mutation (%s%%), %s waived with a reason"
+              % (proved, total, pct, waived))
+        break
+')
+  while IFS= read -r problem; do
+    case "$problem" in
+      "PROBLEM "*) fail_line "every check is proved or waived (GP-1.11)" "${problem#PROBLEM }" ;;
+    esac
+  done <<COVEOF
+$cov_out
+COVEOF
+  if [ "$cov_rc" -eq 0 ]; then
+    pass_line "every mutation names a check the guard publishes, and every guard proves at least one"
+  fi
+  cov_proved=$(printf '%s\n' "$cov_out" | awk '/^COVERAGE /{print $4}')
+  if [ "${cov_proved:-0}" -lt "$EXPECTED_PROVED" ]; then
+    fail_line "the proved-check count has not gone backwards (GP-1.11)" \
+              "$cov_proved proved, floor is $EXPECTED_PROVED — a check that used to be "\
+"demonstrated no longer is. Restore it, or lower the floor deliberately and say why."
+  elif [ "${cov_proved:-0}" -gt "$EXPECTED_PROVED" ]; then
+    pass_line "proved checks rose to $cov_proved — raise EXPECTED_PROVED to hold the gain"
+  fi
+fi
+
 echo
 if [ ${#only[@]} -eq 0 ]; then
   if [ "$guards_seen" -ne "$EXPECTED_GUARDS" ]; then
@@ -383,6 +458,9 @@ if [ "$fails" -ne 0 ]; then
 fi
 printf 'prove-guards: %s guard(s), %s half/halves, each proved in both directions\n' \
        "$guards_seen" "$halves_seen"
+if [ ${#only[@]} -eq 0 ]; then
+  printf '             %s\n' "$cov_line"
+fi
 printf '             %s eval script(s) classified; %s candidate(s) awaiting enrolment, '\
 '%s permanent (unmutatable by design)\n' \
        "$scripts_seen" "$candidates_seen" "$permanent_seen"

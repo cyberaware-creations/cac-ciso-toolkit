@@ -36,6 +36,15 @@ bad() { checks=$((checks + 1)); fails=$((fails + 1)); printf '  FAIL  %s\n      
 wrote() {  # wrote <label> <file>
   if [ -s "$2" ]; then ok "$1"; else bad "$1" "the renderer wrote no page, so every grep below would have read nothing and reported clean"; fi
 }
+hastext() {  # hastext <label> <file> <needle>
+  # Silent on a missing page, for the same reason as norepr below: `wrote` owns that failure.
+  # Without this, the `crash` mutation defeats the text check too — and then the anti-vacuity
+  # property is proved only by a page that never rendered, which is one property standing in
+  # for another. That substitution IS BL-209, so leaving it here would reintroduce the defect
+  # inside its own fix (D-3).
+  if [ ! -s "$2" ]; then return; fi
+  if grep -qF -- "$3" "$2"; then ok "$1"; else bad "$1" "expected decision text not found"; fi
+}
 norepr() {  # norepr <label> <file> <extended-regex>
   # Silent, not `bad`, when there is no page — `wrote` above already owns that and has already
   # failed the suite. Reporting the same absence three times would make a missing page defeat
@@ -69,20 +78,17 @@ norepr "no raw dict repr in rendered decisions" "$work/board.html" "$RE_TEXT"
 norepr "no 'altitude' key in rendered output" "$work/board.html" "$RE_ALT"
 
 # 3. The board decision text is present (anti-vacuity).
-if grep -qF "Fund the data-at-rest encryption programme" "$work/board.html"; then
-  ok "board decision text renders as prose"
-else
-  bad "board decision text renders as prose" \
-      "expected 'Fund the data-at-rest encryption programme' not found in board HTML"
-fi
+hastext "board decision text renders as prose" "$work/board.html" "Fund the data-at-rest encryption programme"
 
 # 4. Management block is present (nist-csf example has 2 management decisions).
-if grep -qF "Management actions" "$work/board.html"; then
-  ok "management actions block present and separated from board decisions"
-else
-  bad "management actions block present" \
-      "expected 'Management actions' block not found in board HTML"
-fi
+#
+# Through `hastext` for the same reason as the decision text above: on a page the renderer
+# never wrote it must stay SILENT and let `wrote` own the failure. Reporting here too would
+# make the `crash` mutation defeat this check as well, and a half that defeats several
+# unrelated checks proves none of them (GP-1.9). The label also stops changing between the
+# ok and bad branches — it differed by four words, so the check that `defeats` named was not
+# quite the check that ran.
+hastext "management actions block present" "$work/board.html" "Management actions"
 
 echo
 if [ "$checks" -ne "$EXPECTED_CHECKS" ]; then

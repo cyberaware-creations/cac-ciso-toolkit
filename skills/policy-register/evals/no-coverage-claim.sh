@@ -93,7 +93,7 @@ fi
 scanned=$("$PY" "$here/_coverage.py" --analysis "$work/a.json" 2>"$work/b.err")
 rc=$?
 if [ "$rc" -eq 0 ]; then
-  ok "no key or status in the analysis says a requirement is met (${scanned})"
+  ok "no key or status in the analysis says a requirement is met"
 elif [ "$rc" -eq 2 ]; then
   bad "the analysis was actually inspected" "$(cat "$work/b.err")"
 else
@@ -110,7 +110,7 @@ fi
 chips=$("$PY" "$here/_coverage.py" --page "$work/req.html" 2>"$work/c.err")
 rc=$?
 if [ "$rc" -eq 0 ]; then
-  ok "no chip on the rendered page carries a coverage verdict (${chips})"
+  ok "no chip on the rendered page carries a coverage verdict"
 elif [ "$rc" -eq 2 ]; then
   bad "the rendered page's chips were actually inspected" "$(cat "$work/c.err")"
 else

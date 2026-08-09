@@ -2,7 +2,8 @@
 
 **Applies to:** every skill in `cac-ciso-toolkit`
 **Implemented by:** `tools/prove-guards.sh`, run in CI on the 3.9 floor
-**In force since:** v0.41.3 — GP-1.7 added in v0.45.0, GP-1.8 and GP-1.9 in v0.56.0
+**In force since:** v0.41.3 — GP-1.7 added in v0.45.0, GP-1.8 and GP-1.9 in v0.56.0,
+GP-1.10 in v0.64.1, GP-1.11 in v0.67.0
 **Sibling standard:** [CAC-LE-1](eval-lint-standard.md), the eval-harness lint
 
 *"Since", not "as of", deliberately. The line here read `as of v0.41.3` and was two minors
@@ -132,6 +133,15 @@ Each guard now recomputes the expected file list from the filesystem and asserts
 **all** of it. The recomputation is deliberately in the guard rather than the helper — a helper
 that both narrows its glob and reports what it should have read proves nothing.
 
+**That sentence is not yet true of the ten `board-safety.sh` suites, and this is the record of
+it.** They carry a hardcoded `FILES` tuple instead, so the count they assert is the length of
+their own list rather than of the tree. Measured: `risk-register` scans 3 of 5 shipped files —
+`_common.py`, `render_board.py` and `render_report.py` among the missing — `nist-csf` 4 of 6,
+`metrics-register` 3 of 4, and `ai-register` and `vendor-register` scan through a different
+idiom again. A file added to a skill tomorrow joins none of them. That is BL-211, filed with
+these numbers rather than left as an aspiration in this paragraph — a standard describing
+behaviour it does not have is the same defect one level up.
+
 *The registry.* Same rule applied to this document. `prove-guards.sh` now compares the table
 below against the guards it discovers and fails on either mismatch. That table said *"eight
 guards, sixteen halves"* for two minor versions after the ninth landed, with `outcome-framing.sh`
@@ -250,6 +260,55 @@ So, when writing or reviewing a guard:
 
 GP-1.1 already requires this of `skills/*/evals/*.sh`. The tool checks in `tools/` sit outside
 that registry and had no equivalent discipline; this clause is what they are held to instead.
+
+### GP-1.11 A check is proved, or it is counted as unproved — never assumed
+
+GP-1.1 requires a mutation per half. **Halves are counted from the proof file**, so the
+framework's own yardstick was the claim being made:
+
+```bash
+halves=$("$PY" -c 'print(len(proof.get("mutations") or []))' "$proof")
+```
+
+A guard running twenty checks and registering one mutation reported the same
+`each proved in both directions` as one whose every check is covered. Measured across the
+tree: **50 of 356 checks had ever been demonstrated to fail — 14%.** The sentence was true
+and misleading at once, which is worse than a sentence that is merely wrong (BL-210).
+
+**Two things were needed before the ratio could even be computed.**
+
+*A check must have a stable name.* Suites printed one label on success and another on failure:
+
+```bash
+ok  "no shipped .py assigns a closed-state field on an exposure class"
+bad "no shipped .py assigns a closed-state field"
+```
+
+GP-1.9 matches the mutated run, so the proof worked — but **33 of 83 `defeats` entries, 40%,
+across 15 of 36 guards, named a string no clean run ever published.** A check whose name
+changes with the branch, or with interpolated data (`ok "... ($scanned read)"`), cannot be
+counted, waived, or found by the next reader. The runner now fails on it.
+
+*The runner must read the clean run.* It always performed one — GP-1.4 step 1 — and only ever
+looked at the exit status. The published labels were there the whole time.
+
+**What is enforced.** Every `defeats` entry names a check the clean run publishes; every
+waived check exists; every guard defeats at least one of its own checks; and a waiver carries
+a reason that is not byte-identical to another guard's — because `guard-registry.json` already
+has 13 of 21 `not-a-guard` rows sharing one template, and that is what
+classification-by-boilerplate looks like from the outside.
+
+**What is counted, not enforced.** The remaining unproved checks. Mass-waiving them was the
+obvious move and is the wrong one: reading them, a real fraction *are* the guarded property —
+`ai-register`'s *"no decision renders as a raw Python dict — the defect this suite exists for"*
+was among them. A waiver there is not a decision, it is the same false comfort in a new
+wrapper, and it would read as settled. So the number is printed on every run and
+`EXPECTED_PROVED` is a **ratchet**: it may rise freely and may never fall. Sorting the
+remainder into needs-a-mutation and genuinely-a-precondition is separate, filed work.
+
+A floor rather than an equality, deliberately. The honest end state is not 356 of 356 — an
+anti-vacuity assertion that a fixture was built is a precondition, and a mutation for it would
+prove only that the fixture still works.
 
 ---
 
