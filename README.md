@@ -53,7 +53,8 @@ Build, score, and maintain a cybersecurity risk register that persists in a loca
 tracks how risk changes over time. Risks written as event statements in the CAC house format —
 carrying the four scenario elements NISTIR 8286A r1 §2.2 prescribes, though NIST prescribes no
 template — deterministic Likelihood ×
-Impact scoring and banding (SP 800-30), risk-appetite flagging (CSF 2.0 GV.RM), an append-only change
+Impact scoring and banding (rating labels from SP 800-30 Rev. 1; the arithmetic is CAC's own),
+risk-appetite flagging (CSF 2.0 GV.RM), an append-only change
 log with rationale, named review snapshots, structured risk acceptance, and reporting — heat matrix,
 themes, trend, and operational, executive, and printable board outputs.
 

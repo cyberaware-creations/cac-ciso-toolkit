@@ -187,8 +187,13 @@ acknowledgment suffices.
 
 **What it is.** Two real data points explain why a CISO personally attends to
 this:
-- **NIS2 Art. 20** attaches management-body accountability and personal-
-  liability exposure in covered EU entities.
+- **NIS2 Art. 20(1)** requires Member States to ensure that **management bodies**
+  of essential and important entities *"approve the cybersecurity risk-management
+  measures"* taken to comply with Art. 21, *"oversee its implementation and can be
+  held liable for infringements by the entities of that Article."* Art. 20(2) adds
+  a training obligation on those same members. **Note whose liability it is:** the
+  directive attaches it to the management body, not to the CISO. Saying otherwise
+  in a board room is the overclaim this section exists to prevent.
 - The **SolarWinds matter named a CISO individually** on an SEC complaint.
 
 **Use.** As *motivation* for why getting board translation right matters to the
