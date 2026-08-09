@@ -21,6 +21,55 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.66.0 — 2026-08-09
+
+**A board decision was rendering as a Python dict on a shipped page, and five guards written to
+prevent exactly that were green over it.**
+
+`skills/risk-register/renderers/render_report.py` printed both board decisions as escaped
+reprs on every operational report:
+
+> `{&#x27;text&#x27;: &quot;Fund DMARC enforcement…&quot;, &#x27;altitude&#x27;: &#x27;board&#x27;}`
+
+which a browser renders as `{'text': "Fund DMARC enforcement…", 'altitude': 'board'}`. That is
+the original P1 the `decisions-render` suites exist for, live at v0.65.2.
+
+**Why nothing saw it.** `C.esc()` was `html.escape(str(s))`. On a dict, `str()` makes the repr
+and `html.escape` rewrites its quotes as `&#x27;` — so a grep for the literal `{'text'` finds
+nothing on a page made entirely of them (BL-199). Five suites greped only the raw form. Two
+other holes stacked on top: a `grep` over a file the renderer never wrote also finds nothing and
+also reports clean, and `render_report.py` was rendered by no guard at all.
+
+**The previous proof file diagnosed this correctly and stepped around it.** Its own note says
+returning `str(d)` renders the repr but *"esc() turns the quotes into &#x27; so the literal
+{'text' the guard greps for never appears"*, and that returning the dict makes the renderer die
+into the crashed-probe blindness of BL-121. Having written both down, it registered a mutation
+that avoided them — so what was proved was that the decision text reaches the page, not that the
+repr never does.
+
+**The fix, at the cause.** `esc()` now refuses a container. A runtime census over every eval
+suite in the repo — 21,213 strings, 595 ints, four dicts — settled the fork the item carried:
+refusing non-strings would break 595 legitimate call sites (`esc(42)` is "42" and should be),
+while all four container calls were the defect. So the rule is not *strings only*; it is that a
+dict, list, tuple or set never belongs in a text slot, and it raises at the call site holding
+the object rather than three layers later in a page nobody diffed. Nine copies.
+
+**And at the symptom, because the guard must be able to fail.** The five now grep the escaped
+form, assert the renderer actually wrote a page, and — for risk-register — render *both*
+renderers that emit decisions. `ai-register` and `vendor-register` already handled the escaped
+form and were not among the five.
+
+**Every registered mutation is now the real defect.** `repr` (`_dtext → str(d)`) defeats the
+repr checks; `crash` (`_dtext → d`, which `esc()` now refuses) defeats the wrote-a-page and
+text-present checks; risk-register adds `report-repr` so the new second-renderer coverage is
+proved rather than asserted. `norepr` stays silent on a missing page so `wrote` owns that
+failure alone — otherwise one mutation defeats every check and proves nothing about any of them.
+
+Counts: `prove-guards` 36 guards / 53 halves → **36 / 59**; `decisions-render` suites 3→4, 3→4,
+3→4, 4→5 and 3→**8** for risk-register. Everything else unchanged and green.
+
+---
+
 ## v0.65.2 — 2026-08-09
 
 **The three limits BL-188's sweep left open, closed — and the tempting fix for one of them was
