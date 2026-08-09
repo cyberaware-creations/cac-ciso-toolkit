@@ -70,15 +70,32 @@ python3 scripts/incident_analysis.py init incidents.inc --client "Acme" \
 
 ### Limits on the SEC clock
 
-- **The engine computes a date, not a time.** A filing submitted after 5:30 p.m. Eastern is
-  generally treated as filed the next business day. Treat the computed deadline as the last day,
-  not the last moment, and file with room.
+- **The engine computes a date, not a time.** Under Rule 13(a)(2) of Regulation S-T
+  (**17 CFR 232.13(a)(2)**) a filing transmitted after 5:30 p.m. Eastern is deemed filed the next
+  business day. Treat the computed deadline as the last day, not the last moment, and file with
+  room.
 - **Item 1.05 applies to SEC registrants** and nobody else.
-- **Item 1.05 expressly does not require technical detail** about the incident or the response
-  where disclosing it would impede remediation. A tool that produced a technical narrative for an
-  8-K would be answering a question the rule did not ask.
-- **There is a limited national-security delay mechanism** (an Attorney-General determination)
-  which this engine does not model. If it is in play, the deadline here is not your deadline.
+- **The technical-detail carve-out is narrower than it is usually described, and it does not
+  cover the incident.** Instruction 4 to Item 1.05 says a registrant *"need not disclose specific
+  or technical information about its planned response to the incident or its cybersecurity
+  systems, related networks and devices, or potential system vulnerabilities in such detail as
+  would impede the registrant's response or remediation of the incident."* Three things: the
+  **response**, the **systems**, the **vulnerabilities**. The incident itself is not among them —
+  Item 1.05(a) requires the material aspects of its *nature, scope, and timing*. A tool that
+  produced a technical narrative of your defences for an 8-K would be answering a question the
+  rule did not ask; a tool that read this carve-out as licence to withhold what happened would be
+  worse, and this file said something close enough to that to matter until v0.48.0.
+- **Two delay mechanisms exist, and the engine models neither.**
+  - **Item 1.05(c)** — the Attorney General may determine that disclosure poses a substantial
+    risk to national security or public safety: up to 30 days, a further 30 on a renewed
+    determination, then a final 60 in extraordinary circumstances, and beyond that only by
+    Commission exemptive order.
+  - **Item 1.05(d)** — a registrant subject to the FCC's breach-notification rule
+    (**47 CFR 64.2011**) may delay for the period applicable under that rule, and in no event
+    more than **seven business days** after the notification it requires, provided it notifies
+    the Commission by EDGAR correspondence.
+
+  If either is in play, the deadline computed here is not your deadline.
 - **The rules have faced rescission pressure and a materially reduced enforcement posture.** This
   is a preparedness and defensibility tool. Do not sell it as an imminent-enforcement tool; the
   board-safety eval fails the render if it reads that way.

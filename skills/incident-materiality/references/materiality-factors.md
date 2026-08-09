@@ -158,8 +158,9 @@ handing the regulator a record of the day you crossed it.
 **SEC Item 1.05 of Form 8-K** — a registrant must disclose a cybersecurity incident it determines
 to be material, describing the material aspects of its nature, scope and timing, and the material
 impact or reasonably likely material impact. **Limits:** it applies to SEC registrants and nobody
-else; it expressly does not require technical detail about the incident or the response that would
-impede remediation; the determination is a company-specific judgment; and the rules have faced
+else; its technical-detail carve-out covers the *planned response*, the *systems* and the
+*vulnerabilities* — **not the incident**, whose nature, scope and timing Item 1.05(a) requires
+(see `disclosure-clocks.md`); the determination is a company-specific judgment; and the rules have faced
 rescission pressure and a materially reduced enforcement posture. Cite it as a preparedness
 obligation, never as an imminent enforcement threat.
 

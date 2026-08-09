@@ -21,6 +21,66 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.48.0 — 2026-08-08
+
+**The SEC reference family, read against the adopting release.** First family after 8286 in the
+reference-verification programme, taken first because it carries the highest consequence if
+wrong: a tool that miscounts a disclosure deadline, or tells a registrant it may withhold
+something the rule requires, is worse than no tool.
+
+Source of record: the **Federal Register**, 88 FR 51896 (4 Aug. 2023), Release Nos. 33-11216;
+34-97989, File No. S7-09-22 — the official publication of the final rule, downloaded and checked
+locally. SEC.gov returns HTTP 403 to this environment; the Federal Register does not, and it is
+the primary publication either way.
+
+### Twelve claims held
+
+The four-business-day deadline (*"An Item 1.05 Form 8-K must be filed within four business days
+of determining an incident was material"*), the *"without unreasonable delay after discovery"*
+determination standard (Instruction 1, verbatim), the Attorney-General delay, registrant-only
+scope, Item 106(b)'s *"in sufficient detail for a reasonable investor to understand those
+processes"* (verbatim), **board oversight sitting in 106(c) and not 106(b)**, the release
+numbers, the Gerding statement of 14 Dec. 2023 and its quotation, the SolarWinds dismissal with
+prejudice on 20 Nov. 2025, `17 C.F.R. § 229.106`, the 5:30 p.m. EDGAR cutoff, and the
+rescission-pressure framing — which remains accurate: **the rule is still in force.** Repeal was
+requested in comment letters responding to the SEC's January 2026 Regulation S-K review; it has
+not happened.
+
+### The technical-detail carve-out was stated too widely — in three files
+
+Three files said Item 1.05 *"does not require technical detail **about the incident** or the
+response"*. Instruction 4 says a registrant *"need not disclose specific or technical information
+about its **planned response** to the incident or its **cybersecurity systems, related networks
+and devices**, or **potential system vulnerabilities**"*.
+
+**The incident is not in the carve-out.** Item 1.05(a) requires the material aspects of its
+nature, scope and timing. The repo's phrasing pointed at withholding the one thing the rule
+compels — the direction of error that matters in a disclosure tool, and the reason this family
+went first.
+
+### A second delay mechanism was missing entirely
+
+`disclosure-clocks.md` described *"a limited national-security delay mechanism"*, singular. There
+are two. **Item 1.05(d)** lets a registrant subject to the FCC breach rule (**47 CFR 64.2011**)
+delay up to **seven business days** after the notification that rule requires. Both are now
+documented, with the Attorney-General ladder stated concretely (30 + 30 + 60, then Commission
+exemptive order only).
+
+### An unverifiable date removed, and better identifiers put in
+
+The receipts table said the rule was *"adopted 26 July 2023"*. That is the SEC open-meeting date,
+carried on a press release this environment cannot reach, and it is absent from the Federal
+Register metadata. Rather than keep a date that could not be checked, the row now carries what
+was verified and is more useful for retrieval: the release numbers, the file number, **88 FR
+51896**, the 5 Sep. 2023 effective date, and the exact pages of the adopted text — **51942** for
+Item 106, **51945** for Item 1.05 and its Instructions.
+
+Those page numbers were themselves wrong on first writing. The row initially read *51942–44*,
+guessed from the document's span; computing the page markers gave 51945 for Item 1.05. Caught
+before commit, in the pass about uncaught citations.
+
+---
+
 ## v0.47.0 — 2026-08-08
 
 **Every claim this repo makes about an IR 8286 document, read against the document.** v0.46.0
