@@ -76,8 +76,8 @@ answer.
 
 ```json
 "contextDeclares": {
-  "listedEntity": {"value": true, "declaredBy": "General Counsel", "declaredOn": "2026-07-22",
-                   "basis": "The affected entity is the US subsidiary whose shares are admitted to trading."}
+  "secItem105Scope": {"value": true, "declaredBy": "General Counsel", "declaredOn": "2026-07-22",
+                      "basis": "The affected entity is the US subsidiary, itself an Exchange Act registrant."}
 }
 ```
 

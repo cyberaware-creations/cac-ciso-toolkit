@@ -225,8 +225,26 @@ def is_attributed(field) -> bool:
 # rather than refused: the regulatory perimeter list will outgrow anything written here, and
 # a register that refuses tomorrow's regime is worse than one that records it unrecognised.
 
+# ONE FLAG, ONE FACT — and `one-fact-per-flag.sh` fails the build rather than trusting the
+# next reader to notice.
+#
+# `listedEntity` used to read "shares admitted to trading — the SEC Item 1.05 perimeter".
+# Two facts joined by an em dash, and the second one is a mapping in disguise: for twelve
+# releases that sentence gated a four-business-day Form 8-K deadline off a listing fact. A
+# London-listed plc with no Exchange Act obligation was handed a clock it does not owe; an
+# unlisted US issuer reporting under §15(d) was denied one it does. Neither failure is in any
+# line of arithmetic. The wrong fact was selected one layer up, in this table, and every
+# review passed because nothing here looks like an inference (BL-175).
 KNOWN_FLAGS = {
-    "listedEntity": "shares admitted to trading — the SEC Item 1.05 perimeter",
+    "listedEntity": "shares admitted to trading on a public exchange",
+    # SEPARATELY DECLARED, and never inferred from `listedEntity` in either direction. Item
+    # 1.05 reaches registrants subject to Exchange Act reporting: that takes in unlisted
+    # §15(d) reporters and leaves out plenty of companies whose shares trade somewhere.
+    # Which side of that line an organisation sits on is a securities-law determination, so
+    # counsel declares it here for the same reason `incident-materiality` refuses to emit a
+    # materiality verdict — a generated answer would be discoverable alongside the filing it
+    # disagreed with.
+    "secItem105Scope": "required to file current reports on Form 8-K under the Exchange Act",
     "euEntity": "an establishment in the EU",
     "doraScope": "in scope for DORA as a financial entity or critical ICT provider",
     "nydfsScope": "a NYDFS Part 500 covered entity",
@@ -628,7 +646,10 @@ def last_review(store: dict):
 
 QUESTION_SETS = {
     "incident": {
-        "sec-item-105": "listedEntity",
+        # NOT `listedEntity` — see the KNOWN_FLAGS comment and BL-175. The gate is the
+        # Exchange Act reporting obligation, declared by counsel; a listing is neither
+        # necessary nor sufficient for it.
+        "sec-item-105": "secItem105Scope",
         "dora-windows": "doraScope",
         "nydfs-notification": "nydfsScope",
     },
@@ -694,6 +715,61 @@ def skip_record(battery: str, flag: str, source: str, field=None,
     return rec
 
 
+def undeclared_record(battery: str, flag: str, field=None) -> dict:
+    """One battery that is asked BECAUSE nobody has declared its gate (CAC-AP-1 §2.4.1).
+
+    §2.2 already says absence asks. What it never said is that the asking leaves a trace, and
+    that omission is the whole of BL-175: a battery asked on a declaration and a battery asked
+    on silence arrive at the consumer as the same entry in the same list, so a consumer that
+    computes something from "asked" cannot tell whether anybody said it applied.
+
+    For a question set that costs a few minutes, the two really are the same. For a statutory
+    filing deadline they are not, and decision AP-2 settles which way: ask the battery,
+    withhold the date. This record is what makes the second half expressible at all.
+
+    `source` distinguishes a flag NOBODY ENTERED (`absent`) from one somebody entered as
+    "we do not know yet" (`profile`, carrying its declarer, date and basis). Both are
+    not-declared and both ask; only the second has a person attached, and a reader chasing
+    the gap needs to know whether there is anyone to chase.
+    """
+    rec = {"battery": battery, "label": BATTERY_LABEL.get(battery, battery),
+           "flag": flag, "source": "profile" if isinstance(field, dict) else "absent",
+           "declaredBy": "", "declaredOn": "", "basis": ""}
+    if isinstance(field, dict):
+        rec["declaredBy"] = str(field.get("declaredBy") or "")
+        rec["declaredOn"] = str(field.get("declaredOn") or "")
+        rec["basis"] = str(field.get("basis") or "")
+    rec["sentence"] = undeclared_sentence(rec)
+    return rec
+
+
+def undeclared_sentence(rec: dict) -> str:
+    """The §2.4.1 sentence, and it must not read like the §2.4 one.
+
+    *No answer because nobody said* and *no answer because somebody said no* are different
+    facts, and AP-2 is explicit that a reader must never have to work out which one they are
+    looking at. So this sentence never contains the word "not assessed" — the battery WAS
+    assessed — and it always names the flag that would settle it, because the reader's next
+    action is to go and get that declaration.
+    """
+    label = rec.get("label") or rec.get("battery")
+    flag = rec.get("flag")
+    if rec.get("source") == "profile":
+        who = rec.get("declaredBy") or "an unattributed entry"
+        when = rec.get("declaredOn")
+        attribution = ("recorded %s by %s" % (when, who)) if when else ("recorded by %s" % who)
+        basis = str(rec.get("basis") or "").strip()
+        tail = (" — %s" % (basis if basis.endswith((".", "!", "?")) else basis + ".")
+                ) if basis else "."
+        return ("%s — asked in full. Organisation profile: `%s` is recorded with no value, "
+                "%s, so scope has not been declared either way%s"
+                % (label, flag, attribution, tail))
+    return ("%s — asked in full. Organisation profile: `%s` is not declared. Nobody has said "
+            "whether this applies, which is not the same as saying it does not (CAC-AP-1 "
+            "§2.2), so the battery is asked and nothing is inferred from the silence."
+            % (label, flag))
+
+
 def skip_sentence(rec: dict) -> str:
     """The §2.4 sentence a consumer embeds verbatim in its artifact.
 
@@ -727,13 +803,20 @@ def applies(profile: dict, question_sets: dict, subject: dict = None) -> dict:
     `question_sets` maps battery id -> the profile flag that gates it.
     `subject` maps the same flag names -> the subject's own declaration.
 
-    Returns {"ask": [...], "skipped": [ {...}, ... ]}.
+    Returns {"ask": [...], "skipped": [ {...}, ... ], "undeclared": [ {...}, ... ]}.
+
+    `undeclared` is a SUBSET OF `ask`, never a third alternative to it — §2.2 is unchanged
+    and absence still asks everything. It says which of those questions are being asked
+    because nobody has declared the gate, so a consumer that would otherwise compute
+    something off `ask` can tell a declared yes from a silence. See `undeclared_record`.
     """
     profile = profile or {}
     subject = subject or {}
-    ask, skipped = [], []
+    ask, skipped, undeclared = [], [], []
     for battery, gate in question_sets.items():
-        # §2.3 first: the subject outranks the profile, in both directions.
+        # §2.3 first: the subject outranks the profile, in both directions. A subject
+        # declaration settles the gate, so a battery reaching here is never `undeclared`
+        # regardless of what the profile is missing.
         if gate in subject:
             declared_subject = subject[gate]
             if declared_subject is None:
@@ -751,11 +834,13 @@ def applies(profile: dict, question_sets: dict, subject: dict = None) -> dict:
         # block comment above; this line is the contract.
         if declared_value is None:
             ask.append(battery)
+            undeclared.append(undeclared_record(battery, gate, field=field))
         elif declared_value:
             ask.append(battery)
         else:
             skipped.append(skip_record(battery, gate, "profile", field=field))
-    return {"ask": sorted(ask), "skipped": sorted(skipped, key=lambda r: r["battery"])}
+    return {"ask": sorted(ask), "skipped": sorted(skipped, key=lambda r: r["battery"]),
+            "undeclared": sorted(undeclared, key=lambda r: r["battery"])}
 
 
 def applies_for(store: dict, skill: str, subject: dict = None) -> dict:
@@ -770,8 +855,11 @@ def applies_for(store: dict, skill: str, subject: dict = None) -> dict:
 
 def parse_subject_declares(pairs) -> dict:
     """`--subject-declares ai=true` -> {"aiInUse": True}, via the documented aliases."""
+    # `listed` still means `listedEntity` and deliberately does NOT reach the SEC gate: the
+    # short form of the wrong flag is how the conflation would come back. `sec` is its own
+    # alias because the flag it names is its own fact (BL-175).
     aliases = {"ai": "aiInUse", "listed": "listedEntity", "dora": "doraScope",
-               "nydfs": "nydfsScope", "ot": "otPresent",
+               "sec": "secItem105Scope", "nydfs": "nydfsScope", "ot": "otPresent",
                "regulated-data": "regulatedDataHeld"}
     out = {}
     for raw in (pairs or []):
@@ -1203,59 +1291,95 @@ def _cmd_self_test(_args) -> int:
 
 
         # --- T7: the contract. These five are what it lives or dies on. --------
-        QS = {"sec-item-105": "listedEntity", "dora-windows": "doraScope"}
+        #
+        # The gate is `secItem105Scope`, the real one, not a stand-in. A contract test
+        # written against a flag the shipped question set does not use would keep passing
+        # through exactly the repointing this section exists to protect (BL-175).
+        QS = {"sec-item-105": "secItem105Scope", "dora-windows": "doraScope"}
 
         # 1. Empty profile -> EVERY battery asked, nothing skipped. Absence asks more.
         got = applies({}, QS)
         eq(got["ask"], ["dora-windows", "sec-item-105"], "an empty profile asks everything")
         eq(got["skipped"], [], "and skips nothing")
+        eq([r["battery"] for r in got["undeclared"]], ["dora-windows", "sec-item-105"],
+           "and every one of those asks is recorded as resting on a silence, not an answer")
 
         # 2. Flag present but value None -> still asked. `None` is not-declared, and a
         #    wrapper with a null value is exactly how a half-filled form arrives.
-        got = applies({"listedEntity": declared(None, "D. G.", "2026-01-01", "unknown")}, QS)
+        got = applies({"secItem105Scope": declared(None, "D. G.", "2026-01-01", "unknown")},
+                      QS)
         ok("sec-item-105" in got["ask"],
            "a flag declared with a null value asks, rather than narrowing")
         eq(got["skipped"], [], "and is not recorded as a skip")
+        # ...but it IS recorded as undeclared, and with its declarer, because somebody
+        # entered "we do not know yet" and there is a person to go back to.
+        und = [r for r in got["undeclared"] if r["battery"] == "sec-item-105"][0]
+        eq((und["source"], und["declaredBy"]), ("profile", "D. G."),
+           "a recorded null carries who recorded it, unlike a flag nobody ever entered")
+        eq([r["source"] for r in applies({}, QS)["undeclared"]], ["absent", "absent"],
+           "while a flag nobody entered is `absent`, and has nobody attached to chase")
 
         # The same, unwrapped: a bare None in the profile is not-declared too.
-        eq(applies({"listedEntity": None}, QS)["ask"],
+        eq(applies({"secItem105Scope": None}, QS)["ask"],
            ["dora-windows", "sec-item-105"], "a bare null flag asks as well")
 
         # 3. Flag false -> skipped, WITH its provenance. §2.4: an auditor must be able to
         #    tell a question correctly out of scope from one nobody asked.
-        prof = {"listedEntity": declared(False, "D. Galleyne", "2026-07-14",
-                                         "Privately held; no admitted securities")}
+        prof = {"secItem105Scope": declared(False, "D. Galleyne", "2026-07-14",
+                                            "No class of securities registered under the "
+                                            "Exchange Act; no s.15(d) obligation")}
         got = applies(prof, QS)
         eq(got["ask"], ["dora-windows"], "a false flag removes its battery")
         eq([r["battery"] for r in got["skipped"]], ["sec-item-105"], "and records the skip")
+        eq([r["battery"] for r in got["undeclared"]], ["dora-windows"],
+           "a skipped battery is not also undeclared — it was answered, with a no")
         rec = got["skipped"][0]
         eq(rec["declaredBy"], "D. Galleyne", "the skip carries who declared it")
         eq(rec["declaredOn"], "2026-07-14", "and when")
-        eq(rec["basis"], "Privately held; no admitted securities", "and on what basis")
+        ok(rec["basis"].startswith("No class of securities"), "and on what basis")
         sentence = skip_sentence(rec)
-        for needle in ("listedEntity", "2026-07-14", "D. Galleyne", "not assessed"):
+        for needle in ("secItem105Scope", "2026-07-14", "D. Galleyne", "not assessed"):
             ok(needle in sentence, "the rendered skip names %s" % needle)
+
+        # AP-2's third row, and the reason this whole section grew a list. `not assessed`
+        # and `asked with nothing declared` must not read alike, because a reader who cannot
+        # tell them apart cannot tell a settled no from an unanswered question — and one of
+        # those is the London-listed non-registrant that gets no 8-K clock.
+        u_sent = applies({}, QS)["undeclared"][1]["sentence"]
+        ok("not assessed" not in u_sent,
+           "the undeclared sentence never says `not assessed` — the battery WAS assessed")
+        for needle in ("secItem105Scope", "asked in full", "not declared"):
+            ok(needle in u_sent, "and it names %s" % needle)
 
         # 4. Flag false AND the subject declares true -> ASKED. This is the design's
         #    vendor-with-AI case: the org declared no AI, this vendor processes data with a
         #    model, and the assessor in front of the evidence outranks the profile.
-        got = applies(prof, QS, subject={"listedEntity": True})
+        got = applies(prof, QS, subject={"secItem105Scope": True})
         ok("sec-item-105" in got["ask"],
            "a subject declaring true re-adds a battery the profile removed")
         eq(got["skipped"], [], "and nothing is skipped")
+        eq([r["battery"] for r in got["undeclared"]], ["dora-windows"],
+           "and the re-added battery is NOT undeclared: the subject declared it")
 
         # 5. Flag true AND the subject declares false -> skipped, naming the SUBJECT.
         #    The override runs in both directions or it is not an override.
-        got = applies({"listedEntity": declared(True, "D. G.", "2026-01-01", "listed")},
-                      QS, subject={"listedEntity": False})
+        got = applies({"secItem105Scope": declared(True, "D. G.", "2026-01-01", "registrant")},
+                      QS, subject={"secItem105Scope": False})
         eq(got["ask"], ["dora-windows"], "a subject declaring false removes it")
         eq(got["skipped"][0]["source"], "subject", "and the skip names the subject")
         ok("overrides the organisation profile" in skip_sentence(got["skipped"][0]),
            "which the rendered sentence says in as many words")
 
+        # A subject declaring TRUE over a profile silence settles the gate. Without this the
+        # subject layer could re-add a battery and leave it marked undeclared, and the
+        # consumer would withhold a deadline the assessor had just declared into existence.
+        got = applies({}, QS, subject={"secItem105Scope": True})
+        eq([r["battery"] for r in got["undeclared"]], ["dora-windows"],
+           "a subject declaration settles a gate the profile left silent")
+
         # A subject that declares None says nothing, and falls through to the profile
         # rather than being read as False.
-        got = applies(prof, QS, subject={"listedEntity": None})
+        got = applies(prof, QS, subject={"secItem105Scope": None})
         eq([r["battery"] for r in got["skipped"]], ["sec-item-105"],
            "a subject declaring null does not override; the profile still decides")
         # The SOURCE, not just the battery. A subject-null wrongly read as false skips the
@@ -1270,18 +1394,26 @@ def _cmd_self_test(_args) -> int:
         # must ask; only an explicit False may narrow. `if not declared:` passes every other
         # test in this file and fails this one.
         for empty in (None, declared(None)):
-            eq(applies({"listedEntity": empty}, QS)["skipped"], [],
+            eq(applies({"secItem105Scope": empty}, QS)["skipped"], [],
                "not-declared (%r) never narrows" % (empty,))
-        eq([r["battery"] for r in applies({"listedEntity": False}, QS)["skipped"]],
+            eq([r["battery"] for r in applies({"secItem105Scope": empty}, QS)["undeclared"]],
+               ["dora-windows", "sec-item-105"],
+               "and not-declared (%r) is recorded as such" % (empty,))
+        eq([r["battery"] for r in applies({"secItem105Scope": False}, QS)["skipped"]],
            ["sec-item-105"], "while a bare False does narrow")
-        eq([r["battery"] for r in applies({"listedEntity": declared(False)}, QS)["skipped"]],
+        eq([r["battery"] for r in applies({"secItem105Scope": declared(False)}, QS)["skipped"]],
            ["sec-item-105"], "as does a wrapped False")
 
-        # Every battery is accounted for: asked or skipped, never dropped.
-        for prof2 in ({}, prof, {"listedEntity": declared(False), "doraScope": declared(False)}):
+        # Every battery is accounted for: asked or skipped, never dropped. And `undeclared`
+        # is a SUBSET of `ask`, never a third bucket beside it — a consumer that iterated
+        # `ask` and got a short list would be narrowing on absence, which is §2.2 inverted.
+        for prof2 in ({}, prof,
+                      {"secItem105Scope": declared(False), "doraScope": declared(False)}):
             r = applies(prof2, QS)
             eq(sorted(r["ask"] + [x["battery"] for x in r["skipped"]]), sorted(QS),
                "every battery is either asked or skipped, for profile %r" % (prof2,))
+            ok(all(x["battery"] in r["ask"] for x in r["undeclared"]),
+               "and every undeclared battery is one of the asked ones, for %r" % (prof2,))
 
         # --- T8: the CLI surface ----------------------------------------------
         store = load(path)
@@ -1304,13 +1436,40 @@ def _cmd_self_test(_args) -> int:
            "and a full flag name passes through")
         refuses(lambda: parse_subject_declares(["ai"]), "a malformed subject declaration")
 
-        # The worked store declares listedEntity false, so `incident` must skip the SEC
-        # battery and say why.
+        eq(parse_subject_declares(["sec=true"]), {"secItem105Scope": True},
+           "the sec alias resolves to the Exchange Act flag")
+        eq(parse_subject_declares(["listed=true"]), {"listedEntity": True},
+           "and `listed` still means the listing fact, which no longer gates the SEC battery")
+
+        # THE MIGRATION, asserted on the unmodified fixture (BL-175 T3).
+        #
+        # This store declares `listedEntity: false` and nothing about SEC scope — which is
+        # every store written before this change. Under the old mapping it SKIPPED the SEC
+        # battery, and the skip sentence quoted the declarer and the date, so it read as a
+        # settled legal answer. It was not one: the same shape is an unlisted issuer
+        # reporting under Exchange Act s.15(d), which is squarely inside Item 1.05 and was
+        # being silently dropped.
+        #
+        # No migration code runs. The rule does the work: SEC scope is undeclared here, and
+        # undeclared asks.
         res = applies_for(store, "incident")
-        ok("sec-item-105" in [r["battery"] for r in res["skipped"]],
-           "the store's false flag narrows the incident question set")
+        ok("sec-item-105" in res["ask"],
+           "a store carrying only listedEntity now ASKS the SEC battery rather than "
+           "skipping it — the s.15(d) suppression closes without a migration step")
+        eq([r["battery"] for r in res["skipped"]], [],
+           "and the false listing flag narrows nothing, because it never gated this")
+        u = [r for r in res["undeclared"] if r["battery"] == "sec-item-105"][0]
+        ok("secItem105Scope" in u["sentence"],
+           "...and the reason names the flag that would settle it")
         ok("dora-windows" in res["ask"],
            "while doraScope, declared true later, is still asked")
+
+        # Now declare SEC scope false, so the rest of this file exercises a real narrowing
+        # rather than the absence above.
+        declare_flag(store, "secItem105Scope", "false", "D. Galleyne",
+                     "No registered class and no s.15(d) obligation; confirmed by counsel")
+        save(path, store)
+        store = load(path)
 
         # --- T9: the consumer payload -----------------------------------------
         payload = context_payload(store)
@@ -1341,6 +1500,15 @@ def _cmd_self_test(_args) -> int:
            "each skip carries its own rendered §2.4 sentence")
         ok("D. Galleyne" in payload["applicability"]["incident"]["skipped"][0]["sentence"],
            "...naming the declarer, so the consumer embeds it rather than rebuilding it")
+        # §2.4.1 travels too, or the consumer re-derives it from the raw flags —
+        # which is the re-implementation §2.2 already forbids, one clause along.
+        eq([r["battery"] for r in payload["applicability"]["incident"]["undeclared"]],
+           ["nydfs-notification"],
+           "the undeclared batteries travel beside the asked and the skipped")
+        eq(sorted(payload["applicability"]["posture"]["undeclared"][0]),
+           ["basis", "battery", "declaredBy", "declaredOn", "flag", "label", "sentence",
+            "source"],
+           "in a fixed shape a consumer can rely on")
         # Absence must reach the payload as `ask`, not as a missing entry. A consumer reading
         # `applicability` sees the same thing `applies()` decided, including for a store that
         # has declared nothing at all.

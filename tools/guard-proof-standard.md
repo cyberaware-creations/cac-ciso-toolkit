@@ -289,6 +289,8 @@ that registry and had no equivalent discipline; this clause is what they are hel
 | `no-coverage-percentage.sh` | `policy-register` | a proportion, percentage or float in the requirement view — counts only | behavioural · static |
 | `no-deletion.sh` | `policy-register` | any path that removes a policy record; supersession is the only way out of force | static · behavioural |
 | `requirement-drift.sh` | `policy-register` | a vendored requirement spine that no longer matches the nist-csf artifacts | regeneration |
+| `one-fact-per-flag.sh` | `business-context` | a profile flag that states two facts, or a battery gated on a flag that does not name its regime | static · mapping |
+| `scope-withheld.sh` | `incident-materiality` | a statutory deadline computed for a perimeter nobody declared, or withheld without saying so | no-manufactured-date · no-silent-withholding |
 
 Every guard above, both halves, proved in both directions on every run. **The table is checked,
 not maintained by memory** — `prove-guards.sh` fails if a guard on disk is missing a row, or a

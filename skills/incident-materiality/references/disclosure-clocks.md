@@ -74,7 +74,29 @@ python3 scripts/incident_analysis.py init incidents.inc --client "Acme" \
   (**17 CFR 232.13(a)(2)**) a filing transmitted after 5:30 p.m. Eastern is deemed filed the next
   business day. Treat the computed deadline as the last day, not the last moment, and file with
   room.
-- **Item 1.05 applies to SEC registrants** and nobody else.
+- **Item 1.05 applies to SEC registrants** and nobody else — and the engine no longer guesses
+  who those are. Whether an organisation must file current reports on Form 8-K under the
+  Exchange Act is a securities-law determination, so it is declared on the applicability
+  profile as `secItem105Scope`, by counsel, and inferred from nothing.
+
+  Until v0.64.x it was inferred, from `listedEntity` — a flag meaning only that shares trade on
+  an exchange. That is not the same fact in either direction, and it failed in both: a
+  London-listed company with no Exchange Act obligation was given an 8-K clock it does not owe,
+  and an unlisted US issuer reporting under Exchange Act s.15(d) was denied one it does. Where
+  scope is **not declared**, the battery is still asked and **no window is computed** — see
+  CAC-AP-1 §2.4.1 and the `scope-not-declared` state below.
+- **This engine models the Form 8-K path only, and a registrant that does not use it is not
+  covered.** Not every organisation with a US reporting obligation discloses on Form 8-K; a
+  foreign private issuer follows a different route on a different form, and this engine has no
+  representation of it — no state, no anchor, no window.
+
+  That is a deliberate non-goal rather than an omission, and the reason is this file's own
+  standard: a clock ships here only once its rule has been read against the primary source and
+  written down with worked examples, the way Item 1.05 and DORA Art. 5 are. Nobody has done
+  that read for the alternative path, so the honest position is that it does not exist here.
+  The practical consequence is narrow but must be said plainly: declaring `secItem105Scope`
+  false is a statement about **Form 8-K**, not a finding that no disclosure obligation exists,
+  and this tool computes no deadline for anything it has not modelled.
 - **The technical-detail carve-out is narrower than it is usually described, and it does not
   cover the incident.** Instruction 4 to Item 1.05 says a registrant *"need not disclose specific
   or technical information about its planned response to the incident or its cybersecurity
@@ -182,6 +204,7 @@ not silently produce a phantom intermediate deadline.
 | `not-applicable` | the incident is not tracked against this regime |
 | `not-started` | the anchoring event has not happened — for Item 1.05, no `material` determination |
 | `anchor-missing` | the regime applies and the event has happened, but the anchor timestamp was never recorded |
+| `scope-not-declared` | nobody has declared whether this regime reaches this organisation, so no deadline is computed |
 | `due` | running; a deadline exists and has not passed |
 | `overdue` | the deadline has passed with no filing recorded |
 | `filed` | a filing is recorded for this window |
@@ -189,6 +212,18 @@ not silently produce a phantom intermediate deadline.
 `not-started` and `anchor-missing` are different states on purpose. The first is a correct,
 comfortable position — nothing is owed yet. The second is a gap in the record, and it is the one
 that should make somebody act.
+
+`scope-not-declared` is a third kind of thing again, and it exists because the other five could
+not say it. `not-applicable` means nobody tracked the regime; `not-started` means the anchor
+event has not happened. Neither means *we do not know whether this regime reaches you* — and
+with no word for that, an undeclared perimeter borrowed silence: the clock simply computed. That
+is how a four-business-day Form 8-K deadline came to be produced for organisations that owe no
+such filing.
+
+The row names the flag that would settle it, and where the incident is tracked against the
+regime anyway it escalates as `scope-undeclared`. Both halves are the rule: withholding without
+escalating trades a false date for a blank one, and a firm that has simply not filled in its
+profile would then look identical to one that is genuinely out of scope.
 
 ### There is no state for "the profile narrowed this away"
 
@@ -202,6 +237,12 @@ An incident explicitly tracked against the regime **keeps its clock regardless.*
 narrows the default question set; it does not close a window an assessor opened. The
 disagreement is reported as a conflict rather than resolved — which is why narrowing can never
 suppress an `overdue`.
+
+That exception belongs to a **declared** no, and deliberately not to a silence. A declared no is
+an answer, so an assessor who tracked the regime anyway is contradicting one, and the engine
+reports the contradiction rather than picking a side. A silence is not an answer: there is
+nothing to contradict, and nothing to compute a date from. The tracking still earns attention —
+that is what `scope-undeclared` is for — but it does not manufacture a deadline.
 
 ## Not legal advice
 

@@ -95,19 +95,39 @@ INCIDENT_BANDS = (BAND_NO_DETERMINATION, BAND_ASSESSING, BAND_NOT_YET, BAND_NOT_
 CLOCK_NA = "not-applicable"
 CLOCK_NOT_STARTED = "not-started"
 CLOCK_ANCHOR_MISSING = "anchor-missing"
+# Decision AP-2's third row, and it exists because the other five could not say this.
+#
+# `not-applicable` means nobody tracked the regime. `not-started` means the anchor event has
+# not happened yet. Neither of them means WE DO NOT KNOW WHETHER THIS REGIME REACHES YOU —
+# and with no word for that, an undeclared perimeter had to borrow one of the others. What it
+# borrowed was silence: the clock simply computed, and a four-business-day Form 8-K deadline
+# was produced for organisations that owe no such filing (BL-175).
+#
+# The rule, from AP-2: ask the battery, withhold the date, name the flag that would settle
+# it. This state is the withholding, and it is visible rather than absent — a missing row and
+# a row saying "nobody has told us" are different facts, and only one of them is actionable.
+CLOCK_SCOPE_UNDECLARED = "scope-not-declared"
 CLOCK_DUE = "due"
 CLOCK_OVERDUE = "overdue"
 CLOCK_FILED = "filed"
-CLOCK_STATES = (CLOCK_NA, CLOCK_NOT_STARTED, CLOCK_ANCHOR_MISSING, CLOCK_DUE, CLOCK_OVERDUE,
-                CLOCK_FILED)
+CLOCK_STATES = (CLOCK_NA, CLOCK_NOT_STARTED, CLOCK_ANCHOR_MISSING, CLOCK_SCOPE_UNDECLARED,
+                CLOCK_DUE, CLOCK_OVERDUE, CLOCK_FILED)
 
 # --- Escalation policy (CAC-EL-1 §1.3) ----------------------------------------
 #
 # What escalates here is narrower than anywhere else in the suite, and the narrowness is the
-# design. This engine emits no verdict, so an escalation may only ever report one of three
-# facts about the store: a DEADLINE THAT PASSED, an ANCHOR THAT IS ABSENT, or a RECORD THAT
-# MOVED. None of the three says an incident is material, and none says a determination was
-# wrong.
+# design. This engine emits no verdict, so an escalation may only ever report one of four
+# facts about the store: a DEADLINE THAT PASSED, an ANCHOR THAT IS ABSENT, a PERIMETER NOBODY
+# DECLARED, or a RECORD THAT MOVED. None of the four says an incident is material, and none
+# says a determination was wrong.
+#
+# `scopeUndeclared` is the newest, and it is what pays for AP-2. Withholding a deadline
+# because nobody declared the perimeter is the honest answer, and on its own it would trade a
+# manufactured date for a silent one: a genuine registrant who never filled in the profile
+# would see an empty deadline column with nothing to say it was empty for a fixable reason.
+# So the withheld window escalates on the MISSING DECLARATION rather than on a deadline the
+# engine refuses to compute. That is a fact about the record, not a judgment about the regime
+# — the same line `anchorMissing` already draws.
 #
 # Deliberately NOT escalated, each for a reason worth keeping:
 #
@@ -130,6 +150,7 @@ CLOCK_STATES = (CLOCK_NA, CLOCK_NOT_STARTED, CLOCK_ANCHOR_MISSING, CLOCK_DUE, CL
 ESCALATION_DEFAULTS = {
     "windowOverdue": True,
     "anchorMissing": True,
+    "scopeUndeclared": True,
     "supersededDetermination": True,
 }
 ESCALATION_SEVERITY_ORDER = ["critical", "high", "medium"]
@@ -153,6 +174,18 @@ SETTLED_DETERMINATIONS = ("material", "not-material")
 #   sec-item-105  — Item 1.05 applies to a registrant. A private company has no 8-K.
 #   dora-windows  — the three report windows apply to a DORA-scoped entity.
 #
+# That comment was right about `sec-item-105` and the mapping under it selected on the wrong
+# flag for twelve releases: `listedEntity`, a listing fact, standing in for an Exchange Act
+# reporting obligation. Nothing here looked like an inference, which is why every review
+# passed — the inference was in the mapping, not in the arithmetic. `secItem105Scope` is the
+# declared fact now, and `flags-declared.sh` fails if this table selects on a flag whose own
+# definition does not name the regime it gates (BL-175).
+#
+# THE THIRD STATE. A battery can now arrive asked-but-undeclared: §2.2 says absence asks, and
+# AP-2 adds that absence must not compute. `narrow_clocks` withholds the deadline and leaves a
+# `scope-not-declared` row in its place, and `scopeUndeclared` escalates it where the incident
+# is tracked against the regime anyway — so nothing is invented and nothing is lost.
+#
 # What the payload carries is the DECIDED narrowing, not the raw flags: `business-context`
 # owns §2.2 (absent and null both mean *not declared*, so both ask) and ships its answer.
 # This file deliberately does not re-implement that clause — `if not declared:` reads
@@ -164,7 +197,7 @@ SETTLED_DETERMINATIONS = ("material", "not-material")
 CONTEXT_CONTRACT = "CAC-AP-1"
 CONTEXT_SKILL = "incident"
 CONTEXT_BATTERIES = {
-    "sec-item-105": {"flag": "listedEntity", "regime": "sec-1.05",
+    "sec-item-105": {"flag": "secItem105Scope", "regime": "sec-1.05",
                      "label": "SEC Item 1.05 disclosure window"},
     "dora-windows": {"flag": "doraScope", "regime": "dora",
                      "label": "DORA reporting windows"},
@@ -452,10 +485,16 @@ def applicability_for(payload: dict, inc: dict) -> dict:
     base = (payload.get("applicability") or {}).get(CONTEXT_SKILL) or {}
     profile_ask = set(base.get("ask") or ())
     profile_skipped = {r.get("battery"): r for r in (base.get("skipped") or ())}
+    # §2.4.1. Read with `.get`: a payload written by an older `business-context` has no
+    # such key — and the honest reading of its absence is that the profile layer never said
+    # which asks rested on a declaration. `.get(..., [])` treats that as "none undeclared",
+    # which computes clocks exactly as that older payload always did rather than withholding
+    # every deadline in the store on an upgrade.
+    profile_undeclared = {r.get("battery"): r for r in (base.get("undeclared") or ())}
     declares = inc.get("contextDeclares") or {}
     tracked = list((inc.get("disclosure") or {}).get("regimes") or ())
 
-    asked, skipped, overrides = [], [], []
+    asked, skipped, overrides, undeclared = [], [], [], []
     for battery in sorted(CONTEXT_BATTERIES):
         spec = CONTEXT_BATTERIES[battery]
         if battery not in profile_ask and battery not in profile_skipped:
@@ -472,12 +511,18 @@ def applicability_for(payload: dict, inc: dict) -> dict:
                 # `subject`; listing it twice would read as two separate findings.
                 if battery in profile_skipped:
                     overrides.append(_subject_record(battery, spec, field, True, "override"))
+                # A subject declaration SETTLES the gate, including one the profile left
+                # silent — so this battery does not reach `undeclared` and its clock runs.
+                # That is the recorded route out of a withheld deadline: declare the scope on
+                # the incident, with a declarer and a date, and the window computes.
             else:
                 skipped.append(_subject_record(battery, spec, field, False, "skip"))
         elif battery in profile_skipped:
             skipped.append(dict(profile_skipped[battery]))
         else:
             asked.append(battery)
+            if battery in profile_undeclared:
+                undeclared.append(dict(profile_undeclared[battery]))
 
     # A battery the profile narrowed away, on an incident that is tracked against that regime
     # anyway. Reported, never resolved: §2.3 says the profile keeps the default question set
@@ -503,6 +548,9 @@ def applicability_for(payload: dict, inc: dict) -> dict:
         "profileVersion": str(payload.get("profileVersion") or ""),
         "asked": sorted(asked),
         "skipped": sorted(skipped, key=lambda r: r["battery"]),
+        # A SUBSET of `asked`, never a fourth bucket beside it. Every battery here was asked
+        # in full; what the list adds is that nobody had declared the gate when it was.
+        "undeclared": sorted(undeclared, key=lambda r: r["battery"]),
         "overrides": sorted(overrides, key=lambda r: r["battery"]),
         "conflicts": sorted(conflicts, key=lambda r: r["battery"]),
         # The raw subject declarations, including any recorded `null`. A null that vanished
@@ -513,21 +561,62 @@ def applicability_for(payload: dict, inc: dict) -> dict:
 
 
 def narrow_clocks(clocks: list, view: dict, inc: dict) -> list:
-    """Drop the windows of a battery that was not asked.
+    """Drop the windows of a battery that was not asked, and withhold the ones nobody scoped.
 
-    A skipped battery's windows are not computed at all — that is what narrowing a question
-    set means. The rows do not become `not-applicable`; they are absent, and the skip record
-    carries the sentence that explains where they went.
+    Two different things happen here and they must not look alike on the page.
 
-    The one exception is the conflict above: an incident explicitly tracked against the
-    regime keeps its clock. That exception is why narrowing can never suppress an escalation
-    — a regime nobody tracked produced a `not-applicable` row, and `not-applicable` escalates
-    nothing.
+    SKIPPED — somebody declared the regime out. Its windows are not computed at all; that is
+    what narrowing a question set means. The rows do not become `not-applicable`, they are
+    absent, and the skip record carries the sentence that explains where they went.
+
+    UNDECLARED — nobody has said either way. The window is NOT computed and it is also not
+    absent: it renders as `scope-not-declared`, naming the flag that would settle it. This is
+    decision AP-2, and both halves of it matter. Computing would manufacture a legal date for
+    an organisation that may owe no filing — the London-listed non-registrant every release
+    test since v0.48.0 has reproduced. Dropping the row would leave a firm that simply has
+    not filled in its profile looking identically clean to one that is genuinely out of
+    scope, which is the §15(d) suppression from the other direction.
+
+    The one exception belongs to SKIPPED only: an incident explicitly tracked against the
+    regime keeps its clock, and the disagreement is reported as a conflict. That exception is
+    why narrowing can never suppress an escalation — a regime nobody tracked produced a
+    `not-applicable` row, and `not-applicable` escalates nothing.
+
+    It is deliberately NOT extended to UNDECLARED, and the difference is the point. A skip is
+    an answer, so an assessor who tracked the regime anyway is contradicting an answer and the
+    engine reports the contradiction rather than picking a side. A silence is not an answer,
+    so there is nothing to contradict and nothing to compute a date from. What the tracking
+    does earn is attention: `scopeUndeclared` escalates precisely this case, so the window
+    goes withheld without going quiet.
     """
     tracked = list((inc.get("disclosure") or {}).get("regimes") or ())
     dropped = {CONTEXT_BATTERIES[r["battery"]]["regime"] for r in view["skipped"]
                if CONTEXT_BATTERIES[r["battery"]]["regime"] not in tracked}
-    return [c for c in clocks if c["regime"] not in dropped]
+    unscoped = {CONTEXT_BATTERIES[r["battery"]]["regime"]: r
+                for r in view.get("undeclared") or ()}
+    out = []
+    for c in clocks:
+        if c["regime"] in dropped:
+            continue
+        rec = unscoped.get(c["regime"])
+        # An untracked regime already reports `not-applicable` with no date on it. There is
+        # nothing to withhold, and replacing that row would trade a true statement for a
+        # vaguer one.
+        if rec is None or c["state"] == CLOCK_NA:
+            out.append(c)
+            continue
+        out.append(_clock(
+            c["regime"], c["window"], CLOCK_SCOPE_UNDECLARED,
+            note=("no window is computed: `%s` is not declared, so whether this regime "
+                  "reaches this organisation has not been established. Declare it on the "
+                  "organisation profile, or on this incident with `declare-context`, and "
+                  "the window computes from the same anchor it always would. This is not a "
+                  "finding that the regime does not apply — %s"
+                  % (rec["flag"], rec["sentence"])),
+            filed=(inc.get("disclosure") or {}).get("filings", {}).get(
+                "%s:%s" % (c["regime"], c["window"])),
+            scopeFlag=rec["flag"]))
+    return out
 
 
 def unimplemented_batteries(payload: dict) -> list:
@@ -1105,6 +1194,37 @@ def escalations(store: dict, today: str, now_iso: str, context: dict = None) -> 
                                    "notification runs at most 24 hours from awareness, and "
                                    "there is no interval in which an unrecorded anchor is "
                                    "comfortable."),
+                    },
+                })
+
+        # AP-2's withheld window, made visible. This fires ONLY where the incident is tracked
+        # against the regime — a withheld window on a regime nobody opened is an unanswered
+        # profile question, which is `business-context`'s `profile-stale` territory and not an
+        # exposure on this incident. Tracked and unscoped is different: somebody has decided
+        # this incident sits inside that regime and there is a deadline nobody can compute.
+        #
+        # `high`, not `critical`. A missed deadline has already happened; this one is a gap
+        # that can be closed by declaring a fact, and ranking it alongside `window-overdue`
+        # would put a form-filling task at the top of the same list as a lapsed filing.
+        if policy.get("scopeUndeclared"):
+            unscoped = [c for c in row["clocks"] if c["state"] == CLOCK_SCOPE_UNDECLARED]
+            if unscoped:
+                flags = sorted({c.get("scopeFlag", "") for c in unscoped if c.get("scopeFlag")})
+                out.append({
+                    "subjectRef": iid, "subjectKind": "incident",
+                    "trigger": "scope-undeclared", "severity": "high",
+                    "since": inc["discoveredAt"],
+                    "evidence": {
+                        "from": inc["discoveredAt"], "to": today,
+                        "baseline": ", ".join("{}:{}".format(c["regime"], c["window"])
+                                              for c in unscoped),
+                        "detail": ("this incident is tracked against a regime whose "
+                                   "applicability nobody has declared ({}), so no deadline "
+                                   "is computed and none is invented. Declare it on the "
+                                   "organisation profile or on this incident and the window "
+                                   "computes. Until then this is an open question, not a "
+                                   "finding that the regime does not "
+                                   "apply.".format(", ".join(flags) or "no flag named")),
                     },
                 })
 
@@ -1766,13 +1886,52 @@ def _cmd_self_test(_args):
                     if e["trigger"] != "anchor-missing" or key == "anchorMissing"],
                f"{key} off suppresses its trigger")
             ok(ESCALATION_DEFAULTS[key] is True, f"{key} is on by default")
-        eq(sorted(ESCALATION_DEFAULTS), ["anchorMissing", "supersededDetermination",
-                                         "windowOverdue"],
-           "three toggles and no numbers — the only quantities that could be tuned here "
+        eq(sorted(ESCALATION_DEFAULTS), ["anchorMissing", "scopeUndeclared",
+                                         "supersededDetermination", "windowOverdue"],
+           "four toggles and no numbers — the only quantities that could be tuned here "
            "are the ones the SEC and DORA already set")
         ok(not any(isinstance(v, (int, float)) and not isinstance(v, bool)
                    for v in ESCALATION_DEFAULTS.values()),
            "and none of them is a threshold this engine invented")
+
+        # `scope-undeclared`, on a fixture that already produces an OVERDUE 8-K window.
+        #
+        # The overdue window is the point. Without a profile this store escalates
+        # `window-overdue` on a computed deadline; supply a profile that has never declared
+        # SEC scope and that deadline must disappear — no manufactured date — while the
+        # attention does not. Written on a store with no live window, this check would pass
+        # whether or not the withholding suppressed anything.
+        unscoped_store = new_store("Unscoped Co", "CISO")
+        open_incident(unscoped_store, "Payroll portal breach", "2026-07-06",
+                      regimes=["sec-1.05"], actor="t")
+        _at(determine(unscoped_store, "I-001", "material", "Export of SSN confirmed.", "GC",
+                      "2026-07-14", actor="t"), "2026-07-14T10:00:00+00:00")
+        unscoped_ctx = {"contractVersion": CONTEXT_CONTRACT, "profileVersion": "FY26",
+                        "applicability": {"incident": {
+                            "ask": ["sec-item-105"], "skipped": [],
+                            "undeclared": [{"battery": "sec-item-105",
+                                            "label": "SEC Item 1.05 disclosure window",
+                                            "flag": "secItem105Scope", "source": "absent",
+                                            "declaredBy": "", "declaredOn": "", "basis": "",
+                                            "sentence": "asked in full; not declared."}]}}}
+        plain = analyze(unscoped_store, "2026-07-22",
+                        "2026-07-22T00:00:00+00:00")["escalations"]
+        eq([e["trigger"] for e in plain], ["window-overdue"],
+           "with no profile the fixture escalates on a computed, overdue 8-K deadline")
+        with_ctx = analyze(unscoped_store, "2026-07-22", "2026-07-22T00:00:00+00:00",
+                           unscoped_ctx)["escalations"]
+        eq([e["trigger"] for e in with_ctx], ["scope-undeclared"],
+           "and once the perimeter is undeclared, the manufactured deadline goes and the "
+           "attention stays — the whole of AP-2 in one swap")
+        eq(with_ctx[0]["severity"], "high",
+           "high, not critical: a fact nobody recorded is not a deadline that passed")
+        ok("secItem105Scope" in with_ctx[0]["evidence"]["detail"],
+           "and the escalation names the declaration that would close it")
+        off = json.loads(json.dumps(unscoped_store))
+        off.setdefault("settings", {})["escalation"] = {"scopeUndeclared": False}
+        eq(analyze(off, "2026-07-22", "2026-07-22T00:00:00+00:00",
+                   unscoped_ctx)["escalations"], [],
+           "scopeUndeclared off suppresses its trigger, and nothing else reappears")
 
         # Worst first, then by incident, then by trigger — so a pack reading three
         # producers gets one deterministic order.
@@ -1856,9 +2015,9 @@ def _cmd_self_test(_args):
                 "ask": ["dora-windows"],
                 "skipped": [{"battery": "sec-item-105",
                              "label": "SEC Item 1.05 disclosure window",
-                             "flag": "listedEntity", "source": "profile",
+                             "flag": "secItem105Scope", "source": "profile",
                              "declaredBy": "GC", "declaredOn": "2026-01-02",
-                             "basis": "Privately held.",
+                             "basis": "No registered class; no s.15(d) obligation.",
                              "sentence": "SEC Item 1.05 disclosure window — not assessed."}]}},
         }
         bare = {"id": "X", "disclosure": {"regimes": []}}
@@ -1867,11 +2026,11 @@ def _cmd_self_test(_args):
         eq([r["battery"] for r in applicability_for(payload, bare)["skipped"]],
            ["sec-item-105"], "...including which battery it removed")
 
-        def _decl(value):
-            return {"id": "X", "disclosure": {"regimes": []},
-                    "contextDeclares": {"listedEntity": {
+        def _decl(value, regimes=(), flag="secItem105Scope"):
+            return {"id": "X", "disclosure": {"regimes": list(regimes)},
+                    "contextDeclares": {flag: {
                         "value": value, "declaredBy": "GC", "declaredOn": "2026-02-02",
-                        "basis": "The affected entity is listed."}}}
+                        "basis": "The affected entity files its own current reports."}}}
 
         eq("sec-item-105" in applicability_for(payload, _decl(True))["asked"], True,
            "a subject declaring true re-adds a battery the profile removed")
@@ -1880,8 +2039,8 @@ def _cmd_self_test(_args):
         eq([r["source"] for r in applicability_for(payload, _decl(None))["skipped"]],
            ["profile"],
            "a subject declaring NULL does not override — null is not false")
-        eq("listedEntity" in applicability_for(payload, _decl(None))["subjectDeclared"], True,
-           "...and the null is still carried, so the gap stays visible")
+        eq("secItem105Scope" in applicability_for(payload, _decl(None))["subjectDeclared"],
+           True, "...and the null is still carried, so the gap stays visible")
         # The other direction, on the battery the profile kept.
         dora_no = {"id": "X", "disclosure": {"regimes": []},
                    "contextDeclares": {"doraScope": {"value": False, "declaredBy": "GC",
@@ -1909,6 +2068,112 @@ def _cmd_self_test(_args):
            "the default question set and does not overrule the assessor")
         eq([c["battery"] for c in tview["conflicts"]], ["sec-item-105"],
            "...and the disagreement is reported instead")
+        # --- AP-2: ask the battery, withhold the date (BL-175) ---------------------
+        #
+        # These are the two cases every release test from v0.48.0 to v0.63.0 reproduced, run
+        # here through the same functions the CLI uses. Both failed on ONE wrong flag, in
+        # opposite directions, and both are asserted in both directions below.
+        def _undeclared_payload(flag="secItem105Scope", source="absent"):
+            return {"contractVersion": CONTEXT_CONTRACT, "profileVersion": "FY26",
+                    "applicability": {"incident": {
+                        "ask": ["dora-windows", "sec-item-105"],
+                        "skipped": [],
+                        "undeclared": [{
+                            "battery": "sec-item-105",
+                            "label": "SEC Item 1.05 disclosure window",
+                            "flag": flag, "source": source, "declaredBy": "",
+                            "declaredOn": "", "basis": "",
+                            "sentence": ("SEC Item 1.05 disclosure window — asked in full. "
+                                         "Organisation profile: `%s` is not declared."
+                                         % flag)}]}}}
+
+        und_payload = _undeclared_payload()
+        real_clocks = [{"regime": "sec-1.05", "window": "8-K", "state": CLOCK_DUE,
+                        "anchor": "2026-07-14", "anchorKind": "determination",
+                        "deadline": "2026-07-20", "filedAt": None, "note": "4 business days"},
+                       {"regime": "dora", "window": "initial", "state": CLOCK_NA,
+                        "anchor": None, "anchorKind": "", "deadline": None,
+                        "filedAt": None, "note": "not tracked"}]
+
+        # CASE 1 — the London-listed non-registrant. Scope undeclared, incident tracked
+        # against sec-1.05 anyway. The battery is asked and the DATE IS NOT COMPUTED.
+        c1_inc = {"id": "X", "disclosure": {"regimes": ["sec-1.05"], "filings": {}}}
+        c1 = applicability_for(und_payload, c1_inc)
+        ok("sec-item-105" in c1["asked"], "an undeclared perimeter still asks the battery")
+        eq([r["battery"] for r in c1["undeclared"]], ["sec-item-105"],
+           "...and the payload's §2.4.1 record travels through to the consumer")
+        eq(c1["conflicts"], [],
+           "a silence is not a disagreement — nothing was declared to conflict with")
+        c1_clocks = narrow_clocks(real_clocks, c1, c1_inc)
+        sec_row = [c for c in c1_clocks if c["regime"] == "sec-1.05"][0]
+        eq(sec_row["state"], CLOCK_SCOPE_UNDECLARED,
+           "the Item 1.05 window is withheld, not computed — no manufactured legal date")
+        eq(sec_row["deadline"], None, "and it carries no deadline at all")
+        eq(sec_row["scopeFlag"], "secItem105Scope",
+           "naming the flag that would settle it, which is the reader's next action")
+        ok("not declared" in sec_row["note"] and "does not apply" in sec_row["note"],
+           "and saying in as many words that this is not a finding of non-applicability")
+
+        # The row must be PRESENT. Dropping it would make a firm that has not filled in its
+        # profile look identical to one that is genuinely out of scope, which is the §15(d)
+        # suppression arriving through the other door.
+        eq(len(c1_clocks), 2, "the withheld window is a visible row, not an absence")
+
+        # ...and it must not read like a skip. AP-2: a reader must never have to guess which
+        # of the two they are looking at.
+        skipped_view = applicability_for(payload, {"id": "X",
+                                                   "disclosure": {"regimes": ["sec-1.05"]}})
+        skip_sent = skipped_view["skipped"][0]["sentence"]
+        ok("not assessed" in skip_sent and "not assessed" not in sec_row["note"],
+           "`declared out` and `nobody said` do not share a sentence")
+
+        # CASE 2 — the unlisted s.15(d) reporter, and the direction that SUPPRESSED a real
+        # obligation. Its profile declares the listing flag false and says nothing about SEC
+        # scope, which is every store written before this change.
+        legacy = {"contractVersion": CONTEXT_CONTRACT, "profileVersion": "FY26",
+                  "applicability": {"incident": _undeclared_payload()["applicability"]
+                                    ["incident"]}}
+        eq("sec-item-105" in applicability_for(legacy, bare)["asked"], True,
+           "an unlisted s.15(d) reporter is ASKED the SEC battery rather than skipped")
+
+        # Untracked and unscoped: the row already says `not-applicable` with no date on it.
+        # There is nothing to withhold, and replacing a true statement with a vaguer one is
+        # not an improvement.
+        na_clocks = [dict(real_clocks[0], state=CLOCK_NA, deadline=None)]
+        eq([c["state"] for c in narrow_clocks(na_clocks, applicability_for(und_payload, bare),
+                                              bare)],
+           [CLOCK_NA], "an untracked regime keeps `not-applicable`; there is no date to hold")
+
+        # THE WAY OUT, and it must work or the withholding is a dead end. A subject
+        # declaration settles the gate and the window computes from the same anchor.
+        declared_inc = _decl(True, regimes=["sec-1.05"])
+        dview = applicability_for(und_payload, declared_inc)
+        eq(dview["undeclared"], [],
+           "a subject declaring scope settles it, and the battery is no longer undeclared")
+        eq([c["state"] for c in narrow_clocks(real_clocks, dview, declared_inc)
+            if c["regime"] == "sec-1.05"], [CLOCK_DUE],
+           "...so the deadline computes, from the anchor it always would have used")
+
+        # A subject declaring FALSE over a profile silence is a skip, not a withholding —
+        # somebody answered, and the answer is no.
+        no_inc = _decl(False, regimes=[])
+        nview = applicability_for(und_payload, no_inc)
+        eq(([r["battery"] for r in nview["skipped"]], nview["undeclared"]),
+           (["sec-item-105"], []),
+           "a subject declaring false answers the question rather than leaving it open")
+
+        # A PAYLOAD FROM AN OLDER `business-context` has no `undeclared` key at all. Reading
+        # its absence as "everything is undeclared" would withhold every deadline in the
+        # store the moment one skill was upgraded before the other.
+        old_payload = {"contractVersion": CONTEXT_CONTRACT, "profileVersion": "FY26",
+                       "applicability": {"incident": {"ask": ["sec-item-105"],
+                                                      "skipped": []}}}
+        oview = applicability_for(old_payload, c1_inc)
+        eq(oview["undeclared"], [], "a payload with no §2.4.1 key withholds nothing")
+        eq([c["state"] for c in narrow_clocks(real_clocks, oview, c1_inc)
+            if c["regime"] == "sec-1.05"], [CLOCK_DUE],
+           "...and its clocks compute exactly as that payload always made them compute")
+
         eq(unimplemented_batteries(
             {"applicability": {"incident": {"ask": ["nydfs-notification"], "skipped": []}}}),
            ["nydfs-notification"],
