@@ -73,16 +73,17 @@
     },
     {
       "id": "iso-27001",
-      "label": "ISO/IEC 27001:2022",
+      "label": "ISO/IEC 27001:2022 Annex A identifiers (crosswalk target)",
       "publisher": "ISO/IEC",
-      "instrument": "ISO/IEC 27001:2022",
-      "version": "2022 edition, as bundled in the crosswalk",
-      "checkedBy": "unverified",
+      "instrument": "ISO/IEC 27001:2022 Annex A control identifiers, as referenced by NIST's CSF 2.0 Reference Export",
+      "version": "Crosswalk built from tools/csf-2.0.xlsx, sha256 cc4ec545…f9b616, matching the sha recorded in nist-csf-2.0-core.json. 119 identifiers, 91 referenced by NIST's export; labels are CAC paraphrases and control `text` is null — no ISO/IEC text is reproduced.",
+      "checkedBy": "claude-code",
       "gated": false,
-      "whyUnverified": "ISO/IEC standards are paywalled and iso.org's Online Browsing Platform returns HTTP 403 here. Needs a licensed copy. Structural, not transient.",
       "checkedOn": "2026-08-08",
       "usedFor": [
-        "SKILL.md"
+        "SKILL.md",
+        "references/crosswalks/iso-27001-2022.catalog.json",
+        "references/crosswalks/csf-2.0__iso-27001-2022.map.json"
       ]
     }
   ]
