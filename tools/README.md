@@ -47,11 +47,11 @@ python3 tools/ingest-csf-core.py skills/nist-csf/references/nist-csf-2.0-core.js
 Defaults to the vendored `tools/csf-2.0.xlsx`. Pass a different path as a second argument to build
 against a newer catalog export.
 
-Parses columns A–E, excludes every `[Withdrawn:]` row (12 categories and 79 subcategories retired
-from CSF 1.1 still sit in the sheet), and asserts the known-good shape **before writing**: 6
-Functions / 22 Categories / 106 Subcategories, per-function counts GV:31 ID:21 PR:22 DE:11 RS:13
-RC:8, 363 Implementation Examples, every Subcategory carrying at least one, all ids unique. Any
-mismatch fails loudly and writes nothing.
+Parses columns A–E, excludes every `[Withdrawn:]` row (12 categories and 79 subcategories
+retired from the superseded CSF 1.1 still sit in the sheet), and asserts the known-good shape
+**before writing**: 6 Functions / 22 Categories / 106 Subcategories, per-function counts
+GV:31 ID:21 PR:22 DE:11 RS:13 RC:8, 363 Implementation Examples, every Subcategory carrying
+at least one, all ids unique. Any mismatch fails loudly and writes nothing.
 
 Provenance is recorded as a sha256 of the source file rather than a timestamp, so re-running against
 the same input produces a byte-identical file.
