@@ -496,6 +496,71 @@ def _all_positions(haystack, needle):
     return out
 
 
+# A clause ends at a sentence terminator, a semicolon, or a table-cell pipe.
+#
+# NOT at a comma and NOT at a dash. `SP 800-61 Rev. 2, withdrawn in 2025, ...` and
+# `SP 800-61 Rev. 2 — withdrawn` are the two commonest honest forms in this repo, and a rule
+# that split on either would reject the warning it exists to permit.
+_DNC_CLAUSE_END = re.compile(r"[;|]|[.!?](?=\s|$)")
+
+# `Rev.` is not the end of a sentence, and getting that wrong breaks every honest form at once.
+#
+# The publication patterns deliberately match only the STEM — `SP 800-61`, not `SP 800-61
+# Rev. 2` — so that a bare citation with no revision is caught too. That means the full stop in
+# `Rev. 2` falls OUTSIDE the matched span, where an in-span exclusion cannot help it. Six
+# acceptance cases went red on exactly this before the list existed.
+#
+# Scoped as tightly as it can be: the abbreviation must be one of these AND the next thing must
+# be a number. `The tool was retired. 2 more follow.` still ends a clause, because `retired` is
+# not on the list.
+_DNC_ABBREV = ("rev", "r", "no", "vol", "ed", "pt", "sec", "art", "app", "fig", "ch",
+               "para", "cl", "ss", "nos", "pp")
+_DNC_ABBREV_DOT = re.compile(
+    r"(?<![a-z0-9])(?:%s)\.$" % "|".join(_DNC_ABBREV), re.I)
+
+
+def _dnc_clauses(line, spans):
+    """Split a line into clauses, cutting only OUTSIDE every citation span.
+
+    Two things stop the splitter severing a citation from its own warning:
+
+      * cuts are never taken at an offset a matched publication occupies, and
+      * a full stop closing a citation abbreviation followed by a number — `Rev. 2`, `No. 5`
+        — is not a sentence end.
+
+    The second is not belt-and-braces. The publication patterns match the STEM only, so the
+    stop in `Rev. 2` is outside every span and the first rule never sees it.
+
+    Offsets are preserved end to end: the caller folds typography and blanks URLs with
+    length-preserving substitutions, so a clause's (start, end) indexes the real line.
+
+    Returns a list of (start, end) covering the whole line; never empty.
+    """
+    cuts = []
+    for m in _DNC_CLAUSE_END.finditer(line):
+        i = m.start()
+        if any(s <= i < e for s, e in spans):
+            continue
+        if line[i] == "." and _DNC_ABBREV_DOT.search(line[:i + 1]):
+            rest = line[i + 1:].lstrip()
+            if rest[:1].isdigit():
+                continue
+        cuts.append(m.end())
+    out, prev = [], 0
+    for c in cuts + [len(line)]:
+        if c > prev:
+            out.append((prev, c))
+            prev = c
+    return out or [(0, len(line))]
+
+
+def _dnc_clause_of(clauses, pos):
+    for s, e in clauses:
+        if s <= pos < e:
+            return (s, e)
+    return clauses[-1]
+
+
 _DNC_ROW = ("id", "label", "pattern", "status", "supersededBy", "why", "mustFlag")
 _DNC_STATUS = ("withdrawn", "superseded")
 
@@ -582,19 +647,41 @@ def check_do_not_cite(root="."):
     is the string with no withdrawal marker BOUND TO IT -- a citation, rather than a caution.
 
     "Bound to it" is the whole of RW-1.9.1, and it replaces a proximity window that failed open
-    four ways (BL-194). A marker excuses a match only when BOTH hold:
+    four ways (BL-194). A marker excuses a match only when ALL THREE hold:
 
-      (a) the marker is on the SAME LINE as the match, and
-      (b) of every watched publication on that line, the one nearest the marker is this match.
+      (a) the marker is on the SAME LINE as the match,
+      (b) the marker is in the SAME CLAUSE as the match, and
+      (c) of every watched publication in that clause, the one nearest the marker is this match.
 
     (a) kills "unrelated prose nearby": `Our old policy was withdrawn last year.` on the line
-    above a bare citation no longer excuses it. (b) kills the cross-publication case:
-    `SP 800-53A Rev. 4 is withdrawn. Follow SP 800-61 Rev. 2.` -- the marker sits nearer
-    800-53A, so it does not launder the 800-61 citation sharing its line.
+    above a bare citation no longer excuses it. (c) kills the cross-publication case:
+    `SP 800-53A Rev. 4 is withdrawn and SP 800-61 Rev. 2 is current.` -- the marker sits nearer
+    800-53A, so it does not launder the 800-61 citation sharing its clause.
+
+    (b) IS WHY BL-201 EXISTS, and it is worth stating plainly because the gap it closes was
+    invisible for three releases. (c) is a COMPARATIVE test, and a comparison needs something to
+    compare against. When the citation is the only watched publication in its clause -- the
+    common case, not the exotic one -- `all(...)` iterates over the match itself and evaluates
+    `mine <= mine`. Always true. So (c) was satisfied vacuously and the rule collapsed to (a):
+    ANY marker anywhere on the line excused the citation. This passed, and cites withdrawn
+    guidance as current:
+
+        The predecessor platform was retired. Follow SP 800-61 Rev. 2 for incident handling.
+
+    The rule was designed and documented against two publications, where "nearest" means
+    something. At n=1 the word has no referent. (b) supplies the absolute binding that (c)
+    cannot: the marker has to be in the same clause, so a warning about a different subject in
+    a different sentence no longer launders anything. Registered here alongside BL-121's
+    `[ -z "$res" ]` and BL-176's `len(bounds) == 1` as the same shape -- a test that reads as
+    discriminating and stops discriminating when its input is minimal. Read a guard for what it
+    does at n=0 and n=1, not at n=typical.
+
+    A clause ends at `.`/`!`/`?`/`;`/`|`, never at a comma or a dash, and never at a full stop
+    inside a citation -- see `_dnc_clauses`.
 
     This is stricter than the window it replaces, and deliberately so: `X.\\nIt is withdrawn.`
     now fails where it used to pass. For a check whose failure mode is passing silently, a rule
-    an author can be told in one sentence -- *put the warning on the same line as the
+    an author can be told in one sentence -- *put the warning in the same sentence as the
     citation* -- is worth more than one that accommodates every phrasing and catches nothing.
     """
     path = os.path.join(root, "tools", "do-not-cite.json")
@@ -651,21 +738,34 @@ def check_do_not_cite(root="."):
                 if not on_line:
                     continue
                 marks = [i for k in markers for i in _all_positions(low, k)]
+                spans = [(s, e) for s, e, _, _ in on_line]
+                clauses = _dnc_clauses(low, spans)
                 for start, end, entry, hit in on_line:
+                    clause = _dnc_clause_of(clauses, start)
+                    # (c) is scoped to the clause: a publication in another sentence is not a
+                    # candidate for a marker it could never have been bound to anyway.
+                    rivals = [(s2, e2) for s2, e2 in spans
+                              if _dnc_clause_of(clauses, s2) == clause]
                     excused = False
                     for mi in marks:
-                        # (b) nearest-publication binding. Distance is measured to the span,
+                        # (b) same-clause binding. This is what carries the rule when the
+                        # citation is the only publication in its clause, which is the common
+                        # case and the one (c) alone could not judge (BL-201).
+                        if not (clause[0] <= mi < clause[1]):
+                            continue
+
+                        # (c) nearest-publication binding. Distance is measured to the span,
                         # so a marker inside a citation counts as zero away from it.
-                        def _dist(s, e):
-                            return 0 if s <= mi <= e else min(abs(mi - s), abs(mi - e))
+                        def _dist(s, e, _mi=mi):
+                            return 0 if s <= _mi <= e else min(abs(_mi - s), abs(_mi - e))
                         mine = _dist(start, end)
-                        if all(mine <= _dist(s2, e2) for s2, e2, _, _ in on_line):
+                        if all(mine <= _dist(s2, e2) for s2, e2 in rivals):
                             excused = True
                             break
                     if excused:
                         continue
                     problems.append("%s:%d: %s (%s) cited with no withdrawal marker bound to "
-                                    "it on this line — say so beside it, or use %s"
+                                    "it in the same clause — say so beside it, or use %s"
                                     % (rel, lineno, hit, entry["status"],
                                        entry["supersededBy"].split(" — ")[0]))
     if not scanned:
@@ -1106,11 +1206,94 @@ def _self_test():
         ok(check_do_not_cite(dnc("u5",
                                  "See https://x.test/withdrawn/ and use SP 800-61 Rev. 2.\n"))
            is False, "BL-194/A: a marker inside a URL is not prose about the publication")
-        ok(check_do_not_cite(dnc("u6", "The obsoleteFlag is set; use SP 800-61 Rev. 2.\n"),
-                             ) is False,
+        # `markers` MUST name "obsolete" here, and this case did not. Without it the word was
+        # never a marker candidate at all, so the citation was caught for a reason that had
+        # nothing to do with whole-word matching — and replacing `_all_positions` with a plain
+        # substring search left the whole suite green. Found while mutation-testing BL-201;
+        # the same shape as BL-201 itself, one function along.
+        #
+        # The `;` also had to go. It is a clause boundary now, which would separate the
+        # identifier from the citation and catch it for the wrong reason a second time.
+        ok(check_do_not_cite(dnc("u6", "The obsoleteFlag is set, so use SP 800-61 Rev. 2.\n",
+                                 markers=["withdrawn", "obsolete"])) is False,
            "BL-194/B: a marker as a substring of an identifier is not a warning")
         ok(check_do_not_cite(dnc("u7", "SP 800-61 Rev. 2 is withdrawn; use Rev. 3.\n")) is True,
            "BL-194 control: a genuine same-line warning still passes")
+
+        # -- BL-201. Clause binding, because "nearest" needs something to be nearer than.
+        #
+        # The fourth BL-194 fail-open, closed three releases later. (c) is comparative, so with
+        # one publication on the line it compared the match against itself and always passed,
+        # leaving only same-line binding. Every case below is a SINGLE publication -- the shape
+        # the rule was never designed against.
+        ok(check_do_not_cite(
+            dnc("c1", "The predecessor platform was retired. Follow SP 800-61 Rev. 2 for IR.\n",
+                markers=["withdrawn", "retired"])) is False,
+           "BL-201: a marker in a PREVIOUS SENTENCE does not excuse the only publication on "
+           "the line -- the exact sentence three release tests reported")
+        ok(check_do_not_cite(
+            dnc("c2", "SP 800-61 Rev. 2 is withdrawn; use Rev. 3.\n")) is True,
+           "BL-201 control: the honest single-publication form is still excused")
+        ok(check_do_not_cite(
+            dnc("c3", "SP 800-61 Rev. 2 — withdrawn, use Rev. 3.\n")) is True,
+           "BL-201: a dash and a comma do not end a clause, so the commonest honest forms "
+           "still pass")
+        ok(check_do_not_cite(
+            dnc("c4", "SP 800-61 Rev. 2, withdrawn in 2025, is superseded.\n")) is True,
+           "BL-201: nor does comma-delimited apposition around the marker")
+        ok(check_do_not_cite(
+            dnc("c5", "| SP 800-61 Rev. 2 | our old scanner was withdrawn |\n",
+                markers=["withdrawn"])) is False,
+           "BL-201: a table cell is a clause -- a marker in a DIFFERENT cell does not excuse")
+        ok(check_do_not_cite(
+            dnc("c6", "Withdrawn: SP 800-61 Rev. 2 should not be cited.\n")) is True,
+           "BL-201: a marker before the citation in the same clause still excuses it")
+        ok(check_do_not_cite(
+            dnc("c7", "SP 800-53A Rev. 4 is withdrawn and SP 800-61 Rev. 2 is current.\n",
+                entries=[_row(), _row(id="f", pattern=r"SP\s*800-53A(?!\s*(?:r|Rev\.?\s*)5)",
+                              supersededBy="SP 800-53A Rev. 5 — x",
+                              mustFlag="SP 800-53A Rev. 4")])) is False,
+           "BL-201: (c) still does its own job -- two publications in ONE clause, the marker "
+           "binds to the nearer and does not launder the other")
+        # The abbreviation exemption, tested from the direction that would quietly widen it.
+        # `Rev. 2` must not end a clause; `retired. 2` must. Without this case the exemption
+        # could be loosened to "any full stop followed by a digit" and every acceptance case
+        # above would still pass -- while the reported laundering sentence, rephrased with a
+        # number after it, would slip through again.
+        ok(check_do_not_cite(
+            dnc("c8", "The scanner was retired. 2 old tools still cite SP 800-61 Rev. 2\n",
+                markers=["withdrawn", "retired"])) is False,
+           "BL-201: a real sentence ending before a DIGIT still ends a clause -- the "
+           "abbreviation exemption is `Rev.`-shaped, not `any dot before a number`")
+
+        # -- BL-201, the three cases mutation-testing added.
+        #
+        # The first draft of the eight cases above passed, and then three separate reversions
+        # of the fix left it entirely green: clause-scoping (c), the width of the abbreviation
+        # exemption, and the in-span cut exclusion were all asserted by nothing. Each case
+        # below was built to go red for exactly one of them. A suite that returns the right
+        # verdict can still be returning it for the wrong reason, and only running the broken
+        # version tells you which.
+        ok(check_do_not_cite(
+            dnc("c9", "SP 800-61 Rev. 2 is withdrawn. Withdrawn aside, consider also "
+                      "SP 800-53A Rev. 4.\n",
+                entries=[_row(), _row(id="f", pattern=r"SP\s*800-53A(?!\s*(?:r|Rev\.?\s*)5)",
+                              supersededBy="SP 800-53A Rev. 5 — x",
+                              mustFlag="SP 800-53A Rev. 4")])) is True,
+           "BL-201: nearest-publication is judged WITHIN the clause -- a publication in "
+           "another sentence cannot steal a marker and cause a false positive")
+        # The in-span cut exclusion. The abbreviation list happens to cover every pattern in
+        # today's registry -- `Rev. 1`, `Rev. 2`, `Rev. 4` are all followed by a digit -- so
+        # this is the only case that fails when the general rule is removed. It is one letter
+        # from mattering in production: the registry already carries patterns whose span
+        # contains `Rev. N` (SP 800-18), and a lettered part or an appendix would land here
+        # with nothing else to catch it.
+        ok(check_do_not_cite(
+            dnc("c10", "SP 800-61 Rev. Two is withdrawn.\n",
+                entries=[_row(pattern=r"SP\s*800-61\s*Rev\.\s*Two",
+                              mustFlag="SP 800-61 Rev. Two")])) is True,
+           "BL-201: a full stop INSIDE a matched citation never ends a clause, whatever "
+           "follows it -- the general rule the abbreviation list only patches")
 
         # -- BL-194, second half. WHICH files C5 reads.
         #
@@ -1167,6 +1350,15 @@ def _self_test():
 
     print("\ncheck-sources self-test: %d checks, %d failed"
           % (len(checks), sum(1 for c in checks if not c)))
+    # A floor, because until BL-201 this suite reported its count and asserted nothing about
+    # it. A deleted case would have shown up as a smaller number in a line nobody diffs, and
+    # "0 failed" reads identically whether 99 checks ran or nine did. The number only has to
+    # move when cases are deliberately removed, and then somebody has to say why here.
+    _FLOOR = 101
+    if len(checks) < _FLOOR:
+        print("FAILED: only %d checks ran, expected at least %d — cases have been removed. "
+              "Lower the floor deliberately or put them back." % (len(checks), _FLOOR))
+        return False
     return all(checks)
 
 

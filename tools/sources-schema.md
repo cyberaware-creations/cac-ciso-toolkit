@@ -211,9 +211,41 @@ prose for them.
 
 **The rule is not "never write the string."** Naming a withdrawn publication in order to say it
 is withdrawn is exactly what this repo should do, and this document does it in the paragraph
-above. What fails is the designation with **no withdrawal marker within about a paragraph of it**
-— a citation rather than a caution. Both directions are registered in the self-test, because a
-ban that also forbade the warning would be switched off within a week.
+above. What fails is the designation with **no withdrawal marker bound to it** — a citation
+rather than a caution. Both directions are registered in the self-test, because a ban that also
+forbade the warning would be switched off within a week.
+
+#### RW-1.9.1 What "bound to it" means
+
+A marker excuses a citation only when **all three** hold:
+
+1. the marker is on the **same line** as the citation;
+2. the marker is in the **same clause** — a clause ends at `.` `!` `?` `;` or a table-cell `|`,
+   never at a comma or a dash, and never at a full stop inside the citation itself or one
+   closing an abbreviation before a number (`Rev. 2`); and
+3. of every watched publication **in that clause**, the one nearest the marker is this citation.
+
+For an author, in one sentence: **put the warning in the same sentence as the citation.**
+
+This replaced a proximity window that failed open four ways (BL-194). Clause binding arrived
+later and separately, and why is worth recording. Rule 3 is a *comparison*, and a comparison
+needs something to compare against — so when the citation was the only watched publication on
+its line it was compared with itself, `mine <= mine` held, and rule 3 passed vacuously. The rule
+collapsed to rule 1, and this sentence shipped clean for three releases:
+
+> *The predecessor platform was retired. Follow SP 800-61 Rev. 2 for incident handling.*
+
+The rule had been designed, documented and worked through against **two** publications, where
+"nearest" means something. At one, the word has no referent. Rule 2 supplies the absolute
+binding that rule 3 cannot (BL-201).
+
+**The general lesson, which outlives this rule.** Three guards here have now failed the same
+way: `[ -z "$res" ]` could not tell a clean scan from a crashed one (BL-121); `len(bounds) == 1`
+could not tell a missing anchor from a legally excluded one (BL-176); and `all(...)` over a
+single candidate could not tell nearest from only (BL-201). Each reads as discriminating and
+stops discriminating when its input is minimal. **Read a check for what it does at n=0 and n=1,
+not at n=typical** — and prove it by breaking it, because all three returned the right answer on
+every case their authors thought to write.
 
 **Two entries carry traps worth reading before using the list:**
 
