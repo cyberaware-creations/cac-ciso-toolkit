@@ -260,10 +260,17 @@ def register_note(ctx: C.Context) -> str:
     return " ".join(bits)
 
 
+def _dtext(d):
+    """The decision's text. Sidecars carry `{"text", "altitude"}` objects and older ones a
+    bare string, so both shapes arrive here — and `C.esc(d)` on the object form is the P1
+    this file shipped: the board read a Python repr (BL-209)."""
+    return d.get("text") if isinstance(d, dict) else d
+
+
 def decisions(ctx: C.Context) -> str:
     if not ctx.decisions:
         return ""
-    items = "".join(f"<li>{C.esc(d)}</li>" for d in ctx.decisions)
+    items = "".join(f"<li>{C.esc(_dtext(d))}</li>" for d in ctx.decisions)
     return f'<h2>Decisions for the board</h2><ul class="dec">{items}</ul>'
 
 
