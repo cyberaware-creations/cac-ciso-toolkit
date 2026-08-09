@@ -1,0 +1,17 @@
+{
+  "guard": "skills/risk-register/evals/board-safety.sh",
+  "forbids": "raw framework wording reaching a board renderer before a human has translated it",
+  "note": "Enrolled in v0.61.0, the last of the eleven candidates BL-101's registry surfaced. Guard-shaped since it was written and named nowhere until the registry made a verdict compulsory.",
+  "mutations": [
+    {
+      "half": "raw-title",
+      "why": "Render the raw title for a risk still marked provisional. `C.risk_title` is the withholding path; swapping it for the plain title is a one-line 'why are we hiding this' change that reads as a fix. The three other board-safety suites' source-scan and footer mutations both pass here (v0.60.0), which is why this stayed a candidate a release longer — its checks assert BEHAVIOUR, and the anchor had to be found against what it actually does.",
+      "defeats": [
+        "no provisional raw title in any board renderer"
+      ],
+      "file": "skills/risk-register/renderers/render_board.py",
+      "find": "title = (C.risk_title(r) if provisional",
+      "replace": "title = (f'<span class=\"t\">{C.esc(r[\"title\"])}</span>' if provisional"
+    }
+  ]
+}

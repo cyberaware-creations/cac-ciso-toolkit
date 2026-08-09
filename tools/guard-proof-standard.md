@@ -219,6 +219,8 @@ list fails it; naming a check the guard never prints fails it. All three were ru
 | `decisions-render.sh` | `vendor-register` | a decision rendered as a raw Python dict repr instead of its text | render |
 | `exposure.sh` | `ai-register` | a hand-selectable exposure class — the guard is the ABSENCE of a command | absence · derivation |
 | `board-safety.sh` | `ai-register` | a board artifact that does not say it is not legal advice | legal-advice |
+| `board-safety.sh` | `risk-register` | raw framework wording reaching a board renderer | raw-title |
+| `questions.sh` | `vendor-register` | a vendor assertion shrinking the question set | subtraction |
 | `board-safety.sh` | `board-pack` | catastrophizing or false-confidence vocabulary in a board renderer | source-scan |
 | `board-safety.sh` | `business-context` | catastrophizing or false-confidence vocabulary in a board renderer | source-scan |
 | `board-safety.sh` | `exceptions-register` | catastrophizing or false-confidence vocabulary in a board renderer | source-scan |
