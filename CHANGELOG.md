@@ -21,6 +21,45 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.54.1 — 2026-08-08
+
+**The two ISO rows were not the same problem, and one of them was never unverifiable.**
+
+The maintainer confirmed this project holds **no ISO licence**, which made the remaining two rows
+look permanently stuck. Looking at what each actually relies on split them apart.
+
+### The crosswalk row was verifiable all along
+
+`nist-csf` does not rely on ISO's *text*. Its crosswalk carries **Annex A identifiers taken from
+NIST's own CSF 2.0 Reference Export**, with CAC-paraphrased labels and `text: null` on every
+control — the catalogue says so in its `provenance`, and `license: "iso-copyright"` with *"bring
+your own copy"*.
+
+That chain is checkable, and it checks out. The vendored `tools/csf-2.0.xlsx` hashes to
+`cc4ec545…f9b616`, **matching the sha256 recorded inside `nist-csf-2.0-core.json` exactly**. 119
+identifiers, 91 of them referenced by NIST's export, 329 mapping edges, authority declared as
+`mixed-third-party`.
+
+So the row is now **verified**, with its scope stated: identifiers and NIST's mapping, not ISO's
+text. This is the crosswalk bundle proving the point made when `sources.json` was designed — it
+was the one place in the product that already had a stamp discipline, and it is the one place
+that could answer a provenance question without anybody's licence.
+
+### The other row genuinely cannot be closed
+
+`exceptions-register` cites **Cl. 6.1.3 / 8.3** for what they *require* — risk treatment and
+residual-risk acceptance by risk owners. That is a claim about the standard's text, and no amount
+of identifier-level verification touches it.
+
+Its `whyUnverified` now records that this is **permanent, not pending**: no licence, `iso.org`
+returns 403, do not re-attempt from the web. It also records the two ways to close it — read a
+licensed copy, or narrow the claim in `references/exceptions.md` to clause *numbering*, which the
+crosswalk already verifies.
+
+**1 of 39 unverified**, and it is the honest one.
+
+---
+
 ## v0.54.0 — 2026-08-08
 
 **The five unverified sources, worked through — and two wrong dates in the Delaware receipts.**
