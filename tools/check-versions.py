@@ -1148,10 +1148,18 @@ def self_test():
     # A floor, for the reason BL-204 exists: this suite has always printed its count and
     # asserted nothing about it, so a deleted case would show up only as a smaller number in
     # a line nobody diffs.
+    #
+    # SKIPS COUNT TOWARDS IT. The first version of this floor compared `len(checks)` alone and
+    # broke the non-UTF-8 locale run, where the non-ASCII path case skips by design and 55 of
+    # 56 run. That is the same failure this whole sweep is about, committed inside the fix for
+    # it: a count that cannot tell a case DELETED from a case legitimately NOT RUN. The
+    # attempted total is what has to hold steady.
     _FLOOR = 56
-    if len(checks) < _FLOOR:
-        print("FAILED: only {} checks ran, expected at least {} — cases have been removed. "
-              "Lower the floor deliberately or put them back.".format(len(checks), _FLOOR))
+    attempted = len(checks) + len(skipped)
+    if attempted < _FLOOR:
+        print("FAILED: only {} case(s) attempted ({} ran, {} skipped), expected at least {} — "
+              "cases have been removed. Lower the floor deliberately or put them back.".format(
+                  attempted, len(checks), len(skipped), _FLOOR))
         return False
     return all(checks)
 
