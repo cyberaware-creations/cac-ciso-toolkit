@@ -149,11 +149,29 @@ inaccurate and disqualifying in the room.
 ## NYDFS Part 500 (covered US financial firms)
 
 **What it says.**
-- **§500.9** — the risk assessment must be *documented*.
-- **§§500.12 / 500.15** — require **written CISO approval** of compensating
-  controls (e.g., where MFA isn't used).
-- **§500.17** — a **signed acknowledgment** of any non-compliance with a
-  remediation timeline, **retained for 5 years**.
+- **§500.9(b)** — *"The Risk Assessment shall be carried out in accordance with
+  written policies and procedures and shall be documented."* Those policies must
+  include, at (b)(3), requirements describing how identified risks *"will be
+  mitigated or accepted"* — which is the acceptance object this suite records,
+  named in the regulation itself.
+- **§500.12(b)** — MFA. **Written CISO approval** of *"reasonably equivalent or
+  more secure compensating controls"*, reviewed at least annually. Conditional:
+  *"if the covered entity has a CISO"* — an entity without one has no such route.
+- **§500.15(b)** — encryption **at rest only**. The Second Amendment **deleted**
+  the equivalent route for data **in transit**: §500.15(a) now requires
+  encryption *"both in transit over external networks and at rest"* with no
+  compensating-control alternative for transit. Do not offer one.
+- **§500.17(b)** — annually, for the prior calendar year, either a certification
+  of material compliance or a **written acknowledgment** of non-compliance
+  identifying the sections, describing nature and extent, and giving a
+  **remediation timeline** (or confirming remediation is complete). **Signed by
+  the highest-ranking executive *and* the CISO** — two signatures, not one. The
+  **five-year** retention attaches to the *supporting* records, schedules and
+  data, not merely to the acknowledgment.
+
+All Second Amendment transitional periods have expired: §500.17 at 30 days,
+§500.15 at one year (1 Nov. 2024) and §500.12 at two years (1 Nov. 2025) from
+the 1 November 2023 effective date.
 
 **Translation implication.** "Record the acceptance" and written sign-off are
 *already expected artifacts* for covered firms. The translation's decision-
@@ -207,7 +225,7 @@ checked. Nothing here is a substitute for counsel reading the current text.
 | SEC cyber disclosure rule | Release Nos. **33-11216; 34-97989**, File No. S7-09-22, **88 FR 51896** (4 Aug. 2023); effective 5 Sep. 2023 | Federal Register; SEC final rules |
 | Item 106 / Item 1.05 | **17 C.F.R. § 229.106**; Form 8-K **Item 1.05** (§ 249.308) | eCFR, Title 17; adopted text at 88 FR **51942** (Item 106) and **51945** (Item 1.05 and its Instructions) |
 | Gerding statement | Erik Gerding, Dir. of Corporation Finance, "Cybersecurity Disclosure," 14 Dec. 2023 | SEC statements |
-| NYDFS | **23 NYCRR Part 500**, §§ 500.9, 500.12, 500.15, 500.17 | NY Dept. of Financial Services |
+| NYDFS | **23 NYCRR Part 500**, §§ 500.9, 500.12, 500.15, 500.17, as amended by the **Second Amendment** (effective 1 Nov. 2023; all transitional periods expired) | NY Dept. of Financial Services; Second Amendment text at dfs.ny.gov |
 | NIS2 | Directive **(EU) 2022/2555**, Art. 20 | EUR-Lex, CELEX 32022L2555 |
 
 **Two of these have moved since they were written down, and both moves are

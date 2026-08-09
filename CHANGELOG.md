@@ -21,6 +21,56 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.50.0 — 2026-08-08
+
+**The NYDFS Part 500 family — an exception the regulation no longer permits.** Fourth family in
+the verification programme. Source of record: the **Second Amendment to 23 NYCRR 500** (effective
+1 November 2023) from dfs.ny.gov, with consolidated section text for provisions the amendment left
+untouched.
+
+### The defect: a compensating-controls route that was deleted
+
+`exceptions.md` told a covered entity that *"where MFA **or encryption** is not implemented as
+specified, a written approval of compensating controls is required."*
+
+**The Second Amendment deleted the in-transit encryption route.** §500.15(a) now requires
+encryption of nonpublic information *"both in transit over external networks and at rest"*, and
+only §500.15(b) — **at rest** — keeps an infeasibility route with CISO written approval. The
+deletion is visible as bracketed text in the amendment itself.
+
+This lands worse in `exceptions-register` than anywhere else, because logging exactly this kind of
+controlled exception is the skill's whole job. An in-transit encryption gap is **not a deviation to
+record and compensate — it is non-compliance**, and it belongs in the §500.17 acknowledgment. All
+three places that discussed it now say so.
+
+### §500.12 carries a condition nobody had noticed
+
+*"**If the covered entity has a CISO**, the CISO may approve in writing the use of reasonably
+equivalent or more secure compensating controls."* An entity without a CISO has no
+compensating-controls route under §500.12 at all — which is precisely the smaller covered entity
+most likely to want one.
+
+### Claims held, and two got sharper
+
+**§500.9(b)** — *"The Risk Assessment shall be carried out in accordance with written policies and
+procedures and shall be documented."* Verbatim. Better still, §500.9(b)(3) requires those policies
+to describe how risks *"will be mitigated or **accepted**"* — the acceptance object this suite
+records, named in the regulation itself. That is a stronger receipt than the file was using, and it
+is now quoted.
+
+**§500.17(b)** — the acknowledgment claim held and gained three details it had missing: it is an
+**annual** filing for the prior calendar year, signed by the **highest-ranking executive *and* the
+CISO** (two signatures, not one), and the **five-year retention attaches to the supporting
+records**, not to the acknowledgment alone.
+
+### The transitional periods are all expired, and now it says so
+
+Verified from §500.22 as amended: §500.17 at 30 days, §500.15 at one year (1 Nov. 2024), §500.12 at
+two years (**1 Nov. 2025**) from the 1 November 2023 effective date. Everything cited is fully in
+force.
+
+---
+
 ## v0.49.0 — 2026-08-08
 
 **The DORA reference family — and the first engine defect the verification programme has found.**
