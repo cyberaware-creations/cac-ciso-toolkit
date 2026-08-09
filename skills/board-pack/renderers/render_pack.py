@@ -579,8 +579,10 @@ def _opportunities(section: dict) -> str:
 
     That sequence is the argument: *here is the exposure, here is what it costs us, here is
     what good would unlock, here is the decision.* CSF 2.0 `GV.RM-07` asks that strategic
-    opportunities be characterised and **included in** cybersecurity risk discussions; IR
-    8286C r1 tracks opportunity **alongside** threats. Both describe a distinct item, and both
+    opportunities be characterised and **included in** cybersecurity risk discussions, and its
+    own implementation example is to prioritise positive risks **alongside** negative ones —
+    alongside, not inside. IR 8286C r1 asks that positive risk be recorded and acted upon.
+    Both describe a distinct item, and both
     are the reason this is a block rather than a clause: an optimistic tail welded onto a loss
     statement reads as softening the loss, which teaches a board to discount the section.
     `outcome-framing.sh` fails a sidecar that tries it.

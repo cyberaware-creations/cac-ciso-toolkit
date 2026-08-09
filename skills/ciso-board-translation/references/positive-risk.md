@@ -12,8 +12,9 @@ NIST's term is **positive risk**, and that is the term this suite uses. It is be
 "upside" or "enablement" because it keeps the concept inside risk language instead of importing
 sales language, which is the failure mode the whole element has to be designed against.
 
-NIST IR 8286C r1 (December 2025) tracks opportunity **alongside** threats: *"The IR 8286 series
-stresses the importance of recording and acting upon positive risk."* Its examples are concrete
+NIST IR 8286C r1 (December 2025) asks that opportunity be **recorded and acted on**, not merely
+noticed: *"The IR 8286 series stresses the importance of recording and acting upon positive
+risk."* Its examples are concrete
 rather than aspirational — machine-learning technology that significantly increases the
 throughput of the enterprise research team, high-availability services that lift availability
 from 93.4 % to 99.1 % and market share by 3 %.
@@ -62,8 +63,11 @@ made silence correct has been removed — which is the only reason this element 
 An opportunity is its own array, rendered as its own block, and is **never a clause appended to
 a risk sentence.**
 
-`GV.RM-07` says positive risks are *"included in"* cybersecurity risk discussions; 8286C r1
-tracks opportunity *"alongside"* threats. Both describe a distinct item.
+`GV.RM-07` says strategic opportunities are *"characterized and are included in organizational
+cybersecurity risk discussions"*, and its own implementation example is to *"calculate, document,
+and prioritize positive risks alongside negative risks."* **Alongside**, not inside. Both halves
+of that sentence describe a distinct item — one identified, costed and ordered in its own right,
+not a qualifier attached to something else.
 
 A risk sentence with an optimistic tail — *"…and this also unlocks faster onboarding"* — reads
 as **softening the risk**. That is worse than either element on its own, and it is how a board
@@ -108,10 +112,14 @@ somebody declares the goal it would cite, the honest output is no entry at all.
 
 ## Deliberately scoped to board output
 
-The 8286 series puts positive risk **earlier than board reporting**: 8286r1's lifecycle step 2
-is *"catalog positive and negative uncertainties"*, 8286A r1 says opportunities warrant the same
-systematic identification as threats, and 8286C r1 §4.2.3 says every aggregation activity should
-surface beneficial uncertainty. On a full reading, positive risk belongs in the register too.
+The 8286 series puts positive risk **earlier than board reporting**. Step 2 of 8286r1's six-step
+risk management life cycle is *"Identify the risks"*, and it asks for *"the comprehensive set of
+positive and negative risks (i.e., determining which events could enhance or impede objectives),
+including the risks of failing to pursue an opportunity."* 8286A r1 focuses on negative risk but
+says positive risks *"should be documented and reviewed as well"*, by *"a similar process"*. And
+8286C r1 §4.2.3 asks that *"each risk aggregation, normalization, analysis, and integration
+activity should identify the impacts of beneficial uncertainty."* On a full reading, positive
+risk belongs in the register too.
 
 It is **not** scoped there, and that is a recorded decision rather than a gap. 8286C r1 is candid
 that positive risk management *"is a field of interest that is new to many readers and merits
@@ -128,8 +136,13 @@ the failure mode most contained. Register-level positive risk waits until somebo
 - [NIST IR 8286C r1 — Staging Cybersecurity Risks for Enterprise Risk Management](https://nvlpubs.nist.gov/nistpubs/ir/2025/NIST.IR.8286Cr1.pdf) (final, 18 December 2025 — supersedes the 2022 edition)
 
 **February 2025 was the initial public draft of all three, not the revision.** The finals landed
-on 18 December 2025 and are what these links now serve. 8286B and 8286D are different: those
-*were* finalised on 26 February 2025 and carry no `r1`. Anything in this repo still dated
-"February 2025 revisions" is describing a draft.
+on 18 December 2025 and are what these links now serve. Anything still dated "February 2025
+revisions" is describing a draft.
+
+**8286B and 8286D took a different route**, and their designation is easy to get wrong: they are
+**`NIST IR 8286B-upd1`** and **`NIST IR 8286D-upd1`** — *Update 1*, finalised 26 February 2025,
+not `r1`. An earlier version of this note said they "carry no `r1`", which is true and misleading
+in the same breath: it reads as *no version marker at all*, and a bare `8286B` names the withdrawn
+2022 edition just as surely as a bare `8286` names a withdrawn 2020 one.
 
 *A Cyber Aware Creation · Not affiliated with NIST. Not legal advice.*

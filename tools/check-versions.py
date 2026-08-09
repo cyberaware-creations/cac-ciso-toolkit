@@ -322,8 +322,14 @@ def check_skill_coverage(root="."):
 # The revision marker may be attached (`8286r1`) or spaced (`8286A r1`), so the lookahead
 # tolerates the space. Getting that wrong in either direction is silent: too tight and it
 # flags every correct citation, too loose and it flags none.
+# The sub-parts do not share a marker, and the first version of this pattern accepted a bare
+# `8286B` on the assumption they did. They do not: 8286 r1, 8286A r1 and 8286C r1 are Revision 1
+# (18 Dec 2025), while 8286B-upd1 and 8286D-upd1 are Update 1 (26 Feb 2025). A bare `8286B`
+# names the withdrawn 2022 edition exactly as surely as a bare `8286` names the withdrawn 2020
+# one, so it is flagged too.
 _IR8286_BARE = re.compile(
-    r"\b(?:NIST\s*IR|NISTIR|IR)\s*8286(?!\s*(?:[A-D]\b|[A-D]?\s*r\s*\d|series\b))", re.I)
+    r"\b(?:NIST\s*IR|NISTIR|IR)\s*8286"
+    r"(?!\s*(?:[AC]?\s*r\s*\d|[BD][-\s]*upd\s*\d|series\b))", re.I)
 # Shipped prose that carries no file extension. NOTICE held a bare citation and an
 # extension-keyed scan never looked at it — the same shape as the guard that read three files
 # of five and reported "not zero".
@@ -378,8 +384,8 @@ def check_citation_specificity(root="."):
         for p in problems:
             print("         {}".format(p))
         print("       Every part of the 8286 series has been revised or withdrawn and they "
-              "differ substantively. Name the one you mean: 8286r1, 8286A r1, 8286B, "
-              "8286C r1, 8286D.")
+              "differ substantively. Name the one you mean: 8286r1, 8286A r1, 8286C r1 "
+              "(Revision 1, 18 Dec 2025), 8286B-upd1, 8286D-upd1 (Update 1, 26 Feb 2025).")
         return False
     print("citations: {} shipped files, no bare NISTIR 8286 reference.".format(scanned))
     return True
@@ -870,7 +876,13 @@ def self_test():
                 ("NISTIR 8286r1 and 8286A r1", False),
                 ("NIST IR 8286A r1 section 2.2", False),
                 ("NIST IR 8286Ar1", False),                       # attached revision marker
-                ("NIST IR 8286D", False),
+                # The sub-parts do not share a marker. B and D are Update 1, not Revision 1,
+                # so a bare 8286B names the withdrawn 2022 edition. The first version of this
+                # pattern allowed both, on an assumption nobody had checked.
+                ("NIST IR 8286D", True),
+                ("NIST IR 8286B", True),
+                ("NIST IR 8286D-upd1", False),
+                ("NIST IR 8286B upd1", False),
                 # NIST's own words, quoted in positive-risk.md. A check that flagged a
                 # verbatim quotation of the source would be teaching the wrong lesson.
                 ("The IR 8286 series stresses the importance", False),
