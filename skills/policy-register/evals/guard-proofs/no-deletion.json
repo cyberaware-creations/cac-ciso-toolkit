@@ -1,0 +1,31 @@
+{
+  "guard": "skills/policy-register/evals/no-deletion.sh",
+  "forbids": "any path that removes a policy record — supersession is the only way a document leaves force",
+  "note": "The audit question is what was in force on the date of the incident. A register that can only answer for today answers the wrong question with complete confidence. `unmap` is the deliberate near-miss: narrowing what a document is aimed at removes a mapping, not a record, so the static half reads the TARGET rather than the method name.",
+  "mutations": [
+    {
+      "half": "static",
+      "why": "a filter-and-rebind helper wired into COMMANDS. Never exercised by the behavioural lifecycle, because that lifecycle does not call it — the code path simply exists, which is all it needs to do to be dangerous.",
+      "defeats": [
+        "no shipped .py shortens the store's records list"
+      ],
+      "file": "skills/policy-register/scripts/policy_register.py",
+      "find": "def build_parser() -> argparse.ArgumentParser:",
+      "replace": "def _tidy(store, pid):\n    store[\"policies\"] = [p for p in store[\"policies\"] if p.get(\"id\") != pid]\n\n\ndef build_parser() -> argparse.ArgumentParser:"
+    },
+    {
+      "half": "behavioural",
+      "why": "supersede quietly dropping the record, written as an in-place slice assignment. The static half CANNOT see this one — the assignment target is a slice of the list, not the list, so no pattern matching `store[\"policies\"] = ...` fires. That structural blind spot is the whole reason the behavioural half counts the records after every single mutation.",
+      "defeats": [
+        "the record count never decreases across a full lifecycle",
+        "the lifecycle actually exercised supersession",
+        "the superseded document survives into the analysis",
+        "the superseded document is in the CSV export",
+        "the superseded document is on the rendered page"
+      ],
+      "file": "skills/policy-register/scripts/policy_register.py",
+      "find": "    rec[\"state\"] = STATE_SUPERSEDED",
+      "replace": "    store[\"policies\"][:] = [p for p in store[\"policies\"] if p is not rec]\n    rec[\"state\"] = STATE_SUPERSEDED"
+    }
+  ]
+}

@@ -251,6 +251,11 @@ list fails it; naming a check the guard never prints fails it. All three were ru
 | `board-safety.sh` | `metrics-register` | catastrophizing or false-confidence vocabulary in a board renderer | source-scan |
 | `board-safety.sh` | `nist-csf` | catastrophizing or false-confidence vocabulary in a board renderer | source-scan |
 | `board-safety.sh` | `vendor-register` | a board artifact that does not say it is not legal advice | legal-advice |
+| `board-safety.sh` | `policy-register` | catastrophizing or false-confidence vocabulary in the reader-facing renderer | source-scan |
+| `no-coverage-claim.sh` | `policy-register` | any state, key, token or chip saying a requirement is met because a policy maps to it | static · behavioural |
+| `no-coverage-percentage.sh` | `policy-register` | a proportion, percentage or float in the requirement view — counts only | behavioural · static |
+| `no-deletion.sh` | `policy-register` | any path that removes a policy record; supersession is the only way out of force | static · behavioural |
+| `requirement-drift.sh` | `policy-register` | a vendored requirement spine that no longer matches the nist-csf artifacts | regeneration |
 
 Every guard above, both halves, proved in both directions on every run. **The table is checked,
 not maintained by memory** — `prove-guards.sh` fails if a guard on disk is missing a row, or a

@@ -21,6 +21,93 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.64.0 — 2026-08-09
+
+**`policy-register` — the twelfth skill, and the last capability before 1.0.** GV.PO was the
+only CSF 2.0 GOVERN category with no coverage at all, and *"show me your policies and which
+requirement each one satisfies"* is asked of every CISO by every auditor every year. The
+toolkit had no answer.
+
+### The refusal is the product
+
+A mapped policy is **never** evidence that a requirement is met. *"We have a policy for that"*,
+accepted as *"that risk is controlled"*, is the most common quiet untruth in this industry —
+and a register that permitted the slide would make a CISO **less** defensible for having used
+it, because a register looks like a system.
+
+So the four states a requirement row can carry all describe the **documents** — `not-declared`,
+`draft-only`, `superseded-only`, `approved-policy` — and none describes the requirement. There
+is no fifth state, and adding one is a red run rather than a quiet expansion of what the
+product claims.
+
+The other refusals: counts and never proportions; `approve` refused without a named approver
+**and** a date; supersession and never deletion; a requirement with no policy reading NOT
+DECLARED rather than "no policy exists"; an overdue review that flags and never blocks.
+
+### The guards went in with the capability, not after it
+
+Five new guards and eight new halves, registered under CAC-GP-1 **as each capability landed**:
+`no-coverage-claim` and `no-coverage-percentage` (two halves each), `no-deletion` (two halves),
+`requirement-drift` and `board-safety` (one each). `EXPECTED_GUARDS` moves 27 → **32** and
+`EXPECTED_HALVES` 37 → **45** in this same change, which is the only way those numbers ever
+mean anything.
+
+That sequencing was the reason this item was blocked rather than queued: a capability added
+after a truth pass re-opens the truth pass.
+
+**Every `defeats` list was derived by running the mutation**, never written from memory —
+which is what GP-1.9 asserts and why two of them turned out to name checks the author had not
+predicted. Writing the guards also found three defects in the code they guard and two in the
+guards themselves: a static scan that blanked its own file count when it found something (so
+one mutation appeared to defeat two independent checks), and a precondition that duplicated the
+rule it was supposed to make meaningful.
+
+### Grounded in what already shipped
+
+The twenty Policy and Procedures controls — `AC-1` through `SR-1` — come from the bundled
+`800-53-r5.catalog.json`, and GV.PO-01/-02 with their nine implementation examples from the
+bundled CSF Core. **No new dataset, no ingest, no licensing question.** The join between them
+is NIST's own: the CSF Core's informative references for GV.PO-01 and GV.PO-02 name all twenty.
+
+The record shape is read off those implementation examples rather than invented — *"Require
+approval from senior management on policy"* is why `approval.by` and `approval.on` are
+mandatory, and *"acknowledge receipt … when first hired, annually, and whenever policy is
+updated"* is why `acknowledgement.cadence` accepts exactly those three values.
+
+The spine is **vendored** so the skill runs with nothing else installed, and
+`requirement-drift.sh` regenerates it from the `nist-csf` artifacts on every run and compares
+all 112 fields.
+
+### Built to BL-169 from the start
+
+D-1 entry anywhere: this skill reads no other store and requires no other skill to have run.
+D-2 resumable: every mutation leaves a schema-valid file. D-4 a partial programme is the
+**normal** state — an empty register analyses cleanly, reports twenty-two requirements as not
+declared, and raises nothing. It does not nag.
+
+`kind` ships in the schema defaulting to `policy`, with `plan` and `playbook` reserved and
+refused at write time. A field is cheap; migrating a store already in the wild is not, and
+CSF ID.IM-04 is this lifecycle exactly with a different record kind.
+
+### Counts
+
+Engine self-test **75 checks**. Six suites: `no-coverage-claim` 9, `no-coverage-percentage` 9,
+`no-deletion` 10, `requirement-drift` 5, `board-safety` 7, `lifecycle` 16. `prove-guards`
+**32 guards, 45 halves**, 54 eval scripts classified, 0 candidates awaiting enrolment.
+`lint-evals` 56 suites. `check-sources` 12 skills, 47 declared sources. The tenth
+`cac_graphics.py` copy is byte-identical to the other nine.
+
+Every new eval is named individually in `.github/workflows/evals.yml`. No globs.
+
+### Also
+
+- The prose spelling `SP 800-53r5` is ambiguous under CAC-RW-1's citation vocabulary — the
+  pattern's optional letter absorbs the `r`, canonicalising it to `sp-800-53r` rather than
+  `sp-800-53r5`. Normalised to `SP 800-53 Rev. 5`, the spelling the rest of the repository
+  already uses. Found by C6 on its first run against the new skill.
+
+---
+
 ## v0.63.0 — 2026-08-09
 
 **The three open decisions, each turned into a rule.** A decision that lives in a chat log is

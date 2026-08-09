@@ -43,8 +43,8 @@ only=("$@")
 
 # Anti-vacuity, matching the house convention. A proof run that silently exercised nothing is
 # the thing this file exists to prevent, so the counts are asserted rather than printed.
-EXPECTED_GUARDS=27
-EXPECTED_HALVES=37
+EXPECTED_GUARDS=32
+EXPECTED_HALVES=45
 
 guards_seen=0
 halves_seen=0
