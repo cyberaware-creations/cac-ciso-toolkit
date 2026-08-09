@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "skill": "business-context",
+  "sources": [
+    {
+      "id": "csf-2-0",
+      "label": "NIST Cybersecurity Framework 2.0",
+      "publisher": "NIST",
+      "instrument": "NIST CSWP 29",
+      "version": "CSF 2.0, 26 Feb. 2024",
+      "checkedOn": "2026-08-08",
+      "checkedBy": "claude-code",
+      "gated": false,
+      "usedFor": [
+        "SKILL.md"
+      ]
+    }
+  ]
+}

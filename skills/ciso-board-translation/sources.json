@@ -1,0 +1,155 @@
+{
+  "schemaVersion": 1,
+  "skill": "ciso-board-translation",
+  "sources": [
+    {
+      "id": "caremark-line",
+      "label": "Delaware oversight line",
+      "publisher": "Delaware courts",
+      "instrument": "In re Caremark Int'l Inc. Derivative Litig., 698 A.2d 959 (Del. Ch. 1996); Stone v. Ritter, 911 A.2d 362 (Del. 2006)",
+      "version": "698 A.2d 959; 911 A.2d 362",
+      "checkedOn": "2026-08-08",
+      "checkedBy": "claude-code",
+      "gated": false,
+      "usedFor": [
+        "references/regulatory-receipts.md"
+      ]
+    },
+    {
+      "id": "materiality-standard",
+      "label": "Federal securities materiality standard",
+      "publisher": "US Supreme Court",
+      "instrument": "TSC Indus., Inc. v. Northway, Inc., 426 U.S. 438 (1976); Basic Inc. v. Levinson, 485 U.S. 224 (1988)",
+      "version": "426 U.S. 438; 485 U.S. 224",
+      "checkedOn": "2026-08-08",
+      "checkedBy": "claude-code",
+      "gated": false,
+      "usedFor": [
+        "references/regulatory-receipts.md"
+      ]
+    },
+    {
+      "id": "delaware-cyber-cases",
+      "label": "Delaware cyber oversight cases",
+      "publisher": "Delaware Court of Chancery",
+      "instrument": "Firemen's Retirement System of St. Louis v. Sorenson, C.A. No. 2019-0965-LWW; Construction Industry Laborers Pension Fund v. Bingle, C.A. No. 2021-0940-SG; In re The Boeing Co. Derivative Litig., C.A. No. 2019-0907-MTZ",
+      "version": "as cited in regulatory-receipts.md",
+      "checkedOn": "2026-08-08",
+      "checkedBy": "unverified",
+      "gated": false,
+      "usedFor": [
+        "references/regulatory-receipts.md"
+      ]
+    },
+    {
+      "id": "dora-rts-2024-1774",
+      "label": "DORA ICT risk-management RTS",
+      "publisher": "European Commission",
+      "instrument": "Commission Delegated Regulation (EU) 2024/1774, Art. 3, point (d)(iii)-(iv)",
+      "version": "OJ 25.6.2024; in force 15 Jul. 2024",
+      "checkedOn": "2026-08-08",
+      "checkedBy": "claude-code",
+      "gated": true,
+      "reviewIntervalDays": 365,
+      "usedFor": [
+        "references/regulatory-receipts.md"
+      ]
+    },
+    {
+      "id": "dora-l1",
+      "label": "DORA (Level 1)",
+      "publisher": "European Parliament and Council",
+      "instrument": "Regulation (EU) 2022/2554",
+      "version": "applicable from 17 Jan. 2025 (Art. 64)",
+      "checkedOn": "2026-08-08",
+      "checkedBy": "claude-code",
+      "gated": true,
+      "reviewIntervalDays": 365,
+      "usedFor": [
+        "references/regulatory-receipts.md"
+      ]
+    },
+    {
+      "id": "sec-cyber-rule",
+      "label": "SEC cybersecurity disclosure rule",
+      "publisher": "US Securities and Exchange Commission",
+      "instrument": "Release Nos. 33-11216; 34-97989, File No. S7-09-22",
+      "version": "88 FR 51896, 4 Aug. 2023; effective 5 Sep. 2023",
+      "checkedOn": "2026-08-08",
+      "checkedBy": "claude-code",
+      "gated": true,
+      "reviewIntervalDays": 365,
+      "usedFor": [
+        "references/regulatory-receipts.md"
+      ]
+    },
+    {
+      "id": "nydfs-part-500",
+      "label": "NYDFS Part 500",
+      "publisher": "New York State Department of Financial Services",
+      "instrument": "23 NYCRR Part 500, ss 500.9, 500.12, 500.15, 500.17",
+      "version": "Second Amendment, effective 1 Nov. 2023; all transitional periods expired",
+      "checkedOn": "2026-08-08",
+      "checkedBy": "claude-code",
+      "gated": true,
+      "reviewIntervalDays": 365,
+      "usedFor": [
+        "references/regulatory-receipts.md"
+      ]
+    },
+    {
+      "id": "nis2",
+      "label": "NIS2 Directive",
+      "publisher": "European Parliament and Council",
+      "instrument": "Directive (EU) 2022/2555, Art. 20",
+      "version": "Art. 20(1) liability; Art. 20(2) training",
+      "checkedOn": "2026-08-08",
+      "checkedBy": "claude-code",
+      "gated": true,
+      "reviewIntervalDays": 365,
+      "usedFor": [
+        "references/regulatory-receipts.md"
+      ]
+    },
+    {
+      "id": "gerding-statement",
+      "label": "SEC Corp Fin statement on cybersecurity disclosure",
+      "publisher": "US Securities and Exchange Commission",
+      "instrument": "Erik Gerding, Director of Corporation Finance, 'Cybersecurity Disclosure'",
+      "version": "14 Dec. 2023",
+      "checkedOn": "2026-08-08",
+      "checkedBy": "claude-code",
+      "gated": false,
+      "usedFor": [
+        "references/regulatory-receipts.md"
+      ]
+    },
+    {
+      "id": "csf-2-0",
+      "label": "NIST Cybersecurity Framework 2.0",
+      "publisher": "NIST",
+      "instrument": "NIST CSWP 29",
+      "version": "CSF 2.0, 26 Feb. 2024",
+      "checkedOn": "2026-08-08",
+      "checkedBy": "claude-code",
+      "gated": false,
+      "usedFor": [
+        "references/positive-risk.md"
+      ]
+    },
+    {
+      "id": "ir-8286-series",
+      "label": "NISTIR 8286 series",
+      "publisher": "NIST",
+      "instrument": "NIST IR 8286r1, 8286A r1, 8286C r1",
+      "version": "all final 18 Dec. 2025",
+      "checkedOn": "2026-08-08",
+      "checkedBy": "claude-code",
+      "gated": true,
+      "reviewIntervalDays": 365,
+      "usedFor": [
+        "references/positive-risk.md"
+      ]
+    }
+  ]
+}

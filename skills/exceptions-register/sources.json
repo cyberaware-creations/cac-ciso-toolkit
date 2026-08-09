@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "skill": "exceptions-register",
+  "sources": [
+    {
+      "id": "dora-rts-2024-1774",
+      "label": "DORA ICT risk-management RTS",
+      "publisher": "European Commission",
+      "instrument": "Commission Delegated Regulation (EU) 2024/1774, Art. 3, point (d)(iii)-(iv)",
+      "version": "OJ 25.6.2024; in force 15 Jul. 2024",
+      "checkedOn": "2026-08-08",
+      "checkedBy": "claude-code",
+      "gated": true,
+      "reviewIntervalDays": 365,
+      "usedFor": [
+        "references/exceptions.md"
+      ]
+    },
+    {
+      "id": "nydfs-part-500",
+      "label": "NYDFS Part 500",
+      "publisher": "New York State Department of Financial Services",
+      "instrument": "23 NYCRR Part 500, ss 500.9, 500.12, 500.15, 500.17",
+      "version": "Second Amendment, effective 1 Nov. 2023; all transitional periods expired",
+      "checkedOn": "2026-08-08",
+      "checkedBy": "claude-code",
+      "gated": true,
+      "reviewIntervalDays": 365,
+      "usedFor": [
+        "references/exceptions.md",
+        "SKILL.md"
+      ]
+    },
+    {
+      "id": "iso-27001",
+      "label": "ISO/IEC 27001:2022",
+      "publisher": "ISO/IEC",
+      "instrument": "ISO/IEC 27001:2022, Cl. 6.1.3 / 8.3",
+      "version": "2022 edition",
+      "checkedOn": "2026-08-08",
+      "checkedBy": "unverified",
+      "gated": false,
+      "usedFor": [
+        "references/exceptions.md"
+      ]
+    }
+  ]
+}
