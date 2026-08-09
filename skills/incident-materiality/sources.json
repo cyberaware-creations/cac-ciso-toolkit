@@ -100,6 +100,34 @@
         "references/materiality-factors.md",
         "SKILL.md"
       ]
+    },
+    {
+      "id": "nis2",
+      "label": "NIS2 Directive",
+      "publisher": "European Union",
+      "instrument": "Directive (EU) 2022/2555, Art. 23",
+      "version": "In force; Member State transposition deadline 17 October 2024",
+      "checkedOn": "2026-08-09",
+      "checkedBy": "claude-code",
+      "gated": true,
+      "reviewIntervalDays": 365,
+      "usedFor": [
+        "references/disclosure-clocks.md"
+      ]
+    },
+    {
+      "id": "fcc-cpni-breach",
+      "label": "FCC CPNI breach notification rule",
+      "publisher": "Federal Communications Commission",
+      "instrument": "47 CFR s 64.2011, Notification of customer proprietary network information security breaches",
+      "version": "Current as of 9 August 2026. Carriers notify USSS and FBI no later than 7 business days; customer notice waits 7 full business days after that, and an investigating agency may direct a further delay of up to 30 days, extendable.",
+      "checkedOn": "2026-08-09",
+      "checkedBy": "claude-code",
+      "gated": true,
+      "reviewIntervalDays": 365,
+      "usedFor": [
+        "references/disclosure-clocks.md"
+      ]
     }
   ]
 }

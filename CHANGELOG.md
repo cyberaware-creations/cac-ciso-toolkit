@@ -21,6 +21,72 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.57.0 — 2026-08-09
+
+**BL-194 and BL-190 — the last v0.53.0 blocker, and the half of C4 that was never written.**
+Both in `tools/check-sources.py`, both the same shape: a check that could not see the thing it
+was supposed to be checking.
+
+### BL-194 — C5 was blind to 24 shipped files
+
+`docs/` and `research/` sat in `_DNC_EXEMPT` alongside the registry, the code that reads it and
+the schema that documents it. Those three belong there — each must carry watched designations
+in order to police them. `docs/` and `research/` were exempt **by directory name**, and nothing
+in either is about the registry. They are ordinary prose, which is exactly where a withdrawn
+publication gets cited by reflex.
+
+Removing them put 24 more files in C5's scope and found no existing violation — the outcome to
+expect, and not a reason to have left the hole open, because C5's entire purpose is the
+citation nobody has written yet.
+
+Six self-test cases pin the scope in place: a planted `SP 800-61 Rev. 2` under `docs/`, under
+`research/`, and nested deeper under `docs/` all fail; a genuine same-line warning under
+`docs/` still passes; and `CHANGELOG.md` and `tools/sources-schema.md` stay exempt, so the fix
+cannot be over-corrected into deleting the exemptions that earn their place. The test for
+adding a path is now written down: *does this file need the string in order to police the
+string?*
+
+### BL-190 — C6, the converse of C4 (RW-1.10)
+
+C4 reads the manifest and asks whether the tree still matches it. Nothing asked the other
+direction. A citation added to a reference file and never added to `sources.json` was invisible
+to every check in the standard — never reviewed, never re-checked against its publisher, never
+gated, and **indistinguishable from a citation that had been verified**, because nothing
+recorded the difference.
+
+**C6 found ten undeclared citations across five shipped skills on its first run**, including
+`NIST IR 8179`, which carries `vendor-register`'s entire two-hop criticality model, and
+`47 CFR 64.2011`, which carries a disclosure delay window in `incident-materiality`.
+
+Designations are canonicalised to stable keys rather than matched as substrings — the first
+attempt reported `ISO/IEC 27001:2022` and `ISO 27001` as two different instruments, which is
+how a check earns being switched off in a fortnight. An ISO **edition year** is dropped; a NIST
+**revision** is not, because `Rev. 2` and `Rev. 3` are different documents with different
+obligations, and every reference defect this repo has found has been an amendment failure.
+
+Each pattern carries a fixture asserting the key it produces, for the same reason `mustFlag`
+does: a detector that has stopped detecting reports *"no undeclared citations"* in exactly the
+tone of one that works. Writing those fixtures caught two dead patterns — the CFR pattern did
+not match this repo's own ASCII `s` for `§`, so two rows added in the same commit went on
+reporting themselves undeclared.
+
+**Five publications were verified against primary sources and declared**, not written from
+memory: SP 800-63B-4 (Final, 31 July 2025), IR 8179 (Final, 9 April 2018), IR 8286B-upd1 and
+IR 8286D-upd1 (both Final, 26 February 2025), and 47 CFR § 64.2011. Two more were carried
+across from already-verified rows in sibling skills. 39 → 45 declared sources.
+
+**Two are allowlisted, permanently and with the argument recorded**: `iso-27002` and
+`iso-27001` in `vendor-register`, where the mention names *a kind of artifact a vendor hands
+over* rather than citing the standard's text — and CAC holds no ISO licence, so a verified row
+would be a claim nobody checked. An allowlist entry with an empty `reason` fails the run;
+otherwise the allowlist is a way to switch C6 off one line at a time while reading as
+considered judgement.
+
+**Verification:** `check-sources.py` self-test 54 → **82 checks, 0 failed**. Repo run clean:
+11 skills, 45 declared sources, 1 unverified and ungated, 292 files scanned by C5.
+
+---
+
 ## v0.56.0 — 2026-08-09
 
 **BL-101, BL-99, BL-102 — the guard proofs, and what they were not proving.** Three items on

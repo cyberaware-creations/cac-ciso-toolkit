@@ -44,6 +44,20 @@
         "references/exceptions.md"
       ],
       "whyUnverified": "This row asserts what ISO/IEC 27001:2022 Cl. 6.1.3 and 8.3 REQUIRE — a claim about the standard's text, not just its numbering. ISO text is paywalled, iso.org's Online Browsing Platform returns HTTP 403 here, and the maintainer confirmed on 2026-08-08 that this project holds no ISO licence. This is permanent, not pending: do not re-attempt from the web. Two ways to close it — read a licensed copy, or narrow the claim in references/exceptions.md to the clause numbering alone, which the nist-csf crosswalk already verifies via NIST's own reference export."
+    },
+    {
+      "id": "sp-800-63b",
+      "label": "NIST SP 800-63B-4",
+      "publisher": "NIST",
+      "instrument": "NIST SP 800-63B-4, Digital Identity Guidelines: Authentication and Authenticator Management",
+      "version": "Final, 31 July 2025; supersedes the 2 March 2020 edition",
+      "checkedOn": "2026-08-09",
+      "checkedBy": "claude-code",
+      "gated": true,
+      "reviewIntervalDays": 365,
+      "usedFor": [
+        "references/exceptions.md"
+      ]
     }
   ]
 }
