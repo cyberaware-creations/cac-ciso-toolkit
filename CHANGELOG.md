@@ -21,6 +21,72 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.49.0 — 2026-08-08
+
+**The DORA reference family — and the first engine defect the verification programme has found.**
+Every family before this produced prose corrections. This one produced a wrong number on a
+regulatory clock.
+
+Sources of record, all from EUR-Lex: **Regulation (EU) 2022/2554** (CELEX 32022R2554),
+**Commission Delegated Regulation (EU) 2024/1774** (32024R1774), and **Commission Delegated
+Regulation (EU) 2025/301** (32025R0301) — the last being the RTS that actually sets the reporting
+windows, and which this repo had never cited.
+
+### The initial-notification clock produced a false overdue
+
+`disclosure-clocks.md` said the initial window is the earlier of *classification + 4h* and
+*awareness + 24h*, and added that *"an entity that classifies late does not thereby extend the
+24-hour awareness cap."* The engine implemented that as an unconditional `min()`.
+
+**Article 5(2) of RTS 2025/301 says the opposite, in terms:**
+
+> Where the financial entity has not classified an ICT-related incident as major within 24 hours
+> from the moment the financial entity has become aware […] but classifies that ICT-related
+> incident as major at a later stage, the financial entity shall submit the initial notification
+> within four hours from the classification.
+
+So on a late-classified incident the engine computed a deadline **already in the past** and
+reported **overdue** while four hours still remained. A false overdue is the single failure this
+same file argues a clock must never produce, in its own words about the SEC half: it *"will
+eventually push somebody into filing something they had not yet decided was true."*
+
+Fixed, and proved: reverting the carve-out drops the self-test from **177 to 172**. The engine
+now names the governing provision in the clock's note.
+
+### The eval had already recorded the defect reaching a user
+
+`trigger-prompts.md` records routing case `N6` reproducing the windows and drawing *"the
+consequence the reference implies without stating: **a late classification buys no time**."* That
+observation is left exactly as written, with a correction beneath it, because it is the most
+useful entry in the file: **the reference asserted a rule, the model reasoned correctly from the
+reference, and emitted a confident statement of law that was wrong.** Routing evals score that as
+a pass — it matches the reference. Only reading the instrument catches it.
+
+### The windows had no instrument behind them
+
+The tables gave 4h / 24h / 72h / one month and cited nothing. The one place that did cite an
+instrument named **2024/1774**, which is the ICT risk-management RTS and sets no reporting
+deadline at all. All three windows are now cited to **RTS 2025/301, Art. 5**, made under DORA
+Art. 19(4).
+
+### The next-working-day allowance was described too generously
+
+Stated as relief where a deadline *"falls outside working hours or on a weekend or public
+holiday."* Article 5(4) gives it only for a **weekend day or bank holiday**, and only until
+**noon of the next working day** — and Article 5(5) **withdraws it entirely** for the initial and
+intermediate reports by credit institutions, CCPs, trading-venue operators, and entities
+identified as essential or important under NIS2 Art. 3. Also added: Article 5(3)'s obligation to
+tell the competent authority *before* a deadline passes, which the engine does not track.
+
+### Nine claims held
+
+Both Art. 3(d) quotations verbatim; Art. 3 is indeed *ICT risk management*; 2024/1774 in force
+15 Jul. 2024 (twentieth day after 25.6.2024 publication); DORA applicable 17 Jan. 2025 (Art. 64);
+the Art. 16 simplified-framework carve-out; the 72-hour and one-month windows; and the standing
+instruction to cite the RTS rather than DORA Level 1 for the residual-risk inventory.
+
+---
+
 ## v0.48.0 — 2026-08-08
 
 **The SEC reference family, read against the adopting release.** First family after 8286 in the

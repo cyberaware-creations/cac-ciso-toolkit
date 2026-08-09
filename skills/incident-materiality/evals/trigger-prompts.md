@@ -180,6 +180,18 @@ classification buys no time**, because the 24h awareness cap binds regardless. I
 "major under DORA" from "material under Item 1.05" unprompted, which is the confusion the two
 regimes invite.
 
+> **Correction, v0.49.0 — that consequence is wrong in law, and the model got it from us.**
+> Article 5(2) of RTS 2025/301 says a late classification *does* open a fresh window: where the
+> entity has not classified within 24 hours of awareness, the notification is due four hours from
+> classification and the lapsed cap no longer binds.
+>
+> The observation is left exactly as written, because it is an accurate record of what `N6` said —
+> and it is now the most useful entry in this file. It shows the defect completing the circuit:
+> the reference asserted a rule, the model reasoned *correctly from the reference*, and emitted a
+> confident statement of law that was wrong. Nothing in a routing eval can catch that; the scoring
+> would mark it right, because it matches the reference. Only reading the instrument catches it.
+> Engine and reference both fixed in v0.49.0.
+
 ### The fix from the earlier `N7` re-run is load-bearing
 
 `N7` reproduced *both* paragraphs that this checklist's previous entry added to
