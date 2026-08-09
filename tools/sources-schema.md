@@ -227,4 +227,65 @@ ban that also forbade the warning would be switched off within a week.
 
 ---
 
+## The three decisions of 2026-08-09
+
+Three questions had sat open across several releases. All three are now rules in
+`check-sources.py`, because a decision that lives in a chat log is a decision the next reader
+has to re-make.
+
+### RW-1.11 An unverified row ships. It does not fail the release gate.
+
+**Decided: keep the gate as it is.** An unverified row is allowed, must never be `gated`, must
+say why, and is counted on every run.
+
+The alternative — failing the release on any unverified row — sounds stricter and is not. It
+pressures whoever is trying to ship into stamping `checkedBy: "claude-code"` on a row nobody
+read, which converts a **visible gap into an invisible lie**. This manifest exists to prevent
+exactly that trade.
+
+The cost is that `whyUnverified` is now load-bearing: it is the only thing separating *"we
+looked and it is paywalled"* from *"nobody has got to it"*. So a placeholder there — `TODO`,
+`n/a`, `pending` — **fails**. A first draft also rejected anything under twelve characters and
+so rejected `paywalled`, which punishes concision rather than emptiness and would have taught
+authors to pad; the floor is six.
+
+### RW-1.12 `checkedBy` stays machine-honest, and a person may counter-sign beside it
+
+**Decided: both, meaning different things.**
+
+| Field | Answers |
+|---|---|
+| `checkedBy` | who **read** the source |
+| `reviewedBy` + `reviewedOn` | who **accepted** that reading |
+
+Replacing `claude-code` with a person's name would be false provenance — an agent opened the
+publisher's page, and a manifest whose whole claim is *"somebody read the primary source"* must
+not misreport who. Dropping the field for a human-only signature would lose the record of a
+real check.
+
+A machine may not countersign its own reading; a counter-signature needs a date, because an
+endorsement that cannot age is the one thing this manifest does not measure. **The count prints
+every run, and it is currently zero of 45** — an honest number, and the point of printing it.
+
+### RW-1.13 365 is the house default; a deviation must say why
+
+The question asked was *"does 365 days suit the SEC rule?"* The honest answer is that **nothing
+had ever decided** — every gated row in the repo carried 365, all twenty-odd of them, because
+it was typed once and copied.
+
+So the burden is inverted onto the only case where a burden is useful. The default needs no
+defence. **A deviation requires `intervalBecause`**, and `intervalBecause` on a default-interval
+row also fails, because a justification there reads as a deviation that is not one.
+
+Applied: the eight **disclosure-clock** rows — SEC cyber rule, Item 106, Reg S-T 13, NIS2 Art.
+23, DORA RTS 2025/301, FCC CPNI — move to **180 days**. The harm from a missed amendment there
+is a late filing and it is asymmetric: nobody is penalised for reading the rule too often. The
+operative text is comparatively stable, the staff interpretation around it is not, and it is
+the interpretation that moves a deadline.
+
+The rule found an unexplained 180 on `nist-csf/cyber-ai-profile` on its first run — set before
+this rule existed, with no reason recorded. The cadence was right and now says so.
+
+---
+
 *A Cyber Aware Creation · Not affiliated with NIST.*
