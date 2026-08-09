@@ -565,6 +565,8 @@ python3 skills/board-pack/scripts/assemble_pack.py self-test               # con
 
 ./tools/prove-guards.sh                             # CAC-GP-1: every guard fails when its defect is present
 python3 tools/lint-evals.py                         # CAC-LE-1: no suite calls a harness helper it never defined
+python3 tools/check-twins.py                        # CAC-TW-1: every deliberately duplicated function still agrees
+python3 tools/check-twins.py --self-test            # and the twin checker's own tests
 ./skills/exceptions-register/evals/board-safety.sh
 ./skills/incident-materiality/evals/board-safety.sh
 ./skills/business-context/evals/board-safety.sh

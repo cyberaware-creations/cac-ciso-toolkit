@@ -21,6 +21,64 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.68.0 — 2026-08-09
+
+**One escalation, a number on the weekly surface and a no-usable-evidence notice on the
+quarterly pack — with a shipped docstring promising that could not happen** (BL-191).
+
+`evidence_text` is duplicated between `attention-surface` and `board-pack` on purpose, and
+`attention_surface.py` said so: *"the same escalation read by the weekly surface and by the
+quarterly pack has to produce the same sentence."* One tested `is not None`, the other
+`not in (None, "")`. On `{"from": "", "to": 5}` the surface rendered `" -> 5"` and the pack
+rendered `"(structured evidence with no `detail`: from, to)"`. A CISO who read the weekly and
+then presented the quarterly was presenting something that contradicted what they had read.
+
+**An empty-string evidence bound means NOT RECORDED**, decided 2026-08-09. It is not a value
+recorded as blank, and `" -> 5"` is half a fact — worse than none, because a reader cannot see
+that it is half. `board-pack`'s reading was correct; `attention-surface` adopts it. `0` is a
+recorded value and both copies keep it, which is what a careless "treat falsy as absent" fix
+would have broken.
+
+**`tools/check-twins.py` (CAC-TW-1) is the guard that had to land first.** Every declaration of
+this kind ends with some version of *"each skill's own self-test is the only thing pinning them
+to the same semantics"* — and **a self-test inside one skill cannot see the other copy, by
+construction.** Nothing under `skills/*/evals/`, `tools/` or CI read both sides of any pair.
+
+It compares **behaviour, not source**. `_iso_date`'s two copies reach their verdict through
+`strptime` in one file and `date.fromisoformat` in the other, deliberately; `AGE_BAND_LABEL` is
+twinned with the wording required to *diverge*. And `is not None` against `not in (None, "")`
+reads as a stylistic difference — the audit that found BL-191 executed both functions rather
+than reading them side by side, so the guard works the way the finding worked. Five kinds:
+`behaviour`, `verdict` (accepted-or-rejected and the value stored, never the message),
+`derived` (day boundaries against rendered day ranges), `constant`, and `divergent` — keys must
+match, every value must differ.
+
+**Run against the unfixed tree it reported ten problems, and three were not BL-191:**
+
+- **`age_band` ships in three copies, not two.** `metrics_analysis.py` carries a third and its
+  note claimed *"each carries a note pointing at the others"*. Neither of the other two
+  mentioned it. A maintainer moving a boundary would have grepped one sibling and changed two
+  copies of three.
+- **Neither end of the `evidence_text` pair named the other's path.** The declaration said
+  "`board-pack`'s renderer", which is not something you can grep, and the pack end said nothing
+  at all — on the one pair that had actually drifted.
+- **`metrics-register`'s `STATUS_SEV` said nothing back to the board pack** that cites it by
+  name so a metric chip carries the same band as the metric's own bullet.
+
+All are fixed, and the scan asserts what it read (GP-1.7): every cross-skill reference to
+another skill's shipped `.py` must be a registered twin, an explicit not-a-twin with its own
+reason, or a declared-but-uncompared row that is **counted and printed on every run** — the
+same call v0.67.0 made about its unproved checks. The word "twin" is not the tell and the path
+is: `AGE_BAND_LABEL`'s declaration says "carries the matching note back to here", and a
+twin-vocabulary grep misses it entirely.
+
+Both skills also gained fixtures pinning the empty-string bound, because `check-twins` proves
+the two **agree** and cannot prove either is **right** — two copies can agree on a wrong answer.
+
+Counts: 7 declared twins, 201 comparisons executed, 15 cross-skill references classified, 1
+uncompared and printed; self-test 19/19, with **0 of 28 mutations surviving** in both
+directions after four survivors exposed four missing cases.
+
 ## v0.67.1 — 2026-08-09
 
 **The crosswalk licensing gate had never been seen to fire.** `validate_crosswalks.py` refuses

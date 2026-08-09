@@ -387,7 +387,14 @@ def evidence_text(evidence) -> str:
     if isinstance(evidence, dict):
         detail = str(evidence.get("detail") or "").strip()
         moved = ""
-        if evidence.get("from") is not None and evidence.get("to") is not None:
+        # `not in (None, "")`, NOT `is not None`. An empty-string bound means NOT RECORDED —
+        # decided 2026-08-09 (BL-191) — and not a value recorded as blank. This line read
+        # `is not None` for four releases, and on `{"from": "", "to": 5}` it rendered " -> 5"
+        # on the weekly surface while the twin named below rendered a no-usable-evidence
+        # notice on the quarterly pack. One record, half a number on one page and nothing on
+        # the other; half a fact is worse than none, because a reader cannot see it is half.
+        # `0` is a recorded value and must survive this: only None and "" are absence.
+        if evidence.get("from") not in (None, "") and evidence.get("to") not in (None, ""):
             moved = "%s -> %s" % (evidence["from"], evidence["to"])
         baseline = str(evidence.get("baseline") or "").strip()
         bits = [b for b in (detail, moved,
@@ -399,10 +406,15 @@ def evidence_text(evidence) -> str:
         # so and name them, rather than printing the object, because a reader who sees a dict
         # on a page cannot tell a shape change from a data problem.
         #
-        # `board-pack`'s renderer holds the twin of this function, and the two agree
-        # deliberately: the same escalation read by the weekly surface and by the quarterly
-        # pack has to produce the same sentence, or two consumers of one contract describe
-        # one fact differently.
+        # The twin of this function lives at skills/board-pack/renderers/render_pack.py, which
+        # now carries the matching note back to here, and the two agree deliberately: the same
+        # escalation read by the weekly surface and by the quarterly pack has to produce the
+        # same sentence, or two consumers of one contract describe one fact differently.
+        #
+        # This comment said "`board-pack`'s renderer" and gave no path, so there was nothing to
+        # grep — and the pack end declared nothing at all. Both ends now name the other, and
+        # tools/check-twins.py executes the pair over a shared corpus on every push, because
+        # the four releases this claim was false are the argument against trusting it again.
         if not evidence:
             return ""
         return "(structured evidence with no `detail`: %s)" % ", ".join(sorted(evidence))
@@ -892,6 +904,22 @@ def _cmd_self_test(_args):
         ok(any(k not in bad for k in ESCALATION_KEYS),
            "an escalation missing a CAC-EL-1 key is detectable")
         eq(len(ESCALATION_KEYS), 6, "and the contract is six keys")
+
+        # --- an empty-string evidence bound is NOT RECORDED (BL-191) -------------
+        # tools/check-twins.py proves this function and board-pack's twin AGREE. Agreement is
+        # not correctness: two copies could agree on the wrong answer and pass it. These
+        # assert what the right answer IS, on this side, so the twin has something true to be
+        # compared against.
+        eq(evidence_text({"from": "", "to": 5}),
+           "(structured evidence with no `detail`: from, to)",
+           "an empty `from` is absence — no half-movement is rendered")
+        eq(evidence_text({"from": 5, "to": ""}),
+           "(structured evidence with no `detail`: from, to)",
+           "and an empty `to` likewise")
+        eq(evidence_text({"from": 0, "to": 5}), "0 -> 5",
+           "but 0 is a recorded value and still renders")
+        eq(evidence_text({"from": "", "to": 5, "detail": "band crossed"}), "band crossed",
+           "the detail still carries when the movement does not")
 
         # --- no acknowledgement, and no mute, in v1 ------------------------------
         module = sys.modules[__name__]

@@ -367,6 +367,20 @@ def evidence_text(evidence) -> str:
     recurred in a second consumer is the argument for the function existing at all — and for
     the eval below it, which renders a vendor-only, an AI-only and a seven-section pack to
     BOTH deliverables rather than trusting that the five-section fixture covers them.
+
+    TWINNED with skills/attention-surface/scripts/attention_surface.py::evidence_text, which
+    carries the matching note back to here. The same escalation read by the weekly operational
+    surface and by this quarterly pack has to produce the same sentence.
+
+    That end declared the twin and this end declared nothing, so a reader editing this function
+    had no way to know a second copy existed — and the two drifted (BL-191). On
+    `{"from": "", "to": 5}` this function reported no usable evidence while the surface printed
+    `" -> 5"`. This reading is the correct one: an empty-string bound means NOT RECORDED,
+    decided 2026-08-09, and `not in (None, "")` below is load-bearing, not defensive clutter.
+    `0` is a recorded value and both copies keep it.
+
+    tools/check-twins.py now executes both over a shared corpus on every push. Edit the two
+    together; a self-test inside one skill cannot see the other copy, by construction.
     """
     if isinstance(evidence, dict):
         detail = str(evidence.get("detail") or "").strip()
