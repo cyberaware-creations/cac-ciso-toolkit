@@ -21,6 +21,43 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.62.0 — 2026-08-09
+
+**`candidate` gains a third answer: `permanent`.** the maintainer's decision, closing the enrolment
+item at one candidate rather than eleven or zero.
+
+`business-context/evals/archetype-advisory.sh` will never be enrolled, and the reason is worth
+more than an enrolment would have been. It runs an A/B holding every declared fact constant and
+moving only revenue and headcount, asserting the applicability objects come back byte-identical.
+To defeat it a mutation must make A and B **differ** — but `applies(profile, question_sets,
+subject)` never receives the store, so revenue and headcount are **structurally unreachable
+from the function that decides scope**. The separation this suite protects is enforced by the
+call signature, not by convention, and a mutation would have to widen that signature first,
+which is a design change and not a proof.
+
+### The decision is data, and the printed line stops overstating
+
+`candidate` meant *"guard-shaped, not yet enrolled"*, and the summary line said so. That is now
+false for the only candidate left. **Printing a settled verdict as "not yet enrolled" would be
+a small, permanent untruth in the one line a reader trusts for scope**, so the two kinds are
+counted apart:
+
+```
+48 eval script(s) classified; 0 candidate(s) awaiting enrolment, 1 permanent (unmutatable by design)
+```
+
+`"permanent": true` is valid on a candidate and nowhere else. Both misuses fail the run and
+were tested: `false` instead of absent, and the flag on an enrolled guard.
+
+The registry row records the condition under which the decision expires: **if `applies()` ever
+gains access to the store, the defect becomes expressible and a mutation becomes both possible
+and required.** A permanent verdict with no stated way to reverse it is a comment, not a rule.
+
+**Verification:** `prove-guards.sh` 27 guards, 37 halves, all green; both `permanent` misuses
+fail; lint-evals, check-sources and check-versions clean.
+
+---
+
 ## v0.61.0 — 2026-08-09
 
 **Two of the last three candidates enrolled.** `EXPECTED_GUARDS` 25 → 27, `EXPECTED_HALVES`
