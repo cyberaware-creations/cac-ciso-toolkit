@@ -58,7 +58,7 @@ EU entity does not set DORA scope, and a lawyer decides that.
 
 | Group | Flags |
 |---|---|
-| Regulatory perimeter | `listedEntity` · `secItem105Scope` · `doraScope` · `nydfsScope` · `euEntity` · `ukEntity` |
+| Regulatory perimeter | `listedEntity` · `secItem105Scope` · `doraScope` · `nydfsScope` · `nydfsExemption` · `euEntity` · `ukEntity` |
 | Technology posture | `aiInUse` · `otPresent` · `cloudPosture` · `regulatedDataHeld` |
 | Third-party posture | `criticalVendorCount` · `concentrationConcern` |
 | Shape and size | `primarySector` · `secondarySector` · `headcountBand` · `jurisdictions` |
@@ -80,6 +80,19 @@ name its regime.
 stops `incident-materiality` emitting a materiality verdict: a generated answer would be
 discoverable alongside the filing it disagreed with. Undeclared means *not declared* — the
 battery is asked and no window is computed. See CAC-AP-1 §2.4.1.
+
+`nydfsExemption` is the same pattern with one difference worth knowing before you reach for
+it. It records **which limb** of 23 NYCRR §500.19 counsel says applies — `500.19(a)`,
+`500.19(c)`, `500.19(g)`, or `none` — rather than a yes/no, because the limbs reach different
+sections: (a) exempts from §500.15 and **not** §500.12, (c) and (d) exempt from both, and only
+(b), (e) and (g) reach the whole Part including §500.17.
+
+**It gates no battery, deliberately.** A section-level exemption cannot gate a whole one:
+wiring it to `nydfs-notification` would drop the notification question for a limited-exemption
+firm that still owes it. `nydfs-notification` stays gated on `nydfsScope` alone, and this flag
+is read by the exceptions register and the board receipts, which speak at section level. The
+engine self-test asserts that it gates nothing, because the obvious "improvement" is to wire
+it up and it would be silent.
 
 ## The context record
 

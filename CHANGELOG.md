@@ -21,6 +21,77 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.65.1 — 2026-08-09
+
+**An exempt firm was told a lawful gap was non-compliance.** Three shipped locations stated
+that NYDFS §500.12 (MFA) and §500.15 (encryption) bind a covered entity. **§500.19 exempts
+qualifying covered entities from exactly those sections**, and §500.19 appeared nowhere in
+`skills/` at all — five release tests confirmed it absent. Following this suite's own guidance,
+such a firm would then log a controlled exception, with a remediation timeline and a date,
+against an obligation it does not have. If that record reaches an examiner, the toolkit
+manufactured the finding (BL-188).
+
+**The pattern, not the three typos.** Every one of the three carried a careful limit, and every
+limit scoped in one direction:
+
+> *"it binds covered entities in New York financial services and nobody else"*
+> *"NYDFS §500.12 binds covered entities in New York and nobody else"*
+> *"it applies only to covered financial entities"* — annotated **HONEST LIMIT (load-bearing)**
+
+They are written to stop the claim reaching firms **outside** the perimeter and say nothing
+about which firms **inside** it are exempt. The discipline that produced them guards against
+over-claiming outward and had no equivalent habit for over-claiming inward.
+
+**Read against the primary text before anything was written.** §500.19 was read in full from the
+DFS official adoption text of the Second Amendment, cross-read against the DFS consolidated copy
+— which agrees word for word and carries its own notice that it is not an official version. The
+limbs are **not interchangeable**, which is why every location now names them:
+
+- **§500.19(a)**, the limited exemption — under any one of three tests (fewer than 20 employees
+  and independent contractors including affiliates, under $7.5M gross annual revenue in each of
+  the last three fiscal years, or under $15M year-end total assets) — reaches **§500.15 but not
+  §500.12**.
+- **§500.19(c) and (d)** reach **both**.
+- **§500.19(b), (e) and (g)** reach the **whole Part**, §500.17 included.
+
+**The Second Amendment removed §500.12 from (a)** — it is bracketed as deleted matter in the
+adoption text. A firm exempt from MFA before 1 Nov 2023 is not exempt now; §500.12 bound it from
+1 Nov 2025 under the §500.22(d)(4) transition. So *"small covered entities are exempt from MFA"*
+was right until Nov 2023 and has been wrong since, and the receipts now say so.
+
+**`nydfsExemption` records the limb, and gates nothing.** Declared by counsel on the same
+pattern as `secItem105Scope`, it holds `500.19(a)` / `500.19(c)` / `500.19(g)` / `none` rather
+than a yes/no, because the limbs reach different sections. It is deliberately **not** a battery
+gate: a section-level exemption cannot gate a whole battery, and wiring it to
+`nydfs-notification` would drop the notification question for a limited-exemption firm that
+still owes it. The engine self-test asserts it gates nothing, because the obvious "improvement"
+is to wire it up and it would be silent.
+
+**Qualification is never computed.** The tests read like arithmetic — a headcount, a revenue
+figure, an asset total — and that is the trap: affiliate aggregation, what counts as operating
+under a license, and whether an entity "otherwise qualifies as a covered entity" are legal
+determinations. The guard's second half fails a location that prints a threshold without the
+sentence saying so.
+
+**`nydfs-exemptions.sh`**, two halves, both seen to fail: *stated* (each location names §500.19
+and distinguishes its limbs) and *not-computed*. It lives in `exceptions-register` because
+`ciso-board-translation` ships no evals directory, and it covers both.
+
+**The D-4 sweep, recorded rather than assumed.** All 31 outward-scoping sentences under
+`skills/` were read against *does this regulation exempt anyone inside the perimeter it names?*
+Already two-directional: the DORA RTS Art. 3(d) receipts, which name the Art. 16 simplified
+framework, and SEC Item 1.05 in `disclosure-clocks.md`. Fixed here: the NYDFS three.
+**Outward-only and unverified:** `materiality-factors.md` on DORA and on SEC Item 106, and
+`incident-materiality/SKILL.md` on Item 1.05 — filed rather than fixed, because whether Art. 16
+reaches incident *reporting* under RTS 2025/301 the way it reaches the residual-risk inventory
+under RTS 2024/1774 has not been read against the primary source, and copying a limit between
+regimes is how the next BL-188 gets written.
+
+Counts: `business_context` 193 → **208**; `prove-guards` 34 guards / 49 halves → **35 / 51**;
+new `nydfs-exemptions` **10**. Everything else unchanged and green.
+
+---
+
 ## v0.65.0 — 2026-08-09
 
 **A statutory filing deadline was computed off the wrong fact for twelve releases.**

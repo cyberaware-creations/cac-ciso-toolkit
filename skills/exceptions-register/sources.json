@@ -20,16 +20,17 @@
       "id": "nydfs-part-500",
       "label": "NYDFS Part 500",
       "publisher": "New York State Department of Financial Services",
-      "instrument": "23 NYCRR Part 500, ss 500.9, 500.12, 500.15, 500.17",
-      "version": "Second Amendment, effective 1 Nov. 2023; all transitional periods expired",
-      "checkedOn": "2026-08-08",
+      "instrument": "23 NYCRR Part 500, ss 500.9, 500.12, 500.15, 500.17, 500.19",
+      "version": "Second Amendment, effective 1 Nov. 2023; all transitional periods expired (s 500.22(d)(2) 1 Nov. 2024, s 500.22(d)(4) 1 Nov. 2025)",
+      "checkedOn": "2026-08-09",
       "checkedBy": "claude-code",
       "gated": true,
-      "reviewIntervalDays": 365,
+      "reviewIntervalDays": 180,
       "usedFor": [
         "references/exceptions.md",
         "SKILL.md"
-      ]
+      ],
+      "intervalBecause": "s 500.19 read in full against the DFS official adoption text on 2026-08-09 (rf_fs_2amend23NYCRR500_text_20231101.pdf), cross-read against the DFS consolidated copy, which agrees word for word and carries its own notice that it is not an official version. The limb-to-section mapping is what three shipped receipts now depend on, and s 500.19(a) already lost s 500.12 once by amendment - so a change here silently makes a customer-facing receipt wrong rather than merely stale."
     },
     {
       "id": "iso-27001",

@@ -247,12 +247,21 @@ that decided nothing applied.
 
 ## Read before you sell this
 
-`references/exceptions.md` carries the receipts **with their limits attached** — DORA RTS
-Art. 3(d) is real but satisfiable by free text and exempts Art. 16 entities; NYDFS §500.12
-binds covered entities in New York and nobody else, and its sibling **§500.15 permits
-compensating controls for encryption at rest only** — the in-transit route was deleted by the
-Second Amendment, so an in-transit gap is non-compliance to acknowledge under §500.17, not an
-exception to log here.
+`references/exceptions.md` carries the receipts **with their limits attached, in both
+directions** — DORA RTS Art. 3(d) is real but satisfiable by free text and exempts Art. 16
+entities; NYDFS §500.12 binds covered entities in New York and nobody else, and its sibling
+**§500.15 permits compensating controls for encryption at rest only** — the in-transit route
+was deleted by the Second Amendment, so an in-transit gap is non-compliance to acknowledge
+under §500.17, not an exception to log here.
+
+**And §500.19 exempts some covered entities from exactly those sections.** §500.19(a), the
+limited exemption, reaches §500.15 but **not** §500.12 — the Second Amendment removed §500.12
+from that list, so a small firm exempt from MFA before 1 November 2023 is not exempt now.
+§500.19(c) and (d) reach both. §500.19(b), (e) and (g) exempt from the whole Part. Telling an
+exempt firm that a lawful gap is a compliance failure produces remediation spend against a
+phantom obligation and an exception record saying, in writing and with a date, that the firm
+knowingly operated outside a rule that never applied to it. **Whether a given entity qualifies
+is a legal determination this suite does not make** — record the limb counsel declared.
 
 It also carries the **discoverability caveat**, which is surfaced on every rendered view
 rather than buried: a permanent, dated inventory of accepted risk is a governance asset and

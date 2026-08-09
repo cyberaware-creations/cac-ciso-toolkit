@@ -248,6 +248,24 @@ KNOWN_FLAGS = {
     "euEntity": "an establishment in the EU",
     "doraScope": "in scope for DORA as a financial entity or critical ICT provider",
     "nydfsScope": "a NYDFS Part 500 covered entity",
+    # The companion to `nydfsScope`, and a SEPARATE FACT from it: an entity can be a covered
+    # entity and still be exempt from most of the Part. Records WHICH LIMB of 23 NYCRR
+    # §500.19 counsel says applies — `500.19(a)`, `500.19(c)`, `500.19(g)`, or `none` — because
+    # the limbs reach different sections and a bare yes/no could not say which (BL-188).
+    #
+    # It GATES NOTHING, deliberately. §500.19 exempts section by section: (a) reaches §500.15
+    # and not §500.12, (c) and (d) reach both, and only (b), (e) and (g) reach the whole Part
+    # including §500.17. The applicability engine gates whole batteries, so mapping a
+    # section-level exemption onto a battery gate would either overstate it — dropping the
+    # notification question for a firm that still owes it — or understate it to the point of
+    # being decorative. `nydfs-notification` stays gated on `nydfsScope` alone; this flag is
+    # read by the exceptions register and the board receipts, which speak at section level.
+    #
+    # NEVER COMPUTED. The tests read like arithmetic — a headcount, a revenue figure, an asset
+    # total — and that is the trap: affiliate aggregation, what counts as operating under a
+    # license, and whether an entity "otherwise qualifies as a covered entity" are legal
+    # determinations. Same rule as `secItem105Scope`, same reason.
+    "nydfsExemption": "the declared NYDFS Part 500 section 500.19 exemption limb, if any",
     "ukEntity": "an establishment in the UK",
     "aiInUse": "AI or machine-learning systems in production use",
     "otPresent": "operational technology or ICS in the estate",
@@ -1431,6 +1449,25 @@ def _cmd_self_test(_args) -> int:
         for skill, sets in QUESTION_SETS.items():
             for battery in sets:
                 ok(battery in BATTERY_LABEL, "%s has a human label" % battery)
+        # Every gate is a documented flag. An undocumented gate would narrow a question set
+        # off a field no reader of KNOWN_FLAGS could find, which is the BL-175 shape with the
+        # documentation missing rather than wrong.
+        for skill, sets in QUESTION_SETS.items():
+            for battery, gate in sets.items():
+                ok(gate in KNOWN_FLAGS, "%s is gated on a documented flag (%s)"
+                   % (battery, gate))
+        # `nydfsExemption` DOES NOT GATE, and that is a decision rather than an oversight
+        # (BL-188). §500.19 exempts section by section — (a) reaches §500.15 and not §500.12,
+        # (c) and (d) reach both, only (b)/(e)/(g) reach the whole Part including §500.17 —
+        # and this engine gates whole batteries. Wiring it to `nydfs-notification` would drop
+        # the notification question for firms that still owe it. Asserted here because the
+        # obvious "improvement" is to wire it up, and it would be silent.
+        ok("nydfsExemption" in KNOWN_FLAGS, "the §500.19 exemption limb is a documented flag")
+        eq([b for s in QUESTION_SETS.values() for b, g in s.items()
+            if g == "nydfsExemption"], [],
+           "...and it gates no battery: a section-level exemption cannot gate a whole one")
+        eq(QUESTION_SETS["incident"]["nydfs-notification"], "nydfsScope",
+           "the notification battery is still gated on covered-entity status alone")
         eq(parse_subject_declares(["ai=true"]), {"aiInUse": True}, "the ai alias resolves")
         eq(parse_subject_declares(["listedEntity=false"]), {"listedEntity": False},
            "and a full flag name passes through")
