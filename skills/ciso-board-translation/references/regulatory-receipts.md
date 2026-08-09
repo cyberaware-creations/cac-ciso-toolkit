@@ -221,8 +221,8 @@ checked. Nothing here is a substitute for counsel reading the current text.
 |---|---|---|
 | Caremark | *In re Caremark Int'l Inc. Derivative Litig.*, 698 A.2d 959 (Del. Ch. 1996) (C.A. No. 13670, Allen, Ch., 25 Sep. 1996) | Delaware Court of Chancery; Atlantic Reporter 2d |
 | The modern standard | *Stone v. Ritter*, 911 A.2d 362 (Del. 2006) (No. 93, 2006, 6 Nov. 2006) | Delaware Supreme Court; Atlantic Reporter 2d |
-| Marriott | *Firemen's Retirement System of St. Louis v. Sorenson*, C.A. No. 2019-0965-LWW (Del. Ch. 26 Oct. 2021) | Delaware Court of Chancery opinions |
-| SolarWinds derivative | *Construction Industry Laborers Pension Fund v. Bingle*, C.A. No. 2021-0940-SG (Del. Ch. 5 Sep. 2022), *aff'd*, No. 411, 2022 (Del. 17 May 2023) | Del. Ch.; Delaware Supreme Court |
+| Marriott | *Firemen's Retirement System of St. Louis v. Sorenson*, C.A. No. 2019-0965-LWW (Del. Ch. 5 Oct. 2021) (Will, V.C.) | Delaware Court of Chancery opinions |
+| SolarWinds derivative | *Construction Industry Laborers Pension Fund v. Bingle*, C.A. No. 2021-0940-SG (Del. Ch. 6 Sep. 2022) (Glasscock, V.C.), *aff'd*, No. 411, 2022 (Del. 17 May 2023) | Del. Ch.; Delaware Supreme Court |
 | Boeing | *In re The Boeing Company Derivative Litigation*, C.A. No. 2019-0907-MTZ (Del. Ch. 7 Sep. 2021) | Delaware Court of Chancery |
 | DORA ICT risk-management RTS | Commission Delegated Regulation **(EU) 2024/1774**, Art. 3, point (d)(iii)–(iv); OJ 25.6.2024, in force 15 Jul. 2024 | EUR-Lex, CELEX 32024R1774 |
 | DORA incident-reporting RTS | Commission Delegated Regulation **(EU) 2025/301**, Art. 5 — the initial / intermediate / final time limits, made under DORA Art. 19(4); OJ 20.2.2025 | EUR-Lex, CELEX 32025R0301 |

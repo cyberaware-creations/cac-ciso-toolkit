@@ -19,39 +19,70 @@
       "id": "cyber-ai-profile",
       "label": "NIST Cyber AI Profile",
       "publisher": "NIST",
-      "instrument": "NIST IR 8596",
-      "version": "as bundled; see references/",
+      "instrument": "NIST IR 8596, Cybersecurity Framework Profile for Artificial Intelligence (Cyber AI Profile): NIST Community Profile",
+      "version": "INITIAL PRELIMINARY DRAFT, 16 Dec. 2025 — not a final. The dataset records this as sourceStatus and the SKILL discloses it.",
       "checkedOn": "2026-08-08",
-      "checkedBy": "unverified",
-      "gated": false,
+      "checkedBy": "claude-code",
+      "gated": true,
       "usedFor": [
-        "SKILL.md"
-      ]
-    },
-    {
-      "id": "crosswalk-catalogues",
-      "label": "Crosswalk target catalogues",
-      "publisher": "ISO/IEC; CIS; NIST",
-      "instrument": "ISO/IEC 27001:2022; CIS Controls v8.1; NIST SP 800-53 Rev. 5",
-      "version": "as bundled in references/, validated by tools/crosswalks/validate_crosswalks.py",
-      "checkedOn": "2026-08-08",
-      "checkedBy": "unverified",
-      "gated": false,
-      "usedFor": [
-        "SKILL.md"
-      ]
+        "SKILL.md",
+        "references/cyber-ai-profile.json"
+      ],
+      "reviewIntervalDays": 180
     },
     {
       "id": "sp-1300",
       "label": "NIST SP 1300",
       "publisher": "NIST",
-      "instrument": "NIST SP 1300",
-      "version": "informs the cold-start rank only",
+      "instrument": "NIST SP 1300, NIST Cybersecurity Framework 2.0: Small Business Quick-Start Guide",
+      "version": "2024; nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.1300.pdf",
       "checkedOn": "2026-08-08",
-      "checkedBy": "unverified",
+      "checkedBy": "claude-code",
       "gated": false,
       "usedFor": [
         "references/cold-start-rank.json"
+      ]
+    },
+    {
+      "id": "sp-800-53r5",
+      "label": "NIST SP 800-53 Rev. 5",
+      "publisher": "NIST",
+      "instrument": "NIST SP 800-53 Rev. 5, Security and Privacy Controls for Information Systems and Organizations",
+      "version": "Final; latest patch Release 5.2.0, 27 Aug. 2025",
+      "checkedBy": "claude-code",
+      "gated": true,
+      "reviewIntervalDays": 365,
+      "checkedOn": "2026-08-08",
+      "usedFor": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "id": "cis-controls-v81",
+      "label": "CIS Critical Security Controls v8.1",
+      "publisher": "Center for Internet Security",
+      "instrument": "CIS Critical Security Controls Version 8.1",
+      "version": "released 25 June 2024; adds the Governance function",
+      "checkedBy": "claude-code",
+      "gated": true,
+      "reviewIntervalDays": 365,
+      "checkedOn": "2026-08-08",
+      "usedFor": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "id": "iso-27001",
+      "label": "ISO/IEC 27001:2022",
+      "publisher": "ISO/IEC",
+      "instrument": "ISO/IEC 27001:2022",
+      "version": "2022 edition, as bundled in the crosswalk",
+      "checkedBy": "unverified",
+      "gated": false,
+      "whyUnverified": "ISO/IEC standards are paywalled and iso.org's Online Browsing Platform returns HTTP 403 here. Needs a licensed copy. Structural, not transient.",
+      "checkedOn": "2026-08-08",
+      "usedFor": [
+        "SKILL.md"
       ]
     }
   ]
