@@ -21,6 +21,71 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.54.0 — 2026-08-08
+
+**The five unverified sources, worked through — and two wrong dates in the Delaware receipts.**
+`sources.json` shipped in v0.52.0 reporting *5 of 37 not yet verified against a primary source*.
+That number was the point of printing it. It is now **2 of 39**, and both remaining are blocked
+for a reason the manifest records.
+
+### Two Delaware dates were wrong
+
+The `Cite as` table in `regulatory-receipts.md` — the one whose stated purpose is that
+*"the identifiers below are stable and let anyone retrieve the primary text"* — had two decision
+dates off by weeks:
+
+| Case | Was | Is |
+|---|---|---|
+| *Firemen's Ret. Sys. of St. Louis v. Sorenson* (Marriott) | Del. Ch. **26 Oct.** 2021 | Del. Ch. **5 October 2021** (Will, V.C.) |
+| *Construction Industry Laborers Pension Fund v. Bingle* (SolarWinds) | Del. Ch. **5 Sep.** 2022 | Del. Ch. **6 September 2022** (Glasscock, V.C.) |
+
+Both confirmed against CourtListener and the Delaware Court of Chancery's own opinion records.
+*Boeing* (7 Sep. 2021) and the *Bingle* affirmance (No. 411, 2022, 17 May 2023) were already
+right. The authoring judge is now named on each, because a docket number plus a date plus a judge
+is retrievable in a way a docket number alone is not.
+
+**These are exactly the citations BL-63 verified in v0.46.0 — and it verified the wrong ones.**
+That pass checked *Caremark*, *Stone*, *TSC* and *Basic*, the four the item named, and left the
+supporting cases alone because they already looked complete. A citation that carries a court, a
+docket and a date looks verified. These two carried all three and were wrong.
+
+### Verified and closed
+
+- **NIST SP 1300** — *Cybersecurity Framework 2.0: Small Business Quick-Start Guide*, 2024. It
+  does not appear in a CSRC keyword search, which is why it sat unverified; it is an SP 1xxx
+  published through nist.gov rather than the 800-series catalogue.
+- **NIST SP 800-53 Rev. 5** — Final, latest patch **Release 5.2.0, 27 Aug. 2025**. This
+  independently confirms the v0.53.0 finding that the seed do-not-cite list had attached that
+  patch to SP 800-53**A**, a different document.
+- **CIS Critical Security Controls v8.1** — released 25 June 2024.
+- **NIST IR 8596 (Cyber AI Profile)** — verified, and it **held**: an *Initial Preliminary Draft*
+  of 16 December 2025. `nist-csf/SKILL.md` already says "preliminary draft" and the bundled
+  dataset already carries `sourceStatus` and `sourcePublished` matching CSRC exactly. This was
+  one of only two source families in the whole product that had a freshness stamp before
+  v0.52.0, and it is still the best-disclosed reference in the repo. The row is gated at 180 days
+  rather than 365, because a preliminary draft moves.
+
+### The two that remain, and why they will not move
+
+Both are **ISO/IEC 27001:2022**. ISO standards are paywalled and `iso.org`'s Online Browsing
+Platform returns HTTP 403 here, so verifying clause numbering needs a licensed copy. That is a
+**structural limit, not a transient failure**, and the manifest now says so — the next maintainer
+should not spend an afternoon retrying it.
+
+### RW-1.8 tightened: an unverified row must say why
+
+`whyUnverified` is now required whenever `checkedBy` is `unverified`. Without it the value
+degrades into a shrug, and a reader cannot tell *"nobody got to it"* from *"no amount of trying
+will help"*. Both remaining rows are the second kind.
+
+The three-catalogue `crosswalk-catalogues` row was also split into one row per catalogue — a row
+covering three sources cannot honestly carry one verification status when two are verified and
+one is blocked.
+
+Self-test 39 → 40.
+
+---
+
 ## v0.53.0 — 2026-08-08
 
 **The do-not-cite list — the complement `sources.json` structurally cannot provide.** A manifest

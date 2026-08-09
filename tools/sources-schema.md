@@ -77,6 +77,12 @@ store behind it.
 **`checkedBy: "claude-code"` means machine-verified against the primary source and *not*
 human-reviewed.** It is deliberately not a person's name. A human sign-off replaces it with one.
 
+**`checkedBy: "unverified"` requires `whyUnverified`.** Without a reason the value degrades into
+a shrug, and the next maintainer cannot tell *"nobody got to it"* from *"the source is paywalled
+and trying again will not help"*. Both remaining unverified rows in this repo are the second
+kind — ISO/IEC standards, where iso.org's browsing platform returns 403 and verification needs a
+licensed copy — and recording that saves someone an afternoon.
+
 ### RW-1.3 `checkedOn` never renders
 
 It is a claim about maintenance diligence, not a fact about the law. What renders is the

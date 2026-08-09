@@ -42,7 +42,8 @@
       "gated": false,
       "usedFor": [
         "references/exceptions.md"
-      ]
+      ],
+      "whyUnverified": "ISO/IEC standards are paywalled and iso.org's Online Browsing Platform returns HTTP 403 to this environment. Verifying the clause numbering needs a licensed copy. This is a structural limit, not a transient failure — do not re-attempt from the web."
     }
   ]
 }

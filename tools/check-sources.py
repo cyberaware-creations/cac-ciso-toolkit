@@ -109,9 +109,19 @@ def check_shape(skill, doc, today):
         # every row as checked on the day it was authored would be a worse lie than the
         # undated citations it replaced. What an unverified row may NOT be is `gated` -- the
         # release gate would then be measuring the age of a check that never happened.
-        if row.get("checkedBy") == "unverified" and row.get("gated") is True:
-            problems.append("%s: `checkedBy` is unverified, so `gated` cannot be true -- the "
-                            "gate would be timing a check that never happened" % where)
+        if row.get("checkedBy") == "unverified":
+            if row.get("gated") is True:
+                problems.append("%s: `checkedBy` is unverified, so `gated` cannot be true -- the "
+                                "gate would be timing a check that never happened" % where)
+            # An unverified row must say WHY. Without this the value degrades into a shrug, and
+            # the next maintainer cannot tell "nobody got to it" from "the source is paywalled
+            # and no amount of trying will change that". Both remaining rows in this repo are
+            # the second kind, and knowing that saves someone an afternoon.
+            why = row.get("whyUnverified")
+            if not isinstance(why, str) or not why.strip():
+                problems.append("%s: `checkedBy` is unverified, so `whyUnverified` is required "
+                                "-- say what blocked it, or it reads as nobody having tried"
+                                % where)
         # RW-1.6 -- a gated row the release gate cannot evaluate is worse than an ungated one,
         # because it looks supervised and is not.
         if row.get("gated") is True:
@@ -407,12 +417,15 @@ def _self_test():
         ok(check_sources(tree(tmp, "ghost", [row(usedFor=["renderers/gone.py"])])) is False,
            "C4: a usedFor path not in the tree fails")
 
-        # RW-1.8 -- unverified rows are allowed and counted, but may never be gated.
-        ok(check_sources(tree(tmp, "unver", [row(checkedBy="unverified")])) is True,
-           "an unverified row is valid -- saying so beats stamping a check that never happened")
+        # RW-1.8 -- unverified rows are allowed and counted, must say why, never gated.
+        ok(check_sources(tree(tmp, "unver", [row(checkedBy="unverified",
+                                                 whyUnverified="paywalled")])) is True,
+           "an unverified row with a reason is valid -- saying so beats a check never made")
+        ok(check_sources(tree(tmp, "unvernowhy", [row(checkedBy="unverified")])) is False,
+           "an unverified row with no `whyUnverified` fails -- otherwise it reads as a shrug")
         ok(check_sources(tree(tmp, "unvergate",
-                              [row(checkedBy="unverified", gated=True,
-                                   reviewIntervalDays=365)])) is False,
+                              [row(checkedBy="unverified", whyUnverified="paywalled",
+                                   gated=True, reviewIntervalDays=365)])) is False,
            "an unverified row that is gated fails -- the gate would time a check never made")
 
         # C3, both directions -- the check this standard is named for.
