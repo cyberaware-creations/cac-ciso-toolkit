@@ -215,6 +215,16 @@ jobs:
       - name: NYDFS exemptions stated and never computed, on the floor
         run: PY="$(command -v python3)" ./skills/exceptions-register/evals/nydfs-exemptions.sh
 
+      # BL-188's D-4, generalised. Three outward-only limits survived that item's sweep because
+      # answering them meant reading DORA and 17 CFR 229.106 rather than pattern-matching. The
+      # second half freezes a near-miss: two shipped files correctly attach the DORA Art. 16
+      # simplified-framework limit to the residual-risk receipts under RTS 2024/1774, so copying
+      # it into the reporting receipt under RTS 2025/301 looks like consistency — and would be a
+      # fabricated exemption, because Art. 16 disapplies Articles 5 to 15 and reporting is
+      # Chapter III. It was one line from being written.
+      - name: Regulatory limits run in both directions, on the floor
+        run: PY="$(command -v python3)" ./skills/incident-materiality/evals/two-directional-limits.sh
+
       # Every consumer of CAC-AP-1, held to the contract from the side that DEFINES it.
       # Each consumer's own suite pins that consumer; none of them can see four engines
       # implementing the same six clauses and drifting apart one release at a time, each
