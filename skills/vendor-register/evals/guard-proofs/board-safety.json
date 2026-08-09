@@ -1,0 +1,17 @@
+{
+  "guard": "skills/vendor-register/evals/board-safety.sh",
+  "forbids": "a board artifact that does not say it is not legal advice",
+  "note": "Enrolled in v0.60.0. Guard-shaped since it was written and classified `candidate` by BL-101's registry, which is how it became countable. BL-121 was the blocker: 51 checks across these nine suites read a crashed probe as a pass, so a mutation registered here would have been registered against a check that could not fail. That closed in v0.59.0.",
+  "mutations": [
+    {
+      "half": "legal-advice",
+      "why": "Drop the `Not legal advice` footer from the board view. It is one list comprehension away at all times, it reads as tidying, and the artifact that loses it is the one a director forwards to counsel. This suite does not scan renderer SOURCE for vocabulary, so the source-scan mutation the other six use passes here — the anchor had to be found against what this suite actually checks rather than assumed from its siblings.",
+      "defeats": [
+        "the board view says it is not legal advice"
+      ],
+      "file": "skills/vendor-register/renderers/_common.py",
+      "find": "bits = [G.footer(\"Not legal advice\"), f\"generated {esc(self.today)}\"]",
+      "replace": "bits = [f\"generated {esc(self.today)}\"]"
+    }
+  ]
+}

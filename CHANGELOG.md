@@ -21,6 +21,48 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.60.0 — 2026-08-09
+
+**Eight of the eleven `candidate` guards enrolled.** `EXPECTED_GUARDS` 17 → 25,
+`EXPECTED_HALVES` 27 → 35, candidates 11 → 3.
+
+These nine `board-safety.sh` suites have been guard-shaped since they were written. They became
+**countable** when BL-101's registry forced a verdict on every eval script, and they became
+**enrollable** when BL-121 closed in v0.59.0 — until then, 51 of their checks read a crashed
+probe as a pass, so a mutation registered against one would have been registered against a
+check that could not fail.
+
+### The mutations were found by running, not by pattern
+
+Six suites scan renderer source for catastrophizing and false-confidence vocabulary, and take
+the same shape of mutation: a module-level constant carrying a banned sentence, planted in a
+shipped renderer. That is the way in that matters — nobody writes *catastrophic* into a board
+pack on purpose, they write it into a helper's default string and it reaches the page months
+later. A constant rather than an edit to live output proves the **source** half specifically,
+which exists because a string can ship without ever being rendered in the fixture.
+
+**Three suites did not trip on it**, and assuming they would is how a proof gets registered
+against nothing. `ai-register` and `vendor-register` do not scan renderer source at all; their
+anchor is the `Not legal advice` footer, one list comprehension away at all times, on the
+artifact a director forwards to counsel.
+
+### `risk-register` stays a candidate, and says why
+
+Its checks use the `chk` registration idiom and assert behaviour — provisional titles,
+accepted-risk grouping, closure rationale — so neither the source-scan nor the footer mutation
+touches it. Rather than register a mutation that trips something adjacent, its registry entry
+now records what a real anchor has to be found against. A guard proved by the wrong mutation is
+the failure GP-1.9 was written for.
+
+Also still `candidate`: `vendor-register/evals/questions.sh` and
+`business-context/evals/archetype-advisory.sh`.
+
+**Verification:** `prove-guards.sh` 25 guards, 35 halves, all green on the first run — every
+`defeats` set derived by running the mutation and reading the labels, none written from memory.
+48 scripts classified, 3 candidates.
+
+---
+
 ## v0.59.0 — 2026-08-09
 
 **BL-163 and BL-121 — two ways a board-safety suite reports a pass it did not earn.**
