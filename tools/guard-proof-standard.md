@@ -292,6 +292,7 @@ that registry and had no equivalent discipline; this clause is what they are hel
 | `one-fact-per-flag.sh` | `business-context` | a profile flag that states two facts, or a battery gated on a flag that does not name its regime | static · mapping |
 | `scope-withheld.sh` | `incident-materiality` | a statutory deadline computed for a perimeter nobody declared, or withheld without saying so | no-manufactured-date · no-silent-withholding |
 | `nydfs-exemptions.sh` | `exceptions-register` | a stated NYDFS obligation with no §500.19 exemption beside it, or a qualification threshold printed without its determination caveat | stated · not-computed |
+| `two-directional-limits.sh` | `incident-materiality` | a regulatory limit that scopes only outward, or DORA Art. 16 named beside reporting without what it actually disapplies | inward-stated · no-borrowed-limit |
 
 Every guard above, both halves, proved in both directions on every run. **The table is checked,
 not maintained by memory** — `prove-guards.sh` fails if a guard on disk is missing a row, or a

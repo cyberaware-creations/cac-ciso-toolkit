@@ -21,6 +21,58 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.65.2 — 2026-08-09
+
+**The three limits BL-188's sweep left open, closed — and the tempting fix for one of them was
+wrong.**
+
+BL-188 fixed three NYDFS receipts that scoped only outward, at who the rule does not reach, and
+said nothing about who inside the perimeter is exempt. Its D-4 sweep read all 31 outward-scoping
+sentences in the repo and left three unanswered, because answering them meant reading two more
+regulations rather than pattern-matching. Both were read against their primary texts.
+
+**DORA — and this is why the one-line edit was refused.** Two shipped files already attach the
+**Art. 16 simplified framework** limit to the residual-risk receipts under RTS 2024/1774, so
+copying it into the incident-reporting receipt under RTS 2025/301 looked like consistency. It
+would have been a **fabricated exemption in a disclosure record.** Art. 16 disapplies
+*"Articles 5 to 15"* and nothing else; incident reporting is **Chapter III, Arts. 17–23**, with
+major-incident reporting at Art. 19 — untouched. The only mention of microenterprises anywhere
+in Chapter III is a mandate to the ESAs to bear their capacity in mind when setting the Art. 18
+classification criteria, which is not an exemption.
+
+The real inward limit is **Art. 2(3)**, which takes six categories out of DORA from inside the
+financial-entity list — AIFMs under Art. 3(2) of 2011/61/EU, insurers under Art. 4 of
+2009/138/EC, IORPs with no more than 15 members, persons exempted under Arts. 2–3 of 2014/65/EU,
+SME insurance intermediaries, and post office giro institutions — plus **Art. 2(4)**, which lets
+a Member State exclude more, so the answer can differ by country.
+
+**SEC Item 106 — the answer is "nobody", and that is worth writing down.** 17 CFR 229.106 read
+in full carries **no exemption**: definitions, risk management and strategy, governance, a
+structured-data requirement, nothing scaled or omitted for any registrant inside its perimeter.
+Its one inward variation is **Instruction 1 to Item 106(c)**, a two-tier-board accommodation for
+a foreign private issuer, which relieves nobody of the disclosure.
+
+**SEC Item 1.05** — the inward material already existed in `disclosure-clocks.md` (the 1.05(c)
+and 1.05(d) delay mechanisms, the Form 8-K boundary, and declared rather than inferred registrant
+status). `materiality-factors.md` and the skill's own scope section now point at it instead of
+stopping at *"registrants and nobody else"*.
+
+**`two-directional-limits.sh`** generalises D-4 into a check. Its registry in `_limitcheck.py` is
+a record of primary-source reads that happened, six (file, regime) pairs deep, and the guard only
+asserts the shipped prose still carries them — adding a regime without doing the read would make
+it a green light over a guess. Two halves: *inward-stated*, and **no-borrowed-limit**, which
+fails if a file names Art. 16 beside reporting without saying what Art. 16 actually disapplies.
+The second half exists to freeze a near-miss rather than a defect.
+
+**One citation removed rather than declared.** Item 106's Instruction 1 cross-refers to another
+CFR rule; quoting that number would have shipped a citation nobody here has read, and CAC-RW-1
+caught it. The accommodation is described instead.
+
+Counts: `prove-guards` 35 guards / 51 halves → **36 / 53**; new `two-directional-limits` **9**;
+`lint-evals` 59 → **60** suites. Everything else unchanged and green.
+
+---
+
 ## v0.65.1 — 2026-08-09
 
 **An exempt firm was told a lawful gap was non-compliance.** Three shipped locations stated

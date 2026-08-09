@@ -317,12 +317,23 @@ discoverability caveat renders wherever it appears.
 recorded as notes on the `regulatory` factor with **no computed deadline**. The engine does
 not compute a deadline it cannot compute correctly.
 
-`references/disclosure-clocks.md` carries every limit with its receipt: Item 1.05 binds SEC
-registrants and nobody else, carves out technical detail of the *response, systems and
-vulnerabilities* but **not of the incident**, and sits under
-rescission pressure with a materially reduced enforcement posture; DORA binds in-scope EU
-financial entities, its *major* classification is a judgment this tool does not make, and the
-engine does not apply the next-working-day allowance.
+`references/disclosure-clocks.md` carries every limit with its receipt, **in both directions**.
+
+*Outward — who the rule does not reach.* Item 1.05 binds SEC registrants and nobody else, carves
+out technical detail of the *response, systems and vulnerabilities* but **not of the incident**,
+and sits under rescission pressure with a materially reduced enforcement posture; DORA binds
+in-scope EU financial entities, its *major* classification is a judgment this tool does not
+make, and the engine does not apply the next-working-day allowance.
+
+*Inward — who inside the perimeter is excluded, delayed or unmodelled.* A limit that only scopes
+outward tells an exempt organisation that a lawful gap is a failure, which is the defect BL-188
+found in three NYDFS receipts. For Item 1.05: registrant status is declared as `secItem105Scope`
+and never inferred, Item 1.05(c) and 1.05(d) are delay mechanisms the engine does not model, and
+the Form 8-K path is the only one it models at all. For DORA: **Art. 2(3)** excludes six
+categories from inside the financial-entity list — including IORPs with no more than 15 members
+and SME insurance intermediaries — and **Art. 2(4)** lets a Member State exclude more. DORA's
+**Art. 16** simplified framework disapplies *Articles 5 to 15* only and does **not** reach the
+Chapter III reporting obligation, so it is not a limit on anything this skill computes.
 
 **This is a preparedness and defensibility tool, not a scare tactic.** The board-safety eval
 fails the render if any board-facing view reads as fear framing.

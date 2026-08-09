@@ -139,12 +139,25 @@ the adequacy of the *process* — and a translation that surfaces business
 consequence is exactly what equips them to make that judgment. Detection speed
 and consequence-framing feed directly into the materiality call.
 
-**HONEST LIMIT (load-bearing).** Item 106 mandates a *description of process*,
-**not decision-rationale records**. The rule also faces rescission pressure, and
-the SEC's **SolarWinds enforcement action was dismissed with prejudice in
-November 2025**. Use this as *context for why boards want translation* — not as a
-fear-based "the SEC will come after you" threat. Threat-framing here is both
-inaccurate and disqualifying in the room.
+**HONEST LIMIT (load-bearing), and it runs in two directions.**
+
+*Outward.* Item 106 mandates a *description of process*, **not decision-rationale
+records**. The rule also faces rescission pressure, and the SEC's **SolarWinds
+enforcement action was dismissed with prejudice in November 2025**. Use this as
+*context for why boards want translation* — not as a fear-based "the SEC will
+come after you" threat. Threat-framing here is both inaccurate and disqualifying
+in the room.
+
+*Inward.* **17 CFR 229.106 carries no exemption.** Read in full it is
+definitions, risk management and strategy, governance, and a structured-data
+requirement — with nothing scaled or omitted for any registrant inside its
+perimeter. Its one inward variation is **Instruction 1 to Item 106(c)**, which
+reads "board of directors" as the supervisory or non-management board for a
+foreign private issuer with a two-tier board, and as the board of auditors for
+one other foreign-private-issuer board structure the Instruction cross-refers
+to. That is an **accommodation, not a carve-out** — the disclosure is still
+owed. Say so if asked: "who is let off
+this?" has an answer here, and the answer is nobody.
 
 ## NYDFS Part 500 (covered US financial firms)
 

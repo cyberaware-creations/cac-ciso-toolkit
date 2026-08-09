@@ -31,16 +31,19 @@
 #     even warns against the word "exempt" for it); SEC Item 1.05 in `disclosure-clocks.md`,
 #     which carries the 1.05(c) and 1.05(d) delay mechanisms and the Form 8-K boundary.
 #   FIXED HERE — the three NYDFS locations this guard now holds.
-#   OUTWARD-ONLY AND UNVERIFIED — `materiality-factors.md` on DORA and on SEC Item 106, and
-#     `incident-materiality/SKILL.md` on Item 1.05. The inward limit for the first exists in
-#     two other shipped files and is missing from this one; whether Art. 16 reaches incident
-#     REPORTING under RTS 2025/301 the way it reaches the residual-risk inventory under RTS
-#     2024/1774 is a different question, and it has not been read against the primary source.
-#     Filed rather than guessed — copying a limit between regimes is how the next BL-188 gets
-#     written.
+#   WERE OUTWARD-ONLY, NOW CLOSED — `materiality-factors.md` on DORA and on SEC Item 106, and
+#     `incident-materiality/SKILL.md` on Item 1.05. Left unfixed here because answering them
+#     meant reading two more regulations rather than pattern-matching; DORA and 17 CFR 229.106
+#     were read the same day and the three are held by `two-directional-limits.sh`.
 #
-# This guard deliberately covers the NYDFS three and no more. Widening the file list before
-# the reading is done would turn a real check into a green light over unverified prose.
+#     The caution paid. The tempting edit was to copy the Art. 16 simplified-framework limit
+#     across from the residual-risk receipts, and it would have been WRONG: Art. 16 disapplies
+#     Articles 5 to 15 only, and incident reporting is Chapter III. The real inward limit on
+#     reporting is Art. 2(3). Copying a limit between regimes because the wording matches is
+#     how the next BL-188 gets written.
+#
+# This guard deliberately covers the NYDFS three and no more — §500.19 is its subject, and the
+# general property lives in `two-directional-limits.sh`.
 #
 # TWO halves, and they fail on different things:
 #

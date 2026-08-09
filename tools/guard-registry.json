@@ -159,6 +159,11 @@
       "forbids": "a statutory deadline computed for a perimeter nobody declared, or withheld without saying so"
     },
     {
+      "path": "skills/incident-materiality/evals/two-directional-limits.sh",
+      "role": "guard",
+      "forbids": "a regulatory limit that scopes only outward, or DORA Art. 16 named beside reporting without what it actually disapplies"
+    },
+    {
       "path": "skills/metrics-register/evals/board-safety.sh",
       "role": "guard",
       "forbids": "catastrophizing or false-confidence vocabulary in any board-facing renderer"
