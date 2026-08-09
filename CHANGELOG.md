@@ -21,6 +21,63 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.53.0 — 2026-08-08
+
+**The do-not-cite list — the complement `sources.json` structurally cannot provide.** A manifest
+watches what a skill *does* cite. It can never see a withdrawn publication the skill has **not**
+cited yet, and that is the more dangerous class: the defect arrives fresh rather than sitting in
+text somebody could review.
+
+The worked example is why the list exists. **SP 800-61 Rev. 2 is withdrawn** — Rev. 3 became final
+on 3 April 2025 — and its four-phase incident lifecycle is still repeated by nearly every secondary
+source. This toolkit cites it nowhere, so no manifest has anything to stamp, and the first author
+to write incident-response content reaches for it by reflex.
+
+### The rule is not "never write the string"
+
+Naming a withdrawn publication **in order to say it is withdrawn** is exactly what this repo should
+do. `tools/do-not-cite.json` names them and **C5** scans shipped prose; what fails is a designation
+with no withdrawal marker within about a paragraph — a citation rather than a caution. Both
+directions are registered in the self-test, because a ban that also forbade the warning would be
+switched off within a week. Window tuning is pinned too: a marker on the next line excuses a
+mention, one three paragraphs away does not.
+
+### The seed list had two errors, and checking caught both
+
+The list was seeded from a prior session's research marked "all verified from CSRC". Re-verifying
+each entry against the CSRC catalogue — the house rule — found:
+
+- **SP 800-53A was conflated with SP 800-53.** The seed dated it to "patch 5.2.0, 2025-08-27",
+  which belongs to the *controls catalogue*. SP 800-53A is the assessment guide and its Rev. 5 has
+  been final since **25 January 2022**. Rev. 4 is genuinely withdrawn, so the entry survives with
+  the right facts.
+- **SP 800-100 is not withdrawn.** CSRC reports it **Final** (7 March 2007). An old final is not a
+  withdrawn document, and banning it would have been wrong. Removed.
+
+Three more could not be confirmed — SP 800-16, CSF 1.1 and SP 800-100's status question — and are
+recorded under `notYetVerified`, **not enforced**. An unverified ban is as bad as an unverified
+citation.
+
+### Six publications watched, and one real hit on the first run
+
+`SP 800-61` (and Rev. 1, Rev. 2) · `SP 800-171` Rev. 1 and Rev. 2 · `SP 800-50` (2003) ·
+`IR 8374` (2022) · `SP 800-53A` Rev. 1 and Rev. 4 · `SP 800-18` Rev. 1.
+
+C5 immediately flagged `nist-csf/evals/trigger-prompts.md`, where a recorded routing answer named
+**SP 800-171 with no revision** as an example of a mandatory standard. The record is left as
+written — it is what the model said — with an editorial marker beside the citation and a note
+carrying the caveat that makes this entry awkward in both directions: **Rev. 2 is withdrawn by NIST
+and still contractually live under DFARS clauses that name it by revision.** A defense contractor
+told Rev. 2 is irrelevant has been misled as badly as one told it is current guidance.
+
+`SP 800-18 Rev. 1` is listed as `superseded` rather than `withdrawn`, because Rev. 2's final status
+(30 June 2026) is verifiable and Rev. 1's own CSRC status was not confirmed. The distinction is
+kept rather than guessed.
+
+Self-test 31 → 39 checks.
+
+---
+
 ## v0.52.1 — 2026-08-08
 
 **D-9 confirmed: the release gate stays, and the manifest keeps its two gate fields.**

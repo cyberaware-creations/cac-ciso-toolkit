@@ -159,11 +159,19 @@ the job.
 | A2 | "Turn our gap assessment into risks." | `risk-register` — the verb is *become risks*. | `risk-register`, citing `import-gaps` and the exact CSV columns it expects. | ✓ |
 | A3 | "How mature is our security programme?" | `nist-csf`, but it must **not** answer with a maturity score. | `nist-csf`. Opened by correcting the question: CSF produces coverage against a chosen Target, and Tiers characterize rigor of risk governance, "explicitly not a maturity ladder." No score offered. | ✓ |
 | A4 | "What should I show the board about our security posture?" | Either, plus `ciso-board-translation`. | `nist-csf` **and** `ciso-board-translation` — the only case to compose two skills, unprompted. | ✓ |
-| A5 | "Are we compliant with NIST?" | `nist-csf`, and it must push back on the premise. | `nist-csf`. Led with "you can't be 'compliant' with the NIST CSF — and nobody can," then went further than the requirement: a table separating voluntary CSF from genuinely mandatory SP 800-171 / 800-53, and asked which the user meant. | ✓ |
+| A5 | "Are we compliant with NIST?" | `nist-csf`, and it must push back on the premise. | `nist-csf`. Led with "you can't be 'compliant' with the NIST CSF — and nobody can," then went further than the requirement: a table separating voluntary CSF from genuinely mandatory SP 800-171 / 800-53, and asked which the user meant. *(Editorial: it named no revision — Rev. 2 is **withdrawn**, current is Rev. 3; see the note below.)* | ✓ |
 
 A3 and A5 test whether the guardrails survive contact with the way people actually ask. Both held,
 and A5 improved on the specified answer — the 800-171 distinction is not in SKILL.md and is worth
 folding back into it.
+
+> **Note added v0.53.0, when the do-not-cite check flagged this line.** `A5`'s answer names
+> **SP 800-171** with no revision. Rev. 1 and Rev. 2 are **withdrawn**; the current text is
+> **Rev. 3** (Final, 14 May 2024). The record stays as written because it is what the model said
+> — but anything folded back into `SKILL.md` must name Rev. 3, and must carry the caveat that
+> makes this one awkward: **Rev. 2 is withdrawn by NIST and still contractually live under DFARS
+> clauses that name it by revision.** A defense contractor told Rev. 2 is irrelevant has been
+> misled exactly as badly as one told it is current NIST guidance. Say which you mean.
 
 ---
 

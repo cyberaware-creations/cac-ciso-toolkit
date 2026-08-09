@@ -129,19 +129,36 @@ drifts from the manifest, or a manifest that was updated without touching the re
 
 ---
 
-## What this cannot do
+### RW-1.9 The do-not-cite list guards the citation that has not been written yet
 
 **A manifest watches what a skill cites. It cannot see a withdrawn publication the skill does
 not cite** — and that is the more dangerous class, because the defect arrives fresh rather than
-sitting in existing text.
+sitting in existing text somebody could review.
 
-The worked example: **SP 800-61 Rev. 2 was withdrawn on 2025-04-03.** Its four-phase incident
-lifecycle is the most-quoted structure in incident response and essentially every secondary
-source still repeats it. This toolkit cites it nowhere, so there is nothing to fix — but the
-first person to write incident-response content will reach for that lifecycle by reflex, and no
-sources manifest would catch it, because r2 will never appear in one.
+The worked example: **SP 800-61 Rev. 2 is withdrawn** (SP 800-61 Rev. 3 became final on 3 April
+2025). Its four-phase incident lifecycle is the most-quoted structure in incident response and
+essentially every secondary source still repeats it. This toolkit cites it nowhere, so there is
+nothing in the manifest to stamp — and the first person to write incident-response content will
+reach for that lifecycle by reflex.
 
-A **do-not-cite list** is the complement to this file and is tracked separately.
+So `tools/do-not-cite.json` names withdrawn and superseded publications, and **C5** scans shipped
+prose for them.
+
+**The rule is not "never write the string."** Naming a withdrawn publication in order to say it
+is withdrawn is exactly what this repo should do, and this document does it in the paragraph
+above. What fails is the designation with **no withdrawal marker within about a paragraph of it**
+— a citation rather than a caution. Both directions are registered in the self-test, because a
+ban that also forbade the warning would be switched off within a week.
+
+**Two entries carry traps worth reading before using the list:**
+
+- **SP 800-171 Rev. 2 runs both ways.** Withdrawn by NIST, and still contractually live under
+  DFARS clauses that name it by revision. A defense contractor told it is irrelevant has been
+  misled as badly as one told it is current NIST guidance.
+- **An unverified ban is as bad as an unverified citation.** The seed list for this file carried
+  two errors — it conflated SP 800-53A with SP 800-53's patch schedule, and listed SP 800-100 as
+  withdrawn when CSRC reports it final. Both were caught by checking. Candidates that could not
+  be confirmed are recorded under `notYetVerified` and are **not enforced**.
 
 ---
 

@@ -251,7 +251,13 @@ The run prints how many declared sources are **not yet verified** against a prim
 number, not the green tick, is what the standard exists to drive down.
 
 ```bash
-python3 ./tools/check-sources.py --self-test     # C1–C4 and the gate, both directions
-python3 ./tools/check-sources.py                 # presence, shape, rendered citations, paths
+python3 ./tools/check-sources.py --self-test     # C1–C5 and the gate, both directions
+python3 ./tools/check-sources.py                 # presence, shape, rendered citations, paths, do-not-cite
 python3 ./tools/check-sources.py --release-gate  # a stale gated source blocks the release
 ```
+
+**C5, the do-not-cite list.** `sources.json` watches what a skill *does* cite and structurally
+cannot see a withdrawn publication it has not cited yet — the more dangerous class, because that
+defect arrives fresh. `tools/do-not-cite.json` names withdrawn and superseded publications and C5
+scans shipped prose for them. Naming one *to say it is withdrawn* is fine and expected; the check
+looks for a withdrawal marker within about a paragraph. A bare citation with none fails.
