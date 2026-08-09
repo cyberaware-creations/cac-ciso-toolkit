@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "note": "CAC-RW-1.9. Publications that must not be cited as current. The complement to sources.json: that file watches what a skill DOES cite, and structurally cannot see a withdrawn publication the skill does not cite yet. This one guards the citation that has not been written. A designation here may still appear in prose that DISCUSSES its withdrawal — the check requires a withdrawal marker nearby, not silence.",
+  "checkedOn": "2026-08-08",
+  "checkedBy": "claude-code",
+  "source": "NIST CSRC publication catalogue, csrc.nist.gov/publications/search",
+  "markers": ["withdrawn", "superseded", "supersedes", "do not cite", "replaced by",
+              "no longer current", "obsolete", "predecessor"],
+  "entries": [
+    {
+      "id": "sp-800-61-pre-r3",
+      "label": "SP 800-61, Rev. 1 and Rev. 2 (Computer Security Incident Handling Guide)",
+      "pattern": "SP\\s*800-61(?!\\s*(?:r|Rev\\.?\\s*)3)",
+      "status": "withdrawn",
+      "supersededBy": "SP 800-61 Rev. 3, Incident Response Recommendations and Considerations for Cybersecurity Risk Management: A CSF 2.0 Community Profile — Final, 3 April 2025",
+      "why": "The single most-quoted structure in incident response is r2's four-phase lifecycle, and essentially every secondary source still repeats it. r3 is a CSF 2.0 Community Profile and is organised differently. This is the entry the whole list was created for."
+    },
+    {
+      "id": "sp-800-171-pre-r3",
+      "label": "SP 800-171 Rev. 1 and Rev. 2",
+      "pattern": "SP\\s*800-171(?!\\s*(?:r|Rev\\.?\\s*)3)",
+      "status": "withdrawn",
+      "supersededBy": "SP 800-171 Rev. 3 — Final, 14 May 2024",
+      "why": "The trap runs BOTH directions. Rev. 2 is withdrawn by NIST and still contractually live under DFARS clauses that name it by revision. Never cite it as current NIST guidance; never tell a defense contractor it is irrelevant to them either. Say which of the two you mean."
+    },
+    {
+      "id": "sp-800-50-original",
+      "label": "SP 800-50 (2003), Building an Information Technology Security Awareness and Training Program",
+      "pattern": "SP\\s*800-50(?!\\s*(?:r|Rev\\.?\\s*)1)",
+      "status": "withdrawn",
+      "supersededBy": "SP 800-50 Rev. 1, Building a Cybersecurity and Privacy Learning Program — Final, 12 September 2024",
+      "why": "The retitle matters: 'awareness and training' became 'learning program', and citing the old title signals the old model."
+    },
+    {
+      "id": "ir-8374-original",
+      "label": "NIST IR 8374 (2022), Ransomware Risk Management: A Cybersecurity Framework Profile",
+      "pattern": "(?:NIST\\s*)?IR\\s*8374(?!\\s*(?:r|Rev\\.?\\s*)1)",
+      "status": "withdrawn",
+      "supersededBy": "NIST IR 8374 Rev. 1, Ransomware Risk Management: A Cybersecurity Framework 2.0 Community Profile — Final, 11 June 2026",
+      "why": "The original profiles CSF 1.1. Rev. 1 profiles CSF 2.0, which is the framework this suite assesses against."
+    },
+    {
+      "id": "sp-800-53a-pre-r5",
+      "label": "SP 800-53A, Rev. 1 and Rev. 4",
+      "pattern": "SP\\s*800-53A(?!\\s*(?:r|Rev\\.?\\s*)5)",
+      "status": "withdrawn",
+      "supersededBy": "SP 800-53A Rev. 5 — Final, 25 January 2022",
+      "why": "Easy to confuse with SP 800-53 Rev. 5, the controls catalogue, which patches on its own schedule. 800-53A is the assessment guide and its Rev. 5 has been final since January 2022. A seed list for this file had the two conflated."
+    },
+    {
+      "id": "sp-800-18-r1",
+      "label": "SP 800-18 Rev. 1 (2006)",
+      "pattern": "SP\\s*800-18\\s*(?:r|Rev\\.?\\s*)1\\b",
+      "status": "superseded",
+      "supersededBy": "SP 800-18 Rev. 2, Developing Security, Privacy, and Cybersecurity Supply Chain Risk Management Plans for Systems — Final, 30 June 2026",
+      "why": "Rev. 2 is final, so Rev. 1 is superseded. Listed as `superseded` rather than `withdrawn` because Rev. 1's own CSRC status was not confirmed in the pass that authored this row — the distinction is kept rather than guessed."
+    }
+  ],
+  "notYetVerified": {
+    "note": "Candidates from the seed list that this pass could NOT confirm against CSRC, and which are therefore NOT enforced. Listing them is the point: an unverified ban is as bad as an unverified citation.",
+    "candidates": [
+      "SP 800-16 (1998) — did not surface in a CSRC search; status unconfirmed",
+      "CSF 1.1 — not in the SP series, so not in the CSRC publication catalogue; needs checking at nist.gov/cyberframework",
+      "SP 800-100 — the seed called its withdrawal record confusing. CSRC reports it FINAL (7 March 2007). An old final is not a withdrawn document, so it is deliberately absent from `entries`."
+    ]
+  }
+}

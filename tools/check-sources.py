@@ -172,6 +172,90 @@ def check_rendered(root, skill, doc):
     return problems
 
 
+_DNC_EXEMPT = ("CHANGELOG.md", "docs/", "research/", "tools/do-not-cite.json",
+               "tools/check-sources.py", "tools/sources-schema.md")
+_DNC_NAMES = ("NOTICE", "README")
+# How far either side of a hit a withdrawal marker may sit and still count as "discussing"
+# rather than "citing". A paragraph, roughly. Same-line-only was too tight -- the honest form
+# is often "X is withdrawn.\nUse Y instead." -- and whole-file was far too loose, since one
+# mention of the word "superseded" anywhere would excuse every bare citation in the document.
+_DNC_WINDOW = 320
+
+
+def check_do_not_cite(root="."):
+    """C5. A withdrawn publication may be discussed, never cited as current.
+
+    sources.json watches what a skill DOES cite and structurally cannot see a publication the
+    skill has not cited yet -- and that is the more dangerous class, because the defect arrives
+    fresh rather than sitting in text somebody could review. SP 800-61 Rev. 2 is the worked
+    example: withdrawn, and its four-phase incident lifecycle is still repeated by nearly every
+    secondary source, so the first author to write incident-response content reaches for it by
+    reflex.
+
+    The rule is not a ban on the string. Naming a withdrawn document in order to say it is
+    withdrawn is exactly what this repo should do, and this file does it constantly. What fails
+    is the string with no withdrawal marker near it -- a citation, rather than a caution.
+    """
+    path = os.path.join(root, "tools", "do-not-cite.json")
+    if not os.path.isfile(path):
+        print("ERROR: tools/do-not-cite.json is missing; C5 checked nothing.")
+        return False
+    try:
+        with open(path, encoding="utf-8") as fh:
+            doc = json.load(fh)
+        entries = doc["entries"]
+        markers = [m.lower() for m in doc["markers"]]
+        pats = [(e, re.compile(e["pattern"], re.I)) for e in entries]
+    except (OSError, ValueError, KeyError, re.error) as exc:
+        print("ERROR: tools/do-not-cite.json could not be used: %s" % exc)
+        return False
+    if not pats:
+        print("ERROR: do-not-cite.json lists no entries; C5 would pass vacuously.")
+        return False
+
+    problems, scanned = [], 0
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d not in (".git", "__pycache__", "node_modules")]
+        for fn in filenames:
+            full = os.path.join(dirpath, fn)
+            rel = os.path.relpath(full, root).replace(os.sep, "/")
+            if any(rel == e or rel.startswith(e) for e in _DNC_EXEMPT):
+                continue
+            if (os.path.splitext(fn)[1].lower() not in (".md", ".py", ".json", ".sh")
+                    and fn not in _DNC_NAMES):
+                continue
+            try:
+                with open(full, encoding="utf-8") as fh:
+                    text = fh.read()
+            except (OSError, UnicodeDecodeError):
+                continue
+            scanned += 1
+            low = text.lower()
+            for entry, pat in pats:
+                for m in pat.finditer(text):
+                    lo = max(0, m.start() - _DNC_WINDOW)
+                    if any(k in low[lo:m.end() + _DNC_WINDOW] for k in markers):
+                        continue  # discussed, not cited
+                    line = text.count("\n", 0, m.start()) + 1
+                    problems.append("%s:%d: %s (%s) cited with no withdrawal marker nearby "
+                                    "— use %s"
+                                    % (rel, line, m.group(0).strip(), entry["status"],
+                                       entry["supersededBy"].split(" — ")[0]))
+    if not scanned:
+        print("ERROR: the do-not-cite scan read no files; its glob stopped matching.")
+        return False
+    if problems:
+        print("ERROR: withdrawn or superseded publications cited as current (CAC-RW-1.9):")
+        for p in problems:
+            print("         %s" % p)
+        print("       Naming one to say it is withdrawn is fine — put the word near it. "
+              "Citing one as guidance is not. See tools/do-not-cite.json.")
+        return False
+    print("do-not-cite: %d file(s), %d withdrawn publication(s) watched, none cited as current."
+          % (scanned, len(entries)))
+    return True
+
+
 def check_sources(root="."):
     skills = skill_dirs(root)
     if not skills:
@@ -386,7 +470,51 @@ def _self_test():
         os.makedirs(bare)
         ok(check_sources(bare) is False,
            "a tree with no skills fails instead of passing vacuously")
+        ok(check_do_not_cite(bare) is False,
+           "C5 with no do-not-cite.json fails rather than checking nothing")
         shutil.rmtree(bare, ignore_errors=True)
+
+        # -- C5, both directions --
+        #
+        # The rule is not "never write the string". Naming a withdrawn publication in order to
+        # say it is withdrawn is what this repo should do. Both cases are registered, because a
+        # ban that also forbids the warning would get switched off within a week.
+        def dnc(name, body, entries=None, markers=None):
+            root = os.path.join(tmp, name)
+            os.makedirs(os.path.join(root, "tools"))
+            os.makedirs(os.path.join(root, "skills", "demo"))
+            with open(os.path.join(root, "skills", "demo", "SKILL.md"), "w",
+                      encoding="utf-8") as fh:
+                fh.write(body)
+            with open(os.path.join(root, "tools", "do-not-cite.json"), "w",
+                      encoding="utf-8") as fh:
+                json.dump({"schemaVersion": 1,
+                           "markers": markers if markers is not None else ["withdrawn"],
+                           "entries": entries if entries is not None else [
+                               {"id": "e", "label": "L",
+                                "pattern": r"SP\s*800-61(?!\s*(?:r|Rev\.?\s*)3)",
+                                "status": "withdrawn",
+                                "supersededBy": "SP 800-61 Rev. 3 — Final, 3 April 2025",
+                                "why": "w"}]}, fh)
+            return root
+
+        ok(check_do_not_cite(dnc("d1", "Follow SP 800-61 Rev. 2 for incident handling.\n"))
+           is False, "C5: a withdrawn publication cited as guidance fails")
+        ok(check_do_not_cite(dnc("d2", "SP 800-61 Rev. 2 is withdrawn; use Rev. 3.\n"))
+           is True, "C5: the same string WITH a withdrawal marker passes -- warning, not citing")
+        ok(check_do_not_cite(dnc("d3", "We follow SP 800-61 Rev. 3.\n")) is True,
+           "C5: the current revision is not matched at all")
+        ok(check_do_not_cite(dnc("d4", "See SP 800-61 for the lifecycle.\n")) is False,
+           "C5: the bare original, with no revision, fails too")
+        # The window matters in both directions: a marker three paragraphs away is not a
+        # caveat on this sentence, and one on the next line is.
+        far = "SP 800-61 Rev. 2 is the standard.\n" + ("filler. " * 90) + "\nwithdrawn\n"
+        ok(check_do_not_cite(dnc("d5", far)) is False,
+           "C5: a marker far away does not excuse a bare citation")
+        ok(check_do_not_cite(dnc("d6", "SP 800-61 Rev. 2.\nThat edition is withdrawn.\n"))
+           is True, "C5: a marker on the next line does excuse it")
+        ok(check_do_not_cite(dnc("d7", "x\n", entries=[])) is False,
+           "C5: an empty entry list fails rather than passing vacuously")
 
     print("\ncheck-sources self-test: %d checks, %d failed"
           % (len(checks), sum(1 for c in checks if not c)))
@@ -402,6 +530,7 @@ def main(argv):
             print("ERROR: unknown argument %r.\n       %s" % (arg, USAGE))
             return 1
     passed = check_sources(root)
+    passed = check_do_not_cite(root) and passed
     if "--release-gate" in argv:
         passed = release_gate(root) and passed
     return 0 if passed else 1
