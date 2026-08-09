@@ -185,11 +185,120 @@ def check_rendered(root, skill, doc):
 _DNC_EXEMPT = ("CHANGELOG.md", "docs/", "research/", "tools/do-not-cite.json",
                "tools/check-sources.py", "tools/sources-schema.md")
 _DNC_NAMES = ("NOTICE", "README")
-# How far either side of a hit a withdrawal marker may sit and still count as "discussing"
-# rather than "citing". A paragraph, roughly. Same-line-only was too tight -- the honest form
-# is often "X is withdrawn.\nUse Y instead." -- and whole-file was far too loose, since one
-# mention of the word "superseded" anywhere would excuse every bare citation in the document.
-_DNC_WINDOW = 320
+
+# Typography normalisation. A citation written with a non-breaking hyphen, an en-dash or a
+# non-breaking space is the same citation, and the first version of this check did not match
+# any of them -- "SP 800‑61 Rev. 2" sailed straight through. Every mapping here is
+# ONE character to ONE character, so match offsets and therefore reported line numbers stay
+# exact; a length-changing normalisation would report the wrong line.
+_DNC_FOLD = {ord(c): "-" for c in "‐‑‒–—―−­"}
+_DNC_FOLD[0x00a0] = " "   # non-breaking space
+_DNC_FOLD[0x2007] = " "   # figure space
+_DNC_FOLD[0x202f] = " "   # narrow no-break space
+
+
+def _dnc_fold(text):
+    """Normalise typography without moving a single character offset."""
+    return text.translate(_DNC_FOLD)
+
+
+_DNC_URL = re.compile(r"(?:https?://|ftp://|www\.)\S+", re.I)
+
+
+def _dnc_blank_urls(line):
+    """Blank URL runs to spaces, preserving length so offsets stay exact.
+
+    A marker inside a link target is not prose about a publication. `See
+    https://csrc.nist.gov/withdrawn/ and use SP 800-61 Rev. 2.` put the word "withdrawn"
+    nearer the citation than anything else on the line and laundered it. Found by inventing
+    adversarial cases after the four reported ones were fixed, which is the only reason it is
+    here -- the reported four would have left it open.
+    """
+    return _DNC_URL.sub(lambda m: " " * len(m.group(0)), line)
+
+
+def _all_positions(haystack, needle):
+    """Every WHOLE-WORD occurrence, not just the first -- one line can carry several markers.
+
+    Whole-word matters: plain substring search let `obsoleteFlag` count as the marker
+    "obsolete" and excuse a citation beside it. An identifier that happens to contain a
+    marker is not a warning about anything.
+    """
+    out = []
+    for m in re.finditer(r"(?<![a-z0-9])%s(?![a-z0-9])" % re.escape(needle), haystack):
+        out.append(m.start())
+    return out
+
+
+_DNC_ROW = ("id", "label", "pattern", "status", "supersededBy", "why", "mustFlag")
+_DNC_STATUS = ("withdrawn", "superseded")
+
+
+def validate_registry(doc):
+    """RW-1.9.2. The registry is trusted by C5, so C5 must not trust it blindly.
+
+    A malformed row used to pass green: the fields C5 reads to BUILD its error message --
+    `status`, `supersededBy` -- are only touched when something matches, so an entry missing
+    both sat in the file looking like protection and would have crashed the first time it
+    caught anything. And a pattern matching nothing at all was indistinguishable from a
+    pattern guarding a publication nobody cites.
+
+    Hence `mustFlag`: every entry carries a string its own pattern MUST match, and optionally
+    a `mustNotFlag` it must not. These are executable fixtures, not documentation. A pattern
+    that has stopped matching its own example is reported here rather than discovered the day
+    somebody cites the publication it was supposed to be watching.
+
+    Returns a list of problems; empty means usable.
+    """
+    problems = []
+    if not isinstance(doc, dict):
+        return ["do-not-cite.json is not an object"]
+    markers = doc.get("markers")
+    if not isinstance(markers, list) or not markers:
+        problems.append("`markers` must be a non-empty list -- with none, no warning could "
+                        "ever excuse a citation and every honest mention would fail")
+    else:
+        for i, m in enumerate(markers):
+            if not isinstance(m, str) or not m.strip():
+                problems.append("markers[%d] is empty" % i)
+    entries = doc.get("entries")
+    if not isinstance(entries, list) or not entries:
+        return problems + ["`entries` must be a non-empty list; C5 would pass vacuously"]
+    seen = set()
+    for i, e in enumerate(entries):
+        where = "entries[%d]" % i
+        if not isinstance(e, dict):
+            problems.append("%s is not an object" % where)
+            continue
+        if isinstance(e.get("id"), str) and e["id"].strip():
+            where = "entry %s" % e["id"]
+            if e["id"] in seen:
+                problems.append("%s: duplicate id" % where)
+            seen.add(e["id"])
+        for f in _DNC_ROW:
+            if not isinstance(e.get(f), str) or not e[f].strip():
+                problems.append("%s: `%s` is missing or empty" % (where, f))
+        if e.get("status") not in _DNC_STATUS and "status" in e:
+            problems.append("%s: `status` is %r, expected one of %s"
+                            % (where, e.get("status"), " / ".join(_DNC_STATUS)))
+        pat = None
+        if isinstance(e.get("pattern"), str):
+            try:
+                pat = re.compile(e["pattern"], re.I)
+            except re.error as exc:
+                problems.append("%s: `pattern` does not compile: %s" % (where, exc))
+        if pat is not None:
+            mf = e.get("mustFlag")
+            if isinstance(mf, str) and mf.strip() and not pat.search(_dnc_fold(mf)):
+                problems.append("%s: `pattern` does not match its own `mustFlag` %r -- the "
+                                "fixture says this entry guards something the pattern no "
+                                "longer catches" % (where, mf))
+            mn = e.get("mustNotFlag")
+            if isinstance(mn, str) and mn.strip() and pat.search(_dnc_fold(mn)):
+                problems.append("%s: `pattern` matches its `mustNotFlag` %r -- it is flagging "
+                                "the edition that replaced the withdrawn one"
+                                % (where, mn))
+    return problems
 
 
 def check_do_not_cite(root="."):
@@ -204,7 +313,23 @@ def check_do_not_cite(root="."):
 
     The rule is not a ban on the string. Naming a withdrawn document in order to say it is
     withdrawn is exactly what this repo should do, and this file does it constantly. What fails
-    is the string with no withdrawal marker near it -- a citation, rather than a caution.
+    is the string with no withdrawal marker BOUND TO IT -- a citation, rather than a caution.
+
+    "Bound to it" is the whole of RW-1.9.1, and it replaces a proximity window that failed open
+    four ways (BL-194). A marker excuses a match only when BOTH hold:
+
+      (a) the marker is on the SAME LINE as the match, and
+      (b) of every watched publication on that line, the one nearest the marker is this match.
+
+    (a) kills "unrelated prose nearby": `Our old policy was withdrawn last year.` on the line
+    above a bare citation no longer excuses it. (b) kills the cross-publication case:
+    `SP 800-53A Rev. 4 is withdrawn. Follow SP 800-61 Rev. 2.` -- the marker sits nearer
+    800-53A, so it does not launder the 800-61 citation sharing its line.
+
+    This is stricter than the window it replaces, and deliberately so: `X.\\nIt is withdrawn.`
+    now fails where it used to pass. For a check whose failure mode is passing silently, a rule
+    an author can be told in one sentence -- *put the warning on the same line as the
+    citation* -- is worth more than one that accommodates every phrasing and catches nothing.
     """
     path = os.path.join(root, "tools", "do-not-cite.json")
     if not os.path.isfile(path):
@@ -213,15 +338,20 @@ def check_do_not_cite(root="."):
     try:
         with open(path, encoding="utf-8") as fh:
             doc = json.load(fh)
-        entries = doc["entries"]
-        markers = [m.lower() for m in doc["markers"]]
-        pats = [(e, re.compile(e["pattern"], re.I)) for e in entries]
-    except (OSError, ValueError, KeyError, re.error) as exc:
-        print("ERROR: tools/do-not-cite.json could not be used: %s" % exc)
+    except (OSError, ValueError) as exc:
+        print("ERROR: tools/do-not-cite.json could not be read: %s" % exc)
         return False
-    if not pats:
-        print("ERROR: do-not-cite.json lists no entries; C5 would pass vacuously.")
+    bad = validate_registry(doc)
+    if bad:
+        print("ERROR: tools/do-not-cite.json is malformed (CAC-RW-1.9.2):")
+        for b in bad:
+            print("         %s" % b)
+        print("       C5 trusts this file, so it is validated before use. See "
+              "tools/sources-schema.md.")
         return False
+    entries = doc["entries"]
+    markers = [m.lower() for m in doc["markers"]]
+    pats = [(e, re.compile(e["pattern"], re.I)) for e in entries]
 
     problems, scanned = [], 0
     for dirpath, dirnames, filenames in os.walk(root):
@@ -240,16 +370,37 @@ def check_do_not_cite(root="."):
             except (OSError, UnicodeDecodeError):
                 continue
             scanned += 1
-            low = text.lower()
-            for entry, pat in pats:
-                for m in pat.finditer(text):
-                    lo = max(0, m.start() - _DNC_WINDOW)
-                    if any(k in low[lo:m.end() + _DNC_WINDOW] for k in markers):
-                        continue  # discussed, not cited
-                    line = text.count("\n", 0, m.start()) + 1
-                    problems.append("%s:%d: %s (%s) cited with no withdrawal marker nearby "
-                                    "— use %s"
-                                    % (rel, line, m.group(0).strip(), entry["status"],
+            # Fold typography first, and only then match, so a non-breaking hyphen cannot
+            # smuggle a citation past the pattern. The fold is 1:1, so `lineno` below is still
+            # computed against offsets that correspond to the file on disk.
+            folded = _dnc_fold(text)
+            for lineno, raw in enumerate(folded.split("\n"), 1):
+                low = _dnc_blank_urls(raw.lower())
+                # Every watched publication on this line, in order. Needed for the binding
+                # rule: a marker belongs to whichever publication it sits nearest.
+                on_line = []
+                for entry, pat in pats:
+                    for m in pat.finditer(raw):
+                        on_line.append((m.start(), m.end(), entry, m.group(0).strip()))
+                if not on_line:
+                    continue
+                marks = [i for k in markers for i in _all_positions(low, k)]
+                for start, end, entry, hit in on_line:
+                    excused = False
+                    for mi in marks:
+                        # (b) nearest-publication binding. Distance is measured to the span,
+                        # so a marker inside a citation counts as zero away from it.
+                        def _dist(s, e):
+                            return 0 if s <= mi <= e else min(abs(mi - s), abs(mi - e))
+                        mine = _dist(start, end)
+                        if all(mine <= _dist(s2, e2) for s2, e2, _, _ in on_line):
+                            excused = True
+                            break
+                    if excused:
+                        continue
+                    problems.append("%s:%d: %s (%s) cited with no withdrawal marker bound to "
+                                    "it on this line — say so beside it, or use %s"
+                                    % (rel, lineno, hit, entry["status"],
                                        entry["supersededBy"].split(" — ")[0]))
     if not scanned:
         print("ERROR: the do-not-cite scan read no files; its glob stopped matching.")
@@ -508,8 +659,16 @@ def _self_test():
                                 "pattern": r"SP\s*800-61(?!\s*(?:r|Rev\.?\s*)3)",
                                 "status": "withdrawn",
                                 "supersededBy": "SP 800-61 Rev. 3 — Final, 3 April 2025",
-                                "why": "w"}]}, fh)
+                                "why": "w",
+                                "mustFlag": "SP 800-61 Rev. 2"}]}, fh)
             return root
+
+        def _row(**kw):
+            base = {"id": "e", "label": "L", "pattern": r"SP\s*800-61",
+                    "status": "withdrawn", "supersededBy": "SP 800-61 Rev. 3 — x",
+                    "why": "w", "mustFlag": "SP 800-61 Rev. 2"}
+            base.update(kw)
+            return base
 
         ok(check_do_not_cite(dnc("d1", "Follow SP 800-61 Rev. 2 for incident handling.\n"))
            is False, "C5: a withdrawn publication cited as guidance fails")
@@ -519,15 +678,70 @@ def _self_test():
            "C5: the current revision is not matched at all")
         ok(check_do_not_cite(dnc("d4", "See SP 800-61 for the lifecycle.\n")) is False,
            "C5: the bare original, with no revision, fails too")
-        # The window matters in both directions: a marker three paragraphs away is not a
-        # caveat on this sentence, and one on the next line is.
         far = "SP 800-61 Rev. 2 is the standard.\n" + ("filler. " * 90) + "\nwithdrawn\n"
         ok(check_do_not_cite(dnc("d5", far)) is False,
            "C5: a marker far away does not excuse a bare citation")
+        # RW-1.9.1 changed this one deliberately. Under the old proximity window a marker on
+        # the NEXT line excused the citation, which is how three of the four BL-194 fail-open
+        # cases got through. Same-line binding is stricter and this case now fails; the cost is
+        # that hard-wrapped prose must carry the warning on the citation's line, which is
+        # better writing anyway.
         ok(check_do_not_cite(dnc("d6", "SP 800-61 Rev. 2.\nThat edition is withdrawn.\n"))
-           is True, "C5: a marker on the next line does excuse it")
+           is False, "C5: a marker on the NEXT line no longer excuses it (RW-1.9.1)")
         ok(check_do_not_cite(dnc("d7", "x\n", entries=[])) is False,
            "C5: an empty entry list fails rather than passing vacuously")
+
+        # -- BL-194. The four reported fail-open cases, plus two invented after fixing them.
+        #
+        # The plan warned against adding four cases and stopping: four named cases produce a
+        # guard that passes four named cases. A and B below were invented independently AFTER
+        # the reported four were closed, and both still failed open — which is the evidence
+        # that the reported list was not the class.
+        ok(check_do_not_cite(dnc("u1", "Follow SP 800‑61 Rev. 2 for IR.\n")) is False,
+           "BL-194/1: a non-breaking hyphen U+2011 does not smuggle a citation past")
+        ok(check_do_not_cite(dnc("u2", "Follow SP 800–61 Rev. 2 for IR.\n")) is False,
+           "BL-194/1b: nor an en-dash U+2013")
+        ok(check_do_not_cite(dnc("u3",
+                                 "Our old policy was withdrawn.\nUse SP 800-61 Rev. 2.\n"))
+           is False, "BL-194/2: unrelated prose saying 'withdrawn' nearby does not excuse")
+        ok(check_do_not_cite(
+            dnc("u4", "SP 800-53A Rev. 4 is withdrawn. Follow SP 800-61 Rev. 2.\n",
+                entries=[_row(), _row(id="f", pattern=r"SP\s*800-53A(?!\s*(?:r|Rev\.?\s*)5)",
+                              supersededBy="SP 800-53A Rev. 5 — x",
+                              mustFlag="SP 800-53A Rev. 4")])) is False,
+           "BL-194/3: a warning about ANOTHER publication on the line does not launder this one")
+        ok(check_do_not_cite(dnc("u5",
+                                 "See https://x.test/withdrawn/ and use SP 800-61 Rev. 2.\n"))
+           is False, "BL-194/A: a marker inside a URL is not prose about the publication")
+        ok(check_do_not_cite(dnc("u6", "The obsoleteFlag is set; use SP 800-61 Rev. 2.\n"),
+                             ) is False,
+           "BL-194/B: a marker as a substring of an identifier is not a warning")
+        ok(check_do_not_cite(dnc("u7", "SP 800-61 Rev. 2 is withdrawn; use Rev. 3.\n")) is True,
+           "BL-194 control: a genuine same-line warning still passes")
+
+        # -- BL-195. The registry is trusted, so it is validated before use.
+        ok(check_do_not_cite(dnc("r1", "clean\n",
+                                 entries=[{"id": "x", "pattern": r"SP\s*800-61"}])) is False,
+           "BL-195: an entry missing status/supersededBy/why/mustFlag fails")
+        ok(check_do_not_cite(dnc("r2", "clean\n", markers=[])) is False,
+           "BL-195: an empty markers list fails -- no warning could ever excuse anything")
+        ok(check_do_not_cite(dnc("r3", "clean\n",
+                                 entries=[_row(), _row()])) is False,
+           "BL-195: a duplicate entry id fails")
+        ok(check_do_not_cite(dnc("r4", "clean\n",
+                                 entries=[_row(pattern="SP 800-61 (")])) is False,
+           "BL-195: a pattern that does not compile fails")
+        ok(check_do_not_cite(dnc("r5", "clean\n",
+                                 entries=[_row(status="deprecated")])) is False,
+           "BL-195: an unknown status fails")
+        ok(check_do_not_cite(dnc("r6", "clean\n",
+                                 entries=[_row(pattern=r"SP\s*800-99")])) is False,
+           "BL-195: a pattern that does not match its own mustFlag fails -- the fixture is "
+           "what stops a dead pattern looking like protection")
+        ok(check_do_not_cite(dnc("r7", "clean\n",
+                                 entries=[_row(mustNotFlag="SP 800-61 Rev. 2")])) is False,
+           "BL-195: a pattern that matches its mustNotFlag fails -- it would flag the "
+           "replacement edition")
 
     print("\ncheck-sources self-test: %d checks, %d failed"
           % (len(checks), sum(1 for c in checks if not c)))

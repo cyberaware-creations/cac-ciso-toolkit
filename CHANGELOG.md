@@ -21,6 +21,91 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.55.0 — 2026-08-09
+
+**BL-193, BL-194, BL-195 — the v0.53.0 release blockers.** C5 shipped as a safety feature and
+failed its own adversarial suite. Every failure was the same shape: a check reporting success
+without having tested anything.
+
+### BL-193 — SP 800-16 was withdrawn, and the search that missed it
+
+`notYetVerified` recorded SP 800-16 as *"did not surface in a CSRC search; status unconfirmed"*.
+It is **Withdrawn, 12 September 2024**, superseded by SP 800-50 Rev. 1 — which absorbed
+role-based training so one document now covers awareness, training and education.
+
+The reason it was missed is worth recording: a CSRC **keyword search** for `800-16` returns
+SP 800-**18** and not it. Only the direct publication URL shows it. A search that returns
+plausible neighbours reads exactly like a search that found nothing.
+
+**CSF 1.1** also moved into enforcement — NIST's own site files it under a *"CSF 1.1 Archive"*
+with 2.0 as current. Listed `superseded` rather than `withdrawn`: CSF is not in the CSRC
+catalogue and carries no withdrawal record, and *archived* is NIST's word.
+
+**SP 800-100 stays out, and the record is subtler than either earlier pass had it.** CSRC carries
+two entries under that number: the October 2006 original, **Withdrawn 7 March 2007**, and the
+March 2007 update, **Final**. The seed list's "confusing withdrawal record" was right; v0.53.0's
+"CSRC reports it FINAL" was right about the current edition only. Because the *number* is current,
+a bare `SP 800-100` is ambiguous rather than wrong, and banning it would flag every legitimate
+reference. Deliberately not enforced.
+
+### BL-194 — C5 failed open four ways, and the four were not the class
+
+Fixed as a class, per the plan's warning that four named cases produce a guard that passes four
+named cases. **RW-1.9.1** replaces the ±320-character proximity window with binding:
+
+> A marker excuses a citation only when it is on the **same line**, and of every watched
+> publication on that line, the one **nearest the marker** is this one.
+
+Plus offset-preserving typography folding, so a non-breaking hyphen cannot smuggle a citation past
+the pattern.
+
+| Reported case | Before | After |
+|---|---|---|
+| Unicode hyphen `SP 800‑61` | passed | caught |
+| En-dash `SP 800–61` | passed | caught |
+| Unrelated nearby prose | passed | caught |
+| Cross-publication warning | passed | caught |
+| Blanket `docs/` exemption | passed | **open question — see below** |
+
+**Then two more, invented after those were closed, and both still failed open:**
+
+- a marker living inside a **URL** on the same line (`https://…/withdrawn/`), which sat nearer the
+  citation than anything else and laundered it;
+- a marker as a **substring of an identifier** (`obsoleteFlag`), which plain substring search
+  counted as a warning.
+
+Fixed by blanking URL runs before the marker search and requiring whole-word markers. **That the
+independently-invented pair both failed is the evidence the reported four were not the class** —
+had the four been added and the work stopped, C5 would still fail open two ways.
+
+**One deliberate regression.** A marker on the *next* line no longer excuses a citation, and the
+self-test case asserting the old behaviour was flipped. Same-line binding is stricter, and for a
+check whose failure mode is silent success that is the right direction. It cost one reflow in
+`tools/README.md`, where a hard-wrapped sentence put `[Withdrawn:]` and `CSF 1.1` on different
+lines — and putting the qualifier beside the thing it qualifies is better writing anyway.
+
+### BL-195 — the registry was trusted without being validated
+
+C5 reads `status` and `supersededBy` only when building an error message, so an entry missing both
+sat in the file looking like protection and would have crashed the first time it caught anything.
+A pattern matching nothing at all was indistinguishable from one guarding an uncited publication.
+
+**RW-1.9.2** validates the registry before use, and every entry now carries **`mustFlag`** — a
+string its own pattern must match — with optional `mustNotFlag`. These are executable fixtures,
+not documentation: a pattern that has stopped matching its own example is reported now rather than
+discovered the day somebody cites the publication it was supposed to watch.
+
+Self-test **40 → 54**.
+
+### Raised, not resolved
+
+**Is `docs/` in scope for C5?** The release says C5 scans shipped prose while `docs/` and
+`research/` are blanket-exempt, so either the code is wrong or the sentence is. `docs/superpowers/`
+legitimately discusses withdrawn publications in internal plans, so scanning it may be pure noise —
+in which case the honest fix is the claim, not the scanner. Left for the maintainer.
+
+---
+
 ## v0.54.1 — 2026-08-08
 
 **The two ISO rows were not the same problem, and one of them was never unverifiable.**
