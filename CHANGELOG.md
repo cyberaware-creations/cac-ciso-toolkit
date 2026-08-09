@@ -21,6 +21,55 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.58.0 — 2026-08-09
+
+**BL-95 — C-2 opportunity grounding. The rule existed; nothing enforced it.**
+
+`GV.RM-07` asks that strategic opportunities be characterised, and `board-pack` refuses an
+opportunity with no `cites`. The refusal message has always told authors to name *a declared
+strategic goal or crown-jewel dependency from `business-context`* — and the assembler checked
+only that the string was non-empty. **`goal:no-such-goal` assembled onto a board page.**
+
+A citation nothing resolves reads on the page exactly like one that does. That makes the rule
+decorative, and a decorative grounding rule on positive risk is worse than none, because the
+page looks evidenced. It is the same failure this repo keeps finding: a check that reports
+success without having tested anything.
+
+### The refusal named a format the data model could not supply
+
+`business-context` stores strategic goals as plain sentences — `add_listed` appends the text
+and nothing else. **There is no `<id>` to cite**, so the format in the refusal message was
+unachievable, and nothing noticed because nothing resolved it.
+
+The id is now the sentence slugged. Both sides are slugged, so `goal:Reduce time to market` and
+`goal:reduce-time-to-market` are one citation. No store change, no migration: every `.biz`
+written before this grounds correctly and exports byte-identically. The shipped example pack
+already cited its goal in full sentence form and grounds unchanged.
+
+### Absent, empty, and bound are three different answers
+
+| Bound context | Behaviour |
+|---|---|
+| none | presence check only — exactly as before (CAC-AP-1 §2.2) |
+| unreadable or malformed | treated as none, matching `store_organisation`: refusing a pack because one store is quiet blocks the honest case to catch nothing |
+| bound, declares nothing citable | **every opportunity is ungrounded and refused** — an empty set is not the same as no profile |
+| bound, declares goals | each `cites` must resolve; the refusal lists what is citable |
+
+### The eval assertion was flipped, not deleted
+
+`section-contract.sh` carried a case asserting that `goal:no-such-goal` **was accepted**, with
+a comment saying the assertion would have to flip when grounding landed. It has. Flipping
+rather than deleting keeps the only record that the check ever had this hole, and the comment
+above it is the argument for why the hole mattered. Six cases replace the one: no-profile
+parity, an unresolvable citation, four resolvable spellings, empty-set versus None, a
+`crown-jewel:` prefix that must not resolve against a goal, and `grounding_keys` reading a real
+`.biz`.
+
+**Verification:** `section-contract.sh` 54/54; `assemble_pack.py` self-test 137/137; 18/18
+evals across board-pack, business-context and vendor-register; full sweep clean.
+
+---
+
 ## v0.57.0 — 2026-08-09
 
 **BL-194 and BL-190 — the last v0.53.0 blocker, and the half of C4 that was never written.**
