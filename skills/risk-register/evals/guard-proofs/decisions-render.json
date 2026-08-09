@@ -16,10 +16,9 @@
     },
     {
       "half": "crash",
-      "why": "the object passed straight to esc(), which now REFUSES a container rather than rendering one. The renderer dies and writes no page — and a guard that greps a file that does not exist finds nothing and reports clean, which is the crashed-probe blindness of BL-121. This half proves the suite notices.",
+      "why": "the object passed straight to esc(), which now REFUSES a container. The renderer dies and writes no page — and a guard that greps a file that does not exist finds nothing and reports clean, which is the crashed-probe blindness of BL-121. Every other check goes silent so this half defeats the page-existence check ALONE; a half whose mutation defeats everything proves nothing about any one of them.",
       "defeats": [
-        "the renderer wrote a page at all",
-        "board decision text renders as prose"
+        "the renderer wrote a page at all"
       ],
       "file": "skills/risk-register/renderers/render_board.py",
       "find": "def _dtext(d): return d.get(\"text\") if isinstance(d, dict) else d",
@@ -35,6 +34,16 @@
       "file": "skills/risk-register/renderers/render_report.py",
       "find": "    return d.get(\"text\") if isinstance(d, dict) else d",
       "replace": "    return str(d)"
+    },
+    {
+      "half": "text",
+      "why": "the ANTI-VACUITY property on its own. The page renders, carries no repr, and the decision is simply gone — which is a different failure from the page never rendering, and needs its own mutation or one property is standing in for the other. That substitution is exactly what BL-209 found (the old proof registered this mutation against the repr property), so proving it by the `crash` half would have reintroduced the defect inside its own fix. BL-209 D-3.",
+      "defeats": [
+        "board decision text renders as prose"
+      ],
+      "file": "skills/risk-register/renderers/render_board.py",
+      "find": "def _dtext(d): return d.get(\"text\") if isinstance(d, dict) else d",
+      "replace": "def _dtext(d): return \"\""
     }
   ]
 }

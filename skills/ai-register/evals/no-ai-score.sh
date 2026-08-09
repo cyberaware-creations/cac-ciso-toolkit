@@ -71,7 +71,7 @@ fi
 out=$("$PY" "$here/_aiscore.py" --json "$S" 2>"$work/b.err")
 rc=$?
 if [ "$rc" -eq 0 ]; then
-  ok "no key the engine emits is named like a score, rating, grade or posture ($out)"
+  ok "no key the engine emits is named like a score"
 elif [ "$rc" -eq 2 ]; then
   bad "the payload is substantial enough to inspect" "$(cat "$work/b.err")"
 else
@@ -91,7 +91,7 @@ fi
 scanned=$("$PY" "$here/_aiscore.py" --static "$skill" 2>"$work/s.err")
 rc=$?
 if [ "$rc" -eq 0 ]; then
-  ok "no shipped .py multiplies or averages a criticality against an exposure count"
+  ok "no shipped .py computes a score internally"
 else
   bad "no shipped .py computes a score internally" "$(cat "$work/s.err")"
 fi

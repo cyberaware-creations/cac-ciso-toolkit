@@ -35,6 +35,15 @@ bad() { checks=$((checks + 1)); fails=$((fails + 1)); printf '  FAIL  %s\n      
 wrote() {  # wrote <label> <file>
   if [ -s "$2" ]; then ok "$1"; else bad "$1" "the renderer wrote no page, so every grep below would have read nothing and reported clean"; fi
 }
+hastext() {  # hastext <label> <file> <needle>
+  # Silent on a missing page, for the same reason as norepr below: `wrote` owns that failure.
+  # Without this, the `crash` mutation defeats the text check too — and then the anti-vacuity
+  # property is proved only by a page that never rendered, which is one property standing in
+  # for another. That substitution IS BL-209, so leaving it here would reintroduce the defect
+  # inside its own fix (D-3).
+  if [ ! -s "$2" ]; then return; fi
+  if grep -qF -- "$3" "$2"; then ok "$1"; else bad "$1" "expected decision text not found"; fi
+}
 norepr() {  # norepr <label> <file> <extended-regex>
   # Silent, not `bad`, when there is no page — `wrote` above already owns that and has already
   # failed the suite. Reporting the same absence three times would make a missing page defeat
@@ -65,12 +74,7 @@ norepr "no raw dict repr in rendered decisions" "$work/board.html" "$RE_TEXT"
 norepr "no 'altitude' key in rendered output" "$work/board.html" "$RE_ALT"
 
 # 3. The board decision text is present (anti-vacuity).
-if grep -qF "Note the Form 8-K filed on 17 July" "$work/board.html"; then
-  ok "board decision text renders as prose"
-else
-  bad "board decision text renders as prose" \
-      "expected 'Note the Form 8-K filed on 17 July' not found in board HTML"
-fi
+hastext "board decision text renders as prose" "$work/board.html" "Note the Form 8-K filed on 17 July"
 
 echo
 if [ "$checks" -ne "$EXPECTED_CHECKS" ]; then

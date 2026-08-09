@@ -81,7 +81,7 @@ fi
 scanned=$("$PY" "$here/_scorescan.py" "$skill" 2>"$work/static.err")
 rc=$?
 if [ "$rc" -eq 0 ]; then
-  ok "no shipped file multiplies or averages a criticality against a count or severity"
+  ok "no shipped file computes a score internally"
 else
   bad "no shipped file computes a score internally" "$(cat "$work/static.err")"
 fi

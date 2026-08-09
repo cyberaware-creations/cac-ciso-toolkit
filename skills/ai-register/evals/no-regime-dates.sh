@@ -41,7 +41,7 @@ echo "no-regime-dates: $($PY -V 2>&1)"
 scanned=$("$PY" "$here/_regimescan.py" --static "$skill" 2>"$work/s.err")
 rc=$?
 if [ "$rc" -eq 0 ]; then
-  ok "no shipped .py puts a year inside a sentence about a regulation"
+  ok "no regulatory date appears in prose"
 else
   bad "no regulatory date appears in prose" "$(cat "$work/s.err")"
 fi
@@ -71,7 +71,7 @@ fi
 out=$("$PY" "$here/_regimescan.py" --data "$J" 2>"$work/d.err")
 rc=$?
 if [ "$rc" -eq 0 ]; then
-  ok "every shipped obligation carries a source and an owning function ($out)"
+  ok "every obligation is attributable and owned"
 else
   bad "every obligation is attributable and owned" "$(cat "$work/d.err")"
 fi
@@ -79,7 +79,7 @@ if "$PY" -c '
 import json, sys
 d = json.load(open(sys.argv[1], encoding="utf-8"))
 sys.exit(0 if d.get("regimes") == [] and str(d.get("asOf") or "").strip() else 1)' "$J"; then
-  ok "the dataset ships EMPTY and still carries an asOf — the mechanism, not the content"
+  ok "the dataset ships empty with an asOf"
 else
   bad "the dataset ships empty with an asOf" \
       "either regime content appeared without a verification pass, or the asOf went missing"

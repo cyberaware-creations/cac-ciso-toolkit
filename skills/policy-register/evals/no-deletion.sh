@@ -80,7 +80,7 @@ run_step approve "$S" --id P-002 --by "The Board" --on 2026-06-01
 run_step supersede "$S" --id P-001 --on 2026-06-01 --why "Replaced by the 3.0 issue." --by-policy P-002
 
 if [ -z "$shrank" ] && [ "$seen" -eq 2 ]; then
-  ok "the record count never decreased across nine mutations ($trail)"
+  ok "the record count never decreases across a full lifecycle"
 else
   bad "the record count never decreases across a full lifecycle" \
       "shrank at:${shrank:- (none)}; trail $trail, ended at $seen"
@@ -107,7 +107,7 @@ print("; ".join(problems))
 PY
 )
 if [ -z "$res" ]; then
-  ok "and the lifecycle really did supersede a document, so the checks below mean something"
+  ok "the lifecycle actually exercised supersession"
 else
   bad "the lifecycle actually exercised supersession" "$res"
 fi
@@ -132,20 +132,20 @@ print("; ".join(problems))
 PY
 )
 if [ -z "$res" ]; then
-  ok "the superseded document is still in the analysis and still against its requirement"
+  ok "the superseded document survives into the analysis"
 else
   bad "the superseded document survives into the analysis" "$res"
 fi
 
 if grep -q '^P-001,' "$work/e.csv"; then
-  ok "and still in the CSV export an auditor is handed"
+  ok "the superseded document is in the CSV export"
 else
   bad "the superseded document is in the CSV export" \
       "P-001 is absent from $(wc -l <"$work/e.csv" | tr -d ' ') line(s)"
 fi
 
 if grep -q 'P-001' "$work/req.html" && grep -q 'superseded' "$work/req.html"; then
-  ok "and still on the rendered page, marked as superseded"
+  ok "the superseded document is on the rendered page"
 else
   bad "the superseded document is on the rendered page" "P-001 or its state is absent"
 fi

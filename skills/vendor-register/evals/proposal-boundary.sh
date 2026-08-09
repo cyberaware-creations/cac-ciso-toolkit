@@ -50,7 +50,7 @@ if "$PY" "$V" propose "$S" --arrangement VA-001 --requirement "encryption at res
   bad "a T3 evidence item cannot be proposed against" "it was accepted"
 else
   if grep -qF "never satisfy a requirement" "$work/t3.err"; then
-    ok "a T3 evidence item cannot be proposed against, and the refusal says why"
+    ok "a T3 evidence item cannot be proposed against"
   else
     bad "the T3 refusal names the tier rule" "$(head -1 "$work/t3.err")"
   fi
@@ -134,10 +134,12 @@ for mode in met tiers; do
   rc=$?
   scanned=$(printf '%s' "$out" | sed -n 's/^scanned \([0-9]*\).*/\1/p')
   if [ "$rc" -eq 0 ] && [ "${scanned:-0}" -ge 10 ]; then
-    case "$mode" in
-      met)   ok "no code path outside assess() marks a requirement met (${scanned} functions read)" ;;
-      tiers) ok "no inlined tier list — SATISFYING_TIERS is the only definition (${scanned} read)" ;;
-    esac
+    # One label per mode, and the SAME label the failure branch prints. The pass branch used
+    # to interpolate `${scanned}` into the name, so the check was called something different
+    # on every run and a mutation could only ever name the failure form — which is how a
+    # `defeats` entry came to read `static scan --met`, a string no clean run ever emitted
+    # (GP-1.11). The count is asserted by the `-ge 10` above, which is where it belongs.
+    ok "static scan --$mode"
   else
     bad "static scan --$mode" "$(cat "$work/$mode.err")"
   fi

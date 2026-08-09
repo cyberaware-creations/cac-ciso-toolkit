@@ -60,7 +60,7 @@ done
 out=$("$PY" "$here/_closedstate.py" --store "$S" 2>"$work/b.err")
 rc=$?
 if [ "$rc" -eq 0 ]; then
-  ok "nothing in the store's exposure describes a class as handled ($out)"
+  ok "no key or value describes a class as handled"
 elif [ "$rc" -eq 2 ]; then
   bad "the probe store carries classes and controls to inspect" "$(cat "$work/b.err")"
 else
@@ -109,7 +109,7 @@ fi
 scanned=$("$PY" "$here/_closedstate.py" --static "$skill" 2>"$work/s.err")
 rc=$?
 if [ "$rc" -eq 0 ]; then
-  ok "no shipped .py assigns a closed-state field on an exposure class"
+  ok "no shipped .py assigns a closed-state field"
 else
   bad "no shipped .py assigns a closed-state field" "$(cat "$work/s.err")"
 fi

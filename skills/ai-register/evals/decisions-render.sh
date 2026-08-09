@@ -51,7 +51,7 @@ render() {  # render <translations-or-empty> <out>
 # --- 1-4. the object form, which is what the sidecar emits today --------------
 render "$skill/examples/example-translations.json" "$work/full.html"
 if [ -s "$work/full.html" ]; then
-  ok "the board view rendered with the shipped sidecar"
+  ok "no decision renders as a raw dict"
 else
   bad "the board view rendered" "empty — every check below would pass over nothing"
 fi
