@@ -300,7 +300,8 @@ recorded as notes on the `regulatory` factor with **no computed deadline**. The 
 not compute a deadline it cannot compute correctly.
 
 `references/disclosure-clocks.md` carries every limit with its receipt: Item 1.05 binds SEC
-registrants and nobody else, expressly does not require technical detail, and sits under
+registrants and nobody else, carves out technical detail of the *response, systems and
+vulnerabilities* but **not of the incident**, and sits under
 rescission pressure with a materially reduced enforcement posture; DORA binds in-scope EU
 financial entities, its *major* classification is a judgment this tool does not make, and the
 engine does not apply the next-working-day allowance.
