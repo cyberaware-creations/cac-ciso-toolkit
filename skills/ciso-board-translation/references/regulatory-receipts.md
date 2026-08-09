@@ -201,8 +201,9 @@ checked. Nothing here is a substitute for counsel reading the current text.
 | Marriott | *Firemen's Retirement System of St. Louis v. Sorenson*, C.A. No. 2019-0965-LWW (Del. Ch. 26 Oct. 2021) | Delaware Court of Chancery opinions |
 | SolarWinds derivative | *Construction Industry Laborers Pension Fund v. Bingle*, C.A. No. 2021-0940-SG (Del. Ch. 5 Sep. 2022), *aff'd*, No. 411, 2022 (Del. 17 May 2023) | Del. Ch.; Delaware Supreme Court |
 | Boeing | *In re The Boeing Company Derivative Litigation*, C.A. No. 2019-0907-MTZ (Del. Ch. 7 Sep. 2021) | Delaware Court of Chancery |
-| DORA RTS | Commission Delegated Regulation **(EU) 2024/1774**, Art. 3(d)(iii)–(iv) | EUR-Lex, CELEX 32024R1774 |
-| DORA Level 1 | Regulation **(EU) 2022/2554** | EUR-Lex, CELEX 32022R2554 |
+| DORA ICT risk-management RTS | Commission Delegated Regulation **(EU) 2024/1774**, Art. 3, point (d)(iii)–(iv); OJ 25.6.2024, in force 15 Jul. 2024 | EUR-Lex, CELEX 32024R1774 |
+| DORA incident-reporting RTS | Commission Delegated Regulation **(EU) 2025/301**, Art. 5 — the initial / intermediate / final time limits, made under DORA Art. 19(4); OJ 20.2.2025 | EUR-Lex, CELEX 32025R0301 |
+| DORA Level 1 | Regulation **(EU) 2022/2554**, applicable from 17 Jan. 2025 (Art. 64) | EUR-Lex, CELEX 32022R2554 |
 | SEC cyber disclosure rule | Release Nos. **33-11216; 34-97989**, File No. S7-09-22, **88 FR 51896** (4 Aug. 2023); effective 5 Sep. 2023 | Federal Register; SEC final rules |
 | Item 106 / Item 1.05 | **17 C.F.R. § 229.106**; Form 8-K **Item 1.05** (§ 249.308) | eCFR, Title 17; adopted text at 88 FR **51942** (Item 106) and **51945** (Item 1.05 and its Instructions) |
 | Gerding statement | Erik Gerding, Dir. of Corporation Finance, "Cybersecurity Disclosure," 14 Dec. 2023 | SEC statements |
