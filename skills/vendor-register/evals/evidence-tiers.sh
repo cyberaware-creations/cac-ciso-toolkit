@@ -41,7 +41,7 @@ if "$PY" "$V" ingest "$S" --arrangement VA-001 --kind soc2-type2 --tier T1 \
   bad "a T1 with no scope and no period is refused" "it was accepted"
 else
   if grep -qF "cannot expire" "$work/1.err"; then
-    ok "a T1 with no scope and no period is refused, and the refusal says why both matter"
+    ok "a T1 with no scope and no period is refused"
   else
     ok "a T1 with no scope and no period is refused"
   fi
@@ -60,7 +60,7 @@ else
 fi
 after=$(md5 -q "$S" 2>/dev/null || md5sum "$S" | cut -d' ' -f1)
 if [ "$before" = "$after" ]; then
-  ok "and none of those refusals touched the store"
+  ok "a refused ingest leaves the store byte-identical"
 else
   bad "a refused ingest leaves the store byte-identical" "the file changed"
 fi
@@ -119,7 +119,7 @@ print(vr.evidence_status(dated[0], sys.argv[3], 365))' "$V" "$S" "$1"
 "$PY" "$V" ingest "$S" --arrangement VA-001 --kind bridge-letter --tier T3 \
    --source "management letter covering Jan-Jun 2026" >/dev/null 2>&1
 if [ "$(status 2027-02-01)" = "expired" ]; then
-  ok "ingesting a bridge letter leaves the expired T1 EXPIRED"
+  ok "a bridge letter does not extend a T1's currency"
 else
   bad "a bridge letter does not extend a T1's currency" \
       "the T1 became $(status 2027-02-01) — a management assertion is not an audited artifact"

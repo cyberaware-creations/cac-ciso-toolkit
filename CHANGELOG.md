@@ -21,6 +21,68 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.67.0 — 2026-08-09
+
+**`51 halves, each proved in both directions` was true and misleading at once.** Halves are
+counted from the proof file, so the framework's yardstick was the claim being made: a guard
+running twenty checks and registering one mutation reported exactly what a fully covered guard
+reported. Measured across the tree, **50 of 356 checks had ever been demonstrated to fail —
+14%** (BL-210).
+
+**Two things had to be fixed before the ratio could be computed at all.**
+
+*A check needs a stable name.* Suites printed one label on success and another on failure —
+`ok "no shipped .py assigns a closed-state field on an exposure class"` against
+`bad "no shipped .py assigns a closed-state field"`. GP-1.9 matches the mutated run so the
+proofs worked, but **33 of 83 `defeats` entries, 40%, across 15 of 36 guards, named a string no
+clean run ever published.** A check whose name changes with the branch — or with interpolated
+data, as in `ok "static scan --$mode ($scanned functions read)"` — cannot be counted, waived or
+found by the next reader. All 33 are fixed and the runner now fails on a new one.
+
+*The runner had to read its own clean run.* It always performed one, and only ever looked at
+the exit status. The published labels were sitting in a file it had already written.
+
+**`tools/proof-coverage.py`** (GP-1.11) enforces: every `defeats` entry names a published
+check; every waived check exists; every guard defeats at least one of its own checks; and a
+waiver carries a reason not byte-identical to another guard's — because `guard-registry.json`
+already has 13 of 21 `not-a-guard` rows sharing one template, which is what
+classification-by-boilerplate looks like from the outside.
+
+**What was deliberately NOT done: mass-waiving the remainder.** It was the obvious move and it
+is wrong. Reading the 273, a real fraction *are* the guarded property — `ai-register`'s
+*"no decision renders as a raw Python dict — the defect this suite exists for"* was among them.
+A waiver there is not a decision, it is the same false comfort in a new wrapper, and it would
+read as settled. So the number is printed on every run and **`EXPECTED_PROVED` is a ratchet: it
+may rise freely and may never fall.** A floor rather than a target, because the honest end
+state is not 356 of 356 — an anti-vacuity assertion that a fixture was built is a precondition,
+and a mutation for it would prove only that the fixture still works.
+
+The run now closes with:
+
+> `36 guard(s), 64 half/halves, each proved in both directions`
+> `83 of 356 checks proved by a mutation (23%), 0 waived with a reason`
+
+23% rather than 14% purely because the 33 relabelled checks now count — the same proofs,
+finally attributable.
+
+**Also closed here: BL-209's D-3.** That item required the anti-vacuity check to keep *its own*
+mutation, and v0.66.0 let the `crash` half stand in for it by killing the page. One property
+proving another is the substitution BL-209 exists to stop, so it was reintroducing the defect
+inside its own fix. Each `decisions-render` guard now has three disjoint halves — `repr`,
+`text`, `crash` — and `hastext` stays silent on a missing page so `wrote` owns that failure
+alone.
+
+**Recorded, not fixed: GP-1.7's own claim is stale.** It says *"each guard now recomputes the
+expected file list from the filesystem"*. The ten `board-safety.sh` suites do not — they carry
+a hardcoded tuple, so `risk-register` scans 3 of 5 shipped files, `nist-csf` 4 of 6 and
+`metrics-register` 3 of 4. That is BL-211, and the numbers are now in the standard beside the
+sentence rather than left as an aspiration.
+
+Counts: `prove-guards` 36 guards / 59 halves → **36 / 64**; proved checks 50 → **83**; new
+`proof-coverage` self-test **7**. Everything else unchanged and green.
+
+---
+
 ## v0.66.0 — 2026-08-09
 
 **A board decision was rendering as a Python dict on a shipped page, and five guards written to

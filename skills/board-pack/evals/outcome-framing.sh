@@ -52,7 +52,7 @@ echo "outcome-framing: $($PY -V 2>&1)"
 # Running the guard before the thing it guards is the only order in which a green tick below
 # means anything — the same reasoning the crosswalk validator's self-test is sequenced by.
 if "$PY" "$SCAN" --self-test >"$work/st.out" 2>&1; then
-  ok "the checker's own tests pass ($(tail -1 "$work/st.out"))"
+  ok "the checker's own tests pass"
 else
   bad "the checker's own tests pass" "$(tail -3 "$work/st.out" | tr '\n' ' ')"
 fi
@@ -131,7 +131,7 @@ if "$PY" "$SCAN" "$work/stripped.json" >/dev/null 2>"$work/m1.err"; then
 else
   named=$(grep -c "carries no consequence" "$work/m1.err" || true)
   if [ "${named:-0}" -ge 3 ]; then
-    ok "the floor fails on three stripped sentences, and NAMES all $named of them"
+    ok "the floor fails when consequence clauses are stripped"
   else
     bad "the floor names what it rejected" "only $named sentence(s) named — a rejection a "\
 "reader cannot act on is a rejection they will disable"
@@ -150,7 +150,7 @@ if "$PY" "$SCAN" "$work/wishful.json" >/dev/null 2>&1; then
   bad "a decisions entry that decides nothing fails" \
       "'We should look at this.' passed as a board decision"
 else
-  ok "...and a decisions entry that decides nothing fails, with no floor to hide behind"
+  ok "a decisions entry that decides nothing fails"
 fi
 
 # HALF THREE — the blend. C-2's guardrail, checked here because it is the same scan.

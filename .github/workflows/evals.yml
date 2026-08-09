@@ -225,6 +225,12 @@ jobs:
       - name: Regulatory limits run in both directions, on the floor
         run: PY="$(command -v python3)" ./skills/incident-materiality/evals/two-directional-limits.sh
 
+      # GP-1.11's own tests. The coverage tool decides whether a guard's claim is supported, so
+      # it runs before the claim does — the same ordering the crosswalk validator's self-test
+      # has, and for the same reason: a green tick from a checker nobody checked means nothing.
+      - name: Proof-coverage checker's own tests, on the floor
+        run: python3 ./tools/proof-coverage.py --self-test
+
       # Every consumer of CAC-AP-1, held to the contract from the side that DEFINES it.
       # Each consumer's own suite pins that consumer; none of them can see four engines
       # implementing the same six clauses and drifting apart one release at a time, each

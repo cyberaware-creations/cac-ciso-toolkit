@@ -66,7 +66,7 @@ fi
 out=$("$PY" "$here/_priorityscan.py" --json "$work/r.json" 2>"$work/b.err")
 rc=$?
 if [ "$rc" -eq 0 ]; then
-  ok "no key in the review is named like a priority, a score or a rank ($out)"
+  ok "no key is named like a priority"
 elif [ "$rc" -eq 2 ]; then
   bad "the review is substantial enough to inspect" "$(cat "$work/b.err")"
 else
@@ -91,7 +91,7 @@ fi
 scanned=$("$PY" "$here/_priorityscan.py" --static "$skill" 2>"$work/s.err")
 rc=$?
 if [ "$rc" -eq 0 ]; then
-  ok "no shipped .py multiplies or averages a severity against an age or a count"
+  ok "no shipped .py computes a priority internally"
 else
   bad "no shipped .py computes a priority internally" "$(cat "$work/s.err")"
 fi

@@ -103,7 +103,7 @@ print("; ".join(found[:5]))
 PY
 )
 if [ -z "$res" ]; then
-  ok "no float appears anywhere in the analysis — every figure is a count"
+  ok "no float appears anywhere in the analysis"
 else
   bad "no float appears anywhere in the analysis" "$res"
 fi

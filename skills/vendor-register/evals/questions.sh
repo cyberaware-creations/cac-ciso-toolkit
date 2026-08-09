@@ -93,7 +93,7 @@ if "$PY" "$V" propose "$work/t3.vnd" --arrangement VA-001 \
      --citation "their trust page" >/dev/null 2>&1; then
   bad "a trust page cannot be proposed against" "it was accepted"
 else
-  ok "a trust page cannot be proposed against at all"
+  ok "a trust page cannot be proposed against"
 fi
 t3_open=$(open_count "$work/t3.vnd")
 if [ "${t3_open:-0}" -eq "${baseline:-0}" ]; then

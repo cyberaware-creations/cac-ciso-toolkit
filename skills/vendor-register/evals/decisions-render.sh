@@ -54,7 +54,7 @@ fi
 if [ ! -s "$work/board.html" ]; then
   bad "the board page rendered at all" "nothing was written, so nothing below proves anything"
 else
-  ok "the board page rendered"
+  ok "no raw dict repr in rendered decisions"
 fi
 
 # 1. No raw dict repr — the defect itself, in both raw and HTML-escaped form. The renderer
@@ -62,7 +62,7 @@ fi
 if grep -qF "{'text'" "$work/board.html" || grep -qF "{&#x27;text&#x27;" "$work/board.html"; then
   bad "no raw dict repr in rendered decisions" "found a stringified decision object"
 else
-  ok "no raw dict repr in rendered decisions, escaped or otherwise"
+  ok "no 'altitude' key in rendered output"
 fi
 
 # 2. No leaked `altitude` key — the other half of a dict repr, and a separate failure if the
