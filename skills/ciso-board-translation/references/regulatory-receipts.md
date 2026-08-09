@@ -177,11 +177,34 @@ the 1 November 2023 effective date.
 *already expected artifacts* for covered firms. The translation's decision-
 forcing output produces the exact documents Part 500 anticipates.
 
-**HONEST LIMIT (load-bearing).** NYDFS penalizes **absent or stale
-documentation**, not the absence of decision-*rationale* specifically, and it
-applies **only to covered financial entities**. Do not extend it to firms
-outside its scope or imply it demands a rationale essay where a signed
-acknowledgment suffices.
+**HONEST LIMIT (load-bearing), and it runs in two directions.**
+
+*Outward.* NYDFS penalizes **absent or stale documentation**, not the absence
+of decision-*rationale* specifically, and it applies **only to covered
+financial entities**. Do not extend it to firms outside its scope or imply it
+demands a rationale essay where a signed acknowledgment suffices.
+
+*Inward — and this half was missing for six releases (BL-188).* **§500.19
+exempts some covered entities from the very sections this receipt cites.** A
+limit that only scopes outward stops the claim reaching firms outside New York
+financial services and says nothing about which firms inside that perimeter are
+exempt, so an exempt firm reading it is told a lawful gap is non-compliance:
+- **§500.19(a), the limited exemption** — any one of fewer than 20 employees
+  and independent contractors including affiliates, under $7,500,000 gross
+  annual revenue in each of the last three fiscal years, or under $15,000,000
+  year-end total assets including all affiliates — exempts from **§500.15 but
+  NOT §500.12**. The Second Amendment **removed §500.12** from that list, so a
+  firm exempt from MFA before 1 November 2023 is not exempt now.
+- **§500.19(c) and (d)** exempt from **both §500.12 and §500.15**.
+- **§500.19(b), (e) and (g)** exempt from **the whole Part**, §500.17 included
+  — so the certification and acknowledgment obligations above do not reach
+  them at all.
+
+**Never state whether a given entity qualifies.** The tests read like
+arithmetic and are not: affiliate aggregation, operating under a license, and
+whether an entity "otherwise qualifies as a covered entity" are legal
+determinations. Say the exemption exists, name the limb, and send them to
+counsel — the same discipline that stops this suite deciding materiality.
 
 ## Personal-standing context (why the CISO cares)
 

@@ -99,7 +99,33 @@ whether an exception is loggable at all:
   exception is not a deviation you can log and compensate — it is non-compliance**, and belongs
   in the §500.17 acknowledgment rather than in this register as a controlled exception.
 
-**Limit:** it binds covered entities in New York financial services and nobody else.
+**Limits, and there are two of them running in opposite directions.**
+
+**Outward** — it binds covered entities in New York financial services and nobody else.
+
+**Inward — §500.19 exempts some covered entities from exactly these sections.** A limit that
+only scopes outward is the one this file kept for six releases, and it is why an exempt firm
+was told its lawful gap was a compliance failure (BL-188):
+
+- **§500.19(a), the limited exemption** — an entity meeting **any one** of three tests (fewer
+  than 20 employees and independent contractors including affiliates; under $7,500,000 gross
+  annual revenue in each of the last three fiscal years; under $15,000,000 year-end total
+  assets including all affiliates) is exempt from **§500.15 but NOT from §500.12**. The Second
+  Amendment **removed §500.12 from this list**, so a limited-exemption entity that was exempt
+  from MFA before 1 November 2023 is not exempt now — §500.12 bound it from 1 November 2025
+  under the §500.22(d)(4) transition. For such a firm the §500.12(b) compensating-controls
+  route above is live and the §500.15(b) one is beside the point.
+- **§500.19(c) and (d)** — an entity with no information systems and no nonpublic information,
+  and an Insurance Law article 70 entity holding only its parent's or affiliates' information,
+  are each exempt from **both §500.12 and §500.15** (and from §500.2, 500.3, 500.4, 500.5,
+  500.6, 500.7, 500.8, 500.10, 500.14 and 500.16).
+- **§500.19(b), (e) and (g)** exempt from **the whole Part**, §500.17 included.
+
+**Whether a given entity qualifies is a legal determination and this suite does not make it.**
+The tests look computable — a headcount, a revenue figure, an asset total — and that is exactly
+the trap: affiliate aggregation, what counts as operating under a license, and whether an entity
+"otherwise qualifies as a covered entity" are not arithmetic. Record the limb counsel declared,
+with who declared it and when, the same way this register records everything else.
 
 **ISO/IEC 27001 Clause 6.1.3 / 8.3** — risk treatment and residual risk acceptance by risk
 owners. **Limit:** the standard requires the acceptance, not any particular register format.
