@@ -28,7 +28,8 @@
         "SKILL.md",
         "references/cyber-ai-profile.json"
       ],
-      "reviewIntervalDays": 180
+      "reviewIntervalDays": 180,
+      "intervalBecause": "Already 180 before RW-1.13 existed, with no reason recorded — the rule found it on its first run, which is the argument for the rule. The cadence is right and now says so: the Cyber AI Profile is the newest instrument in this manifest and the only one still moving on the timescale of a release rather than a rulemaking, so a year between reads would routinely be a year out of date."
     },
     {
       "id": "sp-1300",

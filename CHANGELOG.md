@@ -21,6 +21,63 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.63.0 — 2026-08-09
+
+**The three open decisions, each turned into a rule.** A decision that lives in a chat log is
+one the next reader has to re-make.
+
+### RW-1.11 — an unverified row ships; the gate stays as it is
+
+Decided: keep it. An unverified row is allowed, never `gated`, must say why, and is counted on
+every run. Failing the release on one sounds stricter and is not — it pressures whoever is
+shipping into stamping `checkedBy: "claude-code"` on a row nobody read, which converts a
+**visible gap into an invisible lie**. This manifest exists to prevent that trade.
+
+The cost is that `whyUnverified` is now load-bearing: it is the only thing separating *"we
+looked and it is paywalled"* from *"nobody has got to it"*. A placeholder there — `TODO`,
+`n/a`, `pending` — now fails.
+
+### RW-1.12 — `checkedBy` stays machine-honest; a person may counter-sign beside it
+
+`checkedBy` records who **read** the source; new optional `reviewedBy` + `reviewedOn` record
+who **accepted** that reading. Replacing `claude-code` with a person's name would be false
+provenance; dropping it for a human-only signature would lose the record of a real check.
+
+A machine may not countersign its own work, and an endorsement needs a date, because one that
+cannot age is the single thing this manifest measures. **The count prints every run: 0 of 45.**
+An honest number, and the reason for printing it.
+
+### RW-1.13 — 365 is the house default; a deviation must say why
+
+The question was *"does 365 suit the SEC rule?"* The honest answer is that **nothing had ever
+decided** — every gated row carried 365, all twenty-odd, because it was typed once and copied.
+
+The burden is inverted onto the only case where it helps: the default needs no defence, a
+deviation requires `intervalBecause`, and `intervalBecause` on a default-interval row also
+fails because it reads as a deviation that is not one.
+
+Applied: the eight **disclosure-clock** rows — SEC cyber rule, Item 106, Reg S-T 13, NIS2 Art.
+23, DORA RTS 2025/301, FCC CPNI — move to **180 days**. The harm from a missed amendment there
+is a late filing and it is asymmetric; nobody is penalised for reading the rule too often. The
+operative text is comparatively stable, the staff interpretation is not, and it is the
+interpretation that moves a deadline.
+
+**The rule found a pre-existing unexplained 180** on `nist-csf/cyber-ai-profile` on its first
+run — set before this rule existed, no reason recorded. The cadence was right and now says so.
+
+### A first draft of RW-1.11 was wrong and an old test caught it
+
+The placeholder check initially rejected anything under twelve characters, which rejected
+`paywalled` — punishing concision rather than emptiness, and teaching authors to pad. The
+existing case asserting that a *valid* unverified row passes failed immediately. **Cases that
+assert the permitted direction earn their place exactly here**; a suite that only tests the
+forbidden direction would have shipped it.
+
+**Verification:** `check-sources.py --self-test` 82 → **91 checks, 0 failed**; repo and release
+gate clean; all five new rules proved to fail on their own violation.
+
+---
+
 ## v0.62.0 — 2026-08-09
 
 **`candidate` gains a third answer: `permanent`.** the maintainer's decision, closing the enrolment

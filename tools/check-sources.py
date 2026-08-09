@@ -43,6 +43,8 @@ import sys
 REQUIRED = ("id", "label", "publisher", "instrument", "version",
             "checkedOn", "checkedBy", "gated", "usedFor")
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+# The house cadence. A row that keeps it says nothing; a row that leaves it must.
+DEFAULT_INTERVAL_DAYS = 365
 USAGE = "usage: tools/check-sources.py [--self-test] [--release-gate]"
 
 
@@ -75,6 +77,21 @@ def load(root, skill):
     if not isinstance(doc, dict) or not isinstance(doc.get("sources"), list):
         return None, "must be an object with a `sources` array"
     return doc, None
+
+
+_PLACEHOLDER = ("tbd", "todo", "pending", "n/a", "na", "-", "?", "unknown", "later",
+                "not yet", "wip", "xxx", "fixme")
+
+
+def _is_placeholder(text):
+    """A reason that is not a reason. RW-1.11 rests entirely on this field being real."""
+    # The named list, plus a floor low enough to catch "x" and high enough to leave a terse
+    # honest answer alone. A first draft used 12 characters and rejected "paywalled" -- which
+    # punishes concision rather than emptiness, and would have taught authors to pad. The
+    # existing self-test caught it, which is the argument for keeping cases that assert the
+    # PERMITTED direction alongside the forbidden one.
+    t = " ".join(str(text or "").lower().split()).strip(" .!-")
+    return t in _PLACEHOLDER or len(t) < 6
 
 
 def check_shape(skill, doc, today):
@@ -131,6 +148,84 @@ def check_shape(skill, doc, today):
                 problems.append("%s: `checkedBy` is unverified, so `whyUnverified` is required "
                                 "-- say what blocked it, or it reads as nobody having tried"
                                 % where)
+            # RW-1.11. DECIDED 2026-08-09: an unverified row does NOT fail the release gate.
+            # It ships with a caveat and a printed count, because the alternative pressures
+            # people into stamping `claude-code` on a row nobody read -- which converts a
+            # visible gap into an invisible lie, and this manifest exists to prevent exactly
+            # that trade.
+            #
+            # The cost of that decision is that `whyUnverified` is the only thing standing
+            # between "we looked and it is paywalled" and "nobody has got to it", so a
+            # placeholder there empties the rule out. A reason must be a reason.
+            elif _is_placeholder(why):
+                problems.append("%s: `whyUnverified` is %r, which is a placeholder rather than "
+                                "a reason. An unverified row ships and does not block the "
+                                "release (RW-1.11), so this sentence is the ONLY thing "
+                                "distinguishing a source nobody can reach from one nobody "
+                                "opened. Say which." % (where, why.strip()[:40]))
+        # RW-1.13. DECIDED 2026-08-09. Every gated row in this repo carried
+        # `reviewIntervalDays: 365`, all twenty-odd of them, which means the number was never a
+        # judgement about any instrument — it was a default typed once and copied. The question
+        # asked was "does 365 suit the SEC rule"; the honest answer is that nothing had ever
+        # decided, for that row or any other.
+        #
+        # 365 stays the house default and needs no defence. A DEVIATION does: an interval that
+        # differs from the default must carry `intervalBecause`, so the next reader can tell a
+        # considered cadence from a fiddled one. That inverts the burden onto the only case
+        # where a burden is useful.
+        iv = row.get("reviewIntervalDays")
+        if row.get("gated") is True and isinstance(iv, int) and iv != DEFAULT_INTERVAL_DAYS:
+            because = row.get("intervalBecause")
+            if not isinstance(because, str) or len(" ".join(because.split())) < 40:
+                problems.append("%s: `reviewIntervalDays` is %s, not the %s-day default, so "
+                                "`intervalBecause` must say why. An unexplained interval is "
+                                "indistinguishable from a typo, and it silently sets how long "
+                                "a changed instrument can go unnoticed."
+                                % (where, iv, DEFAULT_INTERVAL_DAYS))
+        elif "intervalBecause" in row and iv == DEFAULT_INTERVAL_DAYS:
+            problems.append("%s: `intervalBecause` on a default-interval row — the default "
+                            "needs no defence, and a justification here reads as a deviation "
+                            "that is not one" % where)
+
+        # RW-1.12. DECIDED 2026-08-09: `checkedBy: "claude-code"` STAYS, and a human
+        # counter-signature is added beside it rather than replacing it.
+        #
+        # The question was whether a row should carry a person's name. Replacing the machine
+        # value with one would be a false provenance: an agent opened the publisher's page,
+        # and a manifest whose whole claim is "somebody read the primary source" must not
+        # misreport who. Dropping the field for a human-only signature would lose the record
+        # of a real check.
+        #
+        # So both, and they mean different things: `checkedBy` is who READ the source,
+        # `reviewedBy` is who ACCEPTED that reading. A row with only the first is not
+        # deficient -- most are -- but the counts print, so the number of rows a person has
+        # actually endorsed is visible rather than assumed.
+        reviewer = row.get("reviewedBy")
+        reviewed_on = row.get("reviewedOn")
+        if reviewer is not None:
+            if not isinstance(reviewer, str) or not reviewer.strip():
+                problems.append("%s: `reviewedBy` must be a name, not empty" % where)
+            elif reviewer.strip().lower() in ("claude-code", "claude", "ai", "agent"):
+                problems.append("%s: `reviewedBy` is %r -- a counter-signature is a PERSON "
+                                "accepting the reading. The tool that read it is already "
+                                "recorded in `checkedBy`, and a machine countersigning its "
+                                "own work is not a second opinion." % (where, reviewer.strip()))
+            elif not isinstance(reviewed_on, str) or not DATE_RE.match(reviewed_on or ""):
+                problems.append("%s: `reviewedBy` needs a `reviewedOn` date (YYYY-MM-DD) -- an "
+                                "undated endorsement cannot age, which is the one thing this "
+                                "manifest measures" % where)
+            else:
+                try:
+                    if datetime.date.fromisoformat(reviewed_on) > today:
+                        problems.append("%s: `reviewedOn` %s is in the future"
+                                        % (where, reviewed_on))
+                except ValueError:
+                    problems.append("%s: `reviewedOn` %s is not a real date"
+                                    % (where, reviewed_on))
+        elif reviewed_on is not None:
+            problems.append("%s: `reviewedOn` with no `reviewedBy` -- a date signs nothing"
+                            % where)
+
         # RW-1.6 -- a gated row the release gate cannot evaluate is worse than an ungated one,
         # because it looks supervised and is not.
         if row.get("gated") is True:
@@ -593,7 +688,7 @@ def check_sources(root="."):
     if not skills:
         print("ERROR: no skills found; the layout moved and this checked nothing.")
         return False
-    problems, rows, unverified = [], 0, 0
+    problems, rows, unverified, countersigned = [], 0, 0, 0
     for skill in skills:
         doc, err = load(root, skill)
         if err:
@@ -602,6 +697,8 @@ def check_sources(root="."):
         rows += len(doc["sources"])
         unverified += sum(1 for r in doc["sources"]
                           if isinstance(r, dict) and r.get("checkedBy") == "unverified")
+        countersigned += sum(1 for r in doc["sources"]
+                             if isinstance(r, dict) and str(r.get("reviewedBy") or "").strip())
         problems.extend(check_shape(skill, doc, _today()))
         problems.extend(check_used_for(root, skill, doc))
         problems.extend(check_rendered(root, skill, doc))
@@ -617,6 +714,11 @@ def check_sources(root="."):
     # that reported only its own green tick would hide it.
     print("sources: %d skill(s), %d declared source(s), citations match their renderers."
           % (len(skills), rows))
+    # RW-1.12. Printed every run, like the unverified count and for the same reason: the
+    # number of rows a PERSON has endorsed is the one this standard would rather not have to
+    # guess at. Zero is an honest answer and prints as one.
+    print("         %d of %d countersigned by a person (reviewedBy); the rest record only "
+          "who read the source." % (countersigned, rows))
     if unverified:
         print("         %d of %d not yet verified against a primary source "
               "(checkedBy: unverified) — none of them gated." % (unverified, rows))
@@ -809,6 +911,37 @@ def _self_test():
         ok(check_do_not_cite(bare) is False,
            "C5 with no do-not-cite.json fails rather than checking nothing")
         shutil.rmtree(bare, ignore_errors=True)
+
+        # -- The three decisions of 2026-08-09, each recorded as a check rather than a note.
+        ok(check_sources(tree(tmp, "phtodo", [row(checkedBy="unverified",
+                                                  whyUnverified="TODO")])) is False,
+           "RW-1.11: a placeholder `whyUnverified` fails -- the gate lets the row ship, so "
+           "this sentence is all that separates unreachable from unopened")
+        ok(check_sources(tree(tmp, "phreal", [row(checkedBy="unverified",
+                                                  whyUnverified="paywalled; no institutional "
+                                                                "access")])) is True,
+           "RW-1.11: a real reason passes, and still does not block the release")
+        ok(check_sources(tree(tmp, "csself", [row(reviewedBy="claude-code",
+                                                  reviewedOn="2026-01-01")])) is False,
+           "RW-1.12: a machine countersigning its own reading fails")
+        ok(check_sources(tree(tmp, "csnodate", [row(reviewedBy="R Calder")])) is False,
+           "RW-1.12: `reviewedBy` with no `reviewedOn` fails -- an endorsement that cannot age")
+        ok(check_sources(tree(tmp, "csorphan", [row(reviewedOn="2026-01-01")])) is False,
+           "RW-1.12: `reviewedOn` with no `reviewedBy` fails -- a date signs nothing")
+        ok(check_sources(tree(tmp, "csok", [row(reviewedBy="R Calder",
+                                                reviewedOn="2026-01-01")])) is True,
+           "RW-1.12: a dated human counter-signature passes, beside `checkedBy`")
+        ok(check_sources(tree(tmp, "ivbare", [row(gated=True,
+                                                  reviewIntervalDays=180)])) is False,
+           "RW-1.13: an interval off the house default with no `intervalBecause` fails")
+        ok(check_sources(tree(tmp, "ivwhy", [row(gated=True, reviewIntervalDays=180,
+                                                 intervalBecause="a disclosure clock where the "
+                                                 "harm from a missed amendment is asymmetric")]))
+           is True, "RW-1.13: the same interval with a stated reason passes")
+        ok(check_sources(tree(tmp, "ivdefault", [row(gated=True, reviewIntervalDays=365,
+                                                     intervalBecause="a" * 60)])) is False,
+           "RW-1.13: `intervalBecause` on a default-interval row fails -- the default needs no "
+           "defence, and a justification reads as a deviation that is not one")
 
         # -- C6 (BL-190). The converse of C4: a citation nothing declares.
         #
