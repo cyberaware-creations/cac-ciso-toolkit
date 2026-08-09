@@ -203,8 +203,8 @@ checked. Nothing here is a substitute for counsel reading the current text.
 | Boeing | *In re The Boeing Company Derivative Litigation*, C.A. No. 2019-0907-MTZ (Del. Ch. 7 Sep. 2021) | Delaware Court of Chancery |
 | DORA RTS | Commission Delegated Regulation **(EU) 2024/1774**, Art. 3(d)(iii)–(iv) | EUR-Lex, CELEX 32024R1774 |
 | DORA Level 1 | Regulation **(EU) 2022/2554** | EUR-Lex, CELEX 32022R2554 |
-| SEC cyber disclosure rule | Release Nos. **33-11216; 34-97989** (adopted 26 July 2023) | SEC final rules |
-| Item 106 / Item 1.05 | **17 C.F.R. § 229.106**; Form 8-K **Item 1.05** | eCFR, Title 17 |
+| SEC cyber disclosure rule | Release Nos. **33-11216; 34-97989**, File No. S7-09-22, **88 FR 51896** (4 Aug. 2023); effective 5 Sep. 2023 | Federal Register; SEC final rules |
+| Item 106 / Item 1.05 | **17 C.F.R. § 229.106**; Form 8-K **Item 1.05** (§ 249.308) | eCFR, Title 17; adopted text at 88 FR **51942** (Item 106) and **51945** (Item 1.05 and its Instructions) |
 | Gerding statement | Erik Gerding, Dir. of Corporation Finance, "Cybersecurity Disclosure," 14 Dec. 2023 | SEC statements |
 | NYDFS | **23 NYCRR Part 500**, §§ 500.9, 500.12, 500.15, 500.17 | NY Dept. of Financial Services |
 | NIS2 | Directive **(EU) 2022/2555**, Art. 20 | EUR-Lex, CELEX 32022L2555 |
