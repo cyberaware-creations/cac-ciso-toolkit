@@ -1,0 +1,425 @@
+{
+  "schemaVersion": 1,
+  "family": "policy-register",
+  "meta": {
+    "orgName": "Northwind Logistics",
+    "owner": "Head of Information Security",
+    "scopeNote": "Group-wide, excluding the joint venture in Malaysia which runs its own programme.",
+    "asOf": "2026-08-09"
+  },
+  "settings": {
+    "reviewIntervalDays": 365,
+    "dueWindowDays": 30
+  },
+  "policies": [
+    {
+      "id": "P-001",
+      "kind": "policy",
+      "title": "Information Security Policy",
+      "owner": "Head of Information Security",
+      "version": "3.1",
+      "state": "approved",
+      "mappedTo": [
+        "PM-1",
+        "PL-1",
+        "GV.PO-01",
+        "GV.PO-02"
+      ],
+      "approval": {
+        "by": "The Board",
+        "on": "2025-11-04",
+        "version": "3.1"
+      },
+      "review": {
+        "intervalDays": 365,
+        "lastOn": "2026-05-12",
+        "nextOn": "2027-05-12"
+      },
+      "acknowledgement": {
+        "required": true,
+        "cadence": [
+          "on-hire",
+          "annual",
+          "on-update"
+        ]
+      },
+      "supersededOn": null,
+      "supersededBy": null,
+      "supersedes": null,
+      "note": "",
+      "createdAt": "2026-08-09T15:54:22+00:00"
+    },
+    {
+      "id": "P-002",
+      "kind": "policy",
+      "title": "Access Control and Identity Standard",
+      "owner": "IT Director",
+      "version": "2.0",
+      "state": "approved",
+      "mappedTo": [
+        "AC-1",
+        "IA-1"
+      ],
+      "approval": {
+        "by": "Chief Operating Officer",
+        "on": "2025-02-10",
+        "version": "2.0"
+      },
+      "review": {
+        "intervalDays": 365,
+        "lastOn": "2025-02-10",
+        "nextOn": "2026-02-10"
+      },
+      "acknowledgement": {
+        "required": true,
+        "cadence": [
+          "on-hire",
+          "on-update"
+        ]
+      },
+      "supersededOn": null,
+      "supersededBy": null,
+      "supersedes": null,
+      "note": "",
+      "createdAt": "2026-08-09T15:54:22+00:00"
+    },
+    {
+      "id": "P-003",
+      "kind": "policy",
+      "title": "Incident Response Policy",
+      "owner": "Head of Information Security",
+      "version": "1.4",
+      "state": "approved",
+      "mappedTo": [
+        "IR-1",
+        "CP-1"
+      ],
+      "approval": {
+        "by": "The Board",
+        "on": "2025-06-30",
+        "version": "1.4"
+      },
+      "review": {
+        "intervalDays": 365,
+        "lastOn": "2025-06-30",
+        "nextOn": "2026-06-30"
+      },
+      "acknowledgement": {
+        "required": false,
+        "cadence": []
+      },
+      "supersededOn": null,
+      "supersededBy": null,
+      "supersedes": null,
+      "note": "",
+      "createdAt": "2026-08-09T15:54:22+00:00"
+    },
+    {
+      "id": "P-004",
+      "kind": "policy",
+      "title": "Acceptable Use Policy",
+      "owner": "HR Director",
+      "version": "1.0",
+      "state": "draft",
+      "mappedTo": [
+        "PS-1",
+        "AT-1"
+      ],
+      "approval": null,
+      "review": {
+        "intervalDays": 365,
+        "lastOn": null,
+        "nextOn": null
+      },
+      "acknowledgement": {
+        "required": true,
+        "cadence": [
+          "on-hire",
+          "annual"
+        ]
+      },
+      "supersededOn": null,
+      "supersededBy": null,
+      "supersedes": null,
+      "note": "",
+      "createdAt": "2026-08-09T15:54:23+00:00"
+    },
+    {
+      "id": "P-005",
+      "kind": "policy",
+      "title": "Cryptographic Controls Standard",
+      "owner": "IT Director",
+      "version": "1.0",
+      "state": "superseded",
+      "mappedTo": [
+        "SC-1"
+      ],
+      "approval": {
+        "by": "IT Director",
+        "on": "2023-03-01",
+        "version": "1.0"
+      },
+      "review": {
+        "intervalDays": 365,
+        "lastOn": "2023-03-01",
+        "nextOn": "2024-03-01"
+      },
+      "acknowledgement": {
+        "required": false,
+        "cadence": []
+      },
+      "supersededOn": "2025-09-01",
+      "supersededBy": null,
+      "supersedes": null,
+      "note": "",
+      "createdAt": "2026-08-09T15:54:23+00:00"
+    },
+    {
+      "id": "P-006",
+      "kind": "policy",
+      "title": "Supplier Security Policy",
+      "owner": "Procurement Director",
+      "version": "1.2",
+      "state": "approved",
+      "mappedTo": [
+        "SR-1",
+        "SA-1",
+        "PCI DSS 12.8.1"
+      ],
+      "approval": {
+        "by": "Chief Operating Officer",
+        "on": "2026-01-20",
+        "version": "1.2"
+      },
+      "review": {
+        "intervalDays": 365,
+        "lastOn": "2026-01-20",
+        "nextOn": "2027-01-20"
+      },
+      "acknowledgement": {
+        "required": false,
+        "cadence": []
+      },
+      "supersededOn": null,
+      "supersededBy": null,
+      "supersedes": null,
+      "note": "",
+      "createdAt": "2026-08-09T15:54:23+00:00"
+    }
+  ],
+  "history": [
+    {
+      "event": "add",
+      "target": "P-001",
+      "actor": "",
+      "ts": "2026-08-09T15:54:22+00:00",
+      "detail": {
+        "title": "Information Security Policy",
+        "kind": "policy"
+      }
+    },
+    {
+      "event": "map",
+      "target": "P-001",
+      "actor": "",
+      "ts": "2026-08-09T15:54:22+00:00",
+      "detail": {
+        "requirements": [
+          "PM-1",
+          "PL-1",
+          "GV.PO-01",
+          "GV.PO-02"
+        ]
+      }
+    },
+    {
+      "event": "approve",
+      "target": "P-001",
+      "actor": "",
+      "ts": "2026-08-09T15:54:22+00:00",
+      "detail": {
+        "by": "The Board",
+        "on": "2025-11-04",
+        "nextReview": "2026-11-04"
+      }
+    },
+    {
+      "event": "add",
+      "target": "P-002",
+      "actor": "",
+      "ts": "2026-08-09T15:54:22+00:00",
+      "detail": {
+        "title": "Access Control and Identity Standard",
+        "kind": "policy"
+      }
+    },
+    {
+      "event": "map",
+      "target": "P-002",
+      "actor": "",
+      "ts": "2026-08-09T15:54:22+00:00",
+      "detail": {
+        "requirements": [
+          "AC-1",
+          "IA-1"
+        ]
+      }
+    },
+    {
+      "event": "approve",
+      "target": "P-002",
+      "actor": "",
+      "ts": "2026-08-09T15:54:22+00:00",
+      "detail": {
+        "by": "Chief Operating Officer",
+        "on": "2025-02-10",
+        "nextReview": "2026-02-10"
+      }
+    },
+    {
+      "event": "add",
+      "target": "P-003",
+      "actor": "",
+      "ts": "2026-08-09T15:54:22+00:00",
+      "detail": {
+        "title": "Incident Response Policy",
+        "kind": "policy"
+      }
+    },
+    {
+      "event": "map",
+      "target": "P-003",
+      "actor": "",
+      "ts": "2026-08-09T15:54:22+00:00",
+      "detail": {
+        "requirements": [
+          "IR-1",
+          "CP-1"
+        ]
+      }
+    },
+    {
+      "event": "approve",
+      "target": "P-003",
+      "actor": "",
+      "ts": "2026-08-09T15:54:22+00:00",
+      "detail": {
+        "by": "The Board",
+        "on": "2025-06-30",
+        "nextReview": "2026-06-30"
+      }
+    },
+    {
+      "event": "add",
+      "target": "P-004",
+      "actor": "",
+      "ts": "2026-08-09T15:54:23+00:00",
+      "detail": {
+        "title": "Acceptable Use Policy",
+        "kind": "policy"
+      }
+    },
+    {
+      "event": "map",
+      "target": "P-004",
+      "actor": "",
+      "ts": "2026-08-09T15:54:23+00:00",
+      "detail": {
+        "requirements": [
+          "PS-1",
+          "AT-1"
+        ]
+      }
+    },
+    {
+      "event": "add",
+      "target": "P-005",
+      "actor": "",
+      "ts": "2026-08-09T15:54:23+00:00",
+      "detail": {
+        "title": "Cryptographic Controls Standard",
+        "kind": "policy"
+      }
+    },
+    {
+      "event": "map",
+      "target": "P-005",
+      "actor": "",
+      "ts": "2026-08-09T15:54:23+00:00",
+      "detail": {
+        "requirements": [
+          "SC-1"
+        ]
+      }
+    },
+    {
+      "event": "approve",
+      "target": "P-005",
+      "actor": "",
+      "ts": "2026-08-09T15:54:23+00:00",
+      "detail": {
+        "by": "IT Director",
+        "on": "2023-03-01",
+        "nextReview": "2024-03-01"
+      }
+    },
+    {
+      "event": "supersede",
+      "target": "P-005",
+      "actor": "",
+      "ts": "2026-08-09T15:54:23+00:00",
+      "why": "Withdrawn during the move to the new key management service; the replacement is still in drafting.",
+      "detail": {
+        "on": "2025-09-01",
+        "by": null
+      }
+    },
+    {
+      "event": "add",
+      "target": "P-006",
+      "actor": "",
+      "ts": "2026-08-09T15:54:23+00:00",
+      "detail": {
+        "title": "Supplier Security Policy",
+        "kind": "policy"
+      }
+    },
+    {
+      "event": "map",
+      "target": "P-006",
+      "actor": "",
+      "ts": "2026-08-09T15:54:23+00:00",
+      "detail": {
+        "requirements": [
+          "SR-1",
+          "SA-1",
+          "PCI DSS 12.8.1"
+        ]
+      }
+    },
+    {
+      "event": "approve",
+      "target": "P-006",
+      "actor": "",
+      "ts": "2026-08-09T15:54:23+00:00",
+      "detail": {
+        "by": "Chief Operating Officer",
+        "on": "2026-01-20",
+        "nextReview": "2027-01-20"
+      }
+    },
+    {
+      "event": "review",
+      "target": "P-001",
+      "actor": "",
+      "ts": "2026-08-09T15:54:23+00:00",
+      "why": "Reviewed with the risk committee alongside the annual risk appetite statement; no change to management intent.",
+      "detail": {
+        "on": "2026-05-12",
+        "next": "2027-05-12"
+      }
+    }
+  ],
+  "createdAt": "2026-08-09T15:54:22+00:00",
+  "updatedAt": "2026-08-09T15:54:23+00:00"
+}

@@ -189,6 +189,36 @@
       "reason": "Harness or runner, not an assertion suite. Takes an output directory and shells out."
     },
     {
+      "path": "skills/policy-register/evals/board-safety.sh",
+      "role": "guard",
+      "forbids": "catastrophizing or false-confidence vocabulary in the reader-facing renderer"
+    },
+    {
+      "path": "skills/policy-register/evals/lifecycle.sh",
+      "role": "not-a-guard",
+      "reason": "Asserts what the register DOES through the real CLI — the R-3 refusal and its byte-identical store, R-5 not-declared wording, R-6 flagging without blocking, and BL-169 entry-anywhere and resumability. Behaviour, not a defect-cannot-occur property, so there is nothing to mutate: every check here fails by the feature breaking, not by a forbidden thing appearing."
+    },
+    {
+      "path": "skills/policy-register/evals/no-coverage-claim.sh",
+      "role": "guard",
+      "forbids": "any state, key, token or chip saying a requirement is met because a policy maps to it"
+    },
+    {
+      "path": "skills/policy-register/evals/no-coverage-percentage.sh",
+      "role": "guard",
+      "forbids": "a proportion, percentage or float in the requirement view — counts only"
+    },
+    {
+      "path": "skills/policy-register/evals/no-deletion.sh",
+      "role": "guard",
+      "forbids": "any path that removes a policy record; supersession is the only way out of force"
+    },
+    {
+      "path": "skills/policy-register/evals/requirement-drift.sh",
+      "role": "guard",
+      "forbids": "a vendored requirement spine that no longer matches the nist-csf artifacts"
+    },
+    {
       "path": "skills/risk-register/evals/board-safety.sh",
       "role": "guard",
       "forbids": "raw framework wording reaching a board renderer before a human has translated it"

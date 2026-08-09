@@ -318,6 +318,45 @@ jobs:
       - name: Clusters, absence and malformed items, on the floor
         run: PY="$(command -v python3)" ./skills/attention-surface/evals/clusters.sh
 
+      # The policy register, the twelfth skill. Its two load-bearing refusals are listed
+      # first because they are what stop it becoming the thing it was built not to be: a
+      # mapped policy is never evidence that a requirement is met, and this register reports
+      # counts rather than proportions. Both are one plausible line away at any time — a
+      # `covered` column and a completeness percentage are the two features anybody would ask
+      # for first — and each is mutation-tested in its own suite.
+      #
+      # Listed individually, like everything else here. A loop over evals/*.sh goes green the
+      # day someone renames a directory.
+      - name: Policy engine self-test, on the floor
+        run: python3 ./skills/policy-register/scripts/policy_register.py self-test
+
+      - name: No coverage claim, on the floor
+        run: PY="$(command -v python3)" ./skills/policy-register/evals/no-coverage-claim.sh
+
+      - name: Counts never proportions, on the floor
+        run: PY="$(command -v python3)" ./skills/policy-register/evals/no-coverage-percentage.sh
+
+      # Supersession is the only way a document leaves force. The audit question is what was
+      # in force on the date of the incident, so a delete command would make the register
+      # answer the wrong question with complete confidence.
+      - name: No deletion of a policy record, on the floor
+        run: PY="$(command -v python3)" ./skills/policy-register/evals/no-deletion.sh
+
+      # The vendored requirement spine against the nist-csf artifacts it was cut from.
+      # Vendoring is what lets this skill run with nothing else installed; this is the cost
+      # of it, paid on every push rather than discovered once a family label has drifted.
+      - name: Vendored requirement spine has not drifted, on the floor
+        run: PY="$(command -v python3)" ./skills/policy-register/evals/requirement-drift.sh
+
+      - name: Board-safety (policy), on the floor
+        run: PY="$(command -v python3)" ./skills/policy-register/evals/board-safety.sh
+
+      # Behaviour through the real CLI rather than in-process: argparse, the store on disk,
+      # and the refusal path a shell actually sees are all outside the self-test above, and
+      # every one of them has broken in this repository before while a self-test stayed green.
+      - name: Policy lifecycle through the CLI, on the floor
+        run: PY="$(command -v python3)" ./skills/policy-register/evals/lifecycle.sh
+
       # CAC-GP-1. Every guard must FAIL when its defect is present, proved on each run rather
       # than once at authoring. Listed last because it re-runs each guard twice on a copy —
       # and listed at all because a guard that quietly stopped guarding prints `ok` forever.

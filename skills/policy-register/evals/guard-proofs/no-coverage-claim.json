@@ -1,0 +1,28 @@
+{
+  "guard": "skills/policy-register/evals/no-coverage-claim.sh",
+  "forbids": "any state, key, token or chip that says a requirement is met, covered, satisfied or compliant because a policy maps to it",
+  "note": "The rule the skill exists to hold. Adding a `covered` column is a one-line change nothing else in the codebase would object to, and the result is a register asserting the most common quiet untruth in this industry — that having a policy means the thing is controlled. Both halves are needed: the static scan cannot see a state assembled at runtime, and the behavioural scan cannot see a field computed for a caller that does not exist yet.",
+  "mutations": [
+    {
+      "half": "static",
+      "why": "a coverage field declared in shipped code under a name that gives nothing away, even if no output ever carries it. This is how it actually arrives: a helper is written for a caller that lands two releases later.",
+      "defeats": [
+        "no shipped .py names, assigns or holds a coverage verdict"
+      ],
+      "file": "skills/policy-register/scripts/policy_register.py",
+      "find": "def state_counts(rows: list) -> dict:",
+      "replace": "def _roll_up(row):\n    row[\"covered\"] = bool(row.get(\"policies\"))\n    return row\n\n\ndef state_counts(rows: list) -> dict:"
+    },
+    {
+      "half": "behavioural",
+      "why": "the same claim assembled at RUNTIME from fragments no word list can match. The static AST scan reads string literals and sees only 'cov' and 'ered'; the assigned key is the innocent `state`. This is exactly why the behavioural half has to exist and be proved separately.",
+      "defeats": [
+        "no key or status in the analysis says a requirement is met",
+        "no chip on the rendered page carries a coverage verdict"
+      ],
+      "file": "skills/policy-register/scripts/policy_register.py",
+      "find": "        out = dict(base)\n        out[\"state\"] = state",
+      "replace": "        out = dict(base)\n        out[\"state\"] = (\"cov\" + \"ered\") if state == REQ_APPROVED_POLICY else state"
+    }
+  ]
+}

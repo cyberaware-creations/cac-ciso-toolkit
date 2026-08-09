@@ -1,0 +1,17 @@
+{
+  "guard": "skills/policy-register/evals/board-safety.sh",
+  "forbids": "catastrophizing or false-confidence vocabulary in the reader-facing renderer",
+  "note": "The same rule the other nine board-safety suites hold, on a page whose reader is an auditor. A sentence here that sounds surer than the data supports is the organisation telling a regulator something it cannot evidence, in a document it produced itself.",
+  "mutations": [
+    {
+      "half": "source-scan",
+      "why": "a sentence of catastrophizing prose added to a shipped renderer as a module-level constant. That is the way in that matters: nobody writes `catastrophic` into an audit pack on purpose, they write it into a helper's default string and it reaches the page months later. A constant rather than live output, so it proves the SOURCE scan specifically.",
+      "defeats": [
+        "no confidence vocabulary in the source of the reader-facing view"
+      ],
+      "file": "skills/policy-register/renderers/_common.py",
+      "find": "def _rebuild_derived() -> None:",
+      "replace": "_NOTE = \"an unreviewed policy here would be catastrophic and devastating\"\n\n\ndef _rebuild_derived() -> None:"
+    }
+  ]
+}

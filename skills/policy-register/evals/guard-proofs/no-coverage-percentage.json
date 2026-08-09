@@ -1,0 +1,27 @@
+{
+  "guard": "skills/policy-register/evals/no-coverage-percentage.sh",
+  "forbids": "any proportion, percentage or float in the requirement view — counts only",
+  "note": "A percentage of this catalogue is a completeness figure for a list nobody claimed was complete: the twenty-two requirements are the NIST policy spine, not the organisation's obligations. It is also a coverage claim wearing a number, so it survives every word list no-coverage-claim.sh applies.",
+  "mutations": [
+    {
+      "half": "behavioural",
+      "why": "the figure emitted into the analysis, where a renderer or an agent reading stdout will find it. Carries no percent sign and no telltale name, so only the no-float rule catches it — which is why that rule is stated as a type invariant rather than a wording one.",
+      "defeats": [
+        "no float appears anywhere in the analysis"
+      ],
+      "file": "skills/policy-register/scripts/policy_register.py",
+      "find": "        \"stateCounts\": counts,",
+      "replace": "        \"stateCounts\": counts,\n        \"declaredShare\": round(100.0 * counts[REQ_APPROVED_POLICY] / float(max(1, len(rows))), 1),"
+    },
+    {
+      "half": "static",
+      "why": "the figure computed and never emitted. Nothing in any output changes, so the behavioural half is silent — and the function ships, ready for the first caller who wants a number for a slide.",
+      "defeats": [
+        "no shipped .py defines or formats a proportion"
+      ],
+      "file": "skills/policy-register/scripts/policy_register.py",
+      "find": "EXPORT_COLUMNS = (",
+      "replace": "def declared_percent(counts, total):\n    return \"%.1f%% declared\" % (100.0 * counts[REQ_APPROVED_POLICY] / total)\n\n\nEXPORT_COLUMNS = ("
+    }
+  ]
+}

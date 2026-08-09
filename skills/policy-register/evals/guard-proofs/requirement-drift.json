@@ -1,0 +1,17 @@
+{
+  "guard": "skills/policy-register/evals/requirement-drift.sh",
+  "forbids": "a vendored requirement spine that no longer matches the nist-csf artifacts it was cut from",
+  "note": "One half, and it is behavioural: there is no static shape that can express 'these two files agree'. Vendoring buys standalone operation (BL-169 D-1) and costs exactly one thing — two copies that can disagree silently, with the wrong one shipping and nothing erroring.",
+  "mutations": [
+    {
+      "half": "regeneration",
+      "why": "one family label edited in the vendored copy. This is what drift looks like from the inside: a single plausible string, and no other test in the repository has any opinion about it.",
+      "defeats": [
+        "the vendored spine regenerates identically from the nist-csf sources"
+      ],
+      "file": "skills/policy-register/references/requirements.json",
+      "find": "\"familyLabel\": \"Physical and Environmental Protection\"",
+      "replace": "\"familyLabel\": \"Physical and Environmental Security\""
+    }
+  ]
+}

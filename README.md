@@ -30,10 +30,10 @@ already have; see [Requirements](#requirements).
 
 ## Skills
 
-Eleven skills, in four layers. **Eight own data** — each is the system of record for one thing and
+Twelve skills, in four layers. **Nine own data** — each is the system of record for one thing and
 persists it in a local file: risks, a CSF Profile, metrics, accepted exceptions, incident
-determinations, third-party arrangements, AI deployments, and the organisation's own business
-facts. **One owns language** —
+determinations, third-party arrangements, AI deployments, security policies, and the
+organisation's own business facts. **One owns language** —
 `ciso-board-translation` holds the board-facing phrasing the others call rather than each inventing
 its own. **One owns the deliverable** — `board-pack` assembles what the producers wrote into a
 single document, and owns no data at all. **One owns the week** — `attention-surface` reads the
@@ -211,6 +211,31 @@ file. The CISO's slice, and it says so: `references/scope.md` names what this sk
   is a finding that lives in a CASB console until somebody remembers to promote it.
 - **No AI risk score**, under the same two-halved eval `vendor-register` uses, plus a third guard
   on the rendered page — no green fill, no tick, no "3 of 5 covered" on an attack class.
+
+### `policy-register`
+Which policies exist, who owns them, what version, who approved them on what date, when each is
+next reviewed, and **which requirement each document is aimed at** — persisted in a local `.pol`
+file. The question every auditor asks every CISO every year, answered from a record.
+
+- **A mapped policy is never evidence that a requirement is met.** *"We have a policy for that"*,
+  accepted as *"that risk is controlled"*, is the most common quiet untruth in this industry, and a
+  register that permitted the slide would make a CISO **less** defensible for having used it. The
+  four things a requirement row can say all describe the documents — `not-declared`, `draft-only`,
+  `superseded-only`, `approved-policy` — and none describes the requirement.
+- **Counts, never proportions.** The twenty-two requirements are the NIST policy spine, not the
+  organisation's obligations, so a percentage of them would be a completeness figure for a
+  catalogue nobody claimed was complete. Guarded as a type invariant: no float reaches the output.
+- **Approved needs a name and a date**, refused before the file is opened. Write-time only — a file
+  that already carries the bad state still loads, because refusing to read it would strand the one
+  person who has to fix it.
+- **Supersession, never deletion.** There is no delete command. The audit question is always what
+  was in force on the date of the incident, and a register that can only answer for today answers
+  the wrong question with complete confidence.
+- **A requirement with no policy reads NOT DECLARED**, never "no policy exists" — many
+  organisations hold one omnibus policy across several control families.
+- **Grounded in what already ships.** The Policy and Procedures control in each SP 800-53 Rev. 5
+  family plus CSF 2.0 GV.PO-01/-02, vendored so the skill runs alone, and regenerated from the
+  `nist-csf` artifacts on every CI run so the copy cannot drift.
 
 ### `attention-surface`
 What needs the CISO **this week**, derived from what every other skill already computes —
@@ -410,6 +435,14 @@ skills/
     references/                schema, criticality method, GV.SC and SR mapping
     examples/                  worked .vnd + its board translations
     evals/                     no-vendor-score suite
+  policy-register/
+    SKILL.md
+    scripts/policy_register.py      policies, approval, review, supersession (stdlib only)
+    renderers/                 render_requirements
+    references/                policy method, schema, the vendored requirement spine
+    examples/                  a worked .pol with a superseded document
+    evals/                     no-coverage-claim, no-coverage-percentage, no-deletion,
+                               requirement-drift, board-safety, lifecycle suites
   attention-surface/
     SKILL.md
     scripts/attention_surface.py    reads seven producers, groups and diffs (stdlib only)
@@ -494,6 +527,7 @@ python3 skills/incident-materiality/scripts/incident_analysis.py self-test   # c
 python3 skills/vendor-register/scripts/vendor_register.py self-test        # the criticality walk
 python3 skills/ai-register/scripts/ai_register.py self-test               # exposure, and no closed state
 python3 skills/attention-surface/scripts/attention_surface.py self-test   # ordering, clusters, the diff
+python3 skills/policy-register/scripts/policy_register.py self-test       # approval refusals, the four states
 python3 skills/business-context/scripts/business_context.py self-test      # §2.2/§2.3 narrowing
 python3 skills/board-pack/scripts/assemble_pack.py self-test               # contract + assembly
 
@@ -522,6 +556,12 @@ python3 skills/board-pack/scripts/assemble_pack.py self-test               # con
 
 ./skills/attention-surface/evals/no-priority-score.sh  # ordering, never a computed priority
 ./skills/attention-surface/evals/clusters.sh           # nothing vanishes: unmapped, unread, malformed
+
+./skills/policy-register/evals/no-coverage-claim.sh       # a mapping is never evidence a requirement is met
+./skills/policy-register/evals/no-coverage-percentage.sh  # counts, never proportions
+./skills/policy-register/evals/no-deletion.sh             # supersession is the only way out of force
+./skills/policy-register/evals/requirement-drift.sh       # the vendored spine still matches nist-csf
+./skills/policy-register/evals/lifecycle.sh               # the refusals, through the real CLI
 
 ./tools/prove-guards.sh                             # CAC-GP-1: every guard fails when its defect is present
 python3 tools/lint-evals.py                         # CAC-LE-1: no suite calls a harness helper it never defined
