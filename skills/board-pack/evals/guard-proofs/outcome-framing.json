@@ -6,6 +6,10 @@
     {
       "half": "consequence-floor",
       "why": "the floor stops biting. If `has_consequence` returns True unconditionally, every sentence 'carries a consequence' and the suite's own stripped-sentence mutation passes — the exact rot a share-based check is prone to.",
+      "defeats": [
+        "the checker's own tests pass",
+        "the floor fails when consequence clauses are stripped"
+      ],
       "file": "skills/board-pack/evals/_outcomescan.py",
       "find": "    low = \" %s \" % str(text or \"\").lower()\n    if not any(c in low for c in vocab[\"connectives\"]):\n        return False",
       "replace": "    low = \" %s \" % str(text or \"\").lower()\n    if True:\n        return True\n    if not any(c in low for c in vocab[\"connectives\"]):\n        return False"
@@ -13,6 +17,10 @@
     {
       "half": "decision-hard-rule",
       "why": "the hard rule stops biting. `is_decision` returning True for anything non-empty lets 'We should look at this.' through as a board decision — and unlike the floor there is no share to hide behind, so a guard that misses this misses the unambiguous half.",
+      "defeats": [
+        "the checker's own tests pass",
+        "a decisions entry that decides nothing fails"
+      ],
       "file": "skills/board-pack/evals/_outcomescan.py",
       "find": "    first = (_words(text) or [\"\"])[0]\n    if first in {v.lower() for v in vocab[\"decisionVerbs\"]}:\n        return True",
       "replace": "    first = (_words(text) or [\"\"])[0]\n    if first:\n        return True\n    if first in {v.lower() for v in vocab[\"decisionVerbs\"]}:\n        return True"

@@ -6,6 +6,9 @@
     {
       "half": "static",
       "why": "a regulatory date in prose, phrased the way an author actually writes it",
+      "defeats": [
+        "no regulatory date appears in prose"
+      ],
       "file": "skills/ai-register/scripts/ai_register.py",
       "find": "AI_ROLES = (\"deployer\", \"provider\")",
       "replace": "AI_ROLES = (\"deployer\", \"provider\")\n\nDEPLOYER_NOTE = \"Deployer obligations begin 2 December 2027.\""
@@ -13,6 +16,10 @@
     {
       "half": "dataset",
       "why": "a regime dataset with no asOf is a claim about an unknown version",
+      "defeats": [
+        "every obligation is attributable and owned",
+        "the dataset ships empty with an asOf"
+      ],
       "file": "skills/ai-register/references/regimes.json",
       "find": "\"asOf\": \"2026-08-08\",",
       "replace": "\"asOf\": \"\","

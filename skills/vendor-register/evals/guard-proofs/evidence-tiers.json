@@ -6,6 +6,11 @@
     {
       "half": "scope-and-period",
       "why": "an artifact whose limits are not written down gets read as having none",
+      "defeats": [
+        "a T1 with no scope and no period is refused",
+        "a T1 with a scope but no period is refused",
+        "a refused ingest leaves the store byte-identical"
+      ],
       "file": "skills/vendor-register/scripts/vendor_register.py",
       "find": "    if tier == \"T1\":\n        missing = []",
       "replace": "    if False:\n        missing = []"
@@ -13,6 +18,10 @@
     {
       "half": "expiry",
       "why": "a report with no period cannot expire, so grace must have an end",
+      "defeats": [
+        "thirteen months past it, it has expired",
+        "a bridge letter does not extend a T1's currency"
+      ],
       "file": "skills/vendor-register/scripts/vendor_register.py",
       "find": "    return \"in-grace\" if age <= int(grace) else \"expired\"",
       "replace": "    return \"in-grace\""

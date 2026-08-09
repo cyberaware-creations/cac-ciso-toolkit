@@ -6,6 +6,9 @@
     {
       "half": "static",
       "why": "a closed-state field declared in shipped code, even if never executed",
+      "defeats": [
+        "no shipped .py assigns a closed-state field"
+      ],
       "file": "skills/ai-register/scripts/ai_register.py",
       "find": "def accept_exposure(*_args, **_kwargs):",
       "replace": "def _apply_outcome(store, did, cls):\n    rec = find_deployment(store, did)\n    rec[\"exposure\"][cls][\"mitigated\"] = True\n\n\ndef accept_exposure(*_args, **_kwargs):"
@@ -13,6 +16,9 @@
     {
       "half": "behavioural",
       "why": "a closed state written at RUNTIME under a computed key. The static AST scan reads string literals and cannot see this one, which is exactly why the behavioural half has to exist and be proved separately.",
+      "defeats": [
+        "no key or value describes a class as handled"
+      ],
       "file": "skills/ai-register/scripts/ai_register.py",
       "find": "    rec[\"exposure\"][cls].setdefault(\"controls\", []).append(entry)",
       "replace": "    rec[\"exposure\"][cls].setdefault(\"controls\", []).append(entry)\n    rec[\"exposure\"][cls][\"mitig\" + \"ated\"] = True"

@@ -21,6 +21,78 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.56.0 — 2026-08-09
+
+**BL-101, BL-99, BL-102 — the guard proofs, and what they were not proving.** Three items on
+one file, shipped together because they are one argument: the runner could not see eight of
+its guards, the eight it could not see had never been mutation-tested, and the test it applied
+to the nine it *could* see did not establish what it claimed.
+
+### BL-101 — discovery could not see eight guards (GP-1.8)
+
+`prove-guards.sh` globbed `evals/no-*.sh` plus three literal filenames. Eight real guards were
+invisible: seven copies of `decisions-render.sh` and `ai-register/exposure.sh`. The GP-1.7
+registry check filtered through the same globs, so it compared the standard's table against
+the blind spot and reported a clean bill.
+
+No filename rule could have caught it — **the failure is an omission, and an omission has no
+filename.** A marker line inside each guard was considered and rejected for the same reason: a
+marker cannot detect its own absence.
+
+Discovery now reads `tools/guard-registry.json`, which assigns each of the 48
+`skills/*/evals/*.sh` on disk exactly one role — `guard` (17), `candidate` (11),
+`not-a-guard` (20) — and a script in none of them fails the run.
+
+Classifying the non-guards forced a verdict on files nobody had judged, which is where the
+**eleven candidates** came from: guard-shaped, not yet enrolled — the nine `board-safety.sh`,
+`vendor-register/questions.sh`, `business-context/archetype-advisory.sh`. That count now
+prints on every run.
+
+### BL-99 — the eight invisible guards, now proved
+
+Eight new proof files, nine halves. `EXPECTED_GUARDS` 9 → 17, `EXPECTED_HALVES` 18 → 27.
+
+The planning note assumed the seven `decisions-render.sh` were near-identical and one mutation
+would serve. They are not: their check counts run 3/3/3/3/4/6/11 and the `_dtext` helper exists
+in only four of the seven renderers. Seven bespoke mutations, plus one for `exposure.sh`.
+
+**Two rejected mutations are recorded in the proof files, because they say more about the
+guards than the accepted one does.** Returning the dict from `_dtext` makes `esc()` raise: the
+renderer dies, no HTML is written, and the guard's greps find nothing and report **clean** —
+BL-121's crashed-probe blindness, sitting inside five guards. Returning `str(d)` renders the
+repr, but `esc()` escapes the quotes to `&#x27;`, so the literal `{'text'` the guard greps for
+never appears — meaning **that grep would not catch the original P1 defect today either.**
+
+### BL-102 — a non-zero exit is not proof the right half caught it (GP-1.9)
+
+GP-1.1 has required since the beginning that each mutation defeat its own half specifically.
+Nothing enforced it, and two guards were violating it while reporting the textbook
+clean-pass/mutated-fail:
+
+- **`proposal-boundary`** — the behavioural mutation added `"T3"` to `SATISFYING_TIERS`, which
+  is also an inlined tier list, so the static half caught it too. Now assembled as
+  `"T" + "3"`, invisible to a literal scan.
+- **`evidence-tiers`** — disabling the T1 scope-and-period refusal let an undated T1 into the
+  store, and the expiry half was reading `evidence[0]` **positionally**, so three expiry
+  assertions failed for a reason with nothing to do with expiry. The mutation was not at fault
+  here; **the guard was.** `status()` now selects the dated T1 by its period and asserts there
+  is exactly one.
+
+A third mutation was blunt rather than mis-aimed: `exposure`'s derivation half renamed `add`
+to an undefined `_disabled_04`, raising NameError and taking NISTAML.03, .05 and the
+availability pair down with it. Narrowed to `if False:` on the generative branch.
+
+Every mutation now carries a `defeats` list naming the checks the mutated run must fail, and
+the runner asserts the set exactly — all named checks fail, no unnamed check fails, none was
+already failing clean. The cross-half rule is **distinguishability, not disjointness**:
+`outcome-framing`'s two mutations both trip the checker's own self-test, a meta-check belonging
+to neither half, and each still defeats one check the other does not.
+
+GP-1.9 was mutation-tested against itself: deleting a `defeats` list fails the run, giving two
+halves the same list fails it, naming a check the guard never prints fails it.
+
+---
+
 ## v0.55.0 — 2026-08-09
 
 **BL-193, BL-194, BL-195 — the v0.53.0 release blockers.** C5 shipped as a safety feature and

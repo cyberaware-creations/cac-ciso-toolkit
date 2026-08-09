@@ -2,7 +2,7 @@
 
 **Applies to:** every skill in `cac-ciso-toolkit`
 **Implemented by:** `tools/prove-guards.sh`, run in CI on the 3.9 floor
-**In force since:** v0.41.3 — GP-1.7 added in v0.45.0
+**In force since:** v0.41.3 — GP-1.7 added in v0.45.0, GP-1.8 and GP-1.9 in v0.56.0
 **Sibling standard:** [CAC-LE-1](eval-lint-standard.md), the eval-harness lint
 
 *"Since", not "as of", deliberately. The line here read `as of v0.41.3` and was two minors
@@ -53,6 +53,7 @@ least one mutation in `<skill>/evals/guard-proofs/<guard-name>.json`.
     {
       "half": "static",
       "why": "a closed-state field declared in shipped code, even if never executed",
+      "defeats": ["no shipped .py assigns a closed-state field"],
       "file": "skills/ai-register/scripts/ai_register.py",
       "find": "def accept_exposure(*_args, **_kwargs):",
       "replace": "def _apply_outcome(store, did, cls):\n    ...\n\n\ndef accept_exposure(*_args, **_kwargs):"
@@ -63,7 +64,8 @@ least one mutation in `<skill>/evals/guard-proofs/<guard-name>.json`.
 
 **A guard with two halves registers a mutation for each half**, and each mutation must defeat
 *its own* half specifically. Otherwise half the guard is proven and half is assumed, which is
-worse than knowing neither is.
+worse than knowing neither is. `defeats` is how that is enforced rather than intended — see
+GP-1.9, which found two guards quietly failing this rule.
 
 That constraint is load-bearing, and `no-closed-state` shows why. Its static half reads string
 literals out of the AST; its behavioural half reads a real store. A mutation writing
@@ -136,6 +138,63 @@ guards, sixteen halves"* for two minor versions after the ninth landed, with `ou
 missing from it entirely — harmless to the runner, and the exact failure this standard exists to
 name. When the check was written it found that omission on its first run.
 
+### GP-1.8 Discovery is a registry that must cover the tree, not a filename convention
+
+GP-1.2 says an unregistered guard is a failure. That is only true if the runner can *see* the
+guard. It could not. Discovery globbed `evals/no-*.sh` plus three literal filenames, and **eight
+real guards were invisible to it** — seven copies of `decisions-render.sh`, whose name no
+convention anticipated, and `ai-register/exposure.sh`, whose name resembles nothing. None had
+ever been mutation-tested. Worse, the GP-1.7 registry check filtered through the same globs, so
+it compared the document against the blind spot and reported a clean bill.
+
+No filename rule could have caught this, because **the failure is an omission, and an omission
+has no filename.** A marker line inside each guard was the other candidate and fails for the
+same reason: a marker cannot detect its own absence.
+
+Discovery now reads `tools/guard-registry.json`, which assigns every `skills/*/evals/*.sh` on
+disk exactly one of three roles — `guard`, `candidate`, `not-a-guard` — and **a script in none
+of them fails the run.** Classifying non-guards is not bookkeeping; it is the mechanism. Only a
+list obliged to cover everything can fail on something missing.
+
+`candidate` is a real verdict, not a waiting room: guard-shaped, deliberately not yet enrolled.
+The count prints on every run — currently **eleven**, the nine `board-safety.sh`,
+`vendor-register/questions.sh` and `business-context/archetype-advisory.sh`. It was invisible
+before; a number that prints is a number somebody eventually reduces.
+
+### GP-1.9 A mutation names the checks it defeats, and defeats exactly those
+
+GP-1.1 has required since the beginning that each mutation defeat *its own half* specifically.
+Nothing enforced it. The runner asked one question — did the guard exit non-zero? — and a
+non-zero exit is not evidence that the registered half was the half that caught it.
+
+Two guards were violating GP-1.1 in exactly that way, both reporting the textbook
+clean-pass/mutated-fail while proving one thing twice:
+
+- **`proposal-boundary`.** The behavioural mutation added `"T3"` to `SATISFYING_TIERS`. That is
+  also an inlined tier list, so the *static* half flagged it too. It now assembles the tier as
+  `"T" + "3"` — invisible to a literal scan, for the same reason `no-closed-state`'s
+  behavioural mutation writes `"mitig" + "ated"`.
+- **`evidence-tiers`.** Disabling the T1 scope-and-period refusal let an undated T1 into the
+  store, and the *expiry* half was reading `evidence[0]` positionally — so three expiry
+  assertions failed for a reason with nothing to do with expiry. **The mutation was not the
+  defect here; the guard was.** The expiry half now selects the dated T1 by its period, and
+  asserts there is exactly one.
+
+Each mutation therefore carries a `defeats` list naming the checks the mutated run must fail,
+and the runner asserts the set **exactly**: every named check fails, no unnamed check fails,
+and none of them was already failing on the clean copy. A mutation whose blast radius grows —
+because the guard changed, or because it was aimed loosely — fails the run instead of passing
+it. Blast radius is data now, and it is reviewable in the proof file.
+
+The cross-half rule is **distinguishability, not disjointness.** `outcome-framing`'s two
+mutations both trip *"the checker's own tests pass"*, a meta-check belonging to neither half,
+and that is legitimate; each still defeats one check the other does not. What is forbidden is
+two halves with identical failure signatures, because then one of them is unproved and nothing
+says so.
+
+*Proved against itself.* Deleting a `defeats` list fails the run; giving two halves the same
+list fails it; naming a check the guard never prints fails it. All three were run.
+
 ---
 
 ## Registry
@@ -151,6 +210,14 @@ name. When the check was written it found that omission on its first run.
 | `no-regime-dates.sh` | `ai-register` | a regulatory date in prose; an uncited obligation | static · dataset |
 | `no-priority-score.sh` | `attention-surface` | a computed priority ordering the escalations | static · behavioural |
 | `outcome-framing.sh` | `board-pack` | a board sentence with no consequence; a decisions entry that decides nothing | consequence-floor · decision-hard-rule |
+| `decisions-render.sh` | `ai-register` | a decision rendered as a raw Python dict repr instead of its text | render |
+| `decisions-render.sh` | `exceptions-register` | a decision rendered as a raw Python dict repr instead of its text | render |
+| `decisions-render.sh` | `incident-materiality` | a decision rendered as a raw Python dict repr instead of its text | render |
+| `decisions-render.sh` | `metrics-register` | a decision rendered as a raw Python dict repr instead of its text | render |
+| `decisions-render.sh` | `nist-csf` | a decision rendered as a raw Python dict repr instead of its text | render |
+| `decisions-render.sh` | `risk-register` | a decision rendered as a raw Python dict repr instead of its text | render |
+| `decisions-render.sh` | `vendor-register` | a decision rendered as a raw Python dict repr instead of its text | render |
+| `exposure.sh` | `ai-register` | a hand-selectable exposure class — the guard is the ABSENCE of a command | absence · derivation |
 
 Every guard above, both halves, proved in both directions on every run. **The table is checked,
 not maintained by memory** — `prove-guards.sh` fails if a guard on disk is missing a row, or a
@@ -170,6 +237,18 @@ the end of the grace window so nothing can ever expire.
 `EXPECTED_GUARDS` and `EXPECTED_HALVES` are asserted, and the run prints both counts. A proof
 run that silently exercised nothing is the thing this document exists to prevent. Adding a guard
 without registering it fails; registering one and deleting the guard fails too.
+
+Four layers, each catching what the one above cannot:
+
+| Layer | Catches | Rule |
+|---|---|---|
+| Registry covers the tree | a guard nothing ever looked at | GP-1.8 |
+| Proof file exists | a guard nothing ever mutated | GP-1.2 |
+| Clean passes, mutated fails | a mutation that landed on nothing | GP-1.4 · GP-1.5 |
+| Mutated fails exactly its named checks | a mutation that proved the *other* half | GP-1.9 |
+
+The counts sit at the top of `prove-guards.sh` because a number asserted in code cannot drift
+the way the sentence describing it can.
 
 ---
 

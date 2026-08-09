@@ -6,6 +6,9 @@
     {
       "half": "behavioural",
       "why": "a score-named key in analyze output",
+      "defeats": [
+        "no key the engine emits is named like a score"
+      ],
       "file": "skills/vendor-register/scripts/vendor_register.py",
       "find": "        \"escalations\": esc,",
       "replace": "        \"escalations\": esc,\n        \"vendorRiskScore\": 42,"
@@ -13,6 +16,9 @@
     {
       "half": "static",
       "why": "a criticality rank multiplied by a count, under any name",
+      "defeats": [
+        "no shipped file computes a score internally"
+      ],
       "file": "skills/vendor-register/scripts/vendor_register.py",
       "find": "def export_findings(store: dict, today: str = \"\") -> dict:",
       "replace": "def attention_index(store, rec):\n    return criticality_rank(store, criticality_of(rec)) * len(\n        rec.get(\"requirements\") or [])\n\n\ndef export_findings(store: dict, today: str = \"\") -> dict:"
