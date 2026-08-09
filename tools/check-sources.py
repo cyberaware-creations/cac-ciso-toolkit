@@ -1183,6 +1183,18 @@ def _self_test():
            is False, "C5: a marker on the NEXT line no longer excuses it (RW-1.9.1)")
         ok(check_do_not_cite(dnc("d7", "x\n", entries=[])) is False,
            "C5: an empty entry list fails rather than passing vacuously")
+        # BL-204. The "no do-not-cite.json" case earlier stops at the missing registry and
+        # never reaches the scan, so the "read no files" bail was asserted by nothing —
+        # suppressing that guard left this entire suite green. Its own comment calls an empty
+        # scan the failure that reports success forever, and that sentence was guarding itself.
+        #
+        # A VALID registry with nothing scannable beside it. `tools/do-not-cite.json` is
+        # itself on the exempt list, so it does not count as a file read.
+        d8 = dnc("d8", "x\n")
+        os.remove(os.path.join(d8, "skills", "demo", "SKILL.md"))
+        ok(check_do_not_cite(d8) is False,
+           "BL-204: C5 with a valid registry but nothing to scan fails — an empty scan is "
+           "not a clean bill")
 
         # -- BL-194. The four reported fail-open cases, plus two invented after fixing them.
         #
@@ -1354,7 +1366,7 @@ def _self_test():
     # it. A deleted case would have shown up as a smaller number in a line nobody diffs, and
     # "0 failed" reads identically whether 99 checks ran or nine did. The number only has to
     # move when cases are deliberately removed, and then somebody has to say why here.
-    _FLOOR = 101
+    _FLOOR = 102
     if len(checks) < _FLOOR:
         print("FAILED: only %d checks ran, expected at least %d — cases have been removed. "
               "Lower the floor deliberately or put them back." % (len(checks), _FLOOR))

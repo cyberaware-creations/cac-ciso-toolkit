@@ -1097,9 +1097,70 @@ def self_test():
             print("     represent the filename. The -z handling is covered by the same "
                   "case under a UTF-8 filesystem.")
 
+    # -- BL-204. check_maker_name and check_import_time_palette were called by NOTHING here.
+    #
+    # Both ship in CI and both print a reassuring line on every run. Neither was exercised
+    # here: 49 checks, and the two functions were reachable only through the real repo, where
+    # they have never had anything to find. Neutralising either guard — the empty-scan bail or
+    # the offender report — left this suite entirely green, in both directions.
+    #
+    # Found by mutation, not by reading, which is the whole point of the sweep. The empty-scan
+    # bail is the sharper loss of the two: its own comment says a check that finds nothing
+    # "reports success, and it reports it forever", and that sentence was guarding itself.
+    with tempfile.TemporaryDirectory() as tmp:
+        def rend(name, body):
+            d = Path(tmp) / name / "skills" / "demo" / "renderers"
+            d.mkdir(parents=True)
+            (d / "render_x.py").write_text(body, encoding="utf-8")
+            return str(Path(tmp) / name)
+
+        empty = Path(tmp) / "norend"
+        (empty / "skills").mkdir(parents=True)
+        ok(check_maker_name(str(empty)) is False,
+           "BL-204: attribution fails when the renderer glob matches nothing")
+        ok(check_import_time_palette(str(empty)) is False,
+           "BL-204: chrome fails when the renderer glob matches nothing")
+
+        ok(check_maker_name(rend("a1", "TITLE = 'Quarterly pack'\n")) is True,
+           "BL-204: a clean renderer passes attribution")
+        ok(check_maker_name(rend("a2", "FOOTER = 'Built as %s'\n" % MAKER)) is False,
+           "BL-204: a renderer hardcoding the maker name fails attribution")
+        ok(check_maker_name(
+            rend("a3", "# %s is applied by cac_graphics, never here\nX = 1\n" % MAKER)) is True,
+           "BL-204: the maker name in a COMMENT is not an offender — the exemption the "
+           "scan claims to make, asserted rather than assumed")
+
+        ok(check_import_time_palette(rend("c1", "import cac_graphics as G\n\n\ndef f():\n"
+                                   "    return G.INK\n")) is True,
+           "BL-204: reading a palette value inside a function passes chrome")
+        # The target has to be a name that is NOT itself a palette primitive. `INK = G.INK`
+        # is exempt by design — the primitives must exist at module level — so a first draft
+        # of this case passed and proved nothing. `BAND_FILL` is the real shape: a derived
+        # binding frozen at import, which is what stops a client brand reaching the page.
+        ok(check_import_time_palette(
+            rend("c2", "import cac_graphics as G\n\nBAND_FILL = {'x': G.INK}\n")) is False,
+           "BL-204: freezing a palette value into a derived binding at module level fails "
+           "chrome")
+
     print("\nself-test: {}/{} checks passed{}".format(
         sum(checks), len(checks),
         ", {} skipped ({})".format(len(skipped), "; ".join(skipped)) if skipped else ""))
+    # A floor, for the reason BL-204 exists: this suite has always printed its count and
+    # asserted nothing about it, so a deleted case would show up only as a smaller number in
+    # a line nobody diffs.
+    #
+    # SKIPS COUNT TOWARDS IT. The first version of this floor compared `len(checks)` alone and
+    # broke the non-UTF-8 locale run, where the non-ASCII path case skips by design and 55 of
+    # 56 run. That is the same failure this whole sweep is about, committed inside the fix for
+    # it: a count that cannot tell a case DELETED from a case legitimately NOT RUN. The
+    # attempted total is what has to hold steady.
+    _FLOOR = 56
+    attempted = len(checks) + len(skipped)
+    if attempted < _FLOOR:
+        print("FAILED: only {} case(s) attempted ({} ran, {} skipped), expected at least {} — "
+              "cases have been removed. Lower the floor deliberately or put them back.".format(
+                  attempted, len(checks), len(skipped), _FLOOR))
+        return False
     return all(checks)
 
 
