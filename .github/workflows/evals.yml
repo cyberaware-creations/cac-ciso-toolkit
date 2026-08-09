@@ -433,6 +433,13 @@ jobs:
       # then never listed here, so for four skills the regression guard for a defect
       # that actually shipped has not run once since.
       #
+      # And once listed, all five were green over a LIVE instance of that same defect for
+      # another nine releases. `C.esc()` calls str() then html.escape(), so the object arrives
+      # as `{&#x27;text&#x27;: ...}` and a grep for the literal `{'text'` finds nothing on a
+      # page made of them — while risk-register's operational report, which no guard rendered,
+      # shipped exactly that to a reader (BL-209 / BL-199). They now grep the escaped form,
+      # refuse to read a page the renderer never wrote, and cover both renderers.
+      #
       # Listed individually rather than globbed. A loop over evals/*.sh would go
       # green the day someone renames a directory, which is the failure mode the
       # comment above the section-contract entry names.

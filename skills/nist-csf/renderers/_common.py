@@ -260,6 +260,27 @@ def apply_brand(path: str = "") -> None:
 
 
 def esc(s) -> str:
+    """HTML-escape a scalar for a text slot, and REFUSE a container.
+
+    `str()` on a dict produces a Python repr; `html.escape` then turns its quotes into
+    `&#x27;`, and a board reads `{'text': ...}` off the page. That is a shipped P1, and the
+    escaping is also why it survived: the guard greps for the RAW repr, which escaping has
+    already destroyed, so five suites reported clean over a live defect (BL-209 / BL-199).
+
+    Scalars are unaffected and deliberately so. A runtime census over every eval suite in the
+    repo found 21,213 strings, 595 ints and four dicts — the ints are legitimate (`esc(42)` is
+    "42") and all four dicts were the defect. So the rule is not "strings only", which would
+    break 595 real call sites; it is that a container never belongs in a text slot.
+
+    It raises rather than rendering, at the call site holding the object rather than three
+    layers later in a page nobody diffed."""
+    if isinstance(s, (dict, list, tuple, set)):
+        raise TypeError(
+            "esc() was passed a %s. It would render on the page as a Python repr: %.140r\n"
+            "  Pass the field a reader should see. For a decision object that is d['text'].\n"
+            "  Escaping does not save you here, it hides the problem: html.escape rewrites\n"
+            "  the repr's quotes as &#x27;, so the output slips a grep for {'text'."
+            % (type(s).__name__, s))
     return html.escape("" if s is None else str(s))
 
 
