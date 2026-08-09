@@ -43,8 +43,8 @@ only=("$@")
 
 # Anti-vacuity, matching the house convention. A proof run that silently exercised nothing is
 # the thing this file exists to prevent, so the counts are asserted rather than printed.
-EXPECTED_GUARDS=25
-EXPECTED_HALVES=35
+EXPECTED_GUARDS=27
+EXPECTED_HALVES=37
 
 guards_seen=0
 halves_seen=0
@@ -262,13 +262,21 @@ PYEOF
       aimed=$("$PY" - "$proof" "$i" "$work/.clean.out" "$work/.dirty.out" <<'PYEOF'
 import json, re, sys
 proof_path, index, clean_path, dirty_path = sys.argv[1], int(sys.argv[2]), sys.argv[3], sys.argv[4]
+# Two reporting shapes, because the suites use two. Most print `  FAIL  <label>`; the `chk`
+# idiom prints `<id>  <label>  FAIL`. Reading only the first made GP-1.9 report
+# "the mutated run named no failing check at all" for a mutation that HAD been caught and
+# named — a false negative, but the right kind: it refused to accept a non-zero exit as proof.
 FAIL = re.compile(r"^ *FAIL +(\S.*?) *$")
+CHK = re.compile(r"^\S{1,6} +(\S.*?) +FAIL\b.*$")
 
 
 def labels(path):
     seen = []
     for line in open(path, encoding="utf-8", errors="replace"):
-        m = FAIL.match(line.rstrip("\n"))
+        line = line.rstrip("\n")
+        if "checks FAILED" in line or "check(s) FAILED" in line:
+            continue
+        m = FAIL.match(line) or CHK.match(line)
         if m and m.group(1) not in seen:
             seen.append(m.group(1))
     return seen
