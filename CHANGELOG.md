@@ -21,6 +21,63 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.47.0 — 2026-08-08
+
+**Every claim this repo makes about an IR 8286 document, read against the document.** v0.46.0
+corrected the *dates* and one quotation; this reads the *contents*. Eleven claims checked, six
+held, five were wrong — and one of the five was written in v0.46.0 by the pass that found the
+others.
+
+### Six held
+
+- **8286A r1 §2.2 (Risk Identification)** prescribes four elements and no template — the
+  load-bearing claim behind the CAC house format. Verified in v0.46.0 and re-confirmed here,
+  including the section's title.
+- **8286r1 Table 1** does describe a `Priority` element: *"A relative indicator of the criticality
+  of this entry in the risk register."* (`schema.md`)
+- **8286r1's own example is cause-and-effect prose**, not if-then: *"External malicious actor
+  deploys a ransomware attack causing unavailability of financial systems."*
+- **8286C r1 §4.2.3** does carry the aggregation sentence. The section is titled *"Reviewing
+  Whether Constraints Are Overly Stringent"*, which reads unrelated — the number was doubted
+  mid-pass and confirmed correct on a second look.
+- **8286C r1's candour** about positive risk being *"a field of interest that is new to many
+  readers"* is verbatim.
+- **`GV.RM-07`'s "included in"** is verbatim from the bundled CSF 2.0 core.
+
+### Five were wrong
+
+**A second misquote, in the same file as v0.46.0's first.** `positive-risk.md` had 8286r1's
+lifecycle step 2 as *"catalog positive and negative uncertainties"*. That string is nowhere in the
+document. Step 2 is *"Identify the risks"*, and asks for *"the comprehensive set of positive and
+negative risks (i.e., determining which events could enhance or impede objectives), including the
+risks of failing to pursue an opportunity."* The step number was right; the quotation was invented.
+
+**A misattribution where the word was real and the source was not.** Two files had IR 8286C r1
+"tracking opportunity ***alongside*** threats", quoted. `alongside` appears twice in 8286C r1,
+neither time about opportunity. It comes from **CSF 2.0 `GV.RM-07`'s own implementation example** —
+*"Calculate, document, and prioritize positive risks alongside negative risks."* Re-attributed
+rather than deleted: the argument was sound, the citation was pointing at the wrong document.
+
+**An overstatement.** 8286A r1 was said to hold that opportunities *"warrant the same systematic
+identification as threats"*. It says it *"primarily focuses on negative risks"*, that positive
+risks *"should be documented and reviewed as well"*, and that they involve *"a similar process"*.
+Similar is not the same, and the file that exists to stop the suite inflating a source does not
+get an exemption from it.
+
+**v0.46.0's own new error.** That release added a note saying 8286B and 8286D *"carry no `r1`"*.
+True, and misleading in the same breath — they are **`NIST IR 8286B-upd1`** and
+**`NIST IR 8286D-upd1`** (Update 1, 26 February 2025). "No `r1`" reads as *no version marker*.
+
+**And so the `citations:` check was teaching it.** Its error message named `8286B` and `8286D` as
+acceptable, and its matcher accepted them, on an assumption about shared markers that nobody had
+checked. A bare `8286B` names the withdrawn 2022 edition exactly as a bare `8286` names the
+withdrawn 2020 one. Both are now flagged; `8286B-upd1` and `8286D-upd1` pass. Self-test 46 → 49.
+
+**Nothing else cites 8286B or 8286D**, so the corrected check has no live work to do — which is
+the right time to fix a checker, rather than when it is wrong about something that matters.
+
+---
+
 ## v0.46.0 — 2026-08-08
 
 **The citations.** Two backlog items about references that named a source without identifying
