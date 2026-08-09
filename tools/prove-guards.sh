@@ -101,6 +101,15 @@ for i, r in enumerate(rows):
         bad.append("%s: a guard must say what it `forbids`" % p)
     if role != "guard" and not str(r.get("reason") or "").strip():
         bad.append("%s: a %s must carry a `reason`" % (p, role))
+    # `permanent` is a settled verdict that it can never be enrolled, so it is meaningful on a
+    # candidate and nowhere else. An enrolled guard marked permanent, or a not-a-guard marked
+    # permanent, is somebody misreading the field rather than using it.
+    if "permanent" in r:
+        if r["permanent"] is not True:
+            bad.append("%s: `permanent` is a settled true/absent flag, got %r"
+                       % (p, r["permanent"]))
+        elif role != "candidate":
+            bad.append("%s: only a candidate can be `permanent`, this is a %s" % (p, role))
 on_disk = set(os.path.relpath(p, repo) for p in glob.glob(os.path.join(repo, "skills/*/evals/*.sh")))
 missing = sorted(on_disk - set(listed))
 phantom = sorted(set(listed) - on_disk)
@@ -112,8 +121,15 @@ for p in phantom:
 if bad:
     print("BAD " + " | ".join(bad)); raise SystemExit(0)
 guards = sorted(p for p, r in listed.items() if r == "guard")
-cands = sorted(p for p, r in listed.items() if r == "candidate")
-print("OK %d %d" % (len(on_disk), len(cands)))
+cands = [r for r in rows if r.get("role") == "candidate"]
+# Two kinds, counted apart. A `candidate` used to mean "guard-shaped, not yet enrolled",
+# and the summary line said so. One of them is now a settled verdict rather than a queue
+# entry: `archetype-advisory.sh` cannot be mutation-tested because the defect it forbids
+# is unexpressible through the signature of the function that would have to contain it.
+# Printing it as "not yet enrolled" would be a small, permanent lie in the one line a
+# reader trusts for scope, so the decision is data and the count is split.
+perm = sum(1 for r in cands if r.get("permanent") is True)
+print("OK %d %d %d" % (len(on_disk), len(cands) - perm, perm))
 for g in guards:
     print(g)
 PYEOF
@@ -127,10 +143,12 @@ fi
 guards=()
 scripts_seen=0
 candidates_seen=0
+permanent_seen=0
 while IFS= read -r line; do
   case "$line" in
     OK\ *) scripts_seen="$(echo "$line" | cut -d' ' -f2)"
-           candidates_seen="$(echo "$line" | cut -d' ' -f3)" ;;
+           candidates_seen="$(echo "$line" | cut -d' ' -f3)"
+           permanent_seen="$(echo "$line" | cut -d' ' -f4)" ;;
     "")    ;;
     *)     guards+=("$repo/$line") ;;
   esac
@@ -365,5 +383,6 @@ if [ "$fails" -ne 0 ]; then
 fi
 printf 'prove-guards: %s guard(s), %s half/halves, each proved in both directions\n' \
        "$guards_seen" "$halves_seen"
-printf '             %s eval script(s) classified; %s guard-shaped candidate(s) not yet enrolled\n' \
-       "$scripts_seen" "$candidates_seen"
+printf '             %s eval script(s) classified; %s candidate(s) awaiting enrolment, '\
+'%s permanent (unmutatable by design)\n' \
+       "$scripts_seen" "$candidates_seen" "$permanent_seen"
