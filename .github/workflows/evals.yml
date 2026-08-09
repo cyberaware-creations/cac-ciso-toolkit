@@ -231,6 +231,23 @@ jobs:
       - name: Proof-coverage checker's own tests, on the floor
         run: python3 ./tools/proof-coverage.py --self-test
 
+      # CAC-TW-1. Several functions and constants are duplicated across skills deliberately —
+      # every shipped script must run standalone, so a shared module would need sys.path
+      # surgery and would break the moment one skill directory is used on its own. Each
+      # declaration says "edit the two together; each skill's own self-test is the only thing
+      # pinning them", and a self-test inside one skill CANNOT SEE the other copy, by
+      # construction. The drift arrived before the guard did: `evidence_text` rendered a number
+      # on the weekly surface and a no-usable-evidence notice on the quarterly pack, from one
+      # record, with a shipped docstring promising the two agreed (BL-191, BL-113).
+      #
+      # Its own tests first, for the reason directly above: a green tick from a checker nobody
+      # checked means nothing.
+      - name: Twin checker's own tests, on the floor
+        run: python3 ./tools/check-twins.py --self-test
+
+      - name: Every declared twin agrees, executed rather than read
+        run: python3 ./tools/check-twins.py
+
       # Every consumer of CAC-AP-1, held to the contract from the side that DEFINES it.
       # Each consumer's own suite pins that consumer; none of them can see four engines
       # implementing the same six clauses and drifting apart one release at a time, each

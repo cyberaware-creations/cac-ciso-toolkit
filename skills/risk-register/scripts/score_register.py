@@ -2042,13 +2042,19 @@ STATUSES = {"open", "in-treatment", "monitoring", "closed"}
 RESPONSES = {"accept", "transfer", "mitigate", "avoid"}
 
 # --- Age bands and the age-affirming event taxonomy ---------------------------
-# The twin of skills/nist-csf/scripts/profile_analysis.py's age_band(), and that file
-# carries the matching note pointing here. Deliberately duplicated: the obvious cleanup —
-# one shared module, say skills/_shared/age.py — is rejected because every shipped script
-# must run standalone, so a cross-skill import needs sys.path surgery and breaks outright
-# the moment a single skill directory is used on its own. The obligation that replaces it:
-# the two copies are edited together, and each skill's own self-test is the only thing
-# pinning them to the same semantics. Grep the sibling path above before moving a boundary.
+# One of THREE copies of age_band(), not two. The others are:
+#   skills/nist-csf/scripts/profile_analysis.py
+#   skills/metrics-register/scripts/metrics_analysis.py
+# and both carry the matching note pointing here. The metrics-register copy was absent from
+# this note for its whole life while its own note claimed all three pointed at each other,
+# so a maintainer moving a boundary here would have changed two copies of three.
+#
+# Deliberately duplicated: the obvious cleanup — one shared module, say skills/_shared/age.py
+# — is rejected because every shipped script must run standalone, so a cross-skill import
+# needs sys.path surgery and breaks outright the moment a single skill directory is used on
+# its own. The obligation that replaces it: the copies are edited together — and
+# tools/check-twins.py executes all three over a shared corpus, because a self-test inside
+# one skill cannot see the others. Grep the sibling paths above before moving a boundary.
 #
 #   within       d <= T//2
 #   approaching  d <= T

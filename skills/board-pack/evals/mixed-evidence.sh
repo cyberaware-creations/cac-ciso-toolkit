@@ -42,7 +42,7 @@ repo="$(cd "$skill/../.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=18
+EXPECTED_CHECKS=19
 checks=0
 fails=0
 ok()  { checks=$((checks + 1)); printf '  ok    %s\n' "$1"; }
@@ -192,7 +192,32 @@ assert "structured evidence" in out and "surprise" in out, out
 ' "$R" 2>"$work/fn.err"; then
   ok "evidence_text handles a sentence, a delta, an empty dict and an unknown shape"
 else
-  bad "evidence_text handles every shape" "$(cat "$work/fn.err" | tail -3)"
+  bad "evidence_text handles a sentence, a delta, an empty dict and an unknown shape" \
+      "$(cat "$work/fn.err" | tail -3)"
+fi
+
+# An empty-string bound means NOT RECORDED (BL-191, decided 2026-08-09). This end already read
+# it that way; the attention-surface twin did not, and for four releases one record rendered a
+# number on the weekly surface and this notice on the quarterly pack. tools/check-twins.py
+# proves the two AGREE. It cannot prove either is RIGHT — two copies can agree on a wrong
+# answer — so this pins what the right answer is on this side.
+if "$PY" -c '
+import importlib.util, sys
+sys.path.insert(0, sys.argv[1].rsplit("/", 1)[0])
+spec = importlib.util.spec_from_file_location("rp", sys.argv[1])
+rp = importlib.util.module_from_spec(spec); spec.loader.exec_module(rp)
+for ev in ({"from": "", "to": 5}, {"from": 5, "to": ""}, {"from": "", "to": ""}):
+    out = rp.evidence_text(ev)
+    assert "->" not in out, "%r rendered a movement from an unrecorded bound: %r" % (ev, out)
+    assert "structured evidence" in out, out
+assert rp.evidence_text({"from": 0, "to": 5}) == "0 -> 5", "0 is a recorded value"
+assert rp.evidence_text({"from": "", "to": 5, "detail": "band crossed"}) == "band crossed", \
+    rp.evidence_text({"from": "", "to": 5, "detail": "band crossed"})
+' "$R" 2>"$work/bound.err"; then
+  ok "an empty-string evidence bound renders no movement, and 0 still does"
+else
+  bad "an empty-string evidence bound renders no movement, and 0 still does" \
+      "$(tail -3 "$work/bound.err")"
 fi
 
 # The teeth. A renderer that went back to `.get("detail")` on a string must fail here, so the
