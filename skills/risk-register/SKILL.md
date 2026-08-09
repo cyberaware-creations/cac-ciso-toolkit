@@ -6,7 +6,8 @@ description: >-
   messy inputs (a CSF gap export, an assessment, rough notes, or a conversation)
   into properly-worded risks (event statements in the CAC house format, carrying NISTIR
   8286A r1's scenario elements), deterministic
-  Likelihood×Impact scoring and banding (SP 800-30), risk-appetite flagging
+  Likelihood×Impact scoring and banding (rating labels from SP 800-30 Rev. 1;
+  the arithmetic and thresholds are CAC's own), risk-appetite flagging
   (CSF 2.0 GV.RM), an append-only change log with rationale, named review
   snapshots, and reporting — heat matrix, themes, trend, and operational and
   executive/board dashboards. Use whenever the user mentions a risk register,

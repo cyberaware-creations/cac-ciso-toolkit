@@ -21,6 +21,59 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.51.0 — 2026-08-08
+
+**The last three reference families: SP 800-30 Rev. 1, NIST AI 100-2, and NIS2.** Small surfaces,
+one large finding. Sources: the SP 800-30 Rev. 1 PDF from nvlpubs, NIS2 from EUR-Lex (CELEX
+32022L2555), and the NIST CSRC catalogue for AI 100-2.
+
+### SP 800-30 Rev. 1 does not define the scoring model this suite attributes to it
+
+`score_register.py` opened with *"NIST anchors: Exposure = Likelihood x Impact (SP 800-30 Rev. 1,
+qualitative model)"*, `schema.md` headed its rating table *"Labels (SP 800-30)"* across 5x5, 4x4 and
+3x3 columns, and the band thresholds were described as *"the 800-30 banding"*.
+
+**The phrase "likelihood x impact" appears nowhere in SP 800-30 Rev. 1.** Neither does "multiply",
+nor any numeric band threshold. What it actually provides is **Table I-2, a 5x5 lookup** —
+*"Assessment Scale – Level of Risk (Combination of Likelihood and Impact)"* — returning one of five
+qualitative levels.
+
+**And the lookup does not agree with a product.** At Likelihood = Very High with Impact = Very Low,
+Table I-2 returns **Very Low**; multiplying gives 5 x 1 = 5, which lands mid-scale in this tool. So
+the model was not merely attributed by a different route to the same answer — it produces different
+answers from the table it named.
+
+Nothing about the engine changed: it stays in parity with the Cyber Aware Creations web engine, and
+the self-test still passes 213/213. What changed is what it claims. The five rating labels **are**
+800-30's qualitative scale; the multiplication, the numeric thresholds, the four bands
+(low/medium/high/critical, against 800-30's five levels) and the 4- and 3-level label sets are the
+CAC model. Now described as **800-30-informed, not 800-30-defined**.
+
+This is the same correction `risk-register/SKILL.md` already makes about NISTIR 8286A r1 and risk
+**wording** — *"NIST does not prescribe the template"*. That fix landed on the sentences and never
+reached the arithmetic, which is the more consequential half.
+
+### NIS2 Art. 20 held, and gained the detail that matters
+
+*"Management bodies … approve the cybersecurity risk-management measures … oversee its
+implementation and **can be held liable for infringements**."* Verbatim, plus Art. 20(2)'s training
+obligation, which was missing. Made explicit: the liability attaches to the **management body, not
+the CISO** — which is exactly the overclaim that section already exists to prevent, and it was one
+careless sentence away from making it.
+
+The standing refutation also holds: nothing in Art. 20 requires a CISO to document *why decisions
+were appropriate*.
+
+### AI 100-2 was already honest, and now says which edition
+
+`nistaml-exposure.md` needed no correction — it already states that the class identifiers are the
+tool's own labels, that no publication numbers its categories that way, and that nothing in the file
+should be relied on as a citation without checking the source. That is the standard the rest of this
+programme has been retrofitting. It now also names the current edition, **NIST AI 100-2 E2025**
+(final, 24 March 2025), so a reader knows which document to open.
+
+---
+
 ## v0.50.0 — 2026-08-08
 
 **The NYDFS Part 500 family — an exception the regulation no longer permits.** Fourth family in
