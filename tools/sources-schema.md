@@ -67,6 +67,13 @@ maintainer data and never ship**. The two gate fields — `gated` and `reviewInt
 policy rather than monitoring state, which is what lets the release gate run with no private
 store behind it.
 
+> **D-9, confirmed by the maintainer on 2026-08-08.** Shipping these two fields narrows the
+> original rule that no cadence appears in the shipped file. The judgment is that a boolean and
+> an integer are *policy*, not monitoring state, and that a self-contained release gate is worth
+> the narrowing — it is what lets this ship complete rather than waiting on the private store.
+> Recorded here rather than left in a chat log, because the alternative reading is defensible and
+> a future maintainer is entitled to know it was decided rather than overlooked.
+
 **`checkedBy: "claude-code"` means machine-verified against the primary source and *not*
 human-reviewed.** It is deliberately not a person's name. A human sign-off replaces it with one.
 
