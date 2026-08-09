@@ -21,6 +21,87 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.64.1 — 2026-08-09
+
+**C5's fourth fail-open, closed three releases after the other three.** This sentence passed the
+withdrawn-citation guard, and it cites withdrawn guidance as current:
+
+> *The predecessor platform was retired. Follow SP 800-61 Rev. 2 for incident handling.*
+
+### Why a rule that reads correctly stopped working
+
+RW-1.9.1 excused a marker only when it was on the same line **and** nearer this publication than
+any other on that line. The second clause is a *comparison*, and a comparison needs something to
+compare against. When the citation was the only watched publication on its line — the common
+case, not the exotic one — `all(...)` iterated over the match itself and evaluated `mine <=
+mine`. Always true. So the rule collapsed to same-line, and any marker anywhere on the line
+excused any citation: `retired`, `withdrawn`, `superseded`, describing anything at all.
+
+The rule had been designed, documented and worked through against **two** publications, where
+"nearest" means something. At one, the word has no referent.
+
+### The fix: a marker must be in the same CLAUSE
+
+RW-1.9.1 now requires all three of same line, **same clause**, and nearest-within-that-clause.
+A clause ends at `.` `!` `?` `;` or a table-cell `|` — never at a comma or a dash, because
+`SP 800-61 Rev. 2, withdrawn in 2025,` and `SP 800-61 Rev. 2 — withdrawn` are the two commonest
+honest forms here and a rule that split on either would reject the warning it exists to permit.
+
+For an author the rule is still one sentence: **put the warning in the same sentence as the
+citation.**
+
+Two things stop the splitter severing a citation from its own warning. Cuts are never taken at
+an offset a matched publication occupies; and a full stop closing a citation abbreviation before
+a number — `Rev. 2`, `No. 5` — is not a sentence end. The second is not belt-and-braces: the
+publication patterns match the STEM only, so the stop in `Rev. 2` falls outside every span where
+the first rule cannot see it. Six acceptance cases went red on exactly that before the
+abbreviation list existed.
+
+### Mutation-testing found three more holes, and it found them after the suite was green
+
+Eight new cases passed on the first run. Then three separate reversions of the fix left the
+suite **entirely green** — clause-scoping of the nearest rule, the width of the abbreviation
+exemption, and the in-span cut exclusion were each asserted by nothing. Three more cases were
+built to go red for exactly one of them.
+
+A fourth turned up in passing: `BL-194/B` was supposed to prove that a marker appearing inside
+an identifier (`obsoleteFlag`) is not a warning, but its fixture never listed `obsolete` as a
+marker — so the citation was caught for an unrelated reason, and replacing the whole-word
+matcher with a plain substring search left the suite green. Fixed.
+
+**A suite that returns the right verdict can still be returning it for the wrong reason, and
+only running the broken version tells you which.**
+
+### The generalisation, now written into the standard
+
+Three guards in this repository have failed the same way. `[ -z "$res" ]` could not tell a clean
+scan from a crashed one (BL-121). `len(bounds) == 1` could not tell a missing anchor from a
+legally excluded one (BL-176). `all(...)` over a single candidate could not tell nearest from
+only (BL-201). Each reads as discriminating and stops discriminating when its input is minimal,
+and each returned the right answer on every case its author thought to write.
+
+**Read a check for what it does at n=0 and n=1, not at n=typical.** Recorded in
+`tools/sources-schema.md` under RW-1.9.1 rather than only in this entry.
+
+### Also
+
+- **The stricter rule found two real instances in shipped content** on its first run, both in
+  `skills/nist-csf/evals/trigger-prompts.md`: a citation whose withdrawal note sat two sentences
+  away inside a dense table cell, and another split across a sentence boundary. Both rewritten so
+  the warning sits beside the citation. Neither was caught by the rule it replaced.
+- `tools/sources-schema.md` still described the **pre-BL-194 proximity window** — *"no withdrawal
+  marker within about a paragraph of it"* — which had been wrong since v0.55.0. RW-1.9.1 now has
+  its own subsection stating the rule the code actually implements.
+- The self-test asserts a **floor of 101 checks**. It has always printed its count and asserted
+  nothing about it, so a deleted case would have shown up only as a smaller number in a line
+  nobody diffs — and "0 failed" reads identically whether 101 checks ran or nine did.
+
+Counts: `check-sources --self-test` **101 checks, 0 failed** (up from 91); scan clean over 324
+files; release gate clean. All eleven engine self-tests, `prove-guards` 32/45, `lint-evals` 56
+suites unchanged and green.
+
+---
+
 ## v0.64.0 — 2026-08-09
 
 **`policy-register` — the twelfth skill, and the last capability before 1.0.** GV.PO was the
