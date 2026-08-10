@@ -21,6 +21,50 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.82.0 — 2026-08-10
+
+**Seven `--context` consumers, one contract.** BL-226 T3, unblocked by both decisions being on
+the ⚖️ record.
+
+They held three different contracts, and each divergence was a real disagreement about what a
+CAC-AP-1 consumer owes rather than a bug — which is why this waited for a decision instead of
+being improvised. Measured by execution, not by reading:
+
+| input | before | now |
+|---|---|---|
+| no `contractVersion` | `vendor-register` **accepted** | all seven refuse |
+| no decided `applicability` | `vendor-register` and `ai-register` **accepted** | all seven refuse |
+| a raw `.biz` store | **five accepted it** — the transport §2.6 forbids | all seven refuse, naming `business_context.py export` |
+
+**Order is load-bearing in one place.** The `.biz` clause runs **before** the contract clause,
+because a raw store carries no `contractVersion` and answering it with the generic contract
+message would throw away the one sentence that tells the reader what to run. A refusal that
+names no command turns a five-second correction into a support question.
+
+**Exit codes converge on 1.** A refusal is the tool *working* — it read the input, understood
+it and declined — and `2` is argparse's usage-error code, which several of these engines return
+when no subcommand is given. Returning it for a refusal made a well-formed refusal
+indistinguishable from a mistyped command line to anything scripting the suite. BL-218 Q1 named
+`ai-register` and `vendor-register`; **`attention-surface` was a third, found by measuring
+rather than by reading the item.**
+
+**`tools/engine-standard.md` — CAC-EN-1**, beside the eval-lint and guard-proof standards, and
+cross-linked from both. It states the exit-code convention (§1.1) and the strict `--context`
+contract in the order it must be applied (§1.2), and it exists because neither divergence was a
+bug in any one engine: both were the absence of a stated convention.
+
+**The test that it landed: the three rows held OUT of the CAC-TW-1 refusal corpus moved INTO
+it.** They were excluded while the copies disagreed, with the reason written into the registry
+entry rather than the rows silently missing. The corpus grew by exactly what converged —
+**305 → 326 comparisons**, three payloads × seven members — which is how the convergence is
+checked rather than asserted.
+
+Two fixtures gained a decided `applicability`, which is the change reaching a user: the shipped
+`ai-register/examples/example-context.json` and one eval payload. Both were hand-written
+minimal fixtures that a real `business_context.py export` would never have produced.
+
+All 59 eval suites green; eleven engine self-tests unchanged.
+
 ## v0.81.0 — 2026-08-10
 
 **The check the v0.44.0 release note said shipped, actually shipped.** BL-192, and it found

@@ -830,6 +830,17 @@ def load_context(path: str) -> dict:
                          f"column {exc.colno}): {exc.msg}")
     if not isinstance(payload, dict):
         raise ValueError(f"{path} must contain a JSON object, got {type(payload).__name__}")
+    # A RAW .biz STORE. Refused with the command that produces the right file, because a
+    # refusal that names no fix turns a five-second correction into a support question.
+    # Checked BEFORE the contract clause and not after: a raw store carries no
+    # contractVersion, so answering it with the generic contract message would throw away the
+    # one sentence that tells the reader what to run (BL-226 T3).
+    if payload.get("family") == "business-context":
+        raise ValueError(
+            f"{path} is a raw .biz store, not an exported payload. Run "
+            f"`business_context.py export {path} --out ctx.json` and pass that: the "
+            f"narrowing decision belongs to that skill, and CAC-AP-1 §2.6 makes the "
+            f"transport data rather than an import.")
     got = payload.get("contractVersion")
     if got != CONTEXT_CONTRACT:
         raise ValueError(
