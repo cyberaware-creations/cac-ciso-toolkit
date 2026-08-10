@@ -269,6 +269,12 @@ a potential litigation exhibit, and which one it becomes depends on whether it a
 what the organisation said publicly. Keep entries governance-level and factual, align them
 with what is disclosed, and involve counsel on anything touching disclosure.
 
+⚠️ The caveat carries **the corollary**, which is the part a CISO being sold the inventory
+should hear in the same breath as the argument for keeping it: the documented process that
+earns prong-one protection is **the same discoverable record** that can establish prong-two
+knowledge. *Brewer v. Turner* (Del. Ch. 2025) is that in one case — one §220 production, both
+jobs. It is an argument for keeping the record, and against keeping it carelessly.
+
 **This is not legal advice.** The register structures and records a decision; it does not
 make it.
 

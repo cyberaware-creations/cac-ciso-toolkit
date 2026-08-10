@@ -154,6 +154,43 @@ The other half is *SEC v. SolarWinds*: granular internal records that contradict
 company's public security statements became the evidence. The records were not the problem;
 the gap between them and the public statements was.
 
+### ⚠️ The corollary, and it cuts both ways
+
+**Documented board-level process is what earns prong-one protection — and it is simultaneously
+the discoverable record that can establish prong-two knowledge.** Not two different records. The
+same one.
+
+*Brewer v. Turner* (Regions Financial), C.A. No. 2023-1284-KSJM (Del. Ch. 29 Sep. 2025)
+(McCormick, C.), is that in one case, and the opinion is unusually clean about it because the
+plaintiff pleaded **both** theories and the court took them in turn.
+
+The information-systems theory *"can be addressed in short order"*: the **§220 documents**
+showed multiple Board committees tasked with risk management, and the court concluded there was
+*"no straight-faced argument that Regions lacked an information system."* The footnote carrying
+that conclusion (n.67) cites Risk Committee minutes, joint Risk-and-Audit Committee minutes, and
+**December 2019 and September 2020 Board meeting minutes**.
+
+Those come from **the same §220 production** that shows the board received the whistleblower's
+draft complaint and left the practices in place for around twenty months — which is the
+red-flags theory that **survived**, and demand was excused as futile. One production, both jobs.
+
+> ⚠️ **Note precisely what that is and is not.** Prong one fell away because the existence of a
+> system was **not seriously contestable** — *not* because a court weighed the system and
+> pronounced it adequate.
+>
+> The difference is the whole advice. *"Having a system defeats prong one"* is materially
+> different from *"nobody could argue with a straight face that they had none"*, and only the
+> second is what the opinion says. **A record good enough to make prong one unarguable buys
+> nothing on prong two** — in *Brewer* it supplied the evidence on the other side.
+
+**Why this belongs here rather than in the receipts alone.** This register's whole proposition
+is a permanent, queryable record of decisions somebody made. *Brewer* is the case where that
+exact artifact does both jobs at once, and a CISO being sold the inventory should hear it in the
+same breath as the *Caremark* argument for keeping it — not later, from opposing counsel.
+
+It is **still an argument for keeping the record.** It is an argument against keeping it
+carelessly, which is what the rules below are for.
+
 What follows for how these records should be written:
 
 - **Governance-level, not forensic.** Record the decision, the basis, the approver, the date.
@@ -163,6 +200,10 @@ What follows for how these records should be written:
 - **Aligned to what is disclosed.** An acceptance that contradicts a public statement is a
   problem in one of the two, and the register is where you find that out first — which is an
   argument *for* keeping it, provided the contradiction is then resolved.
+- **A decision, not a mention.** *Brewer*'s red flag was a draft complaint that reached the
+  board and was investigated without the practices changing. A minute recording that the board
+  was *told* something is prong-two evidence with no prong-one benefit; a record of what was
+  **decided**, by whom, and on what basis is the one that does both jobs.
 - **Counsel in the loop** on anything touching disclosure.
 
 The renderers surface this caveat wherever risk, exception and incident records are linked.
