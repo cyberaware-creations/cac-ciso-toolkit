@@ -445,7 +445,7 @@ skills/
                                requirement-drift, board-safety, lifecycle suites
   attention-surface/
     SKILL.md
-    scripts/attention_surface.py    reads seven producers, groups and diffs (stdlib only)
+    scripts/attention_surface.py    reads eight producers, groups and diffs (stdlib only)
     references/                clusters (data), schema, scope
     examples/                  a worked .att with one recorded review
     evals/                     no-priority-score, clusters, trigger-routing suites

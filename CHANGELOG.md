@@ -21,6 +21,64 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.70.0 — 2026-08-09
+
+**The twelfth skill is wired into the product** (BL-212).
+
+`policy-register` shipped in v0.64.0 — good store discipline, five guards, above-median refusal
+prose — and was in no producer table. **A CISO with three policy reviews overdue asked what
+needed them this week and got a clean list**, with no `NOT READ` row either, because a producer
+this surface has never heard of cannot be reported as unread. That is silence dressed as an
+all-clear, and it is the exact failure `attention-surface` exists to prevent.
+
+The item read as *"add policy-register to a list"*. It was not. **Its escalation objects matched
+one of CAC-EL-1 §1.3's six keys.** They emitted `{severity, kind, target, what, soWhat}` —
+`kind` where the contract says `trigger`, `target` where it says `subjectRef`, and no
+`subjectKind`, `since` or `evidence` at all. Registering the producer without reshaping them
+would have surfaced every row as malformed: a visibly worse outcome than the silence.
+
+Three layers, and the order was forced. Reshape → register → map.
+
+**`escalations()` now emits the contract, and only two triggers.** `subjectKind` is genuinely
+two values here — `policy` for a document that went stale, `requirement` for an obligation
+nothing covers — so it could not be the constant it is in `vendor-register`. `since` is always a
+date the store already held: the `review.nextOn` that passed, or the `supersededOn` of the act
+that ended the cover. Never today; a derived date stamped on a historic fact is a fact the
+register did not have. The CSF grounding that lived in `soWhat` survives into `evidence` rather
+than being dropped, and the eval greps for `GV.PO-02` on the rendered weekly page to prove it.
+
+**`review-due`, `no-review-date` and `draft-only` stopped escalating.** Four sibling skills state
+the rule in nearly the same words — *due is the attention list; overdue is an escalation* —
+because escalating a deadline nobody has missed teaches a reader to ignore the list by the
+second quarter. They moved to `analyze()["attention"]`, a review agenda beside the escalations,
+which **this skill did not have and now does**: a new block in the read model, a new section on
+the requirement page, and a line in the terminal summary. The demotion was additive work, not
+deletion.
+
+**`draft-only` is the one worth writing down, and it is written down in four places**, because
+it will read as a mistake later. It shares its end state with `superseded-only` — neither
+requirement has an approved document in force. The distinction is not severity, it is whether
+the gap is **visible**. A draft shows in the register as a draft. A requirement covered only by
+superseded documents looks *populated*. Deceptive escalates; visible does not.
+
+`review-overdue` maps to **clocks running out**, beside `revalidation-overdue` and
+`assessment-overdue`, which are the same shape. `superseded-only` maps to **uncontrolled
+exposure**, whose own definition — *something is exposed and nothing is recorded against it, a
+standing condition rather than a deadline* — is that trigger restated. `clusters.json` goes to
+`datasetVersion` 3.
+
+`analyze` gains **`--json`**, matching `vendor-register` and `ai-register`. It had none: with no
+`--out` it printed a human summary, so the obvious `PRODUCERS` entry would have failed with
+*"did not emit JSON"*. A flag rather than a changed default, because swapping the summary for a
+JSON dump breaks everyone running it at a terminal for a reason that has nothing to do with them.
+
+**CAC-AP-1 is registered as `context: False`, and the SKILL.md says that is undecided rather
+than declined.** Adopting it is a separate item with its own scope. Registering here does not
+pre-empt it; `True` would, by asking for a flag the engine has no code for.
+
+The suite now emits 31 triggers across 8 producers — both read off the tree by
+`_triggerscan.py`, not maintained in prose.
+
 ## v0.69.0 — 2026-08-09
 
 **Eight board-safety suites now read their file list from the tree instead of carrying one**

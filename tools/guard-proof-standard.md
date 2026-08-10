@@ -193,7 +193,7 @@ script at all**. Converting them is not the same edit: `_vocab.py --source` over
 `scripts/vendor_register.py` reports `rating` — all of them in self-test assertions and in
 strings that *describe an attack class* rather than claim one, which is the population
 `nist-csf` handles with a `self_test` exemption. That is a judgement about each hit, not a
-mechanical widening, and it is filed separately with these line numbers rather than left here.
+mechanical widening, and it is filed as **BL-221** with those line numbers rather than left here.
 
 *The registry.* Same rule applied to this document. `prove-guards.sh` now compares the table
 below against the guards it discovers and fails on either mismatch. That table said *"eight

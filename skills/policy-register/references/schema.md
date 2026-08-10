@@ -48,6 +48,31 @@ register (`.exc`) or metrics register (`.mtr`) is refused by name rather than mi
 | `acknowledgement.cadence` | Any of `on-hire`, `annual`, `on-update` — the three GV.PO-01 names. |
 | `supersededBy` | `null` when a document was withdrawn with no replacement, which is a real state and the one that escalates. |
 
+## The read model — `escalations` and `attention`
+
+`analyze()` returns both, side by side, and the boundary between them is a decision rather
+than a layout:
+
+| Key | What it holds | Shape |
+|---|---|---|
+| `escalations` | `review-overdue`, `superseded-only` | a list of CAC-EL-1 §1.3 objects — `trigger`, `subjectKind`, `subjectRef`, `severity`, `since`, `evidence`, and nothing else |
+| `attention` | `reviewDue`, `noReviewDate`, `draftOnly` | three lists of ids |
+
+An escalation says a line has been crossed. The agenda says one is coming, or that a gap is
+already visible to anyone reading the register. `exceptions-register` draws the line in the
+same place, and this is modelled on it.
+
+`attention` carries **ids only**, deliberately. The records are in the same payload under
+`policies` and `requirements`; repeating their fields here would give two places to read one
+fact, and one of them would eventually be the stale one.
+
+`subjectKind` takes two values — `policy` and `requirement` — because this register holds
+concerns about both, and a consumer grouping by subject has to be able to tell a document
+that went stale from an obligation nothing covers.
+
+`since` is always a date the store already held: the `review.nextOn` that passed, or the
+`supersededOn` of the act that ended the cover. Never today.
+
 ## What is NOT in the file
 
 **Nothing derived.** No review status, no escalation, no requirement state, no count. All of

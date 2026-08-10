@@ -132,9 +132,14 @@ if rec.get("state") != "approved":
     problems.append("the state was rewritten on load to %r" % rec.get("state"))
 if rec.get("approval") is not None:
     problems.append("an approval block was invented for a record that has none")
-if "no-review-date" not in [e["kind"] for e in data["escalations"]]:
-    problems.append("the state is loaded but never surfaced: %s"
-                    % [e["kind"] for e in data["escalations"]])
+# On the review agenda since v0.70.0, not in the escalations — nobody missed a date that
+# was never set. Both halves are asserted: surfaced somewhere, and surfaced in the right
+# place. Checking only the absence would pass if the state had been deleted rather than moved.
+if rec["id"] not in (data.get("attention") or {}).get("noReviewDate", []):
+    problems.append("the state is loaded but never surfaced: %s" % (data.get("attention"),))
+if "no-review-date" in [e["trigger"] for e in data["escalations"]]:
+    problems.append("a date nobody set is escalating: %s"
+                    % [e["trigger"] for e in data["escalations"]])
 print("; ".join(problems))
 PY
 )
@@ -195,7 +200,7 @@ fi
 res=$(probe "$work/late.json" <<'PY'
 import json, sys
 data = json.load(open(sys.argv[1], encoding="utf-8"))
-kinds = [e["kind"] for e in data["escalations"]]
+kinds = [e["trigger"] for e in data["escalations"]]
 rows = {r["id"]: r for r in data["requirements"]}
 problems = []
 if "review-overdue" not in kinds:
