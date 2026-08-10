@@ -5,7 +5,8 @@
  "mappingAuthority": "mixed-third-party",
  "sourceExport": {
   "tool": "NIST CSF 2.0 Reference Export (xlsx)",
-  "retrievedAt": "2026-07-29"
+  "file": "csf-2.0.xlsx",
+  "sha256": "cc4ec545881141711dacf056e4c806057325b441081f704d9aa32c4eeaf9b616"
  },
  "edges": [
   {

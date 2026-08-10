@@ -12,7 +12,50 @@ HERE=os.path.dirname(os.path.abspath(__file__))
 # overlay data into the skill. Lives under tools/ rather than skills/ because
 # everything under skills/ ships to users — see tools/README.md.
 DATA=os.path.join(HERE,"..","..","skills","nist-csf","references","crosswalks")
-SRC=os.path.join(HERE,"_source_csf2.xlsx"); RETRIEVED="2026-07-29"
+# ONE vendored export, pinned by hash, shared with the Core build.
+#
+# There used to be a second copy here, `_source_csf2.xlsx`, whose provenance was a date and
+# nothing else. It was the SAME CPRT release downloaded fourteen days later: 16 zip members,
+# 14 byte-identical, and the two that differed were `docProps/core.xml`'s created timestamp and
+# a time value on the cover sheet. `sharedStrings.xml` and the data sheet — everything the
+# crosswalks are built from — matched exactly.
+#
+# It was still a real problem, and the fix was to delete the copy rather than pin it. Two files
+# whose bytes differ and whose provenance is "downloaded on a date" cannot be told apart, and
+# `tools/README.md` asserted that "the vendored XLSX is provably the file the shipped Core was
+# built from" — true of the copy it named, and silently untrue of the one the crosswalks
+# actually read (BL-75).
+SRC = os.path.join(HERE, "..", "csf-2.0.xlsx")
+
+# A DATE SAYS WHEN SOMEBODY DOWNLOADED A FILE. A HASH SAYS WHICH FILE. This item exists because
+# two exports carried the same claim about their origin and different bytes, so the provenance
+# stamped into the shipped crosswalks is now the hash — matching what `nist-csf-2.0-core.json`
+# has always recorded, and checkable by anyone with `shasum`.
+#
+# Asserted against the Core's pin here, at build time, so the build itself refuses to author
+# crosswalks from an export the Core was not built from. `tools/check-versions.py` runs the
+# same comparison on every CI run, for the case where nobody rebuilds.
+def _sha256(path):
+    import hashlib
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 16), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+SOURCE_SHA256 = _sha256(SRC)
+_CORE = os.path.join(HERE, "..", "..", "skills", "nist-csf", "references",
+                     "nist-csf-2.0-core.json")
+_pinned = json.load(open(_CORE, encoding="utf-8"))["source"]["sha256"]
+if SOURCE_SHA256 != _pinned:
+    raise SystemExit(
+        "author_catalogs: %s hashes %s, but the shipped Core records %s.\n"
+        "  The crosswalks and the Core would be built from different exports, which is the\n"
+        "  exact condition BL-75 was raised about. Re-pin deliberately or fetch the right file."
+        % (SRC, SOURCE_SHA256, _pinned))
+SOURCE_EXPORT = {"tool": "NIST CSF 2.0 Reference Export (xlsx)",
+                 "file": "csf-2.0.xlsx", "sha256": SOURCE_SHA256}
 SUB=re.compile(r'^[A-Z]{2}\.[A-Z]{2}-\d{2}:')
 
 
@@ -186,7 +229,7 @@ def catalog(fid, ctrl_ids):
     for c in controls:
         if c["id"] in CATONLY[fid]: c["csfReference"]="category-only"
     return {"frameworkId":fid,"name":spec['name'],"version":spec['ver'],"license":spec['lic'],
-            "provenance":PROV[fid],"sourceExport":{"tool":"NIST CSF 2.0 Reference Export (xlsx)","retrievedAt":RETRIEVED},
+            "provenance":PROV[fid],"sourceExport":dict(SOURCE_EXPORT),
             # Declared, not inferred. Whether a catalogue holds its framework's whole
             # control set decides what an empty "outside CSF" list MEANS: genuinely
             # nothing beyond CSF's reach, or simply nothing else catalogued. A reader
@@ -231,7 +274,7 @@ for fid,spec in FW.items():
     es=sorted({(a,b) for a,b,_ in edges[fid]})
     ids={b for _,b in es}
     m={"csfFrameworkId":"csf-2.0","overlayFrameworkId":fid,"direction":"bidirectional",
-       "mappingAuthority":spec['auth'],"sourceExport":{"tool":"NIST CSF 2.0 Reference Export (xlsx)","retrievedAt":RETRIEVED},
+       "mappingAuthority":spec['auth'],"sourceExport":dict(SOURCE_EXPORT),
        "edges":[{"csfSubId":a,"controlId":b,"authority":spec['auth']} for a,b in es]}
     json.dump(m,open(os.path.join(DATA,f"csf-2.0__{fid}.map.json"),"w"),indent=1)
     cat=catalog(fid, ids)
