@@ -49,6 +49,9 @@ Mutations (each appends an append-only history event and rewrites the store):
   intake list       <store.csfp> [--json]
   overlay           list|enable|disable <store.csfp> [--focus A B] [--mode advisory|reorder]
                     (list is read-only; enable and disable rewrite the store)
+  crosswalk         <store.csfp> --lens iso-27001-2022|cis-8.1|800-53-r5 [--json] [--out F]
+                    Read-only projection of this Profile through a crosswalk lens. Derived,
+                    never an audit or a certification.
 
 Usage:
   python3 profile_analysis.py init --name "Acme Corp" --out acme.csfp --owner CISO

@@ -203,11 +203,30 @@ python3 scripts/ai_register.py assess acme.air --deployment D-001 --by CISO --co
 python3 scripts/ai_register.py record-control acme.air --deployment D-001 \
     --class NISTAML.02 --control "untrusted-content filter" \
     --evidence "config export NW-CFG-118" --on 2026-03-30 --by "Head of Security"
+python3 scripts/ai_register.py record-requirement acme.air --deployment D-001 \
+    --requirement adversarial-testing.red-team --evidence EV-001 --by CISO
+python3 scripts/ai_register.py declare acme.air --deployment D-001 \
+    --flag consequentialDecision --value true --by CISO --basis "legal advice, 2026-05-02"
+python3 scripts/ai_register.py map-exposure acme.air --deployment D-001 --by CISO
 python3 scripts/ai_register.py analyze acme.air --context ctx.json --out analysis.json
 python3 scripts/ai_register.py export-findings acme.air --out findings.json
 python3 scripts/ai_register.py export-signal acme.air --out signal.json
 python3 scripts/ai_register.py self-test
 ```
+
+Three of these appeared in no shipped document until v0.81.0, and `tools/check-commands.py`
+now fails the build if that recurs (BL-192):
+
+- **`record-requirement`** records a requirement checked **directly** — met, or `--not-met`.
+  It is the short path past `propose`/`assess` for a requirement somebody verified themselves
+  rather than read off an artifact, and it still needs `--by`, because the Layer A / Layer B
+  boundary is about *who said so*, not about how many steps it took.
+- **`declare`** sets a deployment-level applicability flag with its `--basis`. A subject-level
+  declaration outranks the organisation profile (CAC-AP-1), so this is how one deployment says
+  it is in scope for something the rest of the estate is not.
+- **`map-exposure`** recomputes a deployment's exposure from its current attributes. Exposure
+  is **derived, never selected** — there is no command to mark a class applicable — so this
+  re-runs the derivation after attributes change and records nothing a person chose.
 
 Rendering:
 

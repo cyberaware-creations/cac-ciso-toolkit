@@ -21,6 +21,50 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.81.0 — 2026-08-10
+
+**The check the v0.44.0 release note said shipped, actually shipped.** BL-192, and it found
+nine more commands than the item did.
+
+That note claimed BL-115's fix came *"with a check that compares the list against `COMMANDS`"*.
+**It did not.** Grepping every `.py`, `.sh` and `.md` found one consumer of any engine's
+`COMMANDS` outside its own file, belonging to a different skill for a different purpose.
+`SKILL.md` was careful where the note was not — *"can be checked against `COMMANDS` rather than
+trusted"*. For a repo whose Gate 1 is *nothing shipped contradicts what the docs say it does*,
+a release note announcing a guard nobody wrote is the defect in the document a reader trusts
+most about what changed. The v0.44.0 entry now carries that correction, appended and visible.
+
+**And the missing check is what would have caught the next one.** Within nine releases
+`import-findings` — a real command, with a handler, named in `SKILL.md` — was absent from the
+docstring `--help` prints. BL-115's defect, one surface over.
+
+`tools/check-commands.py` (**CAC-CD-1**) asserts two different things, because there are two
+different defects:
+
+- **Help drift** — a command `--help` does not list. Only reachable in the three engines whose
+  `main()` does `print(__doc__)`, because their help is prose somebody maintains. Two of the
+  three were affected: `import-findings` and nist-csf's `crosswalk`. The nine argparse engines
+  generate help from `add_parser` and **cannot** drift, and the checker says so per engine
+  rather than pretending to have tested it.
+- **Doc drift** — a command no shipped document names. Nine of them, across two skills.
+  `vendor-register` was worst at six, **including `init`**, without which there is no register.
+
+**Zero exemptions.** The check landed red and every command was documented, in one change — an
+exemption list nobody must clear is how this drifted in the first place.
+
+**Q1 decided: `SKILL.md` *and* `references/*.md` both count.** The question is *can a reader of
+the shipped docs discover this command*, and a `references/` page is shipped documentation the
+index points at. Counting `SKILL.md` alone would force a command documented in depth elsewhere
+to be duplicated into the index to satisfy a checker — the tool dictating where prose lives.
+
+Anti-vacuity is the point rather than a detail: an engine parsed to **zero** commands fails, an
+engine named in the registry but absent from disk fails, and an empty registry fails. A checker
+that reports success without having tested anything is precisely what is being fixed here, and
+it is the failure that survives longest because it looks identical to working.
+
+`check-commands --self-test` **10/10**; live: **12 engines, 128 commands**, each named in the
+help surface and in a shipped document. Both new steps named individually in `evals.yml`.
+
 ## v0.80.0 — 2026-08-10
 
 **Completeness counts against the framework, not against the store.** BL-109, and the widest
@@ -2565,6 +2609,23 @@ this skill already states is that a total in the wrong currency is worse than on
 
 The file inventory named ten of twenty. It now names all twenty, grouped by what they do, and a
 check compares the list against `COMMANDS`.
+
+> **CORRECTED 2026-08-10 (BL-192), and left visible rather than rewritten.** The first sentence
+> is true and re-verified — 20 of 20, set difference empty in both directions. **The second was
+> false when it was written.** No such check existed. Grepping every `.py`, `.sh` and `.md`
+> found exactly one consumer of any engine's `COMMANDS` outside its own file, and it belongs to
+> a different skill for a different purpose. `SKILL.md` was careful where this note was not: it
+> said the list *"can be checked against `COMMANDS` rather than trusted"*, which was accurate.
+>
+> **And the missing check is exactly what would have caught the next one.** Within nine
+> releases, `import-findings` — a real command with a handler, named in `SKILL.md` — was absent
+> from the module docstring that `--help` prints. BL-115's defect, one surface over, undetected
+> because the guard this note announced was never built.
+>
+> A release note claiming a guard that does not exist is the same defect class as BL-95 and
+> BL-103, in the document a reader trusts most about what changed. `tools/check-commands.py`
+> ships in v0.81.0 and does what this sentence said — across all twelve engines rather than
+> one, where it found nine more commands no shipped document named.
 
 ## v0.43.1 — 2026-08-08
 

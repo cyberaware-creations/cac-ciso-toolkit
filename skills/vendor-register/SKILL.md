@@ -290,6 +290,62 @@ a score, and no shipped file multiplies or averages a criticality against a coun
 It also does not accept a finding (`exceptions-register`), rate a control (`nist-csf`), write
 board prose (`ciso-board-translation`), or decide materiality (`incident-materiality`).
 
+## Commands
+
+Every command the engine accepts, in the order a register is actually built. Six of these
+appeared in no shipped document until v0.81.0 — including `init`, without which there is no
+register at all — and `tools/check-commands.py` now fails the build if that recurs (BL-192).
+
+```bash
+# Set up, and record who you depend on
+python3 scripts/vendor_register.py init acme.vnd --org "Acme Manufacturing" \
+    --prepared-by CISO --scope-note "UK entities only"
+python3 scripts/vendor_register.py add-vendor acme.vnd --name "Contoso Ltd" \
+    --jurisdiction "US-DE" --group-parent "Contoso Global" --by CISO
+python3 scripts/vendor_register.py add-arrangement acme.vnd --vendor V-001 \
+    --name "Payments platform" --supports "Order capture" --by CISO
+python3 scripts/vendor_register.py set-scale acme.vnd --levels low moderate high --by CISO
+
+# Criticality: derivation proposes, a named person assigns
+python3 scripts/vendor_register.py classify acme.vnd --arrangement VA-001 \
+    --context ctx.json --confirm high --by "R. Calder" --basis "board minute 2026-06-11"
+
+# The reading layer — tier the artifact, propose with a citation, a person assesses
+python3 scripts/vendor_register.py ingest acme.vnd --arrangement VA-001 --kind soc2-type2 ...
+python3 scripts/vendor_register.py propose acme.vnd --arrangement VA-001 ...
+python3 scripts/vendor_register.py assess acme.vnd --arrangement VA-001 --by CISO --confirm PR-001
+python3 scripts/vendor_register.py ask acme.vnd --arrangement VA-001 --context ctx.json
+python3 scripts/vendor_register.py review-requirements acme.vnd --arrangement VA-001
+python3 scripts/vendor_register.py record-subprocessor acme.vnd --arrangement VA-001 ...
+
+# Exit, succession and retirement — the lifecycle acts
+python3 scripts/vendor_register.py test-exit acme.vnd --arrangement VA-001 --by CISO ...
+python3 scripts/vendor_register.py document-exit acme.vnd --arrangement VA-001 \
+    --note "90-day transition, data returned in CSV" --on 2026-07-01 --by CISO
+python3 scripts/vendor_register.py succeed acme.vnd --arrangement VA-002 --prior VA-001
+python3 scripts/vendor_register.py retire acme.vnd --arrangement VA-001 ...
+python3 scripts/vendor_register.py review acme.vnd --arrangement VA-001 ...
+
+# Read the register, and hand what it found to the skills that own it
+python3 scripts/vendor_register.py analyze acme.vnd --context ctx.json --today 2026-08-10 \
+    --out analysis.json
+python3 scripts/vendor_register.py export-findings acme.vnd --out findings.json
+python3 scripts/vendor_register.py export-roi acme.vnd --out roi.json
+python3 scripts/vendor_register.py self-test
+```
+
+**`document-exit` records what an exit would actually involve** — the note, the date and the
+person — and is a different act from `test-exit`, which records that one was rehearsed. A
+documented exit nobody has tested is a plan; a tested exit is evidence, and the register keeps
+the two apart rather than letting either stand for the other.
+
+**`succeed` links a replacement arrangement to the one it replaces**, so the history of a
+dependency survives a change of provider. Without it a re-contracted supplier looks like a new
+dependency with no past, which is exactly the arrangement an assessor asks about.
+
+**`export-findings` is one-way and idempotent**, and carries no likelihood, impact or score —
+`risk-register` scores once, there. `analyze` derives and reports; it never records.
+
 ## Surfaces, and the colour split
 
 ```bash
