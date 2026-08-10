@@ -37,6 +37,9 @@ Subcommands:
                                          ai-register findings to candidate risks. Same
                                          preview-then-write shape as import-gaps, and the
                                          same provisional flags on what it creates.
+  suggest-method [--context data-scarce,cost-constrained]
+                                         Propose analysis methods against NIST's own
+                                         selection criteria. Writes nothing, ranks nothing.
   self-test                              Assert the engine against the web repo's test cases.
 
 Mutations (each appends an append-only history event and writes a schema-valid file):
@@ -150,6 +153,7 @@ ESCALATION_DEFAULTS = {
     "appetiteDwellDays": 180,           # continuously over appetite this long
     "bandCross": True,                  # any residual band worsening escalates
     "lapsedAcceptance": True,           # acceptance past expiryDate escalates
+    "methodPrerequisites": True,        # a declared method whose prerequisites are unmet
 }
 
 # Default themes for CSF-imported risks. Themes are the stated board-rollup axis, and
@@ -306,6 +310,92 @@ ANALYSIS_TYPES = ("qualitative", "semi-quantitative", "quantitative")
 # else's work, and it is the kind of claim that is repeated back by people who did not read the
 # original. Same reasoning as incident-materiality's documented disclosure-clock deviations.
 CONFORMANCE_LEVELS = ("full", "partial")
+
+
+_METHOD_CATALOGUE = None
+
+
+def method_catalogue_path() -> str:
+    return os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                        "references", "analysis-methods.json")
+
+
+def load_method_catalogue(path: str = "") -> dict:
+    """Read `references/analysis-methods.json`. Data, never logic.
+
+    Every `nistSays` in it is quoted verbatim from the locator beside it. A method NIST does
+    not discuss carries no `nistSays` at all rather than an invented one — the catalogue is
+    allowed to be silent, and silence is what an unread source earns.
+
+    Cached, because `escalations()` runs it once per risk and the file never changes mid-run.
+    """
+    global _METHOD_CATALOGUE
+    if not path and _METHOD_CATALOGUE is not None:
+        return _METHOD_CATALOGUE
+    with open(path or method_catalogue_path(), encoding="utf-8") as fh:
+        data = json.load(fh)
+    if not path:
+        _METHOD_CATALOGUE = data
+    return data
+
+
+def _slug(text: str) -> str:
+    out = []
+    for ch in _s(text).lower().strip():
+        out.append(ch if ch.isalnum() else "-")
+    return "-".join(p for p in "".join(out).split("-") if p)
+
+
+def catalogue_entry(name: str, catalogue: dict = None):
+    """The catalogue row for a method NAME, or None if it names nothing we ship.
+
+    Matched on the slug of the name against both `id` and `label`, so "OPEN FAIR",
+    "Open FAIR" and "open-fair" all reach the same row, and so does "Monte Carlo Simulation"
+    against the label "Monte Carlo simulation".
+
+    **None is not an error.** `name` is deliberately free text (BL-92 D-1.2): this tool holds
+    no catalogue of every method a CISO might legitimately use, and refusing an unfamiliar one
+    would make it the arbiter of that.
+    """
+    want = _slug(name)
+    if not want:
+        return None
+    for row in (catalogue or load_method_catalogue()).get("methods") or []:
+        if want == row.get("id") or want == _slug(row.get("label", "")):
+            return row
+    return None
+
+
+def method_prerequisite_gaps(method: dict, settings: dict, catalogue: dict = None) -> list:
+    """Prerequisites of a DECLARED method that this register can see are unmet (BL-93 D-4.3).
+
+    Returns a list of `(code, detail)`. Exactly two checks, both arithmetic over facts the
+    file already holds, and it should stay two until a third is as mechanical as these.
+
+    ⚠️ **`external` methods emit nothing, under any input** (D-4.2). The catalogue marks a
+    method `external` when its real prerequisites live in the analyst's workbook, their priors
+    or their branch probabilities — none of which this toolkit can see. Flagging the absence of
+    something we cannot look at would assert a fact about work done outside the tool. That is
+    the same restraint as `untraced` being a value rather than a gap, and it is the guard in
+    this item most likely to be argued away later, because an escalation looks like value.
+    """
+    entry = catalogue_entry(method.get("name", ""), catalogue)
+    if entry and entry.get("visibility") == "external":
+        return []
+    gaps = []
+    if _s(method.get("type", "")) == "quantitative" and not _s(
+            (settings or {}).get("currency", "")).strip():
+        gaps.append((
+            "quantitative-without-currency",
+            "declares quantitative analysis while the register records no currency, so the "
+            "numbers behind it have no unit written down (set-currency)"))
+    if _s(method.get("conformance", "")) == "partial" and not _s(
+            method.get("deviations", "")).strip():
+        gaps.append((
+            "partial-without-deviations",
+            "declares partial conformance with no deviation stated — the claim without the "
+            "caveat (set-method --deviations)"))
+    return gaps
 
 
 def resolve_method(risk: dict, settings: dict):
@@ -782,6 +872,20 @@ def escalations(reg: dict, today: str = "") -> list[dict]:
         if r.get("provisionalScore"):
             # Counted by suppressed_provisional(); no score-derived trigger may fire.
             continue
+
+        if policy.get("methodPrerequisites"):
+            _m, _ = resolve_method(r, reg.get("settings") or {})
+            if _m:
+                for _code, _detail in method_prerequisite_gaps(_m, reg.get("settings") or {}):
+                    out.append({
+                        "subjectRef": rid, "subjectKind": "risk",
+                        "trigger": "method-prerequisite-unmet", "severity": "medium",
+                        "since": str(_m.get("asOf") or "")[:10],
+                        "evidence": {
+                            "from": _s(_m.get("name", "")), "to": _code, "baseline": "",
+                            "detail": f"{_s(_m.get('name', ''))} {_detail}",
+                        },
+                    })
 
         crossed = False
         if policy.get("bandCross") and rid in base:
@@ -1819,7 +1923,7 @@ def _cmd_self_test(_: list[str]) -> int:
         eq("set-escalation moves only what was passed",
            _load(_dr)["settings"]["escalation"],
            {"sustainedWorseningSnapshots": 2, "appetiteDwellDays": 90,
-            "bandCross": True, "lapsedAcceptance": True})
+            "bandCross": True, "lapsedAcceptance": True, "methodPrerequisites": True})
         eq("and logs the policy change with its rationale",
            [(e["type"], e.get("rationale")) for e in _load(_dr)["history"]][-1],
            ("escalation-policy-changed", "tighter cadence"))
@@ -2212,6 +2316,131 @@ def _cmd_self_test(_: list[str]) -> int:
     eq("lapsedAcceptance off suppresses it",
        escalations(_reg([_risk("R-001", 1, 1, acceptance=_acc)], lapsedAcceptance=False),
                    today="2026-07-31"), [])
+
+    # T5/B2-B3 — method-prerequisite-unmet (BL-93). Two checks, both arithmetic over facts
+    # the file already holds, and a boundary that must hold under every input.
+    def _meth(name, mtype, conf="full", dev=""):
+        return {"name": name, "type": mtype, "conformance": conf, "deviations": dev,
+                "setBy": "a", "asOf": "2026-05-01"}
+
+    def _mreg(method, currency="", **settings):
+        reg = _reg([_risk("R-001", 1, 1, analysisMethod=method)], **settings)
+        reg["settings"]["currency"] = currency
+        return reg
+
+    def _mtrig(reg):
+        return [(e["trigger"], e["evidence"]["to"]) for e in escalations(reg, today="2026-07-31")]
+
+    eq("v1 check 1 — quantitative declared with no currency recorded",
+       _mtrig(_mreg(_meth("Workshop scoring", "quantitative"))),
+       [("method-prerequisite-unmet", "quantitative-without-currency")])
+    eq("and it clears once currency is set, which is why BL-103 had to land first",
+       _mtrig(_mreg(_meth("Workshop scoring", "quantitative"), currency="GBP")), [])
+    eq("v1 check 2 — partial conformance with no deviation stated",
+       _mtrig(_mreg(_meth("Workshop scoring", "qualitative", "partial"))),
+       [("method-prerequisite-unmet", "partial-without-deviations")])
+    eq("a stated deviation clears it",
+       _mtrig(_mreg(_meth("Workshop scoring", "qualitative", "partial", "no monetised loss"))),
+       [])
+    eq("both conditions produce both, not one merged escalation",
+       len(_mtrig(_mreg(_meth("Workshop scoring", "quantitative", "partial")))), 2)
+    eq("severity is medium — wrong on the page, not wrong in the world",
+       {e["severity"] for e in escalations(
+           _mreg(_meth("Workshop scoring", "quantitative")), today="2026-07-31")}, {"medium"})
+    eq("`since` is the date the method was recorded, not today",
+       escalations(_mreg(_meth("Workshop scoring", "quantitative")),
+                   today="2026-07-31")[0]["since"], "2026-05-01")
+
+    # B3 — THE GUARD. An `external` method emits nothing under any input, because its real
+    # prerequisites are in the analyst's workbook and this toolkit cannot look at it. Both
+    # v1 conditions are true on this record and both are correctly suppressed.
+    eq("B3 — an external method with nothing else recorded escalates NOTHING",
+       _mtrig(_mreg(_meth("Monte Carlo", "quantitative", "partial"))), [])
+    eq("B3 — matched on the label too, not only the catalogue id",
+       _mtrig(_mreg(_meth("Monte Carlo simulation", "quantitative"))), [])
+    eq("B3 — and on a licensed third-party name",
+       _mtrig(_mreg(_meth("OPEN FAIR", "quantitative"))), [])
+    eq("B3 — but a method NOT in the catalogue is still checked, because these two checks "
+       "read only the register's own facts",
+       _mtrig(_mreg(_meth("Some in-house approach", "quantitative"))),
+       [("method-prerequisite-unmet", "quantitative-without-currency")])
+
+    eq("methodPrerequisites off suppresses it",
+       _mtrig(_mreg(_meth("Workshop scoring", "quantitative"), methodPrerequisites=False)), [])
+    _closed = _mreg(_meth("Workshop scoring", "quantitative"))
+    _closed["risks"][0]["status"] = "closed"
+    eq("a closed risk escalates no method prerequisite", _mtrig(_closed), [])
+    _prov_m = _mreg(_meth("Workshop scoring", "quantitative"))
+    _prov_m["risks"][0]["provisionalScore"] = True
+    eq("nor does a provisionalScore risk", _mtrig(_prov_m), [])
+    eq("no declared method, nothing to check", _mtrig(_mreg(None)), [])
+    _defaulted = _mreg(None)
+    _defaulted["settings"]["analysisMethodDefault"] = _meth("Workshop scoring", "quantitative")
+    eq("the register default is checked when the risk declares nothing (D-2)",
+       _mtrig(_defaulted),
+       [("method-prerequisite-unmet", "quantitative-without-currency")])
+
+    # B4 — the catalogue as data. Two properties, both of which a careless edit breaks.
+    _cat = load_method_catalogue()
+    _rows = _cat["methods"]
+    eq("every catalogue entry carries a NIST locator",
+       [r["id"] for r in _rows if not _s(r.get("nistLocator", "")).strip()], [])
+    eq("every catalogue entry declares whether this toolkit can see its prerequisites",
+       sorted({r.get("visibility") for r in _rows}), ["checkable", "external"])
+    # The licensing guard, machine-checkable rather than asserted in a comment. A licensed
+    # third-party entry may carry CAC's own DESCRIPTION of what NIST cites (`nistNames`) and
+    # must carry no QUOTED body text at all — including the passages NIST itself reproduces.
+    _quoted = ("nistSays", "nistLimitation", "nistScopeCaveat", "nistBiasCaution")
+    eq("no licensed third-party entry reproduces one word of its own standard's text",
+       [r["id"] for r in _rows
+        if r.get("licensing") == "third-party-name-only" and any(r.get(k) for k in _quoted)],
+       [])
+    eq("and the licensed entries are exactly the ones we expect to be name-only",
+       sorted(r["id"] for r in _rows if r.get("licensing") == "third-party-name-only"),
+       ["iec-31010", "open-fair"])
+    eq("every selection criterion is quoted with its locator",
+       [c["id"] for c in _cat["selectionCriteria"]["criteria"]
+        if not (_s(c.get("nistSays", "")).strip() and _s(c.get("nistLocator", "")).strip())],
+       [])
+    eq("catalogue lookup is slug-based, so name casing and spacing do not matter",
+       [catalogue_entry(n)["id"] if catalogue_entry(n) else None
+        for n in ("OPEN FAIR", "Open FAIR", "open-fair", "Monte Carlo simulation",
+                  "monte carlo", "not a real method")],
+       ["open-fair", "open-fair", "open-fair", "monte-carlo", "monte-carlo", None])
+
+    # B5 — suggest-method proposes and writes nothing.
+    with tempfile.TemporaryDirectory() as _sd:
+        _sr = os.path.join(_sd, "s.rr")
+        with open(_sr, "w", encoding="utf-8") as fh:
+            json.dump(_reg([_risk("R-001", 1, 1)]), fh)
+        with open(_sr, "rb") as fh:
+            _before = fh.read()
+        _sbuf = io.StringIO()
+        with contextlib.redirect_stdout(_sbuf):
+            _srv = _cmd_suggest_method(["--context", "data-scarce,not-a-criterion"])
+        _sout = _sbuf.getvalue()
+        with open(_sr, "rb") as fh:
+            eq("suggest-method leaves every register byte-identical", fh.read(), _before)
+    eq("suggest-method exits 0", _srv, 0)
+    eq("an unrecognised context value is ignored, not fatal",
+       "Ignored (not a criterion this tool can ground in NIST): not-a-criterion" in _sout, True)
+    eq("and the recognised one still lands",
+       "data-scarce — NIST:" in _sout, True)
+    eq("it shows every catalogue method rather than shortening the list",
+       all(r["id"] in _sout for r in _rows), True)
+    # No ranking. The catalogue is printed in alphabetical order and the page says so, so a
+    # reader cannot mistake position for preference.
+    eq("the order printed is the alphabet, and is stated to be",
+       "the order is the alphabet, not a preference" in _sout, True)
+    eq("and it is actually alphabetical",
+       [i for i in (_sout.index("\n  %s — " % r["id"]) for r in sorted(
+           _rows, key=lambda r: r["id"]))] == sorted(
+               _sout.index("\n  %s — " % r["id"]) for r in _rows), True)
+    _nbuf = io.StringIO()
+    with contextlib.redirect_stdout(_nbuf):
+        _cmd_suggest_method([])
+    eq("with no --context it proposes anyway and names the criteria as unstated",
+       "every criterion above is UNSTATED" in _nbuf.getvalue(), True)
 
     # T5 — a provisional score escalates nothing, and says so rather than going quiet.
     _prov = _reg([_risk("R-001", 3, 4, provisionalScore=True)],
@@ -3083,10 +3312,12 @@ def _cmd_set_escalation(args):
     tuning one threshold must not silently revert the other three.
     """
     pos, opt = parse_flags(args, known={
-        "sustained", "dwell-days", "band-cross", "lapsed-acceptance", "why"})
+        "sustained", "dwell-days", "band-cross", "lapsed-acceptance",
+        "method-prerequisites", "why"})
     if not pos:
         raise ValueError("usage: set-escalation <register.rr> [--sustained N] [--dwell-days D] "
-                         "[--band-cross on|off] [--lapsed-acceptance on|off] --why '...'")
+                         "[--band-cross on|off] [--lapsed-acceptance on|off] "
+                         "[--method-prerequisites on|off] --why '...'")
     path = pos[0]
     reg = load_register(path)
     if "why" not in opt:
@@ -3099,6 +3330,11 @@ def _cmd_set_escalation(args):
     new["appetiteDwellDays"] = _int_opt(opt, "dwell-days", cur["appetiteDwellDays"])
     new["bandCross"] = _on_off(opt, "band-cross", cur["bandCross"])
     new["lapsedAcceptance"] = _on_off(opt, "lapsed-acceptance", cur["lapsedAcceptance"])
+    # `cur.get(...)` and not `cur[...]`: a register written before v0.88.0 has an escalation
+    # block with four keys, and it must keep opening. Absent means the shipped default.
+    new["methodPrerequisites"] = _on_off(opt, "method-prerequisites",
+                                         cur.get("methodPrerequisites",
+                                                 ESCALATION_DEFAULTS["methodPrerequisites"]))
 
     for key, flag in (("sustainedWorseningSnapshots", "--sustained"),
                       ("appetiteDwellDays", "--dwell-days")):
@@ -3110,7 +3346,8 @@ def _cmd_set_escalation(args):
     # defect `confirm` exists to keep out of `score-changed`.
     if new == cur:
         raise ValueError("set-escalation: nothing would change. Pass at least one of "
-                         "--sustained, --dwell-days, --band-cross, --lapsed-acceptance.")
+                         "--sustained, --dwell-days, --band-cross, --lapsed-acceptance, "
+                         "--method-prerequisites.")
 
     moved = ", ".join(f"{k} {cur[k]} → {new[k]}" for k in new if new[k] != cur[k])
     reg["settings"]["escalation"] = new
@@ -3703,6 +3940,99 @@ def _cmd_set_method(args):
           f"({method['type']}, {method['conformance']} conformance)")
     if method["conformance"] == "partial":
         print(f"  deviations: {method['deviations']}")
+    # BL-92 D-1.2's "an unknown name warns" — deferred out of Phase A because a warning needs
+    # something to warn AGAINST, and the catalogue it warns against is this item. A NOTE and
+    # never a refusal: `name` is free text on purpose, this tool holds no catalogue of every
+    # method a CISO might legitimately use, and refusing an unfamiliar one would make it the
+    # arbiter of that. It exits 0 and the record is written either way.
+    if catalogue_entry(method["name"]) is None:
+        print(f"  note: {method['name']!r} is not in references/analysis-methods.json, so "
+              f"nothing here can check its prerequisites or quote NIST on it. Recorded as "
+              f"given — an unfamiliar method is not a wrong one.")
+    return 0
+
+
+# What `--context` accepts. Each token maps to a sentence NIST states in IR 8286A r1 s 2.3.1
+# and to nothing else — there is no token here whose caution this tool would have to invent.
+# `audience` was designed in and then dropped: NIST names "the form of output of most use to
+# stakeholders" as a criterion but maps no method to an audience, so a token for it could only
+# have carried CAC's opinion dressed as a citation.
+SUGGEST_CONTEXT = {
+    "data-scarce": (
+        "Unfortunately, without supporting data, well-intentioned but misguided methods of "
+        "risk analysis amount to little more than a guess."),
+    "data-available": "",
+    "cost-constrained": (
+        "Inexpensive but accurate qualitative analysis that identifies the most risks and "
+        "leads to best mitigating those risks may be the right move for a particular "
+        "organization."),
+    "cost-not-constrained": (
+        "For others, a highly detailed quantitative risk assessment may require more "
+        "resources than a qualitative approach but may also provide specific and actionable "
+        "information that helps to focus attention on important threat scenarios."),
+}
+
+
+def _cmd_suggest_method(args):
+    """Propose analysis methods against NIST's own selection criteria. WRITES NOTHING.
+
+    **It does not rank, and it does not shorten the list** (BL-93 D-5.3). Every catalogue
+    method is shown every time; `--context` changes which NIST caution is attached to which
+    entry, never which entries survive. NIST is explicit that "there are benefits to both
+    qualitative and quantitative risk analysis methodologies and even the use of multiple
+    methodologies" (s 2.3.1), so a tool that quietly dropped half the list would be making a
+    recommendation NIST declines to make.
+
+    **It proposes with no `--context` rather than refusing** — and names the criteria left
+    unstated on the way past. Refusing would fail exactly the run this is most useful for:
+    somebody who has no method yet and has recorded no context to reason from. Naming the gap
+    is the honest half of that, and it costs a line.
+    """
+    _pos, opt = parse_flags(args, known={"context"})
+    raw = [t.strip() for t in _s(opt.get("context", "")).replace(",", " ").split() if t.strip()]
+    given = [t for t in raw if t in SUGGEST_CONTEXT]
+    # Ignored rather than fatal: this is advice, and refusing to advise because one word of
+    # context was misspelled would be the tool grading the question instead of answering it.
+    ignored = [t for t in raw if t not in SUGGEST_CONTEXT]
+    cat = load_method_catalogue()
+
+    print("Analysis methods — NIST IR 8286A r1 s 2.3.1/s 2.3.2. This proposes; it does not "
+          "rank, and it writes nothing.\n")
+    print("NIST's selection criteria, verbatim:")
+    for crit in (cat.get("selectionCriteria") or {}).get("criteria") or []:
+        print(f"  - \"{crit['nistSays']}\"\n    — {crit['nistLocator']}")
+    if given:
+        print(f"\nContext you stated: {', '.join(given)}")
+    else:
+        print("\nNo --context given, so every criterion above is UNSTATED and none of the "
+              "cautions below are tailored to you. Pass --context with any of: "
+              f"{', '.join(sorted(SUGGEST_CONTEXT))}")
+    if ignored:
+        print(f"Ignored (not a criterion this tool can ground in NIST): {', '.join(ignored)}")
+    for tok in given:
+        if SUGGEST_CONTEXT[tok]:
+            print(f"\n  {tok} — NIST: \"{SUGGEST_CONTEXT[tok]}\"")
+
+    print("\nThe catalogue, alphabetical — the order is the alphabet, not a preference:")
+    for row in sorted(cat.get("methods") or [], key=lambda r: r["id"]):
+        bits = [row["label"]]
+        if row.get("type"):
+            bits.append(f"({row['type']})")
+        if row.get("supplementary"):
+            bits.append("[supplements a technique rather than being one]")
+        print(f"\n  {row['id']} — {' '.join(bits)}")
+        print(f"    needs: {'; '.join(row.get('requires') or []) or 'not recorded'}")
+        print(f"    this toolkit can see its prerequisites: "
+              f"{'yes' if row.get('visibility') == 'checkable' else 'NO — ' + row.get('visibilityWhy', '')}")
+        for key in ("nistSays", "nistLimitation", "nistScopeCaveat", "nistBiasCaution"):
+            if row.get(key):
+                print(f"    NIST ({row.get(key + 'Locator') or row['nistLocator']}): "
+                      f"\"{row[key]}\"")
+        if row.get("nistNames"):
+            print(f"    {row['nistNames']}")
+        if row.get("namingRule"):
+            print(f"    ⚠️  {row['namingRule']}")
+    print(f"\n{cat['scopeNote']}")
     return 0
 
 
@@ -3717,7 +4047,7 @@ COMMANDS = {
     "add-theme": _cmd_add_theme, "set-theme": _cmd_set_theme,
     "set-escalation": _cmd_set_escalation, "escalations": _cmd_escalations,
     "set-currency": _cmd_set_currency, "set-response": _cmd_set_response,
-    "set-method": _cmd_set_method,
+    "set-method": _cmd_set_method, "suggest-method": _cmd_suggest_method,
 }
 
 

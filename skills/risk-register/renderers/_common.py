@@ -805,6 +805,62 @@ class Context:
         self.theme_rollup = self._theme_rollup()
         self.decisions = self._decisions()
         self.confirmation = self._confirmation_rollup()
+        self.method_mix = self._method_mix()
+
+    def _method_mix(self) -> dict:
+        """Which analysis types this register's live risks were scored by (BL-93 D-3, B6).
+
+        Mixed methods are NOT comparable and the engine does not pretend otherwise: no
+        conversion, no normalisation, no cross-method re-ranking anywhere. What it does is say
+        so on the page, because a heat map that silently ranks a Monte Carlo result against a
+        workshop guess presents them as the same kind of number.
+
+        ⚠️ **The disclosure is a caveat, never a criticism.** NIST is explicit that "there are
+        benefits to both qualitative and quantitative risk analysis methodologies and even the
+        use of multiple methodologies, based on enterprise strategy, organization preference,
+        and data availability" (IR 8286A r1 s 2.3.1). A mixed register is a legitimate register;
+        the reader just needs to know before comparing two rows.
+
+        Undeclared risks are counted and reported SEPARATELY rather than folded into a type.
+        Absent means not declared (CAC-AP-1 s 2.2) — never "no method was used" — so an
+        all-undeclared register is not a single-method register and must not read as one.
+        """
+        types, undeclared = {}, 0
+        for r in self.risks:
+            if r.get("status") == "closed":
+                continue
+            method, _src = sr.resolve_method(r, self.settings)
+            mtype = str((method or {}).get("type") or "").strip()
+            if mtype:
+                types[mtype] = types.get(mtype, 0) + 1
+            else:
+                undeclared += 1
+        return {
+            "types": types,
+            "undeclared": undeclared,
+            # Strictly more than one DECLARED type. One declared type beside undeclared risks
+            # is not a mix — it is one method plus a gap, and those want different sentences.
+            "mixed": len(types) > 1,
+        }
+
+    def method_mix_sentence(self) -> str:
+        """The disclosure, or "" when there is nothing to disclose.
+
+        Empty for a single-type register and for an all-undeclared one, which is what makes
+        this safe to drop into any page unconditionally.
+        """
+        mix = self.method_mix
+        if not mix["mixed"]:
+            return ""
+        order = [t for t in sr.ANALYSIS_TYPES if t in mix["types"]]
+        parts = ", ".join(f"{mix['types'][t]} {t}" for t in order)
+        tail = (f", and {mix['undeclared']} with no method recorded"
+                if mix["undeclared"] else "")
+        return (f"These risks were not all analysed the same way: {parts}{tail}. "
+                f"NIST supports using more than one method, so this is a caveat and not a "
+                f"fault — but scores produced by different methods are not directly "
+                f"comparable, and nothing here converts between them. Read a position against "
+                f"others analysed the same way.")
 
     # -- per risk --
 

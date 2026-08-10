@@ -21,15 +21,18 @@
       "id": "ir-8286-series",
       "label": "NISTIR 8286r1 / 8286A r1",
       "publisher": "NIST",
-      "instrument": "NIST IR 8286r1; NIST IR 8286A r1 s 2.2",
-      "version": "both final 18 Dec. 2025",
-      "checkedOn": "2026-08-08",
+      "instrument": "NIST IR 8286r1; NIST IR 8286A r1 ss 2.2, 2.3.1, 2.3.2",
+      "version": "both final 18 Dec. 2025; ss 2.3.1 and 2.3.2 read in full from the published PDF on 2026-08-10 for the analysis-method catalogue",
+      "checkedOn": "2026-08-10",
       "checkedBy": "claude-code",
       "gated": true,
       "reviewIntervalDays": 365,
       "usedFor": [
         "SKILL.md",
-        "references/schema.md"
+        "evals/analysis-method.sh",
+        "references/analysis-methods.json",
+        "references/schema.md",
+        "scripts/score_register.py"
       ]
     },
     {

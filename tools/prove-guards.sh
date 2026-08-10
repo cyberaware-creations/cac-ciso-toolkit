@@ -43,8 +43,8 @@ only=("$@")
 
 # Anti-vacuity, matching the house convention. A proof run that silently exercised nothing is
 # the thing this file exists to prevent, so the counts are asserted rather than printed.
-EXPECTED_GUARDS=39
-EXPECTED_HALVES=73
+EXPECTED_GUARDS=40
+EXPECTED_HALVES=75
 
 # GP-1.11 — a RATCHET, not an equality. `EXPECTED_GUARDS` and `EXPECTED_HALVES` are exact
 # because a guard appearing or vanishing is always worth a human look. This one is a floor:
@@ -56,7 +56,7 @@ EXPECTED_HALVES=73
 # need one. Sorting the 273 into those two piles is real work and is filed separately; what
 # this line does is stop the ratio sliding backwards while nobody is looking, which is exactly
 # how it reached 14% without anyone deciding to.
-EXPECTED_PROVED=96
+EXPECTED_PROVED=101
 
 guards_seen=0
 halves_seen=0

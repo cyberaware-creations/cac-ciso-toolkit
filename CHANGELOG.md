@@ -21,6 +21,85 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.88.0 — 2026-08-10
+
+**A declared method whose prerequisites are unmet is worth a CISO's attention — and a method
+whose prerequisites we cannot see is not ours to comment on.** BL-93 Phase B, B1–B7.
+
+`suggest-method [--context …]` proposes analysis methods against NIST's own selection criteria.
+`references/analysis-methods.json` ships the catalogue as data. `method-prerequisite-unmet`
+escalates at `medium`, and the register discloses when its risks were not all analysed the
+same way.
+
+### ⚠️ The boundary is the feature
+
+`external` methods — Monte Carlo, Bayesian, event tree, Open FAIR — escalate **nothing, under
+any input**. Monte Carlo's real prerequisites are the analyst's input distributions, Bayesian's
+are their priors, event tree's are their branch probabilities. This toolkit can see none of
+them, and flagging their absence would assert a fact about work done outside it. Same restraint
+as `untraced` being a value rather than a gap.
+
+`evals/analysis-method.sh` proves it in **both** directions: the external method stays silent
+**and** a checkable one with the same two gaps still fires twice. A guard that simply disabled
+the trigger would otherwise pass the half it was written to defend.
+
+### Two checks, not three
+
+`type: quantitative` with no `settings.currency`, and `conformance: partial` with an empty
+`deviations`. Both are arithmetic over facts the file already holds, and it stays two until a
+third is as mechanical as these. `medium` and not `high`: `acceptance-lapsed` is `high` because
+somebody is relying on something that expired — an undocumented deviation is wrong on the page,
+not wrong in the world. **The escalation needs no storage at all**; `escalations()` is derived
+and stateless, so a gap is computed on read and clears the moment it is fixed.
+
+### The catalogue is what the source actually says
+
+Read from **NIST IR 8286A r1 §§2.3.1–2.3.2** in full, from the published PDF, on 2026-08-10.
+That read corrected the plan twice, and both corrections are in the shipped data:
+
+- **NIST names five estimation techniques, not fourteen methods.** Entries carry a NIST
+  quotation only where NIST states one; the rest carry a citation and no `nistSays` at all
+  rather than an invented one. Delphi is named by NIST only inside a worked example, and the
+  entry says exactly that.
+- **OCTAVE® was dropped.** It appears nowhere in the section, and no primary source for it was
+  read. Filed rather than paraphrased from a secondary.
+
+**Not one word of Open FAIR or IEC 31010:2019 is reproduced** — including the passages NIST
+itself quotes. Where the licensed text and NIST make the same point about data quality, the
+catalogue carries NIST's public-domain sentence instead. A self-test asserts the licensed
+entries carry no quoted body text, so this is checked rather than remembered. Nothing in the
+catalogue requires buying a licence.
+
+### suggest-method proposes; it does not rank
+
+It writes nothing, and it **never shortens the list** — NIST is explicit that *"there are
+benefits to both qualitative and quantitative risk analysis methodologies and even the use of
+multiple methodologies"*, so a tool that quietly dropped half the catalogue would be making a
+recommendation NIST declines to make. `--context` changes which caution attaches to which
+entry. An unrecognised context value is **ignored, not fatal**. With no `--context` it proposes
+anyway and names the criteria left unstated — refusing would fail exactly the run this is most
+useful for. An `audience` token was designed in and dropped: NIST names the form of output as a
+criterion but maps no method to an audience, so the token could only have carried CAC's opinion
+dressed as a citation.
+
+### The mixed-method disclosure, and BL-92's loose end
+
+- The register render and the board page both disclose when more than one **declared** type is
+  present. On the board it sits **with the heat map**, because that graphic is where two risks
+  get compared. It is a caveat, never a criticism.
+- **All-undeclared is not single-method.** Absent means not declared (CAC-AP-1 §2.2), so an
+  all-undeclared register produces no sentence and must not read as one method. Pinned in the
+  guard.
+- **BL-92 D-1.2's "an unknown name warns" now exists**, because the catalogue it warns against
+  does. A **note**, never a refusal: `--name` stays free text and the record is written either
+  way.
+
+- `set-escalation --method-prerequisites on|off`; a register written before this release keeps
+  opening, and absent means the shipped default
+- `score_register.py self-test` 246 → **276**; guards 39 → **40**, halves 73 → **75**
+- `method-prerequisite-unmet` is clustered in `attention-surface` under **self-disagreement**
+  — provisional, and filed as an open decision
+
 ## v0.87.0 — 2026-08-10
 
 **The register records HOW a risk was analysed, not only what was concluded.** BL-92 Phase A,
