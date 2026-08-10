@@ -107,6 +107,15 @@ _CALL_CSFP = lambda fn, path: fn({"probe": "interrupted-write", "profile": {}}, 
 _HUB_SAVE = "skills/ai-register/scripts/ai_register.py"
 _HUB_CONTEXT = "skills/vendor-register/scripts/vendor_register.py"
 
+# The brand tokens duplicated across all nine `renderers/_common.py` copies. Named once here
+# and referenced by the entry below, so adding a tenth skill is one path rather than one path
+# per token.
+_BRAND_TOKENS = ("FONTS", "INK", "LIME", "PATINA", "SLATE", "WB", "WB_SURF", "WB_LINE")
+_COMMON = tuple("skills/%s/renderers/_common.py" % s for s in (
+    "risk-register",          # the hub: it lists the other eight
+    "ai-register", "business-context", "exceptions-register", "incident-materiality",
+    "metrics-register", "nist-csf", "policy-register", "vendor-register"))
+
 AS_DIRECTORY = object()
 """Payload sentinel: create the path as a DIRECTORY rather than a file.
 
@@ -376,6 +385,27 @@ TWINS = (
              "accepted"),
         ],
     },
+    {
+        "name": "brand tokens",
+        "kind": "constant",
+        "naming": "hub",
+        "why": "One palette, one brand, whatever surface a reader is on — and nine copies of "
+               "it. The duplication was DECLARED AT ONE END AND COMPARED AT NONE: only "
+               "nist-csf and risk-register named each other, and the other seven named "
+               "nothing. This was the registry's sole UNCOMPARED row for four releases, left "
+               "visible because the scope question was real: a whole-module comparison would "
+               "fail permanently on the derivation layer each copy deliberately differs in, "
+               "and would then be suppressed. What is checkable is what the declaration "
+               "actually promises — the tokens (BL-213).\n"
+               "ENUMERATING THEM TO REGISTER THIS FOUND DRIFT ALREADY THERE. "
+               "`business-context` requested a Manrope weight its own stylesheet never used "
+               "and never requested the one it did, so its bold headings rendered "
+               "synthetically while every sibling's rendered in the real face; and eight of "
+               "the nine were missing the fonts.gstatic.com preconnect. Neither was visible "
+               "in any test — the page renders, the CSS is valid, and a browser silently "
+               "approximates a font it was not given.",
+        "members": [(rel, _BRAND_TOKENS) for rel in _COMMON],
+    },
 )
 
 # A cross-skill path reference that is NOT an agreement obligation. Listed with its own reason,
@@ -400,7 +430,9 @@ UNCOMPARED = (
                "a derivation layer this one deliberately has none of. Not a function pair, so "
                "no corpus fits it. What could be compared is the shared brand tokens; that is "
                "a decision about scope, not something to improvise inside this guard.",
-     "not_compared": "everything except the age_bounds/age_band_ranges pair above"},
+     "not_compared": "the derivation layer and the CLI surface, deliberately — everything "
+                     "except the age_bounds/age_band_ranges pair and the nine-way brand-token "
+                     "entry above"},
 )
 
 MIN_REASON = 60
@@ -547,6 +579,24 @@ def run(repo, twins, not_a_twin, uncompared, scan=True):
                 missing = True
                 continue
             mod = _load(repo, rel)
+            # A member may name a TUPLE of symbols, resolved to a dict. That is for a set of
+            # constants that travel together — the nine copies of the brand tokens — where one
+            # registry entry per token would be nine near-identical rows, i.e. the list nobody
+            # maintains that `naming: hub` was invented to avoid (BL-213). Every name must be
+            # present in every member: a token defined in eight copies and not the ninth is the
+            # drift, not an excuse to compare the eight.
+            if isinstance(sym, tuple):
+                gone = [k for k in sym if not hasattr(mod, k)]
+                if gone:
+                    problems.append(
+                        "%s: %s does not define %s. A token the other copies carry and this "
+                        "one does not is exactly the divergence this entry exists to catch."
+                        % (name, rel, ", ".join(repr(g) for g in gone)))
+                    missing = True
+                    continue
+                obj = {k: getattr(mod, k) for k in sym}
+                loaded.append((rel, obj, m[2] if len(m) > 2 else (lambda x: x)))
+                continue
             if not hasattr(mod, sym):
                 problems.append(
                     "%s: %s no longer defines %r. A twin whose symbol was renamed on one side "

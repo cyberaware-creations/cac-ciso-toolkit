@@ -20,6 +20,16 @@ through an optional --translations sidecar, or clearly marked as absent.
 
 Standard library only.
 """
+#
+# BRAND TOKENS ARE A DECLARED NINE-WAY TWIN (CAC-TW-1, BL-213). `FONTS`, `INK`, `LIME`,
+# `PATINA`, `SLATE`, `WB`, `WB_SURF` and `WB_LINE` are duplicated across all nine
+# `renderers/_common.py` copies and must agree character for character — one palette, one
+# brand, whatever surface a reader is on. The family is listed in
+# skills/risk-register/renderers/_common.py; `tools/check-twins.py` compares all nine on every
+# run and fails if any token moves alone.
+#
+# Nothing else in these modules is claimed to agree. Each carries its own derivation layer and
+# its own CLI surface, deliberately.
 
 from __future__ import annotations
 
@@ -173,7 +183,15 @@ AGE_BAND_FILL = {"within": "#E4DFD2", "approaching": "#C0B49B",
 #
 # `--offline` is the honest escape hatch: no request, system stack, layout unchanged
 # because the CSS already names fallbacks. Default stays branded.
+# The gstatic preconnect is where the font FILES come from; the googleapis one only
+# reaches the stylesheet. Eight of the nine copies had only the second until v0.85.0,
+# so the nine `FONTS` values were not identical and the CAC-TW-1 brand-token twin below
+# could not be registered without either converging them or exempting a real difference.
+# Converged on the fuller form rather than the majority one: matching eight files by
+# deleting a correct resource hint from the ninth would be the checker dictating the
+# product (BL-213).
 FONTS = ('<link rel="preconnect" href="https://fonts.googleapis.com">'
+         '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
          '<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700'
          '&family=Space+Grotesk:wght@500;600&display=swap" rel="stylesheet">')
 FONTS_OFFLINE = ""
