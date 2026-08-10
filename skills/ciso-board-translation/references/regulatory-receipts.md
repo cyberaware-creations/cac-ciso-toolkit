@@ -85,18 +85,25 @@ oversight, not to be perfect.
 
 ### Two 2025 decisions that put a floor under *Bingle*
 
-> ⚠️ **Provenance, stated because it differs from the rest of this section.**
-> The four decisions in this block were **checked against the RW-001 dossier's
-> primary-source pass and independently corroborated by authoritative secondary
-> reporting** (2026-08-10) — the same two-path standard the *Sorenson* and
-> *Bingle* rows carry. **No slip opinion was opened and no citator was run**, so
-> subsequent history is unconfirmed.
+> ✅ **Provenance, stated because it differs from the rest of this section — and
+> it is now STRONGER than the rest.**
+> The slip opinions in this block were **read in full from the courts' own
+> servers** on 2026-08-10: *Giuliano*, *Brewer*, *In re TransUnion* and
+> *Marchner* from the Delaware Courts opinion server, and the *Brewer*
+> interlocutory disposition from the Supreme Court's own order. Case numbers,
+> judges, dates and dispositions below are taken from those documents, not from
+> reporting about them.
 >
-> **One citation in this block did NOT corroborate: the *Brewer* interlocutory
-> appeal** (No. 444, 2025). The Chancery memorandum opinion did; the appellate
-> disposition did not. It carries its own, weaker marker below rather than
-> sharing this one — upgrading the block wholesale would have buried the only
-> real gap in it. Pull the primary text before quoting any of these in a room.
+> **The *Brewer* interlocutory appeal now corroborates.** It was the one gap in
+> this block; the Supreme Court's order was opened and reads, in terms,
+> *"IT IS ORDERED that the interlocutory appeal is REFUSED."* Two things about
+> it are worth carrying and are stated on its row: the parties **reverse** on
+> appeal, and it is an **ORDER**, not a signed opinion — the same caveat the
+> *Bingle* affirmance carries.
+>
+> ⚠️ **No citator was run** — no Shepard's, no KeyCite — so subsequent history
+> beyond what these documents themselves record is unconfirmed. What each case
+> HOLDS was read; whether it has since been distinguished or overruled was not.
 
 - *Giuliano v. Grenfell-Gardner* (Teligent), C.A. No. 2021-0452-KSJM (Del. Ch.,
   2 Sep. 2025) (McCormick, C.) — motion to dismiss **largely denied on prong
@@ -111,12 +118,40 @@ oversight, not to be perfect.
   now a decision holding that a system can be insufficient, and *management
   electing what reaches the board* is the specific failure it names.
 - *Brewer v. Turner* (Regions Financial), C.A. No. 2023-1284-KSJM (Del. Ch.,
-  29 Sep. 2025) — the **information-systems** theory was rejected and the
-  **red-flags** theory sustained, on a whistleblower complaint that had been
-  discussed in board minutes. Interlocutory appeal refused (Del. Supr. No. 444,
-  2025, 15 Dec. 2025) — ⚠️ **the appellate disposition is the one citation in
-  this block carried on the RW-001 dossier ALONE; it did not corroborate.** The
-  Chancery opinion in the same sentence did. Verify it before stating it.
+  29 Sep. 2025) (McCormick, C.) — the **red-flags** theory was **sustained**:
+  the court found that a majority of the demand board faced a substantial
+  likelihood of liability on it, so demand was excused as futile. The red flag
+  was a draft complaint Regions' former general counsel sent **to the board**,
+  alleging he had been fired in part for blowing the whistle on the overdraft
+  practices; the board hired an attorney to investigate and did not change the
+  practices for around twenty months.
+  What was **dismissed** was Count II — the **officer** defendants — in its
+  entirety, and Count I as to the directors who were **not on the board during
+  the period of alleged wrongdoing**. The parallel *Massey* claim was **not
+  reached at all**: having found the *Caremark* claim viable, the court declined
+  to address it.
+  Interlocutory appeal **refused** — *Turner v. Brewer*, No. 444, 2025 (Del.
+  15 Dec. 2025) (Seitz, C.J.; Valihura and Griffiths, JJ.). ⚠️ Two things:
+  the parties **reverse** on appeal, and this is an **ORDER**, not a signed
+  opinion — the same caveat the *Bingle* affirmance carries.
+
+**What *In re TransUnion* actually does with *Sorenson* and *Bingle*, read rather
+than assumed.** The two are **not** carried the same way, and the receipts should
+not imply they are.
+
+- ***Sorenson* — cited six times, approvingly and substantively.** It supports the
+  proposition that imperfect attempts at compliance are not bad faith, with an
+  approving parenthetical describing it as *"dismissing a Caremark claim where the
+  directors were informed that remedial actions were taken to address known
+  data"* issues. That is real reliance on its reasoning.
+- ***Bingle* — cited once**, in a footnote, with a bare *"See"* signal, for the
+  black-letter statement of the two conditions of oversight liability. Nothing
+  disapproving; but nothing that engages its reasoning either. **Do not describe
+  *TransUnion* as endorsing *Bingle*** — it uses it to state a standard.
+
+That footnote also carries the *Bingle* affirmance at its reporter citation,
+**297 A.3d 1083 (Del. 2023) (TABLE)** — the table designation independently
+confirming what the *Bingle* row already says: an order, not a signed opinion.
 
 **⚠️ THE COROLLARY, AND IT CUTS BOTH WAYS.** Documented board-level process is
 what earns prong-one protection — and it is simultaneously **the discoverable
@@ -384,10 +419,11 @@ checked. Nothing here is a substitute for counsel reading the current text.
 | SolarWinds derivative | *Construction Industry Laborers Pension Fund v. Bingle*, C.A. No. 2021-0940-SG (Del. Ch. 6 Sep. 2022) (Glasscock, V.C.); Final Order and Judgment 13 Oct. 2022; *aff'd by order*, No. 411, 2022 (Del. 17 May 2023) — an order on the Chancery court's reasoning, **not a signed opinion** | Del. Ch.; Delaware Supreme Court |
 | Demand futility | *United Food & Commercial Workers Union v. Zuckerberg*, **262 A.3d 1034 (Del. 2021)** — the universal three-part test *Sorenson* applied | Delaware Supreme Court; Atlantic Reporter 3d |
 | "Mission critical" | *Marchand v. Barnhill*, **212 A.3d 805 (Del. 2019)** | Delaware Supreme Court; Atlantic Reporter 3d |
-| Prong one, 2025 | *Giuliano v. Grenfell-Gardner*, C.A. No. 2021-0452-KSJM (Del. Ch. 2 Sep. 2025) (McCormick, C.) — **two source paths agreed; no slip opinion opened, no citator run** | Delaware Court of Chancery |
-| Red flags, 2025 | *Brewer v. Turner*, C.A. No. 2023-1284-KSJM (Del. Ch. 29 Sep. 2025) — **two source paths agreed; no slip opinion opened, no citator run** | Delaware Court of Chancery |
-| Red flags, 2025 — appellate disposition | *Brewer v. Turner*, interlocutory appeal refused, No. 444, 2025 (Del. 15 Dec. 2025) — ⚠️ **RW-001 dossier ALONE. This is the one citation in the block that did NOT corroborate**, and it is split from the Chancery row above so that fact cannot be read off the wrong marker. No slip opinion, no citator. Verify the disposition before stating it | Delaware Supreme Court |
-| Reinforcing | *In re TransUnion*, C.A. No. 2022-1103-LWW (Del. Ch. 1 Oct. 2024) (Will, V.C.); *Marchner v. Riley* (Del. Ch. 30 Mar. 2026) — **two source paths agreed; no slip opinion opened, no citator run**. ⚠️ *Marchner* still carries **no C.A. number and no judge**; this pass did not obtain them | Delaware Court of Chancery |
+| Oversight failure, 2025 | *Giuliano v. Grenfell-Gardner*, C.A. No. 2021-0452-KSJM (Del. Ch. 2 Sep. 2025) (McCormick, C.) — Counts II and IV dismissed, Count III dismissed as to one officer, motion "otherwise denied" — **slip opinion read 2026-08-10; no citator run** | Delaware Court of Chancery |
+| Red flags, 2025 | *Brewer v. Turner*, C.A. No. 2023-1284-KSJM (Del. Ch. 29 Sep. 2025) (McCormick, C.), **2025 WL 2769895** — **slip opinion read 2026-08-10; no citator run** | Delaware Court of Chancery |
+| Red flags, 2025 — certification refused below | *Brewer v. Turner*, **2025 WL 3048942** (Del. Ch. 30 Oct. 2025) — the Chancery order **denying certification** of the interlocutory appeal. A **separate, later document** from the 29 Sep. memorandum opinion; several databases index the case at this date, which is why the two dates both appear and neither is wrong — **slip opinion read 2026-08-10; no citator run** | Delaware Court of Chancery |
+| Red flags, 2025 — appellate disposition | ***Turner v. Brewer***, No. 444, 2025 (Del. 15 Dec. 2025) (Seitz, C.J.; Valihura and Griffiths, JJ.) — interlocutory appeal **REFUSED**. ⚠️ **The parties reverse on appeal**, and this is an **ORDER, not a signed opinion** — the *Bingle* caveat applies. **slip opinion read 2026-08-10; no citator run** | Delaware Supreme Court |
+| Reinforcing | *In re TransUnion Deriv. S'holder Litig.*, Consolidated C.A. No. 2022-1103-LWW (Del. Ch. 1 Oct. 2024) (Will, V.C.) — motion to dismiss granted; *Marchner v. Riley*, **C.A. No. 2025-0164-LWW** (Del. Ch. **30 Mar. 2026**) (Will, V.C.) — complaint dismissed in full under Rule 23.1. ⚠️ **The *Marchner* slip opinion's own date line reads "March 30, 2025", which cannot be right**: the same header gives "Date Submitted: December 22, 2025". It is a typo in the court's document; the year is **2026**. **slip opinion read 2026-08-10; no citator run** | Delaware Court of Chancery |
 | Boeing | *In re The Boeing Company Derivative Litigation*, C.A. No. 2019-0907-MTZ (Del. Ch. 7 Sep. 2021) | Delaware Court of Chancery |
 | DORA ICT risk-management RTS | Commission Delegated Regulation **(EU) 2024/1774**, Art. 3, point (d)(iii)–(iv); OJ 25.6.2024, in force 15 Jul. 2024 | EUR-Lex, CELEX 32024R1774 |
 | DORA incident-reporting RTS | Commission Delegated Regulation **(EU) 2025/301**, Art. 5 — the initial / intermediate / final time limits, made under DORA Art. 19(4); OJ 20.2.2025 | EUR-Lex, CELEX 32025R0301 |
