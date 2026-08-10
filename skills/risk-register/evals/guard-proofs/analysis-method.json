@@ -25,6 +25,19 @@
       "file": "skills/risk-register/scripts/score_register.py",
       "find": "    if entry and entry.get(\"visibility\") == \"external\":\n        return []",
       "replace": "    if False:\n        return []"
+    },
+    {
+      "half": "external-write",
+      "why": "the write-side boundary removed, so an external method is refused `partial` with no deviations again. This is the pre-BL-238 behaviour, and it is the mutation a future 'surely we should still catch THIS one' change actually makes: the escalation half stays silent under it, so nothing else in this suite notices.",
+      "note": "Registered as its own half rather than folded into `external` because the two sites are in different functions and fail in different directions — one is a refusal at write, the other an escalation at read. A single half would have meant one mutation could not distinguish them.",
+      "defeats": [
+        "an external method is NOT refused partial with no deviations (BL-238)",
+        "...and the uncaveated record is actually stored, not dropped",
+        "...and set-method says the fields are recorded but not checked"
+      ],
+      "file": "skills/risk-register/scripts/score_register.py",
+      "find": "    entry = catalogue_entry(name, catalogue)\n    if entry and entry.get(\"visibility\") == \"external\":\n        return",
+      "replace": "    entry = catalogue_entry(name, catalogue)\n    if False:\n        return"
     }
   ]
 }

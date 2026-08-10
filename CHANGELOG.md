@@ -21,6 +21,61 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.99.0 — 2026-08-10
+
+**Decided: external methods are told nothing about their conformance, with no exceptions.**
+Monte Carlo, Bayesian, event tree and Open FAIR. `set-method` no longer refuses `partial` with
+an empty `deviations` for them, and no escalation is raised about one.
+
+**A boundary with an exception is not a boundary — it is a rule with a footnote.** The sentence
+this tool asks a CISO to repeat to a third party is *"it says nothing about analysis it cannot
+see."* That survives repetition; *"…except when it does"* does not.
+
+⚠️ **This is a recorded departure from the research, not an oversight.** The counter-case was
+real and is preserved here rather than argued away: `conformance` and `deviations` are fields a
+person filled in *inside* this tool, and v0.88.0's own note calls both checks *"arithmetic over
+facts the file already holds"* — on which reading the check reports the record being
+inconsistent with itself, not a claim about outside work. The absolute boundary was chosen over
+that reading, deliberately.
+
+**What is given up, stated rather than mitigated:** an incomplete record goes unreported when
+the method is external. No softer half-measure was added to recover it — that half-measure is
+exactly the footnote the decision refuses.
+
+### T1 — and the question it asked was worth asking
+
+The escalation path was **already** silent for external methods on **both** gaps, including
+`quantitative`-without-`settings.currency`: the early return sits above both. **Confirmed by
+running it, not assumed.** So the change is entirely in the *write refusal* — a different
+function, `check_method`, which had no notion of the boundary at all.
+
+The boundary is placed **after** `name`, `type` and `conformance` are validated. Those say
+*which* analysis was run and stay enforced for every method; it is only the follow-up question
+about the level that stops. External does not mean unvalidated.
+
+### T3 — the removed behaviour is asserted ABSENT, by name
+
+Both the suite and the engine self-test had checks built on `OPEN FAIR` — which is *external* —
+as their example of the refusal. **Left alone, those would have flipped from proving the
+refusal to proving nothing, while still printing green.** They now use a checkable method, and
+four new checks assert the external case explicitly: not refused, the uncaveated record actually
+*stored*, name/type/conformance still validated, and `set-method` printing the note that says
+the fields are recorded but not checked.
+
+A check that quietly stops existing is how 51 checks in this repo once came to read a crash as a
+pass. The fix for a deleted guarantee is an assertion that it is gone, not a gap where it was.
+
+### The mutation found a real defect in my own test
+
+`external-write` is registered as its own half — the two sites are in different functions and
+fail in different directions, so one mutation could not distinguish them. Running it exposed
+that the new probe called `set-method` outside the suite's `run()` wrapper, so under mutation it
+raised and **killed the probe**, silently taking seven later checks with it. Hardened. That is
+the *"a case stopped executing"* failure `EXPECTED_CHECKS` exists for, caught by mutation rather
+than by review.
+
+**41 guards / 79 → 80 halves / 113 → 116 proved.**
+
 ## v0.98.0 — 2026-08-10
 
 **The crosswalk is built at SP 800-53 Release 5.2.0.** No download was needed — the pinned
