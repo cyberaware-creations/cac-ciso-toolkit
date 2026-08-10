@@ -21,6 +21,60 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.100.0 — 2026-08-10
+
+**The discoverability caveat now carries the corollary, and `exceptions-register` declares case
+law for the first time.**
+
+A CISO being sold a permanent, queryable inventory of accepted risk hears the *Caremark*
+argument for keeping it. They should hear the other half in the same breath rather than later
+from opposing counsel: **the documented board-level process that earns prong-one protection is
+the same discoverable record that can establish prong-two knowledge.** Not two records. One.
+
+*Brewer v. Turner* is that in one case. The information-systems theory *"can be addressed in
+short order"* — the §220 documents showed multiple Board committees tasked with risk management
+and there was *"no straight-faced argument that Regions lacked an information system."* Footnote
+67, carrying that conclusion, cites Risk Committee minutes, joint Risk-and-Audit Committee
+minutes and **December 2019 and September 2020 Board meeting minutes** — from the same §220
+production showing the board received the whistleblower's draft complaint and left the practices
+in place for ~20 months. **One production, both jobs.**
+
+### ⚠️ The precision that had to survive the import
+
+Prong one fell away because the existence of a system was **not seriously contestable** — *not*
+on a merits finding that the system was adequate.
+
+That difference is the whole advice. *"Having a system defeats prong one"* is materially
+different from *"nobody could argue with a straight face that they had none"*, and only the
+second is what the opinion says. The first wording sat in the originating item's prose until it
+was caught. **A record good enough to make prong one unarguable buys nothing on prong two** — in
+*Brewer* it supplied the evidence on the other side.
+
+### Imported, not re-derived
+
+The sentence already existed and was already correct — v0.94.0 shipped it after that opinion had
+been read twice and corrected once. It was carried across rather than re-derived, and the
+opinion was **not** re-read: a third pass risks repeating the damage rather than avoiding it.
+
+### The first case-law source this skill declares
+
+`exceptions-register/sources.json` held four ids and no case law. `delaware-caremark-cases` is
+added on a **180-day** interval matching `ciso-board-translation`'s row on the same case,
+deliberately not drifting from it — *Brewer* is live litigation, and the sweep that produced the
+row measured the movement rate directly.
+
+**The provenance says what is uneven about it rather than reading cleanly.** The *Brewer* slip
+opinion was read in full and every quotation comes from it; *Caremark* and *Stone* are cited for
+the standard they state and were **not** re-read. **No commercial citator has ever been run** —
+the paid pass is authorised and outstanding (BL-232), so this block is *swept, not Shepardised*.
+The withdrawn zero-count correction is carried forward too, pointing at CAC-RW-1.14.
+
+### Not in this pass
+
+The **DGCL §220 / SB 21 statutory hook stays on BL-144** and is unverified primary law. Verified
+absent on the way out: `DGCL`, `SB 21`, `Rutledge` and `books and records` return **zero** across
+the whole skill.
+
 ## v0.99.0 — 2026-08-10
 
 **Decided: external methods are told nothing about their conformance, with no exceptions.**
