@@ -360,6 +360,25 @@ def check_crosswalks(index: dict, path: str | None = None) -> list[str]:
 
 # --- Store IO ----------------------------------------------------------------
 
+_CORE_REF_CACHE = {}
+
+
+def core_ref(core: dict = None) -> dict:
+    """`{"version": ..., "sha256": ...}` for the shipped Core — its identity, not its content.
+
+    The sha256 is the same string `tools/check-versions.py` compares the vendored CPRT export
+    against, so a store's stamp, the shipped Core and the file on disk are all one identity
+    (BL-75, BL-109). Cached because `save_store` calls it on every write and the Core is a
+    2MB read.
+    """
+    if core is None:
+        if "ref" not in _CORE_REF_CACHE:
+            _CORE_REF_CACHE["ref"] = core_ref(load_core())
+        return _CORE_REF_CACHE["ref"]
+    return {"version": core.get("version"),
+            "sha256": ((core.get("source") or {}).get("sha256"))}
+
+
 def load_store(path: str) -> dict:
     """Load and structurally validate a `.csfp` store."""
     try:
@@ -413,6 +432,10 @@ def load_store(path: str) -> dict:
     cyber.setdefault("mode", "advisory")
     cyber.setdefault("datasetVersion", None)
 
+    # Absent means NOT RECORDED, never "matches". Every store written before v0.80.0 has no
+    # stamp, and the reader has to be able to tell that from agreement (BL-109 T2).
+    store["profile"].setdefault("coreRef", None)
+
     for a in store["assessments"]:
         a.setdefault("confirmedAt", None)
         a.setdefault("confirmedBy", None)
@@ -440,6 +463,22 @@ def save_store(store: dict, path: str, ts: str) -> None:
     """
     store["schemaVersion"] = SCHEMA_VERSION
     store["profile"]["updated"] = ts
+    # WHICH CORE THIS STORE WAS LAST WRITTEN AGAINST (BL-109 T2).
+    #
+    # Nothing recorded it. `profile.frameworkRef` is the literal "nist-csf-2.0" — a framework
+    # identity, not a version — and no report stated which export produced the Core it was
+    # computed against. So a store assessed against one Core and analysed against a later one
+    # was indistinguishable from one that had never moved.
+    #
+    # Stamped HERE rather than in each mutating command, for the same reason `profile.updated`
+    # is: one place, and a command added later cannot forget it. The identity is the export's
+    # sha256, following BL-75 — a date says when somebody downloaded a file, a hash says which
+    # file. The version string rides along because it is what a human recognises.
+    #
+    # A legacy store gets it on its next write and reads as *not recorded* until then.
+    # Refusing one would strand a CISO mid-assessment, which is the BL-169 D-2 violation this
+    # whole item is careful not to commit.
+    store["profile"]["coreRef"] = dict(core_ref())
     directory = os.path.dirname(os.path.abspath(path)) or "."
     fd, tmp = tempfile.mkstemp(dir=directory, suffix=".csfp.tmp")
     try:
@@ -451,6 +490,46 @@ def save_store(store: dict, path: str, ts: str) -> None:
         if os.path.exists(tmp):
             os.unlink(tmp)
         raise
+
+
+def provenance_notes(store: dict, dataset: dict = None) -> list[str]:
+    """Sentences about WHICH DATA produced this Profile. Notes, never refusals (BL-109 D-1).
+
+    Two comparisons nobody was making. `overlay list` printed the shipped dataset version and
+    the in-force one **on adjacent lines** and said nothing about the difference; `analyze`
+    reported the shipped version in its footer while the store still held an older stamp, with
+    no warning, no note and exit 0. The numbers were on screen. The comparison was not.
+
+    A mismatch is a fact about provenance, not an invalid store. Refusing would strand a CISO
+    mid-assessment the day a dataset or a Core moves, which is exactly the BL-169 D-2 failure
+    this repo refuses to commit — so these are notes, and everything still analyses.
+
+    `coreRef` absent means NOT RECORDED — every store written before v0.80.0 — and that is
+    reported as its own sentence rather than as agreement or as a mismatch.
+    """
+    notes = []
+    stamped = (store.get("profile") or {}).get("coreRef") or {}
+    shipped = core_ref()
+    if not stamped:
+        notes.append(
+            "This Profile does not record which Core it was assessed against — it was written "
+            "before that was stamped. The next write records it.")
+    elif stamped.get("sha256") != shipped.get("sha256"):
+        notes.append(
+            "This Profile was last written against Core %s (%s); the shipped Core is %s (%s). "
+            "Ratings still load and analyse; what may have moved is which Subcategories exist."
+            % (stamped.get("version"), (stamped.get("sha256") or "?")[:12],
+               shipped.get("version"), (shipped.get("sha256") or "?")[:12]))
+    cfg = ((store.get("overlays") or {}).get("cyberAi") or {})
+    if dataset and cfg.get("enabled"):
+        in_force, avail = cfg.get("datasetVersion"), dataset.get("datasetVersion")
+        if in_force and avail and in_force != avail:
+            notes.append(
+                "The overlay was enabled on dataset %s; the shipped dataset is %s. This "
+                "analysis used the shipped one. Re-run `overlay enable` to re-stamp the "
+                "Profile, or disable the overlay if the older priorities were the point."
+                % (in_force, avail))
+    return notes
 
 
 def check_store(store: dict, index: dict) -> list[str]:
@@ -619,14 +698,38 @@ def _coverage_of(subset: list[dict]) -> dict:
     return {"percent": (n / d * 100) if d else None, "n": n, "d": d}
 
 
-def _completeness_of(subset: list[dict]) -> dict:
+def _completeness_of(subset: list[dict], expected: int = None) -> dict:
+    """How much of the FRAMEWORK has been looked at — denominator from the Core, not the store.
+
+    ⚠️ `expected` is the count of Subcategories the shipped Core carries in this scope, and it
+    is the whole point of this function (BL-109 T4). Until v0.80.0 `total` was `len(subset)`,
+    so a Subcategory the Core has and the store does not simply **left the denominator**: a
+    Profile missing a row reported complete coverage of a framework it no longer fully covers,
+    exit 0, no note. The opposite direction was always loud — an assessment for a Subcategory
+    the Core removed fails `check_store` by name — so the register was strict about extra rows
+    and silent about missing ones, which is the wrong way round for a number that reaches a
+    board page.
+
+    A Core Subcategory absent from the store is **unassessed, not out of scope.** Out of scope
+    is a declaration somebody makes; absence is a declaration nobody made, and reading it as
+    `notApplicable` would let a store shrink its own denominator by deleting rows. So missing
+    rows count into `total` AND into `inScope`, and `notInStore` reports how many there are.
+
+    `expected=None` keeps the old store-relative behaviour, for callers measuring a subset that
+    is not a framework scope.
+    """
     scoped = in_scope(subset)
+    total = len(subset) if expected is None else max(expected, len(subset))
+    missing = total - len(subset)
     return {
-        "total": len(subset),
-        "inScope": len(scoped),
+        "total": total,
+        "inScope": len(scoped) + missing,
         "notApplicable": len(subset) - len(scoped),
         "assessed": sum(1 for a in scoped if a.get("current") is not None),
         "targeted": sum(1 for a in scoped if a.get("target") is not None),
+        # Absent from the store entirely. Reported rather than folded into `inScope` alone,
+        # so a reader can tell "not yet rated" from "not in this Profile at all".
+        "notInStore": missing,
     }
 
 
@@ -652,12 +755,25 @@ def compute_coverage(assessments: list[dict], index: dict, core: dict) -> dict:
 
 
 def compute_completeness(assessments: list[dict], index: dict, core: dict) -> dict:
+    """Completeness against the CORE. The denominators come from the framework (BL-109 T4).
+
+    `byCategory` iterates the CORE's categories, not the store's, for the same reason
+    `compute_coverage`'s `byFunction` iterates `function_ids(core)`: a Category with no
+    assessments at all must appear as fully unassessed rather than silently vanish from the
+    dashboard. Before this it appeared only if the store happened to hold a row in it.
+    """
     by_fn = _group(assessments, index, "functionId")
     by_cat = _group(assessments, index, "categoryId")
+    core_fn, core_cat = {}, {}
+    for meta in index.values():
+        core_fn[meta["functionId"]] = core_fn.get(meta["functionId"], 0) + 1
+        core_cat[meta["categoryId"]] = core_cat.get(meta["categoryId"], 0) + 1
     return {
-        "overall": _completeness_of(assessments),
-        "byFunction": {fid: _completeness_of(by_fn.get(fid, [])) for fid in function_ids(core)},
-        "byCategory": {cid: _completeness_of(subset) for cid, subset in sorted(by_cat.items())},
+        "overall": _completeness_of(assessments, len(index)),
+        "byFunction": {fid: _completeness_of(by_fn.get(fid, []), core_fn.get(fid, 0))
+                       for fid in function_ids(core)},
+        "byCategory": {cid: _completeness_of(by_cat.get(cid, []), core_cat[cid])
+                       for cid in sorted(core_cat)},
     }
 
 
@@ -2303,6 +2419,7 @@ def _cmd_snapshot(args):
     ts = _s(opt.get("ts")) if isinstance(opt.get("ts"), (str, list)) else _now()
     label = _s(opt["label"])
 
+    _ov = (store.get("overlays") or {}).get("cyberAi") or {}
     snap = {
         "id": re.sub(r"[^a-z0-9]+", "-", label.lower()).strip("-"),
         "label": label, "ts": ts,
@@ -2312,6 +2429,19 @@ def _cmd_snapshot(args):
         # and closed, which is half of "what changed since last review".
         "actionItems": copy.deepcopy(store["actionItems"]),
         "rollups": rollups(store, index, core),
+        # WHICH DATA PRODUCED THIS SNAPSHOT (BL-109 T5).
+        #
+        # `references/schema.md` and `references/cyber-ai-overlay.md` both said the dataset
+        # version was "stamped into snapshots". It was not: a snapshot's keys were exactly the
+        # seven above, and the serialised record contained no `dataset` or `overlay` substring
+        # anywhere. Of the two ways to end a false claim — make it true or delete it — this one
+        # is worth making true. A snapshot is a stored report a board reads months later, and a
+        # stored report that cannot say what produced it is this item's whole subject, frozen.
+        #
+        # `datasetVersion` is null when the overlay is off, which is a fact rather than an
+        # absence: the snapshot was taken with no overlay in force.
+        "coreRef": dict(core_ref(core)),
+        "datasetVersion": (_ov.get("datasetVersion") if _ov.get("enabled") else None),
     }
     store["snapshots"].append(snap)
     append_history(store, "snapshot-created", rationale=snap["note"] or label,
@@ -2676,6 +2806,11 @@ def _cmd_overlay(argv):
                   f"mode: {cfg['mode']}  dataset in force: {cfg['datasetVersion']}")
         else:
             print("  disabled. This Profile is not affected by the overlay.")
+        # The two versions were printed on adjacent lines and never compared — the cheapest
+        # possible place to notice, and the place it was not noticed (BL-109 T1).
+        for note in provenance_notes(store, dataset):
+            print("")
+            print(f"  note: {note}")
         print("")
         print("Priority indicates sequencing, not required maturity. Enabling adds "
               "no assessment work — the overlay reweights the existing 106 "
@@ -3292,9 +3427,17 @@ def _cmd_analyze(args):
             "id": prof.get("id"), "name": prof.get("name"), "frameworkRef": prof.get("frameworkRef"),
             "scope": prof.get("scope", {}), "settings": settings,
             "created": prof.get("created"), "updated": prof.get("updated"),
+            # A fact about the STORE, so it sits with the store's other facts rather than in
+            # the `framework` block — that block describes the framework and must not vary
+            # with which Profile is being analysed. `None` means not recorded, never agreement.
+            "assessedAgainstCore": prof.get("coreRef"),
         },
         "framework": {
             "id": core.get("id"), "name": core.get("name"), "version": core.get("version"),
+            # Which EXPORT produced this Core, not just which framework version. No report
+            # stated it before v0.80.0, so two analyses of the same Profile against different
+            # Cores were indistinguishable after the fact (BL-109).
+            "sha256": core_ref(core).get("sha256"),
             "subcategories": len(index),
             "functions": [{"id": f["id"], "name": f.get("name"),
                            "categories": [{"id": c["id"], "name": c.get("name")}
@@ -3373,6 +3516,14 @@ def _cmd_analyze(args):
             crosswalks[fid] = block
         out["crosswalks"] = crosswalks
 
+    # WHICH DATA PRODUCED THIS (BL-109 T1/T3). In the report so a rendered page or a board
+    # pack can carry it, and on stderr so a person running the command sees it — stderr
+    # because stdout is the JSON when --out is not given, and a note that corrupts the
+    # payload is worse than no note. Never a non-zero exit: a provenance mismatch is a fact,
+    # not an invalid store.
+    notes = provenance_notes(store, ov_data if cfg["enabled"] else None)
+    out["provenanceNotes"] = notes
+
     text = json.dumps(out, indent=2, ensure_ascii=False)
     dest = _s(opt.get("out")) if isinstance(opt.get("out"), (str, list)) else None
     if dest:
@@ -3381,6 +3532,8 @@ def _cmd_analyze(args):
         print(f"Wrote {dest}")
     else:
         sys.stdout.write(text + "\n")
+    for note in notes:
+        print("note: " + note, file=sys.stderr)
     return 0
 
 
@@ -3602,10 +3755,71 @@ def _cmd_self_test(_args):
     ok(cov["byCategory"]["GV.SC"]["percent"] == 0.0 and cov["byFunction"]["DE"]["percent"] is None,
        "rated-0 (0%) and untargeted (null) are distinguishable")
 
-    # --- Completeness ---
+    # --- Completeness, measured against the CORE (BL-109 T4) ---
+    #
+    # This fixture holds 10 assessments. Until v0.80.0 it reported `total: 10` — the store
+    # measuring itself, and presenting a complete-looking picture of 10% of the framework.
     comp = compute_completeness(store["assessments"], index, core)
-    eq(comp["overall"], {"total": 10, "inScope": 9, "notApplicable": 1, "assessed": 8, "targeted": 8},
-       "overall completeness")
+    eq(comp["overall"], {"total": 106, "inScope": 105, "notApplicable": 1, "assessed": 8,
+                         "targeted": 8, "notInStore": 96},
+       "overall completeness counts against the Core, not the store")
+    # The load-bearing property, asserted rather than left implicit in the numbers above: a
+    # Subcategory the Core has and the store does not is UNASSESSED, never out of scope.
+    # Reading absence as `notApplicable` would let any store shrink its own denominator by
+    # deleting rows.
+    eq(comp["overall"]["total"], len(index),
+       "...and the denominator IS the Core's Subcategory count")
+    eq(comp["overall"]["notApplicable"], 1,
+       "a missing row does not become an n/a — only a declaration does that")
+    # Every Category in the Core appears, even one the store never touched. Before this,
+    # byCategory iterated the store, so an untouched Category vanished from the dashboard.
+    _core_cats = {meta["categoryId"] for meta in index.values()}
+    eq(set(comp["byCategory"]), _core_cats,
+       "every Core Category appears, including ones the store has no row in")
+    # And the direction that reaches a board page: ADD a Subcategory to the Core and the
+    # denominator follows it. That is the silent failure this item was raised for — the
+    # opposite direction has always been loud, because check_store names an unknown
+    # Subcategory by ID and refuses.
+    _wider = dict(index)
+    _wider["GV.XX-99"] = dict(next(iter(index.values())))
+    _wide = compute_completeness(store["assessments"], _wider, core)
+    eq((_wide["overall"]["total"], _wide["overall"]["notInStore"]), (107, 97),
+       "a Subcategory added to the Core raises the denominator rather than vanishing")
+    eq(_wide["overall"]["assessed"], comp["overall"]["assessed"],
+       "...and does not change what was assessed, only what remains")
+
+    # --- Provenance notes: the comparison nobody was making (BL-109 T1/T3) ---
+    #
+    # These are NOTES, never refusals. A dataset or Core mismatch is a fact about provenance,
+    # and refusing would strand a CISO mid-assessment the day either moves — the BL-169 D-2
+    # failure this repo declines everywhere else.
+    _unstamped = copy.deepcopy(store)
+    _unstamped["profile"]["coreRef"] = None
+    _n = provenance_notes(_unstamped)
+    ok(len(_n) == 1 and "does not record which Core" in _n[0],
+       "a store with no Core stamp says so — absent is not agreement")
+    _stamped = copy.deepcopy(store)
+    _stamped["profile"]["coreRef"] = dict(core_ref(core))
+    eq(provenance_notes(_stamped), [],
+       "...and a store stamped with the shipped Core is SILENT — no noise on the common path")
+    _moved = copy.deepcopy(store)
+    _moved["profile"]["coreRef"] = {"version": "2.0", "sha256": "0" * 64}
+    _n = provenance_notes(_moved)
+    ok(len(_n) == 1 and "000000000000" in _n[0] and core_ref()["sha256"][:12] in _n[0],
+       "a store written against a different Core names BOTH, so a reader can tell which moved")
+    # The dataset half, which `overlay list` printed on adjacent lines and never compared.
+    _ds = copy.deepcopy(_stamped)
+    _ds["overlays"]["cyberAi"].update({"enabled": True, "datasetVersion": "fixture-1"})
+    _n = provenance_notes(_ds, {"datasetVersion": "8596-iprd-2025-12-16"})
+    ok(len(_n) == 1 and "fixture-1" in _n[0] and "8596-iprd-2025-12-16" in _n[0],
+       "an overlay enabled on one dataset and analysed against another names both versions")
+    eq(provenance_notes(_ds, {"datasetVersion": "fixture-1"}), [],
+       "...and matching dataset versions are silent too")
+    # A disabled overlay carrying a stale stamp is not a mismatch: nothing used it.
+    _off = copy.deepcopy(_ds)
+    _off["overlays"]["cyberAi"]["enabled"] = False
+    eq(provenance_notes(_off, {"datasetVersion": "8596-iprd-2025-12-16"}), [],
+       "a DISABLED overlay's stale stamp says nothing — no dataset was in force")
 
     # --- A freshly initialised Profile must not flatter ---
     fresh = {"assessments": [{"subcategoryId": sid, "applicability": "in-scope", "current": None,
@@ -4370,6 +4584,16 @@ def _cmd_self_test(_args):
                 _d = json.load(_fh)
             _d["history"] = "<audit trail, asserted separately below>"
             _d["profile"]["updated"] = "<stamped by save_store on every write>"
+            # Set aside for the same reason `updated` is, and no more. `save_store` stamps
+            # which Core the store was written against on EVERY write (BL-109 T2), so the
+            # baseline report — taken before this store had ever been written here — carries
+            # `null` while the post-round-trip one carries the stamp. That difference belongs
+            # to the write, not to the overlay, and this assertion is a claim about the
+            # overlay. `assessedAgainstCore` has its own checks below.
+            _d["profile"]["assessedAgainstCore"] = "<stamped by save_store on every write>"
+            # Same reason, one step downstream: the baseline store has no Core stamp, so it
+            # earns the "does not record which Core" note and the written one does not.
+            _d["provenanceNotes"] = "<derived from the stamp set aside above>"
             return json.dumps(_d, indent=2, ensure_ascii=False)
 
         eq(_sans_audit(_off_out), _sans_audit(_base_out),
