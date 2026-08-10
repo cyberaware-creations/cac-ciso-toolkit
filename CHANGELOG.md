@@ -21,6 +21,38 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.93.0 — 2026-08-10
+
+**Decided: one paid citator pass, then free sweeps.** The half that can be built is built; the
+half that needs a purchase is stated as outstanding rather than implied to be done.
+
+### The free sweep now RECURS, because the release gate makes it
+
+`delaware-cyber-cases` moves from the 365-day house default to a **180-day review interval**.
+Past that, `check-sources.py --release-gate` **fails the release** by name — *"checked
+2026-08-10, N days ago, interval 180"* — and the only ways past are a fresh sweep or a recorded
+override with a reason and an owner. Verified by backdating the row and watching the gate refuse,
+rather than asserted.
+
+Deviating from the default requires `intervalBecause` under CAC-RW-1.13, and the reason is
+empirical rather than a feeling: **three of the block's nine decisions are live litigation**
+(*Brewer* continues after its appeal was refused, *Giuliano*'s motion was largely denied,
+*Marchner* is three months old), and the 2026-08-10 sweep measured the rate — *LACERS v. Sanford*
+distinguished *In re TransUnion* roughly three months after the previous check. **A 365-day
+interval would have let that boundary sit unnoticed for up to a year** on a block that goes in
+front of boards.
+
+### The paid pass is authorised and has NOT been run
+
+The block marker says so in those words, and says what it will change when it happens: the
+pre-2024 landmarks — *Caremark*, *Stone*, *Marchand*, *Zuckerberg*, *Boeing* — have **never been
+checked for subsequent history at all**, and only a commercial service gives treatment flags
+(*criticised*, *questioned*, *limited*). Until then this block is **swept, not Shepardised**, and
+the marker keeps saying that rather than quietly softening once a decision has been made.
+
+**Nothing here claims a citator was run.** A decision to buy one is not a citation check, and the
+provenance line records what was done, not what was approved.
+
 ## v0.92.0 — 2026-08-10
 
 **A subsequent-citation sweep was run on the Delaware block. It is NOT a citator, and the
