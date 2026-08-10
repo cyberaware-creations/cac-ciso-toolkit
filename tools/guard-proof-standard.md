@@ -403,6 +403,7 @@ prove only that the fixture still works.
 | `decisions-render.sh` | `metrics-register` | a decision rendered as a raw Python dict repr instead of its text | render |
 | `decisions-render.sh` | `nist-csf` | a decision rendered as a raw Python dict repr instead of its text | render |
 | `decisions-render.sh` | `risk-register` | a decision rendered as a raw Python dict repr instead of its text | render |
+| `event-statement.sh` | `risk-register` | a scored risk with no event statement — a topic given a likelihood and an impact | add · rescore |
 | `decisions-render.sh` | `vendor-register` | a decision rendered as a raw Python dict repr instead of its text | render |
 | `exposure.sh` | `ai-register` | a hand-selectable exposure class — the guard is the ABSENCE of a command | absence · derivation |
 | `board-safety.sh` | `ai-register` | a board artifact that does not say it is not legal advice, and banned vocabulary in any shipped source file — scripts included | legal-advice · source-scan |

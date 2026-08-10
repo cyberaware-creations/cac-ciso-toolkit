@@ -1,0 +1,30 @@
+{
+  "guard": "skills/risk-register/evals/event-statement.sh",
+  "forbids": "a scored risk with no event statement — a topic given a likelihood and an impact",
+  "note": "BL-81. SKILL.md has named this as the register's first precondition since v0.1 and the engine did not enforce it for nine releases: `add --title \"Phishing\"` with four numbers wrote an empty description, and that one-word noun was scored, banded, counted in the band mix and eligible for board views. Two halves because there are two ways in — creating one, and re-scoring one that already exists. The second matters because refusals guard WRITES and never loads, so every register written before v0.78.0 may hold these and must still open. The shape of the statement is never validated, deliberately: requiring the field is a record requirement, judging a human's sentence is the tool deciding something a person should.",
+  "mutations": [
+    {
+      "half": "add",
+      "why": "the refusal on `add` removed — a topic with four numbers reaching the store again, which is the state this register shipped in for nine releases",
+      "defeats": [
+        "a new risk with no description is refused",
+        "...and the register is byte-identical afterwards",
+        "...and the refusal names the flag, the reason and the house format"
+      ],
+      "file": "skills/risk-register/scripts/score_register.py",
+      "find": "    if not str(_s(opt.get(\"description\", opt.get(\"desc\", \"\"))) or \"\").strip():",
+      "replace": "    if False:"
+    },
+    {
+      "half": "rescore",
+      "why": "the refusal on `set-score` removed — a new number attached to a topic through the one command whose whole purpose is to revise the number. The `add` half cannot reach this: the risk already exists, and it exists in every register written before v0.78.0.",
+      "defeats": [
+        "...and re-scoring that risk is refused",
+        "...naming set-text as the way through"
+      ],
+      "file": "skills/risk-register/scripts/score_register.py",
+      "find": "    if not str(r.get(\"description\") or \"\").strip() and not r.get(\"provisionalTitle\"):",
+      "replace": "    if False:"
+    }
+  ]
+}

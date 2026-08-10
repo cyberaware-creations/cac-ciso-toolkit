@@ -21,6 +21,48 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.78.0 — 2026-08-10
+
+**A risk is an event, and now the engine says so.** BL-81.
+
+`SKILL.md`'s first named precondition — *risks are written as events, not topics* — has been
+documented since v0.1 and enforced by nothing. `add --title "Phishing" --il 4 --ii 4 --rl 3
+--ri 3` wrote `"description": ""`, and that one-word noun was scored, banded, counted in the
+band mix and eligible for board views. The only trace was a muted *"No event statement
+recorded."* on the rendered page, produced long after the number existed.
+
+**It was worse than an omission.** Both import paths mark their rows `provisionalTitle` exactly
+so raw CSF wording stays out of board views until a person rewords it. `add` set no such flag.
+So the register held an imported control objective back and let a hand-typed noun straight
+through — the opposite of the risk profile anyone would choose.
+
+- **`add` refuses without `--description`**, and the refusal names the flag, says why a topic
+  cannot be scored, and shows the house format. Nothing is written.
+- **`set-score` refuses to re-score a risk that has none.** Refusals guard writes, never loads:
+  a register written before this release still opens and renders unchanged, and refuses on the
+  next write that revises the number — which is the same defect arriving a release later,
+  through the one command whose whole purpose is to revise the number.
+- **The shape is never validated.** No regex, no `startswith("If")`, no minimum length.
+  Requiring the field is a record requirement; judging whether a human's sentence is a *good*
+  risk statement is the tool deciding something a person should, and it would reject legitimate
+  phrasings while passing anything from someone who worked out the rule. A wilfully unshaped
+  but present statement is asserted to be **accepted**, so that limit is checked rather than
+  remembered.
+
+**The `set-score` refusal is gated on `provisionalTitle`, and that gate is load-bearing.** An
+imported CSF gap has no description *by design*, and the sanctioned order is `set-score` to
+assess, then `set-text` to reword. An unconditional refusal would have deadlocked the
+register's main intake at its first step — the mechanism BL-81's own plan says must not break.
+The guard proves the import path still works, so a version that refused everything cannot pass.
+
+- `event-statement.sh` — NEW guard, 8 checks, halves `add` · `rescore`
+- `score_register.py self-test` 216 → **225**; `confirmation-age.sh` 83, fixtures updated
+- `prove-guards` **39 guards, 73 halves**, 96 of 384 proved (floor 91 → 96)
+
+Two things the item named as *raise, do not fold in* are filed in ⚖️ Open Decisions as
+**BL-81 D-4 / Q2**: whether `add` should also require `--why`, and whether a hand-added risk
+should be gated by `provisionalTitle` the way an imported one is.
+
 ## v0.77.0 — 2026-08-10
 
 **The last two board-safety suites read the engine.** BL-221, and with it GP-1.7 is complete

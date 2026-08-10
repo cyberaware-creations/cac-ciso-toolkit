@@ -99,12 +99,16 @@ rm -f "$work"/*.rr
 "$PY" "$SR" init "$work/a.rr" --client "Age Co" --assessor "R. Calder" >/dev/null \
   || die "init"
 "$PY" "$SR" add "$work/a.rr" --title "Supplier concentration" \
+  --description "If the sole logistics provider fails, then order fulfilment stops" \
   --il 4 --ii 4 --rl 3 --ri 4 --why "fixture" >/dev/null || die "add R-001"
 "$PY" "$SR" add "$work/a.rr" --title "Legacy VPN appliance" \
+  --description "If the unsupported VPN is exploited, then an attacker reaches the LAN" \
   --il 5 --ii 4 --rl 4 --ri 4 --why "fixture" >/dev/null || die "add R-002"
 "$PY" "$SR" add "$work/a.rr" --title "Retired file share still reachable" \
+  --description "If the retired share is reached, then stale records are exposed" \
   --il 3 --ii 3 --rl 2 --ri 2 --why "fixture" >/dev/null || die "add R-003"
 "$PY" "$SR" add "$work/a.rr" --title "Unpatched internet-facing host" \
+  --description "If the host is exploited, then an attacker gains a foothold" \
   --il 4 --ii 5 --rl 3 --ri 3 --why "fixture" >/dev/null || die "add R-004"
 # R-002 gets a non-affirming event LAST. Its age must still date from `risk-added`.
 "$PY" "$SR" set-text "$work/a.rr" R-002 \
@@ -144,7 +148,10 @@ rm -f "$work"/*.rr
   || die "init m.rr"
 while IFS= read -r t; do
   [ -n "$t" ] || continue
+  # The description is required from v0.78.0 (BL-81) and is not what this suite
+  # measures, so it is derived from the title rather than written out per row.
   "$PY" "$SR" add "$work/m.rr" --title "$t" --il 4 --ii 4 --rl 3 --ri 3 \
+    --description "If $t is not addressed, then the exposure is realised" \
     --why "fixture" >/dev/null || die "add to m.rr: $t"
 done <<'TITLES'
 Supplier concentration in a single payment processor
