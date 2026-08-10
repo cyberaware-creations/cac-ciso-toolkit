@@ -21,6 +21,64 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.96.0 — 2026-08-10
+
+**A risk can say where it came from.** `references` — a plural list of free text on the risk: an
+ATT&CK technique ID, a CSF subcategory, an internal ticket. NIST IR 8286r1 §3.2.2 names MITRE
+ATT&CK™ as a threat-modelling technique, and a CISO who enumerates threats that way produces
+risks the register had nowhere to attribute. The board question it closes is not a technical
+one: *what did we look at to find these, and what did we not look at?*
+
+### The trap is not the missing field — it is where it would otherwise have gone
+
+`sourceRef` and `csfSubcategoryId` both look like the answer and **both are `merge_import`
+matching keys**. A CISO typing `ATT&CK T1566.001` into either would be typing into the dedupe
+chain: a later import carrying that string would silently **update an assessed risk** rather
+than add a new one. Invisible, and it destroys a score somebody set rather than erroring.
+
+So it is a new field, never a matching key — and that is **asserted, beside `merge_import`
+itself**, so the check is where the change would be made. Proven by mutation: adding
+`references` to the match chain turns `(1 added, 0 updated)` into `(0, 1)` and the suite goes
+red.
+
+### It asserts nothing, and that is the design
+
+No matrix is bundled, no ID is validated, no coverage percentage is computed, no *"techniques
+you have not considered"* is reported. A technique ID that never existed is the author's
+problem; one that **stops** existing when MITRE reorganises must not break a register stored two
+years ago. The silence is pinned by a check — scoped to what a reader is *shown*, because a
+first draft grepped the source too and failed on the docstring that forbids the very claim it
+was looking for.
+
+### `set-refs`, on `set-method`'s shape
+
+`--why` required, validated before the store is opened so a refusal leaves the register
+byte-identical, history event carrying **both** the previous and the new list — replace-wholesale
+puts a full overwrite one typo away, and the event is what makes it recoverable.
+
+Classified in both partitions rather than defaulting into one: `references-set` is **not**
+change-explaining (where a risk came from is not why its score moved) and **not** age-affirming
+(documenting provenance on a two-year-old score must not make it read as freshly confirmed).
+
+### ❗ Two corrections to the plan, found by running it
+
+**BL-104 did not fix the repeated-flag drop.** It is `Done`, and what it shipped is the
+unknown-flag rejection. `--ref A --ref B` still keeps only `B`, silently, and no open item will
+change it. T6 therefore **pins the behaviour as it is** and is written to fail loudly the day
+somebody fixes the parser — at which point that failure is what tells them a `set-refs` decision
+has just been made for them.
+
+**`_s()` is the trap sitting directly above the right helper.** `_s(["A","B"])` returns `"A B"`
+— it *joins*, so using it would store one reference matching neither. `_reflist` splits, and the
+difference between the two is asserted because the wrong one is a plausible autocomplete.
+
+### T8 is not in this pass
+
+The `export-csv` column needs a decision that was never made: adding one changes a contract
+other people parse, and joining a free-text multi-value field into one cell needs a separator
+nothing guarantees is absent. Defensible either way; not defensible to decide by accident
+mid-build. T1–T7 shipped, T8 left, and it is filed rather than quietly dropped.
+
 ## v0.95.0 — 2026-08-10
 
 **The deck now names the charts it does not draw.** Eleven charts reach the pack. The HTML draws

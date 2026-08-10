@@ -284,6 +284,11 @@
       "reason": "Rendering/contract suite. Asserts output shape and chrome, not an absence property."
     },
     {
+      "path": "skills/risk-register/evals/risk-references.sh",
+      "role": "not-a-guard",
+      "reason": "Asserts what the product DOES: that a risk can record where it came from, and that the record asserts nothing beyond that — the command, its refusal, the audit trail and the surface. The defect-cannot-occur half of BL-117 is deliberately NOT here: `merge_import` never matching on `references` is asserted in the engine self-test, beside `merge_import` itself, where a change to the match chain is made."
+    },
+    {
       "path": "skills/vendor-register/evals/board-safety.sh",
       "role": "guard",
       "forbids": "a board artifact that does not say it is not legal advice, and banned vocabulary in any shipped source file — scripts included"

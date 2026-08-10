@@ -36,6 +36,10 @@ def build_data(ctx: C.Context) -> str:
               "provisionalTitle", "provisionalScore"]
     risks = [{**{k: r.get(k) for k in fields},
               "csfSubcategoryId": r.get("csfSubcategoryId", ""),
+              # BL-117 T7. Projected explicitly rather than added to `fields`, for the same
+              # reason `csfSubcategoryId` is: a risk stored before v0.96.0 has no key at all,
+              # and `r.get(k)` would put a bare `null` on the page.
+              "references": r.get("references") or [],
               "notes": r.get("notes", "")} for r in ctx.risks]
     blob = json.dumps({"meta": ctx.meta, "settings": ctx.settings, "risks": risks,
                        "today": ctx.today,
@@ -477,6 +481,11 @@ table.reg td{{padding:8px 10px;border-top:1px solid {C.WB_LINE}}}
 .flag{{color:{C.BAND_TEXT['critical']};font-weight:700}}
 .warnmark{{color:{C.BAND_TEXT['high']};font-weight:700}}
 .hint{{color:{C.SLATE};font-size:12px;font-style:italic;margin-top:6px}}
+/* A reference chip is a QUOTE of what the author typed, so it takes the neutral surface and
+   never a band colour: colour here would read as a severity the reference does not carry. */
+.ref{{display:inline-block;background:{C.WB_SURF};border:1px solid {C.WB_LINE};
+  border-radius:6px;padding:1px 7px;font-size:12px;margin:0 3px 3px 0;
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace}}
 .attgrid{{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;align-items:start}}
 .att{{background:{C.WB_SURF};border:1px solid {C.WB_LINE};border-left:5px solid {C.SLATE};
   border-radius:10px;padding:12px 14px}}
@@ -645,7 +654,8 @@ function openDrawer(id){const r=DB.risks.find(x=>x.id===id);const d=document.get
      <span class="k">Status</span><span>${r.status}</span>
      <span class="k">Review</span><span>${r.reviewDate||"—"}${r.reviewOverdue?' <span class="warnmark">overdue</span>':''}</span>
      <span class="k">Since ${DB.baseline||"baseline"}</span><span>${r.priorExposure===null?'<span class="muted">no baseline</span>':`${r.priorExposure} → ${r.residualExposure} ${VELMARK[r.velocity]}`}</span>
-     <span class="k">CSF</span><span>${r.csfSubcategoryId||"—"}</span></div>
+     <span class="k">CSF</span><span>${r.csfSubcategoryId||"—"}</span>
+     ${r.references&&r.references.length?`<span class="k">Found via</span><span>${r.references.map(x=>`<span class="ref">${x}</span>`).join(" ")}</span>`:''}</div>
    <div class="blk"><h3>Risk (event statement)</h3><p>${r.description||'<span class="muted">No event statement recorded.</span>'}</p></div>
    <div class="blk"><h3>Response — ${r.response.type}${COST(r.response.cost)}</h3><p>${r.response.description||'<span class="muted">—</span>'}</p></div>
    ${acc?`<div class="blk"><h3>Acceptance ${accNote?`· <span style="color:${BAND.critical}">${accNote}</span>`:''}</h3>
