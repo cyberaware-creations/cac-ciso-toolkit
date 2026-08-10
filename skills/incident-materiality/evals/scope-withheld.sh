@@ -27,7 +27,7 @@ skill="$(cd "$here/.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=14
+EXPECTED_CHECKS=21
 checks=0
 fails=0
 ok()  { checks=$((checks + 1)); printf '  ok    %s\n' "$1"; }
@@ -130,6 +130,55 @@ eq "...and it escalates, so the attention survives the withholding" \
    "scope-undeclared" "$(top "$work/unscoped.out.json" '[e["trigger"] for e in a["escalations"]][0]')"
 eq "...at high, not critical: a fact nobody recorded is not a deadline that passed" \
    "high" "$(top "$work/unscoped.out.json" '[e["severity"] for e in a["escalations"]][0]')"
+
+# --- 2b. THE CONDITIONAL DATE (BL-207) -----------------------------------------
+#
+# The decision was NEITHER of the two options as framed: withhold the clock, AND carry the
+# date in the escalation. Computing the clock would assert that Item 1.05 APPLIES, inferred
+# from an assessor's tag - a legal conclusion, and `record and refuse, never judge` forbids
+# it. Withholding in silence leaves a real registrant with no date at all on an obligation
+# running four business days from the determination. "If X applies, the date is Y" asserts
+# nothing whatever about whether X applies.
+#
+# WARNING: the four withholding assertions above are UNCHANGED and must stay green. This
+# section ADDS to them; it replaces nothing. If anything above goes red, the change is wrong.
+DETAIL='[e["evidence"]["detail"] for e in a["escalations"] if e["trigger"] == "scope-undeclared"][0]'
+top "$work/unscoped.out.json" "$DETAIL" > "$work/detail.txt"
+has "the withheld escalation carries a date after all" \
+    "2026-07-20" "$work/detail.txt"
+# THE assertion. Not "a date" - the SAME date the declared path computes on the same facts. A
+# conditional that disagreed with the clock it is conditional on would be worse than silence.
+eq "...and it is the same date the DECLARED path computes, to the day" \
+   "2026-07-20" "$(row "$work/declared.out.json" "$SEC[0][\"deadline\"]")"
+# The conditional clause is load-bearing and belongs in the EMITTED text. "Window closes 20
+# July" is wrong. "If sec-1.05 applies, the window closes 20 July" is right.
+has "...stated as a CONDITIONAL, naming the regime it is conditional on" \
+    "If \`sec-1.05\` applies" "$work/detail.txt"
+has "...and saying in the same breath that it is not a finding that it applies" \
+    "not a finding that it applies" "$work/detail.txt"
+# The NEGATIVE form of the same rule, here for a structural reason rather than for
+# thoroughness. Every check above reads the scope-undeclared escalation, so deleting that
+# escalation defeats all of them - which made this half indistinguishable from
+# `no-silent-withholding` under CAC-GP-1.9, and an indistinguishable half is an unproved one.
+# This one PASSES when the escalation is absent (nothing states anything) and FAILS only when
+# a date is stated WITHOUT its conditional clause. That is the failure the conditional exists
+# to prevent, and the only one no other half can reach.
+BARE='sum(1 for e in a["escalations"] if "window closes on" in e["evidence"]["detail"] and "applies, the four-business-day" not in e["evidence"]["detail"])'
+eq "no escalation ever states the window closes WITHOUT the conditional clause" \
+   "0" "$(top "$work/unscoped.out.json" "$BARE")"
+# THE TRAP. `ESCALATION_KEYS` is not defined in this skill; the contract lives in the
+# consumers, and `attention_surface.py` projects an escalation down to exactly six keys. A
+# seventh would NOT fail loudly - it would be silently dropped before reaching any surface,
+# and the field would ship having never once appeared. So the shape is pinned here, at the
+# producer, which is where adding the key would happen.
+KEYS='",".join(sorted([e for e in a["escalations"] if e["trigger"] == "scope-undeclared"][0]))'
+eq "the escalation still carries exactly the six contract keys, so nothing is silently dropped" \
+   "evidence,severity,since,subjectKind,subjectRef,trigger" \
+   "$(top "$work/unscoped.out.json" "$KEYS")"
+# Constraint 4: a declared-FALSE profile already has a real clock and a reported conflict. A
+# conditional there would put two dates on one incident.
+eq "a declared-FALSE profile raises no scope-undeclared escalation, so it gets no second date" \
+   "0" "$(top "$work/denied.out.json" 'len([e for e in a["escalations"] if e["trigger"] == "scope-undeclared"])')"
 
 # --- 3. declared-out and undeclared do not behave alike, on the SAME incident --
 #

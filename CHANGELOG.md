@@ -21,6 +21,67 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.89.0 — 2026-08-10
+
+**Withholding the clock was right. Withholding it in silence was not.** BL-207 — decided, and
+built as decided.
+
+The answer was **neither** of the two options as framed: keep withholding the clock, **and**
+carry the date in the escalation.
+
+`scope-undeclared` now states it: **if `sec-1.05` applies, the four-business-day Item 1.05
+window closes on that date.** The clock field stays empty, the state stays
+`scope-not-declared`, and nothing goes `overdue`. **The one-line reversal at
+`incident_analysis.py`'s withholding guard is declined and its docstring stands.**
+
+### Why both halves
+
+Computing the clock would assert that Item 1.05 **applies** to this organisation, inferred from
+an assessor's tag — a legal conclusion, and *record and refuse, never judge* forbids it. But
+withholding in silence leaves a real registrant with **no date at all** on an obligation running
+four business days from the materiality determination. That is the same harm the rule exists to
+prevent, arriving by the other door.
+
+**A conditional is not a judgement.** *"If X applies, the date is Y"* asserts nothing whatever
+about whether X applies, and the emitted sentence says so in the same breath rather than
+trusting the reader to infer it.
+
+### One computation, two readers
+
+`sec_window_close()` is now the only place the window close is derived. `sec_clock` reads it as
+a **deadline**; the escalation reads the identical value as a **conditional**. Recomputing it in
+the escalation was the obvious way to write this and would have broken the rule `escalations()`
+states in its own docstring — that clocks are read from `derive` rather than recomputed, *so an
+escalation can never disagree with the worksheet beside it*. There is no CAC-TW-1 twin to
+declare because there is nothing to compare: the duplication was removed by construction rather
+than policed afterwards.
+
+### ⚠️ The date is in `evidence.detail`, and not in a seventh key
+
+`ESCALATION_KEYS` is not defined in this skill — the contract lives in the consumers, and
+`attention_surface.py` projects an escalation down to exactly six keys. A seventh would **not
+fail loudly**; it would be silently dropped before reaching any surface, and the field would
+ship having never once appeared. The six-key shape is now pinned at the **producer**, which is
+where adding the key would happen.
+
+- **`sec-1.05` only.** DORA's windows run in clock hours from anchors that may themselves be
+  missing; whether they carry the same conditional is filed as an open decision, not guessed.
+  NYDFS is not a regime in this engine at all.
+- **No conditional on a declared-false profile** — it already has a real clock and a reported
+  conflict, and a conditional beside them would put two dates on one incident.
+- Severity stays `high`. The four withholding assertions are unchanged and still green.
+
+### The guard
+
+`scope-withheld.sh` **14 → 21 checks** (not the 15 estimated — the half needed more than one
+assertion to be provable). Its third half went in after **CAC-GP-1.9 rejected the first
+attempt**: deleting the conditional outright defeated only checks that `no-silent-withholding`
+already defeats, making the two halves indistinguishable and one of them unproved. The rule was
+right. The registered mutation now **strips the conditional clause and leaves the date** — the
+edit a careless tidy-up actually produces, and the only failure no other half can see.
+
+`EXPECTED_HALVES` 75 → **76**, `EXPECTED_PROVED` 101 → **106**, guards unchanged at **40**.
+
 ## v0.88.1 — 2026-08-10
 
 **The Delaware markers were understating what is known, and flattening the one thing that is
