@@ -144,6 +144,36 @@ scale would silently downgrade every system nobody has got to yet.
 consumer that has one compares and reports a disagreement rather than coercing the value;
 validating here would mean deciding what a criticality level is allowed to be for everybody.
 
+### Sensitivity is a different question, and it needs a basis
+
+`--sensitivity` records what a system **holds**. Criticality records what **stops** when it
+stops. They are not two words for one judgement: a payroll file nobody's day depends on can be
+the most sensitive thing in the estate, and a build server everything depends on can hold
+nothing worth reading. Collapsing them makes one of those two systems invisible, and which one
+depends only on which word the register happened to use.
+
+```bash
+--crown-jewel "HR file share" --enables "payroll and right-to-work checks" \
+  --at-stake "a reportable breach and a works-council problem" \
+  --sensitivity "Special category under UK GDPR Art. 9" \
+  --sensitivity-basis "DPO record-of-processing review, 2026-07-01"
+```
+
+**`--sensitivity-basis` is required whenever `--sensitivity` is given.** There is no scale here
+either — the organisation's own classification is the answer, and imposing one would make this
+skill the author of a data-classification policy it has no business writing. That is exactly
+why the basis is mandatory: free text with no basis is an adjective, and it will sit on a
+record an assessor is entitled to follow. The basis names who determined it and from what,
+which is the difference between a determination and a word somebody typed.
+
+The value is stored with its own `declaredBy`, `declaredOn` and `basis` — not leaning on the
+record-level `--basis`, which answers a different question again: why this system is a crown
+jewel at all.
+
+*`sensitivity` is a record while `criticality` is still a bare string. That asymmetry is
+deliberate and temporary: adding a key breaks nothing, and changing `criticality`'s shape is a
+migration this store has no path for yet.*
+
 The **board tolerance is stored verbatim**, never paraphrased on write. `risk-register` owns the
 appetite band; this owns the sentence the band was derived from.
 

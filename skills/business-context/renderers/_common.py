@@ -158,6 +158,8 @@ h2{{font-family:'Space Grotesk','Manrope',system-ui,sans-serif;font-size:17px;
 .jewel{{margin:10px 0;padding-left:12px;border-left:3px solid {PATINA}}}
 .jewel .sys{{font-weight:700}}
 .jewel .stake{{color:{MUTED};font-size:13.5px}}
+.jewel .mark{{font-size:13px;margin-top:2px}}
+.jewel .mark .basis{{color:{MUTED}}}
 blockquote{{margin:10px 0;padding:12px 16px;background:{WB_SURF};
   border-left:3px solid {SLATE};font-size:14.5px}}
 blockquote .who{{display:block;color:{MUTED};font-size:12px;margin-top:8px}}

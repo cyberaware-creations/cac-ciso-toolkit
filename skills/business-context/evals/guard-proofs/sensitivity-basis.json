@@ -1,0 +1,27 @@
+{
+  "guard": "skills/business-context/evals/sensitivity-basis.sh",
+  "forbids": "a declared sensitivity with no basis, and a basis the read surface drops",
+  "note": "BL-216 R-3. Sensitivity is free text with no scale, deliberately — the organisation's own classification is the answer and this skill does not write one. Free text with no basis is an adjective on a record an assessor is entitled to follow, so the basis is what makes it a determination. Both halves are needed and the second is the one that would rot: an engine that refuses correctly while the renderer drops the basis satisfies the letter of the rule and none of its purpose. That is not hypothetical — render_context.py showed neither criticality nor sensitivity until v0.68.2, so a required-and-invisible field is the state this skill was actually in.",
+  "mutations": [
+    {
+      "half": "refused",
+      "why": "the refusal removed — a sensitivity reaching the store with no basis behind it",
+      "defeats": [
+        "a sensitivity with no basis is refused"
+      ],
+      "file": "skills/business-context/scripts/business_context.py",
+      "find": "    if sens and not sens_basis:",
+      "replace": "    if False:"
+    },
+    {
+      "half": "visible",
+      "why": "the basis dropped from the page — enforced on write, invisible on read, which is the half that decays into ceremony",
+      "defeats": [
+        "the sensitivity and its basis both reach the rendered page"
+      ],
+      "file": "skills/business-context/renderers/render_context.py",
+      "find": "                         C.esc(sens.get(\"basis\") or \"no basis recorded\")))",
+      "replace": "                         C.esc(\"\")))"
+    }
+  ]
+}

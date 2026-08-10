@@ -21,6 +21,49 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.68.2 — 2026-08-09
+
+**A crown jewel can now record what it holds, not only what stops when it stops** (BL-216 R-3,
+partial).
+
+Criticality and sensitivity are not two words for one judgement. A payroll file nobody's day
+depends on can be the most sensitive thing in the estate; a build server everything depends on
+can hold nothing worth reading. Collapsing them makes one of those two systems invisible, and
+which one depends only on which word the register happened to use. `--sensitivity` is a second
+field for the second question.
+
+**Free text, no scale, and a required basis** — decided 2026-08-09. No scale because the
+organisation's own classification is the answer, and imposing `low/moderate/high` here would
+make this skill the author of a data-classification policy it has no business writing. The
+basis is required *because* there is no scale: free text with nothing behind it is an
+adjective, and it will sit on a record an assessor is entitled to follow. Naming who determined
+it and from what is the difference between a determination and a word somebody typed.
+
+Stored through `declared()`, so the value carries its own `declaredBy`, `declaredOn` and
+`basis` rather than leaning on the record-level `basis`, which answers a different question
+again: why this system is a crown jewel at all.
+
+**The renderer showed neither criticality nor sensitivity**, which would have made the new rule
+enforced on write and invisible on read. A required field nobody can see decays into ceremony,
+so `render_context.py` now prints both, with the sensitivity's basis beside it. Criticality had
+been recordable since v0.30.0 and absent from this page the whole time.
+
+New guard **`sensitivity-basis.sh`** (CAC-GP-1, halves `refused` · `visible`), and the second
+half is the one that would otherwise rot: an engine that refuses correctly while the renderer
+drops the basis satisfies the letter of the rule and none of its purpose. `EXPECTED_GUARDS`
+36 → 37, `EXPECTED_HALVES` 64 → 66, and the proved-checks ratchet **83 → 85**.
+
+**What was deliberately NOT done.** `criticality` is still a bare string while `sensitivity` is
+a record. Adding a key is additive and breaks nothing; changing `criticality`'s shape is a
+migration `business-context` has no path for — it pins `schemaVersion 1` and refuses anything
+else — and that decision is open. The asymmetry is stated in the engine, the SKILL.md and the
+renderer rather than left for a reader to discover. Shipping the safe half was preferred to
+shipping neither, and the unsafe half is not improvised.
+
+Counts: business-context self-test 208 → **216**; `sensitivity-basis.sh` 8/8; the other five
+business-context suites unchanged and green; `prove-guards` 37 guards / 66 halves, 85 of 364
+checks proved.
+
 ## v0.68.1 — 2026-08-09
 
 **The criticality walk would return a Python dict repr as a governance level.** Both the
