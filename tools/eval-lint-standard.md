@@ -3,7 +3,8 @@
 **Applies to:** every `skills/*/evals/*.sh` in `cac-ciso-toolkit`
 **Implemented by:** `tools/lint-evals.py`, run in CI on the 3.9 floor
 **In force since:** v0.43.1
-**Sibling standard:** [CAC-GP-1](guard-proof-standard.md), the guard-proof standard
+**Sibling standards:** [CAC-GP-1](guard-proof-standard.md), the guard-proof standard ·
+[CAC-EN-1](engine-standard.md), the engine standard
 
 ---
 

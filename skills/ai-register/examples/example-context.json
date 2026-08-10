@@ -1,28 +1,48 @@
 {
-  "contractVersion": "CAC-AP-1",
-  "profileVersion": "3",
-  "crownJewels": [
+ "contractVersion": "CAC-AP-1",
+ "profileVersion": "3",
+ "applicability": {
+  "ai": {
+   "ask": [
+    "regulated-data"
+   ],
+   "skipped": [
     {
-      "system": "Applicant tracking",
-      "criticality": "moderate"
-    },
-    {
-      "system": "CRM",
-      "criticality": "high",
-      "dependsOn": [
-        "Campaign management"
-      ]
-    },
-    {
-      "system": "IT service management",
-      "criticality": "high"
+     "battery": "eu-ai-act-deployer",
+     "label": "EU AI Act deployer obligations",
+     "flag": "euAiActScope",
+     "source": "profile",
+     "declaredBy": "General Counsel",
+     "declaredOn": "2026-01-15",
+     "basis": "No establishment in the Union and no output used in the Union; confirmed with external counsel.",
+     "sentence": "EU AI Act deployer obligations — not assessed. Organisation profile: `euAiActScope: false`, declared 2026-01-15 by General Counsel — No establishment in the Union and no output used in the Union; confirmed with external counsel."
     }
-  ],
-  "profile": {
-    "regulatedDataHeld": {
-      "value": true,
-      "declaredBy": "DPO",
-      "declaredOn": "2026-01-15"
-    }
+   ],
+   "undeclared": []
   }
+ },
+ "crownJewels": [
+  {
+   "system": "Applicant tracking",
+   "criticality": "moderate"
+  },
+  {
+   "system": "CRM",
+   "criticality": "high",
+   "dependsOn": [
+    "Campaign management"
+   ]
+  },
+  {
+   "system": "IT service management",
+   "criticality": "high"
+  }
+ ],
+ "profile": {
+  "regulatedDataHeld": {
+   "value": true,
+   "declaredBy": "DPO",
+   "declaredOn": "2026-01-15"
+  }
+ }
 }

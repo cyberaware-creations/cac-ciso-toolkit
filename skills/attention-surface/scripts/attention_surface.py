@@ -1082,7 +1082,13 @@ def main(argv=None) -> int:
         return args.fn(args)
     except Refusal as exc:
         print("Refused: %s" % exc, file=sys.stderr)
-        return 2
+        # 1, not 2. A REFUSAL is the tool working — it read the input, understood it, and
+        # declined. 2 is argparse's usage-error code and is what these engines return when no
+        # subcommand is given, so returning it here made a well-formed refusal indistinguishable
+        # from a mistyped command line to anything scripting the suite. Converged across all
+        # eleven engines in v0.82.0; the convention is stated in tools/engine-standard.md
+        # (CAC-EN-1), which is the only reason it can be checked rather than remembered.
+        return 1
 
 
 if __name__ == "__main__":
