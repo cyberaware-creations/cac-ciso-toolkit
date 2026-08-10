@@ -354,8 +354,8 @@ PY
 # cannot enumerate — degrade/degrading/degraded, reliable/reliability/unreliable.
 #
 # DOCSTRINGS ARE EXEMPT, and that exemption is load-bearing rather than a convenience: the
-# refusal has to be explainable, and every file involved carries a paragraph naming the claim
-# it declines to make. Comments are exempt for free — they are not in the AST at all. So this
+# refusal has to be explainable, and the files that make the refusal carry a paragraph naming
+# the claim they decline to make. Comments are exempt for free — they are not in the AST at all. So this
 # scans exactly what ships to a page.
 #
 # _common.py is included because it builds the board freshness sentence. If an operational-
@@ -365,21 +365,47 @@ PY
 # Stems chosen against the whole-word forms they would otherwise ban: `assumed` not `assum`
 # (an "assumption" is a legitimate word), `certainty`/`uncertain` not `certain` ("certain
 # risks" means "some"). Verified zero hits at the time of writing, so a hit is a change.
-chk 10 "no confidence vocabulary in the source of any board-facing view" "$(probe "$repo" <<'PY'
+chk 10 "no confidence vocabulary in any shipped source but render_dashboard" "$(probe "$repo" <<'PY'
 import ast, pathlib, sys
-repo = pathlib.Path(sys.argv[1])
+root = pathlib.Path(sys.argv[1]) / "skills" / "risk-register"
 STEMS = ("confiden", "degrad", "decay", "reliab", "assumed",
          "trust", "certainty", "uncertain", "doubt")
-FILES = ("skills/risk-register/renderers/render_board.py",
-         "skills/risk-register/renderers/render_report.py",
-         "skills/risk-register/renderers/_common.py")
+# GP-1.7 — the file list is RECOMPUTED from the tree on every run, never written down.
+# A hardcoded tuple asserts its own length, which is a tautology: it cannot see a file
+# that was never in it. `scripts/score_register.py` — the engine that writes most of the
+# strings these renderers print — sat on disk and outside the tuple with nothing saying
+# so, next to an exclusion that WAS reasoned. That asymmetry is the whole finding: an
+# exclusion is fine, an omission is not, and a tuple cannot tell you which one it is.
+#
+# So an exclusion must now say why, and one that outlives its file fails the run (BL-211).
+EXCLUDE = {
+    "renderers/cac_graphics.py":
+        "vendored byte-identical from tools/cac_graphics.py and scanned there. "
+        "tools/check-versions.py fails if this copy drifts, so reading it here would "
+        "duplicate a guard rather than add one.",
+    "renderers/render_dashboard.py":
+        "the operational work queue, not a board page. It may legitimately say what a "
+        "board page must not — the same board-facing-only distinction check 9 draws, and "
+        "the reason its inline data may repeat 'acceptanceExpired' 106 times.",
+}
 problems = []
 scanned = 0
+read = 0
+disk = sorted(str(p.relative_to(root))
+              for d in ("scripts", "renderers") for p in (root / d).glob("*.py"))
+orphan = [rel for rel in EXCLUDE if rel not in disk]
+if orphan:
+    problems.append("EXCLUDE names " + ", ".join(sorted(orphan)) + ", which is not on "
+                    "disk — an exclusion that outlived its file silently narrows the scan")
+FILES = tuple(rel for rel in disk if rel not in EXCLUDE)
+if not FILES:
+    problems.append("nothing to scan — the walk is broken, not the source clean")
 for rel in FILES:
-    path = repo / rel
+    path = root / rel
     if not path.exists():
         problems.append("{}: missing — check read nothing".format(rel))
         continue
+    read += 1
     tree = ast.parse(path.read_text(encoding="utf-8"))
     docs = set()
     for node in ast.walk(tree):
@@ -401,6 +427,8 @@ for rel in FILES:
 # A scan that reads no literals is not a pass. Same rule as the fixture guards above.
 if scanned == 0 and not problems:
     problems.append("no string literals scanned at all — the walk is broken, not the source clean")
+if read != len(FILES):
+    problems.append("read {} of the {} files the tree says exist".format(read, len(FILES)))
 print("PASS" if not problems else "FAIL " + "; ".join(problems[:2]))
 PY
 )"

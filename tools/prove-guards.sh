@@ -44,7 +44,7 @@ only=("$@")
 # Anti-vacuity, matching the house convention. A proof run that silently exercised nothing is
 # the thing this file exists to prevent, so the counts are asserted rather than printed.
 EXPECTED_GUARDS=37
-EXPECTED_HALVES=66
+EXPECTED_HALVES=67
 
 # GP-1.11 — a RATCHET, not an equality. `EXPECTED_GUARDS` and `EXPECTED_HALVES` are exact
 # because a guard appearing or vanishing is always worth a human look. This one is a floor:
@@ -56,7 +56,7 @@ EXPECTED_HALVES=66
 # need one. Sorting the 273 into those two piles is real work and is filed separately; what
 # this line does is stop the ratio sliding backwards while nobody is looking, which is exactly
 # how it reached 14% without anyone deciding to.
-EXPECTED_PROVED=85
+EXPECTED_PROVED=86
 
 guards_seen=0
 halves_seen=0
@@ -286,11 +286,34 @@ PYEOF
     fi
 
     # GP-1.5 — apply, and a `find` that no longer matches is a failure.
+    #
+    # Two forms. The usual one edits a file: `find` must match exactly once, and a `find`
+    # that has stopped matching means the code moved and the proof did not follow it.
+    #
+    # `"create": true` ADDS a file that is not in the tree, and exists for one property
+    # that the editing form structurally cannot express: **a guard that surveys a set must
+    # read the set from the tree, not from a list it carries.** No edit can demonstrate
+    # that, because every edit lands in a file the list already names — which is exactly
+    # how eight board-safety suites went on asserting the length of their own tuple while
+    # a shipped renderer sat outside it (GP-1.7, BL-211). The staleness rule inverts with
+    # the form: here, a target that already EXISTS is the stale mutation, because the file
+    # has since been written for real and the proof is now testing something else.
     applied=$("$PY" - "$work" "$proof" "$i" <<'PYEOF'
 import json, pathlib, sys
 work, proof_path, index = pathlib.Path(sys.argv[1]), sys.argv[2], int(sys.argv[3])
 m = json.load(open(proof_path, encoding="utf-8"))["mutations"][index]
 target = work / m["file"]
+if m.get("create"):
+    if "find" in m:
+        print("MALFORMED a create mutation writes a whole file and has no `find`")
+        raise SystemExit(0)
+    if target.exists():
+        print("STALE %s now exists — the mutation adds a file the tree does not have, and "
+              "this one has since been written for real" % m["file"]); raise SystemExit(0)
+    if not target.parent.is_dir():
+        print("MISSING the directory %s" % m["file"].rsplit("/", 1)[0]); raise SystemExit(0)
+    target.write_text(m["replace"], encoding="utf-8")
+    print("OK"); raise SystemExit(0)
 if not target.exists():
     print("MISSING %s" % m["file"]); raise SystemExit(0)
 text = target.read_text(encoding="utf-8")

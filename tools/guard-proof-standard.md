@@ -3,7 +3,7 @@
 **Applies to:** every skill in `cac-ciso-toolkit`
 **Implemented by:** `tools/prove-guards.sh`, run in CI on the 3.9 floor
 **In force since:** v0.41.3 — GP-1.7 added in v0.45.0, GP-1.8 and GP-1.9 in v0.56.0,
-GP-1.10 in v0.64.1, GP-1.11 in v0.67.0
+GP-1.10 in v0.64.1, GP-1.11 in v0.67.0, the `create` mutation form in v0.69.0
 **Sibling standards:** [CAC-LE-1](eval-lint-standard.md), the eval-harness lint ·
 **CAC-TW-1** (`tools/check-twins.py`, in force since v0.68.0), which executes the deliberately
 duplicated functions against one another. That is the case this standard structurally cannot
@@ -66,6 +66,27 @@ least one mutation in `<skill>/evals/guard-proofs/<guard-name>.json`.
   ]
 }
 ```
+
+A mutation has two forms. The one above **edits** a file: `find` must match exactly once.
+The other **adds** one —
+
+```json
+{
+  "half": "source-scan",
+  "why": "a file the guard has never been told about, carrying the prose it forbids",
+  "defeats": ["no confidence vocabulary in the source of any shipped file"],
+  "file": "skills/metrics-register/renderers/render_trendline.py",
+  "create": true,
+  "replace": "\"\"\"A trendline renderer.\"\"\"\n\n_NOTE = \"...\"\n"
+}
+```
+
+— and it exists for one property the editing form structurally cannot express: **a guard that
+surveys a set must read the set from the tree, not from a list it carries.** No edit can
+demonstrate that, because every edit lands in a file the list already names. A `create`
+mutation has no `find`, and its staleness rule inverts: a target that **exists** is stale,
+because the file has since been written for real and the proof is now testing something else.
+It is the only mutation form that can fail a guard for what it never looked at (GP-1.7).
 
 **A guard with two halves registers a mutation for each half**, and each mutation must defeat
 *its own* half specifically. Otherwise half the guard is proven and half is assumed, which is
@@ -137,14 +158,42 @@ Each guard now recomputes the expected file list from the filesystem and asserts
 **all** of it. The recomputation is deliberately in the guard rather than the helper — a helper
 that both narrows its glob and reports what it should have read proves nothing.
 
-**That sentence is not yet true of the ten `board-safety.sh` suites, and this is the record of
-it.** They carry a hardcoded `FILES` tuple instead, so the count they assert is the length of
-their own list rather than of the tree. Measured: `risk-register` scans 3 of 5 shipped files —
-`_common.py`, `render_board.py` and `render_report.py` among the missing — `nist-csf` 4 of 6,
-`metrics-register` 3 of 4, and `ai-register` and `vendor-register` scan through a different
-idiom again. A file added to a skill tomorrow joins none of them. That is BL-211, filed with
-these numbers rather than left as an aspiration in this paragraph — a standard describing
-behaviour it does not have is the same defect one level up.
+**It was not true of the ten `board-safety.sh` suites for eleven minor versions, and this is
+the record of that.** They carried a hardcoded `FILES` tuple, so `scanned == len(FILES)` asserted
+the length of their own list rather than of the tree. Measured against `main` at v0.67.0:
+`risk-register` scanned 3 of 5 shipped files, `nist-csf` 4 of 6, `metrics-register` 3 of 4, and
+`ai-register` and `vendor-register` scanned through a different idiom again. That was BL-211,
+filed with those numbers rather than left as an aspiration in this paragraph — a standard
+describing behaviour it does not have is the same defect one level up.
+
+**Eight of the ten were converted in v0.69.0.** Each now derives its population as
+`scripts/*.py + renderers/*.py`, minus an `EXCLUDE` map in which **every entry carries its
+reason** and an entry naming a file that is no longer on disk fails the run — an exclusion
+nobody can find is a scan that quietly narrowed. That distinction is the finding, not a
+detail of it: `risk-register` was omitting `score_register.py` with nothing saying so, directly
+beside `render_dashboard.py`, which it excluded *with a written reason*. A tuple cannot tell
+you which of those two it is looking at. The five suites whose tuple happened to match the tree
+were not safe and were never the point — they matched because somebody last edited the list by
+hand, which is a different property from reading the tree and indistinguishable from it until a
+file is added.
+
+So a file is added. Each of the eight now registers a `create` mutation (GP-1.1) that drops a
+renderer or an export the guard has never heard of into the skill, carrying the prose the guard
+forbids, and the run fails unless the guard finds it. Re-aiming the old mutation at
+`render_operational.py` would have proved only that one historical omission is closed; adding a
+file that did not exist when the proof was written proves the population is the tree. The A/B
+is on the record: the same planted file passes `metrics-register`'s pre-conversion suite and
+fails the converted one. `risk-register`'s check 10 — the largest source scan in the suite —
+had no registered mutation at all until this, and is proved for the first time here.
+
+The remaining two are `ai-register` and `vendor-register`, which glob
+`renderers/render_*.py` and `renderers/_common.py` and so reach every renderer and **no engine
+script at all**. Converting them is not the same edit: `_vocab.py --source` over
+`scripts/ai_register.py` reports `degrading`/`degraded`, `rating` and `resolved`, and over
+`scripts/vendor_register.py` reports `rating` — all of them in self-test assertions and in
+strings that *describe an attack class* rather than claim one, which is the population
+`nist-csf` handles with a `self_test` exemption. That is a judgement about each hit, not a
+mechanical widening, and it is filed separately with these line numbers rather than left here.
 
 *The registry.* Same rule applied to this document. `prove-guards.sh` now compares the table
 below against the guards it discovers and fails on either mismatch. That table said *"eight
@@ -338,16 +387,16 @@ prove only that the fixture still works.
 | `decisions-render.sh` | `vendor-register` | a decision rendered as a raw Python dict repr instead of its text | render |
 | `exposure.sh` | `ai-register` | a hand-selectable exposure class — the guard is the ABSENCE of a command | absence · derivation |
 | `board-safety.sh` | `ai-register` | a board artifact that does not say it is not legal advice | legal-advice |
-| `board-safety.sh` | `risk-register` | raw framework wording reaching a board renderer | raw-title |
+| `board-safety.sh` | `risk-register` | raw framework wording reaching a board renderer; confidence vocabulary in any shipped source but `render_dashboard` | raw-title · source-scan |
 | `questions.sh` | `vendor-register` | a vendor assertion shrinking the question set | subtraction |
-| `board-safety.sh` | `board-pack` | catastrophizing or false-confidence vocabulary in a board renderer | source-scan |
-| `board-safety.sh` | `business-context` | catastrophizing or false-confidence vocabulary in a board renderer | source-scan |
-| `board-safety.sh` | `exceptions-register` | catastrophizing or false-confidence vocabulary in a board renderer | source-scan |
-| `board-safety.sh` | `incident-materiality` | catastrophizing, false confidence, or a materiality conclusion stated as fact | source-scan |
-| `board-safety.sh` | `metrics-register` | catastrophizing or false-confidence vocabulary in a board renderer | source-scan |
-| `board-safety.sh` | `nist-csf` | catastrophizing or false-confidence vocabulary in a board renderer | source-scan |
+| `board-safety.sh` | `board-pack` | catastrophizing or false-confidence vocabulary in any shipped source file | source-scan |
+| `board-safety.sh` | `business-context` | catastrophizing or false-confidence vocabulary in any shipped source file | source-scan |
+| `board-safety.sh` | `exceptions-register` | catastrophizing or false-confidence vocabulary in any shipped source file | source-scan |
+| `board-safety.sh` | `incident-materiality` | catastrophizing, false confidence, or a materiality conclusion stated as fact, in any shipped source file | source-scan |
+| `board-safety.sh` | `metrics-register` | catastrophizing or false-confidence vocabulary in any shipped source file | source-scan |
+| `board-safety.sh` | `nist-csf` | catastrophizing or false-confidence vocabulary in any shipped source file | source-scan |
 | `board-safety.sh` | `vendor-register` | a board artifact that does not say it is not legal advice | legal-advice |
-| `board-safety.sh` | `policy-register` | catastrophizing or false-confidence vocabulary in the reader-facing renderer | source-scan |
+| `board-safety.sh` | `policy-register` | catastrophizing or false-confidence vocabulary in any shipped source file | source-scan |
 | `no-coverage-claim.sh` | `policy-register` | any state, key, token or chip saying a requirement is met because a policy maps to it | static · behavioural |
 | `no-coverage-percentage.sh` | `policy-register` | a proportion, percentage or float in the requirement view — counts only | behavioural · static |
 | `no-deletion.sh` | `policy-register` | any path that removes a policy record; supersession is the only way out of force | static · behavioural |

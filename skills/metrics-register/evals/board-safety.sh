@@ -68,7 +68,7 @@ PY
 done
 
 # 3. Our source, by stem. Docstrings are exempt — the refusal has to be explainable, and
-# every file here carries a paragraph naming the claim it declines to make.
+# the files that make the refusal carry a paragraph naming the claim they decline to make.
 res=$(probe "$skill" <<'PY'
 import ast, pathlib, sys
 root = pathlib.Path(sys.argv[1])
@@ -76,9 +76,28 @@ STEMS = ("confiden", "degrad", "decay", "reliab", "assumed",
          "trust", "certainty", "uncertain", "doubt",
          "catastroph", "devastat", "existential", "crippl", "disastrous",
          "nightmare", "ruinous", "calamit", "apocalyp")
-FILES = ("renderers/_common.py", "renderers/render_executive.py",
-         "scripts/metrics_analysis.py")
+# GP-1.7 — the file list is RECOMPUTED from the tree on every run, never written down.
+# A hardcoded tuple asserts its own length, which is a tautology: `scanned == len(FILES)`
+# cannot see a file that was never in FILES. `renderers/render_operational.py` sat on disk and
+# outside the tuple, and a catastrophizing constant planted in it passed this suite.
+# An exclusion is allowed and must say why; one that outlives its file fails the run,
+# because an exclusion nobody can find is a scan that quietly narrowed (BL-211).
+EXCLUDE = {
+    "renderers/cac_graphics.py":
+        "vendored byte-identical from tools/cac_graphics.py and scanned there. "
+        "tools/check-versions.py fails if this copy drifts, so reading it here would "
+        "duplicate a guard rather than add one.",
+}
 problems, scanned = [], 0
+disk = sorted(str(p.relative_to(root))
+              for d in ("scripts", "renderers") for p in (root / d).glob("*.py"))
+orphan = [rel for rel in EXCLUDE if rel not in disk]
+if orphan:
+    problems.append("EXCLUDE names " + ", ".join(sorted(orphan)) + ", which is not on "
+                    "disk — an exclusion that outlived its file silently narrows the scan")
+FILES = tuple(rel for rel in disk if rel not in EXCLUDE)
+if not FILES:
+    problems.append("nothing to scan — the walk is broken, not the source clean")
 for rel in FILES:
     path = root / rel
     if not path.exists():
@@ -105,8 +124,8 @@ if scanned != len(FILES):
 print("\n".join(problems))
 PY
 )
-if [ -z "$res" ]; then ok "no confidence vocabulary in the source of any board-facing view"
-else bad "no confidence vocabulary in the source of any board-facing view" "$res"; fi
+if [ -z "$res" ]; then ok "no confidence vocabulary in the source of any shipped file"
+else bad "no confidence vocabulary in the source of any shipped file" "$res"; fi
 
 # 4. The age vocabulary is present and is stated as a distance.
 if grep -q "past cadence" "$work/op.html"; then

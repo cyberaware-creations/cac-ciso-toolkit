@@ -21,6 +21,48 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.69.0 — 2026-08-09
+
+**Eight board-safety suites now read their file list from the tree instead of carrying one**
+(BL-211).
+
+The scan that checks no catastrophizing or false-confidence vocabulary reaches a board page
+walked a hardcoded `FILES` tuple and then asserted `scanned == len(FILES)`. That is a
+tautology — the length of the list checking itself — and it cannot see a file that was never in
+the list. `metrics-register/renderers/render_operational.py` was on disk, outside the tuple,
+and a catastrophizing constant planted in it **passed the suite**, while the same suite
+rendered that file's page and scanned the HTML. It treated the renderer as in scope for output
+and out of scope for source.
+
+Measured against `main` at v0.67.0: `risk-register` scanned 3 of 5 shipped files, `nist-csf`
+4 of 6, `metrics-register` 3 of 4. The five suites whose tuple matched the tree were never
+safe — they matched because somebody last edited the list by hand, which is a different
+property from reading the tree and indistinguishable from it until a file is added.
+
+Each of the eight now derives its population as `scripts/*.py` + `renderers/*.py` minus an
+`EXCLUDE` map **in which every entry states its reason**, and an entry naming a file no longer
+on disk fails the run. The reason requirement is the finding, not decoration: `risk-register`
+was omitting `scripts/score_register.py` with nothing saying so, directly beside
+`renderers/render_dashboard.py`, which it excluded *with a written reason*. An exclusion is a
+decision and an omission is an accident, and a tuple cannot tell you which one it is.
+
+**New in CAC-GP-1: a mutation may `create` a file, not only edit one.** No edit can prove a
+guard reads its population from the tree, because every edit lands in a file the list already
+names — which is exactly how this survived eleven minor versions. Each of the eight now
+registers a mutation that drops a renderer or an export the guard has never heard of into the
+skill, carrying the prose the guard forbids. The staleness rule inverts for this form: a target
+that *exists* is stale, because the file has since been written for real. The A/B is on the
+record — the same planted file passes `metrics-register`'s pre-conversion suite and fails the
+converted one.
+
+`risk-register`'s check 10, the largest source scan in the suite, had no registered mutation at
+all and is proved here for the first time. Guards 37, halves 66 → 67, proved checks 85 → 86.
+
+`ai-register` and `vendor-register` are **not** converted. They glob `renderers/render_*.py`
+and so reach every renderer and no engine script at all; widening them surfaces real hits in
+self-test assertions and in strings that *describe* an attack class rather than claim one — a
+judgement per hit, not a mechanical widening. Filed separately, with the line numbers.
+
 ## v0.68.2 — 2026-08-09
 
 **A crown jewel can now record what it holds, not only what stops when it stops** (BL-216 R-3,
