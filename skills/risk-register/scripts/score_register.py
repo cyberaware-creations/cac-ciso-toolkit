@@ -33,6 +33,10 @@ Subcommands:
                                          Exits 0 either way — it flags, it does not gate.
   import-gaps  <gaps.csv> [--into r.rr] [--write]   Map a CSF gap CSV to candidate risks.
                                          Previews by default; --write applies the merge.
+  import-findings <findings.json> [--into r.rr] [--write]   Map vendor-register or
+                                         ai-register findings to candidate risks. Same
+                                         preview-then-write shape as import-gaps, and the
+                                         same provisional flags on what it creates.
   self-test                              Assert the engine against the web repo's test cases.
 
 Mutations (each appends an append-only history event and writes a schema-valid file):
