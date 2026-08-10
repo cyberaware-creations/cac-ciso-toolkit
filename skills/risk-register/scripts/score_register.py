@@ -86,6 +86,10 @@ Mutations (each appends an append-only history event and writes a schema-valid f
                                          threshold change rewrites what gets reported.
   snapshot     <register.rr> --label 'Q3 2026 Board Review' [--note ...]
   export-csv   <register.rr> [--out out.csv]
+                                         22 columns. `references` is multi-value and holds a
+                                         NEWLINE between entries, inside the quoted cell —
+                                         the house form, because the field is free text and
+                                         any printable separator could occur inside a value.
   export-acceptances <register.rr> [--out out.json]   Accepted risks, in the
                                          exceptions-register intake shape. One-way:
                                          that skill is the system of record.
@@ -3984,6 +3988,28 @@ def _cmd_export_acceptances(args):
     return 0
 
 
+# THE HOUSE CONVENTION FOR A MULTI-VALUE CSV COLUMN, set here because there was not one
+# (BL-117 T8). Every other column in this export is scalar — `csfSubcategoryId` is singular —
+# so `references` is the first, and whatever it does becomes what the next one does.
+#
+# **A newline inside the quoted cell.** Not a comma, semicolon or pipe.
+#
+# `references` is deliberately free text, so ANY printable separator can occur inside a value
+# and split it wrongly on the way back in. A newline cannot: `csv.writer` quotes the cell, and
+# every conforming reader returns the embedded newline as part of the field rather than as a
+# row break. It is also the most readable form for the auditor this export serves — Excel
+# renders it as stacked lines in one cell.
+#
+# ⚠️ **The round-trip is the constraint that matters, more than the separator.** `merge_import`
+# matches on `csfSubcategoryId` and `sourceRef`, so a register CSV that comes back in can
+# silently UPDATE an assessed risk — the exact trap `references` exists to avoid. Nothing in
+# this repo parses this file back (`parse_gaps_csv` requires a wholly different header set),
+# but somebody else's script will. A cell that re-split differently on the way in would be
+# worse than a refusal and worse than never exporting the column at all, so the suite asserts
+# the round-trip through a stock `csv.reader` rather than trusting the quoting.
+#
+# APPENDED, not inserted. A consumer reading by header name is unaffected either way; one
+# reading by position survives an append and does not survive an insertion.
 def _cmd_export_csv(args):
     pos, opt = parse_flags(args)
     if not pos:
@@ -3991,7 +4017,8 @@ def _cmd_export_csv(args):
     scored = score_register(load_register(pos[0]))
     cols = ["id", "title", "category", "theme", "owner", "inherentL", "inherentI", "inherentExposure",
             "inherentBand", "response", "cost", "residualL", "residualI", "residualExposure",
-            "residualBand", "overAppetite", "status", "reviewDate", "csfSubcategoryId", "provisionalTitle", "provisionalScore"]
+            "residualBand", "overAppetite", "status", "reviewDate", "csfSubcategoryId", "provisionalTitle",
+            "provisionalScore", "references"]
     # Python's True/False are not CSV booleans — Excel and every downstream parser expect
     # true/false. Writing the repr leaks the implementation language into an export.
     b = lambda v: "true" if v else "false"          # noqa: E731
@@ -4003,7 +4030,8 @@ def _cmd_export_csv(args):
                     r["residual"]["likelihood"], r["residual"]["impact"], r["residualExposure"], r["residualBand"],
                     b(r["overAppetite"]), r["status"], r.get("reviewDate", ""),
                     r.get("csfSubcategoryId", ""), b(r.get("provisionalTitle")),
-                    b(r.get("provisionalScore"))])
+                    b(r.get("provisionalScore")),
+                    "\n".join(r.get("references") or [])])
     out = _s(opt.get("out")) if isinstance(opt.get("out"), (str, list)) else None
     if out:
         with open(out, "w", newline="", encoding="utf-8") as fh:
