@@ -100,13 +100,37 @@ it up and it would be silent.
 |---|---|
 | `revenue` | The denominator `incident-materiality`'s financial factor had nowhere to get |
 | `segments` | Impact expressed as *which part of the business*, not "high" |
-| `crownJewels` | `{system, enables, atStake}` — the join between a technical asset and a business consequence. Optionally `criticality` (this organisation's own ranking), `sensitivity` (a `declared()` record: what the system HOLDS, in the organisation's own classification, free text with a **required basis**) and `dependsOn` (components the system relies on, so a consumer can trace a supplied component back to the workflow). None is checked against a scale this skill does not own. Every one is **absent unless declared**: missing means *not declared*, never *not critical* and never *not sensitive* |
+| `crownJewels` | `{system, enables, atStake}` — the join between a technical asset and a business consequence. Optionally `criticality` (this organisation's own ranking of what stops when this stops), `sensitivity` (what the system HOLDS, in the organisation's own classification) and `dependsOn` (components the system relies on, so a consumer can trace a supplied component back to the workflow). `criticality` and `sensitivity` are each a `declared()` record, free text with a **required basis** — see the note below on criticality's two shapes. Neither is checked against a scale this skill does not own. Every one is **absent unless declared**: missing means *not declared*, never *not critical* and never *not sensitive* |
 | `strategicGoals` | Lets a board pack open on the business's year, not security's |
 | `boardTolerance` | The sentence an appetite band was derived from — verbatim, attributed, dated |
 | `obligations` | The commitments an exception is actually deviating from |
 
 **`atStake` is required.** A system with `enables` but nothing at stake is an asset inventory
 row, and an asset inventory is not what this file is for.
+
+### ⚠️ `criticality` has two shapes on disk, and that is a decision
+
+```json
+"criticality": "high"                                       // written before v0.74.0
+"criticality": {"value": "high", "declaredBy": "CISO",      // written after
+                "declaredOn": "2026-08-09", "basis": "FY26 business impact analysis"}
+```
+
+`SCHEMA_VERSION` was **not** bumped, there is **no converter**, and **no store is ever
+refused**. Both shapes are legal, permanently. `sensitivity` has only one shape because it was
+introduced as a record in v0.68.2 and has no legacy behind it — the difference between the two
+fields is *when each arrived*, not an inconsistency to tidy up.
+
+That was decided as BL-216 Q-2 on 2026-08-10, against the cleaner alternative of bumping and
+refusing the old shape. BL-169 D-2 requires that stopping part-way leaves a loadable store, and
+a product whose argument is *your records persist and stay defensible* cannot ship a read that
+refuses a CISO's existing file. The polymorphism is affordable because there is exactly **one
+read point per consuming skill** — `declared_criticality()` in `vendor-register` and
+`ai-register`, which reads either shape and refuses everything else.
+
+**Do not resolve this by forcing one shape.** Forcing the record is the breaking read the
+decision declined; forcing the string discards the basis. Both directions are covered by
+`evals/criticality-shapes.sh`, one half each, and by CAC-TW-1 across both engines.
 
 **`boardTolerance` is stored verbatim.** Never paraphrased, never summarised on write. This is
 the sentence a risk appetite band was derived from — `risk-register` owns the band, this owns

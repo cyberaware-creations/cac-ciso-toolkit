@@ -27,7 +27,8 @@ Standard library only. Subcommands:
   init         <file.biz> --org 'Name' [--prepared-by ..] [--fiscal-year-end ..]
   declare      <file.biz> --flag aiInUse --value true --by 'Name' --basis '...'
   set-fact     <file.biz> --crown-jewel 'CRM' --enables '..' --at-stake '..' --by .. --basis ..
-               [--criticality '..'] [--sensitivity '..' --sensitivity-basis '..']
+               [--criticality '..' --criticality-basis '..']
+               [--sensitivity '..' --sensitivity-basis '..']
                <file.biz> --segment '..' | --goal '..' | --obligation '..'
                <file.biz> --board-tolerance '..' --by 'Name' --on YYYY-MM-DD
   set-revenue  <file.biz> --exact 412000000 --currency USD --fiscal-year FY26 --by .. --basis ..
@@ -361,7 +362,8 @@ def declare_flag(store: dict, flag: str, raw_value, by: str, basis: str,
 def add_crown_jewel(store: dict, system: str, enables: str, at_stake: str,
                     by: str = "", basis: str = "", criticality: str = "",
                     depends_on=None, sensitivity: str = "",
-                    sensitivity_basis: str = "") -> dict:
+                    sensitivity_basis: str = "",
+                    criticality_basis: str = "") -> dict:
     """Record a system the business cannot lose, and optionally how critical and how sensitive.
 
     `criticality` and `dependsOn` exist for one consumer — a criticality analysis walking
@@ -401,11 +403,29 @@ def add_crown_jewel(store: dict, system: str, enables: str, at_stake: str,
     `basis`, rather than leaning on the record-level `basis` — which answers a different
     question again, namely why this system is a crown jewel at all.
 
-    A NOTE ON THE ASYMMETRY, because a reader will see it before they see this docstring:
-    `sensitivity` is a `declared()` record and `criticality` is still a bare string. That is
-    deliberate and temporary. Adding a key is additive and breaks nothing; changing
-    `criticality`'s shape is a migration this store has no path for, and that decision is
-    open (BL-216 Q-2). Shipping the half that is safe was preferred to shipping neither.
+    CRITICALITY IS WRITTEN AS A `declared()` RECORD TOO, since v0.74.0, and carries its own
+    REQUIRED basis for the same reason sensitivity does — the record-level `basis` answers
+    why this system is a crown jewel at all, which is a different question from why it was
+    ranked where it was. A level with no basis is the thing a vendor criticality walk will
+    later hand to a board.
+
+    ⚠️ TWO SHAPES LIVE ON DISK, INDEFINITELY, AND THAT IS THE DECISION — NOT DRIFT.
+    A `.biz` written before v0.74.0 holds `criticality` as a bare string; one written after
+    holds a `declared()` record. Both are legal, both stay legal, and nothing converts.
+
+    That was decided deliberately (BL-216 Q-2, 2026-08-10) against the cleaner alternative of
+    bumping `SCHEMA_VERSION` and refusing the old shape. BL-169 D-2 says stopping part-way
+    must leave a loadable store; a product whose argument is *your records persist and stay
+    defensible* does not ship a version bump that refuses a CISO's file. The polymorphism is
+    affordable because there is exactly ONE read point per consuming skill —
+    `declared_criticality()` in `vendor-register` and `ai-register`, which reads either shape
+    and refuses everything else. It is guarded by `evals/criticality-shapes.sh`, whose two
+    halves fail if either branch is removed.
+
+    **Do not "fix" this by forcing one shape.** Forcing the record shape is the breaking read
+    this decision declined; forcing the bare string throws away the basis. The asymmetry
+    against `sensitivity` — which has no bare-string legacy and therefore only ever had one
+    shape — is a fact about when each field was introduced, not an inconsistency to resolve.
     """
     missing = [n for n, v in (("--crown-jewel", system), ("--enables", enables),
                               ("--at-stake", at_stake)) if not str(v or "").strip()]
@@ -416,6 +436,19 @@ def add_crown_jewel(store: dict, system: str, enables: str, at_stake: str,
             "it is not there. Without the second it is an asset inventory row, and the join "
             "to a business consequence — the whole reason this record exists — is missing."
             % ", ".join(missing))
+    crit, crit_basis = str(criticality or "").strip(), str(criticality_basis or "").strip()
+    if crit and not crit_basis:
+        raise Refusal(
+            "declaring --criticality %r requires --criticality-basis.\n"
+            "  This skill validates no scale — a consumer that owns one checks the value, "
+            "and this level is the top of a criticality walk that ends on a board page. The "
+            "basis is what a reader follows back: who ranked it there, and against what. "
+            "The record-level --basis answers why this is a crown jewel at all, which is a "
+            "different question." % crit)
+    if crit_basis and not crit:
+        raise Refusal(
+            "--criticality-basis was given with no --criticality. A basis for nothing is "
+            "not a record; say what was ranked, or leave both off.")
     sens, sens_basis = str(sensitivity or "").strip(), str(sensitivity_basis or "").strip()
     if sens and not sens_basis:
         raise Refusal(
@@ -433,8 +466,8 @@ def add_crown_jewel(store: dict, system: str, enables: str, at_stake: str,
            "atStake": at_stake.strip(),
            "declaredBy": str(by or "").strip(), "declaredOn": utc_today(),
            "basis": str(basis or "").strip()}
-    if str(criticality or "").strip():
-        rec["criticality"] = criticality.strip()
+    if crit:
+        rec["criticality"] = declared(crit, str(by or "").strip(), utc_today(), crit_basis)
     if sens:
         rec["sensitivity"] = declared(sens, str(by or "").strip(), utc_today(), sens_basis)
     depends = [str(d).strip() for d in (depends_on or []) if str(d or "").strip()]
@@ -1207,17 +1240,31 @@ def _cmd_self_test(_args) -> int:
         # and a fixture quietly gaining rows is how a downstream assertion starts passing
         # for the wrong reason.
         scratch = new_store("Scratch Ltd", "R. Calder")
+        # A level with no basis is refused, both directions, exactly as sensitivity is. The
+        # record-level `basis` answers why this is a crown jewel at all; this one answers who
+        # ranked it there and against what, and it is the question a board page raises.
+        refuses(lambda: add_crown_jewel(scratch, "Plant historian", "x", "y",
+                                        criticality="high"),
+                "a criticality with no basis is refused", "criticality-basis")
+        refuses(lambda: add_crown_jewel(scratch, "Plant historian", "x", "y",
+                                        criticality_basis="board minute"),
+                "a criticality basis with nothing ranked is refused", "basis for nothing")
         rated = add_crown_jewel(scratch, "Plant historian", "production scheduling",
                                 "a day of lost output", by="Head of Engineering",
-                                criticality="high", depends_on=["SCADA gateway", " "])
-        eq(rated["criticality"], "high", "a declared level is recorded as given")
+                                criticality="high",
+                                criticality_basis="FY26 business impact analysis",
+                                depends_on=["SCADA gateway", " "])
+        eq(rated["criticality"]["value"], "high", "a declared level is recorded as given")
+        eq(rated["criticality"]["basis"], "FY26 business impact analysis",
+           "and carries its own basis, not the record's")
+        eq(rated["criticality"]["declaredBy"], "Head of Engineering", "and who ranked it")
         eq(rated["dependsOn"], ["SCADA gateway"],
            "and blank dependencies are dropped rather than stored as empty rows")
         # No scale is checked here on purpose: this skill does not own one, and validating
         # would mean deciding what a criticality level is allowed to be for everybody.
         odd = add_crown_jewel(scratch, "Ledger", "statutory reporting", "the audit opinion",
-                              criticality="tier-0")
-        eq(odd["criticality"], "tier-0",
+                              criticality="tier-0", criticality_basis="our own tiering")
+        eq(odd["criticality"]["value"], "tier-0",
            "an organisation's own ranking is recorded, not corrected against a scale")
         eq([c["system"] for c in context_payload(scratch)["crownJewels"]
             if c.get("criticality")], ["Plant historian", "Ledger"],
@@ -1246,11 +1293,25 @@ def _cmd_self_test(_args) -> int:
         ok("criticality" not in sens,
            "sensitivity and criticality are independent — declaring one declares nothing "
            "about the other")
-        # The asymmetry is deliberate and temporary: adding a key is additive, changing
-        # `criticality`'s shape is a migration this store has no path for (BL-216 Q-2).
-        ok(isinstance(rated["criticality"], str)
+        # Both attributes are now `declared()` records on write. The bare-string shape is not
+        # gone — it is what every `.biz` written before v0.74.0 holds, and BL-216 Q-2 decided
+        # those keep loading rather than being converted or refused. This engine only ever
+        # WRITES the record; the two consuming skills READ both, guarded by
+        # evals/criticality-shapes.sh.
+        ok(isinstance(rated["criticality"], dict)
            and isinstance(sens["sensitivity"], dict),
-           "criticality is still a bare string while sensitivity is a declared record")
+           "both attributes are written as declared records, each with its own basis")
+        # And the promise the decision rests on, proved rather than asserted: a store written
+        # in the pre-v0.74.0 shape LOADS, and comes back with its bare string intact. If a
+        # converter or a schema bump ever creeps in, this is the check that fails.
+        legacy = new_store("Legacy Ltd", "R. Calder")
+        legacy["context"]["crownJewels"].append(
+            {"system": "CRM", "enables": "renewals", "atStake": "the client data",
+             "criticality": "high"})
+        legacy_path = os.path.join(os.path.dirname(path), "legacy.biz")
+        save(legacy_path, legacy)
+        eq(load(legacy_path)["context"]["crownJewels"][0]["criticality"], "high",
+           "a store written before v0.74.0 loads, and its bare string is not converted")
 
         # The board's own words, verbatim. Quotes and non-ASCII survive a round trip,
         # because the one thing this field must never do is paraphrase.
@@ -1732,6 +1793,7 @@ def _cmd_set_fact(args) -> int:
         cj = add_crown_jewel(store, args.crown_jewel, args.enables, args.at_stake,
                              by=args.by, basis=args.basis,
                              criticality=args.criticality,
+                             criticality_basis=args.criticality_basis,
                              depends_on=args.depends_on,
                              sensitivity=args.sensitivity,
                              sensitivity_basis=args.sensitivity_basis)
@@ -1959,7 +2021,12 @@ def build_parser() -> argparse.ArgumentParser:
     # a criticality walk a consumer runs, not a level this skill knows how to check.
     sp.add_argument("--criticality", default="",
                     help="how critical this system is, in the organisation's own ranking. "
-                         "Optional; absent means not declared, never 'not critical'.")
+                         "Optional; absent means not declared, never 'not critical'. "
+                         "Requires --criticality-basis.")
+    sp.add_argument("--criticality-basis", default="",
+                    help="who ranked it there and against what. Required whenever "
+                         "--criticality is given: no scale is validated here, so the basis "
+                         "is the only thing a reader can follow back.")
     sp.add_argument("--depends-on", action="append", default=[],
                     help="a component this system relies on. Repeatable. Lets a consumer "
                          "trace from a supplied component back to this system.")

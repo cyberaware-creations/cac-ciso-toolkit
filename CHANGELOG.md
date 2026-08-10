@@ -21,6 +21,48 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.74.0 — 2026-08-10
+
+**A crown jewel's criticality carries its own basis — and two shapes live on disk permanently,
+on purpose.** BL-216 R-3 phase 3, the last phase of R-3, unblocked by Q-2 being answered.
+
+`--criticality` now requires `--criticality-basis` and is stored through `declared()`, matching
+`sensitivity` since v0.68.2. No scale is validated here — this skill does not own one — so the
+basis is the only thing a reader can follow back to who ranked a system where, and this level is
+the top of a walk that ends on a board page.
+
+**What was decided, and against what.** `schemaVersion` was **not** bumped, there is no
+converter, and no store is ever refused. A `.biz` written before this release keeps its bare
+string; one written after holds a record; both are legal indefinitely. The cleaner alternative —
+bump and refuse the old shape — is better engineering and worse product: BL-169 D-2 requires
+that stopping part-way leaves a loadable store, and a toolkit arguing *your records persist and
+stay defensible* cannot ship a read that refuses a CISO's existing file. It is affordable only
+because v0.68.1 had already collapsed four inline reads into one `declared_criticality()` per
+consuming skill, so the polymorphism costs two lines instead of a migration.
+
+**The new guard defends against a tidy-up, not against a bug.** Two shapes read as an
+inconsistency and the obvious fix is to force one. Both directions are plausible and both are
+silent — forcing the record breaks every store written to date, forcing the string discards the
+basis — so `criticality-shapes.sh` carries one half per direction and the two registered
+mutations *are* those two edits. It runs across both consuming engines, and CAC-TW-1's corpus
+gained the record shapes so `vendor-register` and `ai-register` cannot diverge on them.
+
+`example-org.biz` deliberately stays on the bare-string shape: it is now the suite's only
+end-to-end exercise of a pre-v0.74.0 store, which is the estate this decision exists to protect.
+
+- `business_context.py` — `--criticality-basis`, refusals in both directions, `declared()`
+  storage. Self-test **216 → 221**, including a legacy store round-tripping unconverted
+- `vendor_register.py` / `ai_register.py` — `declared_criticality()` reads both shapes; a
+  container that is not a declared record still refuses, and so does `{"value": {...}}`.
+  Self-tests **229 → 235** and **158 → 164**
+- `render_context.py` — reads both shapes, and shows criticality's basis beside sensitivity's
+- `criticality-shapes.sh` — NEW guard, 8 checks, halves `bare` · `record`
+- `check-twins.py` — **293 comparisons** (was 281); `prove-guards` **38 guards, 69 halves**,
+  89 of 372 proved
+- `schema.md`, `applicability-contract.md`, `SKILL.md` and three docstrings state the two
+  shapes as a choice. That is task 3d, and it is the one that gets skipped: undocumented, the
+  next reader "fixes" the asymmetry by forcing one shape
+
 ## v0.73.0 — 2026-08-10
 
 **The citation batch: one overstated claim in four files, one edition that lived only in prose,

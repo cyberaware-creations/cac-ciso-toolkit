@@ -531,12 +531,30 @@ def declared_criticality(wf: dict) -> str:
     because a container never belongs in a text slot, and a derived criticality level is a
     text slot with more riding on it than a page.
 
-    It is not hypothetical. BL-54's R-3 changes `crownJewels[].criticality` from a bare
-    string to a record carrying its own basis. **This refusal is what makes that migration
-    safe rather than hopeful** — until the reader lands, a container here is a store written
-    against a contract this engine does not yet implement, and saying so is the only honest
-    answer. When R-3 ships, this function is where the new shape is read; the refusal stays
-    for everything that is still neither a level nor a record.
+    TWO SHAPES ARE LEGAL AND BOTH ARE READ HERE — BL-216 R-3 phase 3, landed in v0.74.0.
+    This is a decision, not drift:
+
+        "criticality": "high"                                     # written before v0.74.0
+        "criticality": {"value": "high", "declaredBy": ...,        # written after
+                        "declaredOn": ..., "basis": "..."}
+
+    `business-context` did NOT bump `SCHEMA_VERSION` and does NOT convert, so both shapes
+    persist on disk indefinitely. Bumping and refusing the old shape was weighed and
+    declined (Q-2, 2026-08-10): BL-169 D-2 says stopping part-way must leave a loadable
+    store, and a product arguing *your records persist and stay defensible* does not ship a
+    read that refuses a CISO's existing file. The polymorphism is affordable precisely
+    because this function is the ONE read point in this skill — it costs two lines here
+    instead of a migration everywhere.
+
+    **Do not "fix" this by forcing one shape.** Dropping the record branch refuses every
+    store written after v0.74.0; dropping the string branch refuses every store written
+    before it. `skills/business-context/evals/criticality-shapes.sh` carries one half per
+    direction and fails on either edit, and `tools/check-twins.py` runs both copies of this
+    function over both shapes.
+
+    A container that is NOT a declared record still refuses, and so does a record whose
+    `value` is itself a container — reading `{"value": {...}}` as a level would put a repr
+    back exactly where this function exists to keep one out.
 
     An empty or whitespace-only value is NOT a refusal — it is a crown jewel that declares
     no criticality, which is ordinary and yields `untraced` further down. Scalars are passed
@@ -544,6 +562,8 @@ def declared_criticality(wf: dict) -> str:
     better than anything here could.
     """
     raw = wf.get("criticality")
+    if isinstance(raw, dict) and "value" in raw:
+        raw = raw.get("value")
     if isinstance(raw, (dict, list, tuple, set)):
         raise Refusal(
             "crown jewel %r declares a criticality that is a %s, not a level: %.120r\n"
@@ -2117,18 +2137,37 @@ def _cmd_self_test(_args):
         # inline read this replaced returned the repr AS the level. `check-twins` proves this
         # walk and ai-register's agree; agreement is not correctness, and two copies can agree
         # on a repr. These pin what the right answer IS on this side.
-        for shape in ({"value": "high", "basis": "board said so"}, ["high"], ("high",)):
+        for shape in ({"tier": "high"}, ["high"], ("high",), {"value": {"tier": "high"}}):
             refuses(lambda s=shape: derive_criticality(
                 {"supports": "Plant historian (Dublin)"},
                 {"crownJewels": [{"system": "Plant historian (Dublin)",
                                   "criticality": s}]}),
-                    "a %s criticality is refused, not stringified into a level"
-                    % type(shape).__name__, "not a level")
-        eq(derive_criticality({"supports": "Plant historian (Dublin)"},
-                              {"crownJewels": [{"system": "Plant historian (Dublin)",
-                                                "criticality": "   "}]}),
-           (UNTRACED, ["Plant historian (Dublin)"], False),
-           "...but a blank criticality declares nothing and is not a refusal")
+                    "a %.40s criticality is refused, not stringified into a level"
+                    % (shape,), "not a level")
+
+        # THE TWO LEGAL SHAPES, both read here (BL-216 R-3 phase 3). A `.biz` written before
+        # v0.74.0 holds the bare string; one written after holds a `declared()` record. Both
+        # must derive the same level, because business-context does not convert and never
+        # will — see `declared_criticality`. Dropping either branch is a store nobody can
+        # read, and which half of the estate breaks depends only on which branch went.
+        for shape in ("high",
+                      {"value": "high", "basis": "board said so"},
+                      {"value": "high", "declaredBy": "CISO", "declaredOn": "2026-08-09",
+                       "basis": "FY26 business impact analysis"}):
+            eq(derive_criticality({"supports": "Plant historian (Dublin)"},
+                                  {"crownJewels": [{"system": "Plant historian (Dublin)",
+                                                    "criticality": shape}]}),
+               ("high", ["Plant historian (Dublin)"], False),
+               "a %s criticality derives the level it declares"
+               % ("bare-string" if isinstance(shape, str) else "declared-record"))
+        for blank in ("   ", {"value": "", "basis": "not yet ranked"},
+                      {"value": None, "basis": "not yet ranked"}):
+            eq(derive_criticality({"supports": "Plant historian (Dublin)"},
+                                  {"crownJewels": [{"system": "Plant historian (Dublin)",
+                                                    "criticality": blank}]}),
+               (UNTRACED, ["Plant historian (Dublin)"], False),
+               "...but a blank criticality declares nothing and is not a refusal (%s)"
+               % ("bare" if isinstance(blank, str) else "record"))
 
         # --- T7: derive proposes, a person confirms -------------------------
         before = open(path, "rb").read()

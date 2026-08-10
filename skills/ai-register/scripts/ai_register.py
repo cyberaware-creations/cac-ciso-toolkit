@@ -582,12 +582,22 @@ def declared_criticality(wf: dict) -> str:
     governance decision. BL-209's defect one layer below the renderers, where `esc()` already
     refuses a container because a container never belongs in a text slot.
 
+    TWO SHAPES ARE LEGAL AND BOTH ARE READ HERE — a bare `"high"` from any `.biz` written
+    before v0.74.0, and a `declared()` record `{"value": "high", "basis": ...}` from one
+    written after. `business-context` neither bumps its schema nor converts (BL-216 Q-2), so
+    both persist on disk indefinitely. **Do not "fix" this by forcing one shape**: each
+    branch is the only thing keeping half the existing stores readable, and
+    `skills/business-context/evals/criticality-shapes.sh` fails if either is removed.
+
     Empty or whitespace is not a refusal: that is a crown jewel declaring no criticality,
     which yields `untraced` below. Scalars pass through so the off-scale message still comes
-    from `_rank`. The full reasoning, and why BL-54's R-3 makes this load-bearing rather than
-    defensive, is in the twin at skills/vendor-register/scripts/vendor_register.py.
+    from `_rank`. A record whose `value` is itself a container refuses like any other
+    container. The full reasoning is in the twin at
+    skills/vendor-register/scripts/vendor_register.py.
     """
     raw = wf.get("criticality")
+    if isinstance(raw, dict) and "value" in raw:
+        raw = raw.get("value")
     if isinstance(raw, (dict, list, tuple, set)):
         raise Refusal(
             "crown jewel %r declares a criticality that is a %s, not a level: %.120r\n"
@@ -2402,16 +2412,33 @@ def _cmd_self_test(_args):
         # A container where a level belongs — see the twin in vendor-register. `check-twins`
         # proves the two walks agree; it cannot prove either is right, and two copies agreed
         # on returning a Python repr as a criticality level until v0.68.1.
-        for shape in ({"value": "high", "basis": "board said so"}, ["high"], ("high",)):
+        for shape in ({"tier": "high"}, ["high"], ("high",), {"value": {"tier": "high"}}):
             refuses(lambda s=shape: derive_criticality(
                 {"supports": "CRM"},
                 {"crownJewels": [{"system": "CRM", "criticality": s}]}),
-                    "a %s criticality is refused, not stringified into a level"
-                    % type(shape).__name__, "not a level")
-        eq(derive_criticality({"supports": "CRM"},
-                              {"crownJewels": [{"system": "CRM", "criticality": "   "}]}),
-           (UNTRACED, ["CRM"], False),
-           "...but a blank criticality declares nothing and is not a refusal")
+                    "a %.40s criticality is refused, not stringified into a level"
+                    % (shape,), "not a level")
+        # Both legal shapes, mirrored from vendor-register (BL-216 R-3 phase 3). The bare
+        # string is what every `.biz` written before v0.74.0 holds; business-context does not
+        # convert, so dropping either branch makes half the estate unreadable.
+        for shape in ("high",
+                      {"value": "high", "basis": "board said so"},
+                      {"value": "high", "declaredBy": "CISO", "declaredOn": "2026-08-09",
+                       "basis": "FY26 business impact analysis"}):
+            eq(derive_criticality({"supports": "CRM"},
+                                  {"crownJewels": [{"system": "CRM",
+                                                    "criticality": shape}]}),
+               ("high", ["CRM"], False),
+               "a %s criticality derives the level it declares"
+               % ("bare-string" if isinstance(shape, str) else "declared-record"))
+        for blank in ("   ", {"value": "", "basis": "not yet ranked"},
+                      {"value": None, "basis": "not yet ranked"}):
+            eq(derive_criticality({"supports": "CRM"},
+                                  {"crownJewels": [{"system": "CRM",
+                                                    "criticality": blank}]}),
+               (UNTRACED, ["CRM"], False),
+               "...but a blank criticality declares nothing and is not a refusal (%s)"
+               % ("bare" if isinstance(blank, str) else "record"))
         refuses(lambda: criticality_rank(store, UNTRACED),
                 "ordering a list containing untraced RAISES", "state, not a level")
         eq(criticality_rank(store, "high"), 2, "while a real level ranks normally")

@@ -175,11 +175,20 @@ each consuming skill, read as data. **No skill imports another.**
   },
   "revenue": {"exact": 412000000.0, "currency": "EUR", "fiscalYear": "FY26", "...": "..."},
   "crownJewels": [{"system": "...", "enables": "...", "atStake": "...",
-                   "criticality": "high", "dependsOn": ["..."],
+                   "dependsOn": ["..."],
+                   "criticality": {"value": "high", "declaredBy": "...",
+                                   "declaredOn": "...", "basis": "..."},
                    "sensitivity": {"value": "...", "declaredBy": "...",
                                    "declaredOn": "...", "basis": "..."}}]
 }
 ```
+
+⚠️ **`criticality` travels in EITHER of two shapes** — the record above from any store written
+since v0.74.0, and a bare `"high"` from every one written before. `business-context` does not
+convert and does not refuse (BL-216 Q-2), so a consumer of this payload must read both. There
+is one supported way to do that: `declared_criticality()`, which `vendor-register` and
+`ai-register` each carry as a declared CAC-TW-1 twin. Reading the field inline is how a
+container became a governance level in the first place (BL-216 phase 0b).
 
 **`applicability` carries the decision, not the raw material.** §2.2 is decided here, once, and
 shipped — a consumer reads its own entry rather than re-deriving `None`-versus-`False` from

@@ -214,6 +214,15 @@ jobs:
       - name: A declared sensitivity carries a basis, and it reaches the page
         run: PY="$(command -v python3)" ./skills/business-context/evals/sensitivity-basis.sh
 
+      # BL-216 R-3 phase 3. `criticality` has two legal shapes on disk — a bare string in
+      # every store written before v0.74.0, a declared() record in every one written after —
+      # because Q-2 decided against a schema bump that would refuse a CISO's existing file.
+      # Two shapes read as an inconsistency and the obvious tidy-up is to force one; either
+      # direction silently breaks half the estate, so there is one half per direction. Run
+      # across BOTH consuming engines, because the read is a declared CAC-TW-1 twin.
+      - name: Both criticality shapes read, in both consuming engines
+        run: PY="$(command -v python3)" ./skills/business-context/evals/criticality-shapes.sh
+
       # BL-188, and it covers two skills — `ciso-board-translation` ships no evals directory,
       # so the guard lives with the other two locations. §500.19 was absent from `skills/`
       # entirely across five release tests: every NYDFS limit in the suite scoped OUTWARD, at

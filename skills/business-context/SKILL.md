@@ -127,7 +127,8 @@ A crown jewel may also carry `--criticality` and `--depends-on`, both optional:
 ```bash
 --crown-jewel "Plant historian (Dublin)" --enables "production scheduling across both lines" \
   --at-stake "a day of lost output is roughly a week of aftermarket margin" \
-  --criticality high --depends-on "SCADA gateway"
+  --criticality high --criticality-basis "FY26 business impact analysis" \
+  --depends-on "SCADA gateway"
 ```
 
 These are the top of a criticality walk a consumer runs — `vendor-register` traces from a
@@ -143,6 +144,12 @@ scale would silently downgrade every system nobody has got to yet.
 **The level is recorded as given and never checked**, because this skill owns no scale. The
 consumer that has one compares and reports a disagreement rather than coercing the value;
 validating here would mean deciding what a criticality level is allowed to be for everybody.
+
+**`--criticality-basis` is required whenever `--criticality` is given.** Since no scale is
+validated, the basis is the only thing a reader can follow back — who ranked it there, against
+what. The record-level `--basis` answers a different question: why this is a crown jewel at
+all. This level is the top of a walk that ends on a board page, and a level with no basis is
+the thing that page cannot defend.
 
 ### Sensitivity is a different question, and it needs a basis
 
@@ -170,9 +177,23 @@ The value is stored with its own `declaredBy`, `declaredOn` and `basis` — not 
 record-level `--basis`, which answers a different question again: why this system is a crown
 jewel at all.
 
-*`sensitivity` is a record while `criticality` is still a bare string. That asymmetry is
-deliberate and temporary: adding a key breaks nothing, and changing `criticality`'s shape is a
-migration this store has no path for yet.*
+### ⚠️ `criticality` has two shapes on disk, permanently, and that is a decision
+
+A `.biz` written before v0.74.0 holds `"criticality": "high"`. One written after holds a
+`declared()` record carrying its own basis. **`schemaVersion` was not bumped, nothing converts,
+and no store is ever refused** — so both shapes are legal indefinitely.
+
+That was decided as BL-216 Q-2 against the cleaner alternative of bumping and refusing the old
+shape. BL-169 D-2 requires that stopping part-way leaves a loadable store, and a product whose
+argument is *your records persist and stay defensible* does not ship a read that refuses a
+CISO's existing file. It is affordable because each consuming skill has exactly one read point
+— `declared_criticality()` — so the polymorphism costs two lines rather than a migration.
+
+`sensitivity` has one shape only because it arrived as a record in v0.68.2 and has no legacy
+behind it. The difference between the two fields is *when each was introduced*, not an
+inconsistency. **Do not resolve it by forcing one shape**: forcing the record is the breaking
+read this decision declined, forcing the string discards the basis, and
+`evals/criticality-shapes.sh` fails on either.
 
 The **board tolerance is stored verbatim**, never paraphrased on write. `risk-register` owns the
 appetite band; this owns the sentence the band was derived from.
