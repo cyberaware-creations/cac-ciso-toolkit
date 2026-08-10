@@ -60,6 +60,21 @@
         "references/exceptions.md",
         "evals/trigger-prompts.md"
       ]
+    },
+    {
+      "id": "delaware-caremark-cases",
+      "label": "Delaware Caremark oversight cases",
+      "publisher": "Delaware Court of Chancery / Delaware Supreme Court",
+      "instrument": "In re Caremark Int'l Inc. Deriv. Litig., 698 A.2d 959 (Del. Ch. 1996); Stone ex rel. AmSouth Bancorporation v. Ritter, 911 A.2d 362 (Del. 2006); Brewer v. Turner, C.A. No. 2023-1284-KSJM (Del. Ch. 29 Sep. 2025) (McCormick, C.), 2025 WL 2769895, certification denied 2025 WL 3048942 (Del. Ch. 30 Oct. 2025), interlocutory appeal refused sub nom. Turner v. Brewer, No. 444, 2025 (Del. 15 Dec. 2025) (ORDER)",
+      "version": "PROVENANCE IS NOT UNIFORM ACROSS THIS ROW AND THE DIFFERENCE MATTERS. The Brewer slip opinion was READ IN FULL from the Delaware Courts opinion server on 2026-08-10, and the quotations used in references/exceptions.md - 'can be addressed in short order' and 'no straight-faced argument that Regions lacked an information system' - and the footnote 67 detail come from that document. Caremark and Stone are cited only for the standard they state and were NOT re-read for this row; they are pre-2024 landmarks carried on the same footing as in ciso-board-translation/delaware-cyber-cases. NO COMMERCIAL CITATOR HAS EVER BEEN RUN ON ANY OF THESE - no Shepard's, no KeyCite. What was run, on 2026-08-10, is a subsequent-citation sweep of a free index covering the post-2024 decisions only; the pre-2024 landmarks in this row were NOT swept. The paid pass is authorised and outstanding (BL-232). Until it happens this block is swept, not Shepardised. ALSO CARRIED FORWARD: an earlier pass in this repo recorded that Brewer contains no information-systems analysis, on a zero count taken from extracted PDF text; that was FALSE and is withdrawn - see CAC-RW-1.14 and ciso-board-translation/sources.json for why the count could not have found the text either way.",
+      "checkedOn": "2026-08-10",
+      "checkedBy": "claude-code",
+      "gated": true,
+      "reviewIntervalDays": 180,
+      "intervalBecause": "Half the house default, matching ciso-board-translation's row on the same case for the same reason and deliberately not drifting from it. Brewer is LIVE LITIGATION - interlocutory appeal refused, so the case continues below - and the sweep that produced this row measured the rate directly: LACERS v. Sanford distinguished In re TransUnion roughly three months after the previous check. A 365-day interval would let a development on a case quoted in a caveat sold to CISOs sit unnoticed for up to a year. 180 days is two sweeps a year, which matches the observed movement, and it is NOT a substitute for the paid citator pass at BL-232.",
+      "usedFor": [
+        "references/exceptions.md"
+      ]
     }
   ]
 }
