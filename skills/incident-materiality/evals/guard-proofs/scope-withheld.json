@@ -1,7 +1,7 @@
 {
   "guard": "skills/incident-materiality/evals/scope-withheld.sh",
-  "forbids": "a statutory deadline computed for a perimeter nobody declared, or withheld without saying so",
-  "note": "Decision AP-2, as a check. The two halves fail in opposite directions and neither alone is the rule: computing manufactures a legal date for an organisation that may owe no filing, and withholding silently leaves a registrant who simply has not filled in the profile looking identical to one that is genuinely out of scope.",
+  "forbids": "a statutory deadline computed for a perimeter nobody declared, or withheld without saying so, or withheld so completely that a registrant is left with no date at all",
+  "note": "Decision AP-2, as a check. The two halves fail in opposite directions and neither alone is the rule: computing manufactures a legal date for an organisation that may owe no filing, and withholding silently leaves a registrant who simply has not filled in the profile looking identical to one that is genuinely out of scope. THIRD HALF ADDED IN v0.89.0 (BL-207). The decision was NEITHER of the two options as framed: withhold the clock AND carry the date in the escalation. So there is now a third way to be wrong, opposite to both of the others — the clock is correctly withheld, the escalation correctly fires, and the registrant still has no date to work to. That failure is invisible to both existing halves, which is the argument for a third rather than a wider one.",
   "mutations": [
     {
       "half": "no-manufactured-date",
@@ -19,11 +19,28 @@
       "why": "the attention removed — the date is still withheld and nothing on any surface says why",
       "defeats": [
         "...and it escalates, so the attention survives the withholding",
-        "...at high, not critical: a fact nobody recorded is not a deadline that passed"
+        "...at high, not critical: a fact nobody recorded is not a deadline that passed",
+        "the withheld escalation carries a date after all",
+        "...and saying in the same breath that it is not a finding that it applies",
+        "the escalation still carries exactly the six contract keys, so nothing is silently dropped",
+        "...stated as a CONDITIONAL, naming the regime it is conditional on"
       ],
       "file": "skills/incident-materiality/scripts/incident_analysis.py",
       "find": "        if policy.get(\"scopeUndeclared\"):",
-      "replace": "        if False and policy.get(\"scopeUndeclared\"):"
+      "replace": "        if False and policy.get(\"scopeUndeclared\"):",
+      "note": "Its blast radius GREW in v0.89.0 and the list is kept exact rather than trimmed to read tidily. Deleting the escalation now takes the conditional date with it, because the date lives in that escalation's evidence. `conditional-date` is a strict subset of this half and still discriminates: it removes the date while leaving the escalation, its severity and its shape intact, which is the failure this half cannot see."
+    },
+    {
+      "half": "unconditional-date",
+      "why": "the conditional clause stripped, leaving the DATE in place. This is the mutation that matters and the one a careless edit actually produces: shortening a long sentence, or 'tidying' what looks like a hedge, turns 'if sec-1.05 applies, the window closes on 20 July' into 'the window closes on 20 July' - which is a legal conclusion about whether Item 1.05 reaches this organisation, asserted from an assessor's tag. Everything else still reads correctly: the clock is empty, the state is scope-not-declared, the escalation fires at high, and a date is present.",
+      "note": "Deleting the conditional outright was the first attempt and CAC-GP-1.9 rejected it: every check that reads the scope-undeclared escalation is ALSO defeated by `no-silent-withholding`, which deletes that escalation entirely, so the two halves were indistinguishable and one of them was therefore unproved. The rule was right. This mutation leaves the escalation intact and breaks only the hedge, which is both the more realistic edit and the only failure no other half can see.",
+      "defeats": [
+        "...stated as a CONDITIONAL, naming the regime it is conditional on",
+        "no escalation ever states the window closes WITHOUT the conditional clause"
+      ],
+      "file": "skills/incident-materiality/scripts/incident_analysis.py",
+      "find": "                        detail += (\" If `sec-1.05` applies, the four-business-day Item 1.05 \"",
+      "replace": "                        detail += (\" The four-business-day Item 1.05 \""
     }
   ]
 }

@@ -953,7 +953,7 @@ def sec_clock(inc: dict, today: str, holidays) -> dict:
                       note=f"the Item 1.05 clock starts at a determination of material; "
                            f"{reason}")
     anchor = det["determinedAt"]
-    deadline = business_days_after(anchor, SEC_BUSINESS_DAYS, holidays)
+    deadline = sec_window_close(inc, holidays)
     state = (CLOCK_FILED if filed
              else CLOCK_OVERDUE if days_between(today, deadline) < 0 else CLOCK_DUE)
     return _clock(regime, window, state, anchor=anchor, anchor_kind="determination",
@@ -961,6 +961,31 @@ def sec_clock(inc: dict, today: str, holidays) -> dict:
                   daysRemaining=days_between(today, deadline),
                   businessDaysRemaining=business_days_between(today, deadline, holidays),
                   note=f"{SEC_BUSINESS_DAYS} business days from the determination on {anchor}")
+
+
+def sec_window_close(inc: dict, holidays=()) -> str:
+    """The date the Item 1.05 window closes, or "" when nothing anchors one yet.
+
+    **ONE implementation, two readers, and that is deliberate** (BL-207). `sec_clock` reads it
+    as the DEADLINE of a computed clock. The `scope-undeclared` escalation reads the identical
+    value as a CONDITIONAL date — *if the regime applies, this is when it closes* — on an
+    incident whose clock is withheld and stays withheld.
+
+    Recomputing it in the escalation would have been the obvious way to write this, and it
+    would have broken the rule `escalations()` states in its own docstring: the clocks are read
+    from `derive` rather than recomputed, *so an escalation can never disagree with the
+    worksheet beside it about whether a deadline passed*. Two copies of a date derivation is
+    exactly that disagreement waiting for one of them to be edited. There is no CAC-TW-1 twin
+    to declare here because there is nothing to compare — the duplication was removed by
+    construction rather than policed after the fact.
+
+    Returns "" and not None for the no-anchor case, because the caller concatenates it into a
+    sentence and `if not closes:` has to be the only guard either caller needs.
+    """
+    det = current_determination(inc)
+    if det is None or det["state"] != "material":
+        return ""
+    return business_days_after(det["determinedAt"], SEC_BUSINESS_DAYS, holidays)
 
 
 def dora_clocks(inc: dict, now_iso: str) -> list:
@@ -1266,6 +1291,39 @@ def escalations(store: dict, today: str, now_iso: str, context: dict = None) -> 
             unscoped = [c for c in row["clocks"] if c["state"] == CLOCK_SCOPE_UNDECLARED]
             if unscoped:
                 flags = sorted({c.get("scopeFlag", "") for c in unscoped if c.get("scopeFlag")})
+                detail = ("this incident is tracked against a regime whose applicability "
+                          "nobody has declared ({}), so no deadline is asserted and none is "
+                          "invented. Declare it on the organisation profile or on this "
+                          "incident and the window computes. Until then this is an open "
+                          "question, not a finding that the regime does not "
+                          "apply.".format(", ".join(flags) or "no flag named"))
+                # THE CONDITIONAL (BL-207). Computing the clock would assert that Item 1.05
+                # APPLIES to this organisation, inferred from an assessor's tag — a legal
+                # conclusion, and `record and refuse, never judge` forbids it. But withholding
+                # in silence leaves a real registrant with no date at all on an obligation
+                # that runs four business days from the materiality determination.
+                #
+                # A CONDITIONAL IS NOT A JUDGEMENT. "If X applies, the date is Y" asserts
+                # nothing whatever about whether X applies, and the sentence says so in the
+                # same breath rather than trusting the reader to infer it.
+                #
+                # ⚠️ It goes in `evidence.detail` and NOT in a new key. `ESCALATION_KEYS` is
+                # not defined in this skill — the contract lives in the consumers, and
+                # `attention_surface.py` projects an escalation down to exactly six keys. A
+                # seventh would not fail loudly; it would be silently dropped before it ever
+                # reached a surface, and the field would ship having never once appeared.
+                #
+                # Only when `sec-1.05` is itself among the UNSCOPED windows. A tracked-but-
+                # declared SEC clock already has a real deadline, and a declared-false profile
+                # computes the window and reports the conflict — a conditional in either case
+                # would put two dates on one incident.
+                if any(c["regime"] == "sec-1.05" for c in unscoped):
+                    closes = sec_window_close(inc, holidays)
+                    if closes:
+                        detail += (" If `sec-1.05` applies, the four-business-day Item 1.05 "
+                                   "window closes on {} — a conditional, not a finding that "
+                                   "it applies. Declare scope to activate the "
+                                   "clock.".format(closes))
                 out.append({
                     "subjectRef": iid, "subjectKind": "incident",
                     "trigger": "scope-undeclared", "severity": "high",
@@ -1274,13 +1332,7 @@ def escalations(store: dict, today: str, now_iso: str, context: dict = None) -> 
                         "from": inc["discoveredAt"], "to": today,
                         "baseline": ", ".join("{}:{}".format(c["regime"], c["window"])
                                               for c in unscoped),
-                        "detail": ("this incident is tracked against a regime whose "
-                                   "applicability nobody has declared ({}), so no deadline "
-                                   "is computed and none is invented. Declare it on the "
-                                   "organisation profile or on this incident and the window "
-                                   "computes. Until then this is an open question, not a "
-                                   "finding that the regime does not "
-                                   "apply.".format(", ".join(flags) or "no flag named")),
+                        "detail": detail,
                     },
                 })
 
