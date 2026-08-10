@@ -155,6 +155,51 @@ TWINS = (
         "corpus": [(t,) for t in (1, 2, 3, 7, 90, 180, 365, 730)],
     },
     {
+        "name": "derive_criticality",
+        "kind": "behaviour",
+        "why": "The NISTIR 8179 Process E walk, in both third-party and AI registers. Both "
+               "read `crownJewels[].criticality` out of a business-context store on the same "
+               "byte-identical line, and BL-54's R-3 changes that field's shape — so the next "
+               "edit here is one that must land on both copies or produce a governance level "
+               "from an unfinished read. Registered BEFORE that change rather than after "
+               "(BL-217).",
+        "members": [("skills/vendor-register/scripts/vendor_register.py",
+                     "derive_criticality"),
+                    ("skills/ai-register/scripts/ai_register.py", "derive_criticality")],
+        # (record, context) — the record supplies `supports`, the context the crown jewels.
+        # Both signatures take them positionally; only the parameter NAME differs.
+        "corpus": [
+            ({"supports": s}, ctx)
+            for s in ("Order capture", "Payment gateway", "", "unknown node")
+            for ctx in (
+                {},
+                {"crownJewels": []},
+                # one hop
+                {"crownJewels": [{"system": "Order capture", "criticality": "high"}]},
+                # two hops, the bound
+                {"crownJewels": [{"system": "Order capture", "criticality": "high",
+                                  "dependsOn": ["Payment gateway"]}]},
+                # three hops — past the bound, must truncate rather than answer
+                {"crownJewels": [{"system": "Order capture", "criticality": "high",
+                                  "dependsOn": ["Ledger"]},
+                                 {"system": "Ledger", "dependsOn": ["Payment gateway"]}]},
+                # a cycle
+                {"crownJewels": [{"system": "Order capture", "dependsOn": ["Payment gateway"]},
+                                 {"system": "Payment gateway",
+                                  "dependsOn": ["Order capture"]}]},
+                # declared, with nothing to declare
+                {"crownJewels": [{"system": "Order capture", "criticality": ""}]},
+                {"crownJewels": [{"system": "Order capture", "criticality": "   "}]},
+                # THE R-3 CASE. A crown jewel whose criticality is a record rather than a
+                # level — the shape R-3 introduces. `str(dict)` is truthy and non-empty, so
+                # the pre-0b code sails past its own guard and returns the repr AS the level.
+                {"crownJewels": [{"system": "Order capture",
+                                  "criticality": {"value": "high", "basis": "board said so"}}]},
+                {"crownJewels": [{"system": "Order capture", "criticality": ["high"]}]},
+            )
+        ],
+    },
+    {
         "name": "STATUS_SEV / METRIC_STATUS_SEV",
         "kind": "constant",
         "why": "assemble_pack.py maps metric statuses to pack severities and says why in its "
