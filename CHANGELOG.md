@@ -21,6 +21,58 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.68.1 — 2026-08-09
+
+**The criticality walk would return a Python dict repr as a governance level.** Both the
+third-party and AI registers trace what an arrangement or deployment supports up to a crown
+jewel with a declared criticality (NISTIR 8179 Process E). Both read the field on the same
+byte-identical line:
+
+```python
+if wf and str(wf.get("criticality") or "").strip():
+    return str(wf["criticality"]).strip(), path, False
+```
+
+`str({...})` is truthy and non-empty. A crown jewel whose `criticality` was a record sailed
+straight past that guard, and the walk returned `"{'value': 'high', 'basis': 'board said so'}"`
+**as the criticality level** — confidently, from a read it had not understood, and only caught
+later (if at all) when `_rank` refused it as off-scale.
+
+That is v0.66.0's defect one layer below the renderers. `esc()` refuses a container because a
+container never belongs in a text slot; a derived criticality level is a text slot with more
+riding on it than a page. `declared_criticality()` now refuses one in both engines. A blank
+value is still not a refusal — that is a crown jewel declaring no criticality, which is
+ordinary and yields `untraced`; scalars still pass through so the off-scale message keeps
+coming from `_rank`, which words it better.
+
+**This is groundwork, not tidying.** BL-54's R-3 changes `crownJewels[].criticality` from a
+bare string to a record carrying its own basis. The refusal is what makes that migration safe
+rather than hopeful: until the reader lands, a container there means a store written against a
+contract this engine does not implement, and saying so is the only honest answer.
+
+**The walk was also an undeclared twin** (BL-217). `ai_register.py` declared the mirror in
+eight places; `vendor_register.py` named it back nowhere, so a maintainer editing the original
+had nothing telling them a second copy existed. CAC-TW-1 could not find the pair either — the
+declaration named the *skill* rather than the *file*, and a skill name is not something you can
+grep. That is the same ungreppable-prose failure `evidence_text` had in v0.68.0, in a second
+pair, found within hours.
+
+Both ends now carry the path and the pair is registered — **8 declared twins, 241 comparisons**,
+over a corpus of contexts covering one hop, two hops, past the bound, a cycle, a blank
+criticality and a container.
+
+**The registration was done first, and it earned its keep immediately.** With the refusal
+applied to `vendor-register` only, `check-twins` went red and named both container cases and
+both sides' answers. That is a real half-finished edit caught by the guard rather than a
+manufactured one — on the exact pair R-3 will require editing together.
+
+Both skills also gained fixtures pinning the refusal, because `check-twins` proves the two
+copies **agree** and cannot prove either is **right** — and until this release they agreed on
+returning a repr.
+
+Counts: vendor-register self-test 224 → **228**, ai-register 147 → **151**; all 14 eval suites
+across both skills green; `check-twins` self-test 19/19 with 0 of 28 mutations surviving.
+
 ## v0.68.0 — 2026-08-09
 
 **One escalation, a number on the weekly surface and a no-usable-evidence notice on the

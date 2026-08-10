@@ -466,6 +466,12 @@ def autonomy_warnings(rec: dict) -> list:
 
 # --- Criticality: mirrored from vendor-register, deliberately -----------------
 #
+# The twin is skills/vendor-register/scripts/vendor_register.py, which now carries the
+# matching note back to here. This declaration named the SKILL and not the FILE for its whole
+# life, and a skill name is not something you can grep — which is exactly why CAC-TW-1 could
+# not find this pair when it shipped (BL-217). tools/check-twins.py now executes both copies
+# of the walk over a shared corpus on every push.
+#
 # Same vocabulary, same properties, same refusals. A CISO who learned `untraced` in the
 # third-party register must not meet a second word for it here, and an auditor comparing the
 # two must not have to learn which one is which.
@@ -540,6 +546,31 @@ def context_parent_of(context: dict, node: str) -> str:
     return ""
 
 
+def declared_criticality(wf: dict) -> str:
+    """The level a crown jewel declares, or `""` when it declares none. Refuses a container.
+
+    `str({...})` is truthy and non-empty, so the inline read this replaces returned
+    `"{'value': 'high', ...}"` AS the criticality level — a Python repr standing in for a
+    governance decision. BL-209's defect one layer below the renderers, where `esc()` already
+    refuses a container because a container never belongs in a text slot.
+
+    Empty or whitespace is not a refusal: that is a crown jewel declaring no criticality,
+    which yields `untraced` below. Scalars pass through so the off-scale message still comes
+    from `_rank`. The full reasoning, and why BL-54's R-3 makes this load-bearing rather than
+    defensive, is in the twin at skills/vendor-register/scripts/vendor_register.py.
+    """
+    raw = wf.get("criticality")
+    if isinstance(raw, (dict, list, tuple, set)):
+        raise Refusal(
+            "crown jewel %r declares a criticality that is a %s, not a level: %.120r\n"
+            "  The walk cannot turn a container into a level, and rendering it would put a "
+            "Python repr where a governance decision belongs. Either the store was written "
+            "against a newer crown-jewel shape than this engine reads, or the field was "
+            "hand-edited. Neither is something this walk may guess past."
+            % (wf.get("system") or "(unnamed)", type(raw).__name__, raw))
+    return "" if raw is None else str(raw).strip()
+
+
 def derive_criticality(rec: dict, context: dict, max_hops: int = TRACE_MAX_HOPS):
     """Trace what this deployment supports up to a workflow with a declared criticality.
 
@@ -555,8 +586,10 @@ def derive_criticality(rec: dict, context: dict, max_hops: int = TRACE_MAX_HOPS)
         seen.add(_norm(node))
         path.append(node)
         wf = context_workflow_for(context, node)
-        if wf and str(wf.get("criticality") or "").strip():
-            return str(wf["criticality"]).strip(), path, False
+        if wf:
+            level = declared_criticality(wf)
+            if level:
+                return level, path, False
         node = context_parent_of(context, node)
     return UNTRACED, path, bool(node)
 
@@ -2311,6 +2344,19 @@ def _cmd_self_test(_args):
            "a two-hop dependency resolves, exactly as in vendor-register")
         eq(derive_criticality({"supports": "CRM"}, {}),
            (UNTRACED, ["CRM"], False), "no context at all: untraced, and never a refusal")
+        # A container where a level belongs — see the twin in vendor-register. `check-twins`
+        # proves the two walks agree; it cannot prove either is right, and two copies agreed
+        # on returning a Python repr as a criticality level until v0.68.1.
+        for shape in ({"value": "high", "basis": "board said so"}, ["high"], ("high",)):
+            refuses(lambda s=shape: derive_criticality(
+                {"supports": "CRM"},
+                {"crownJewels": [{"system": "CRM", "criticality": s}]}),
+                    "a %s criticality is refused, not stringified into a level"
+                    % type(shape).__name__, "not a level")
+        eq(derive_criticality({"supports": "CRM"},
+                              {"crownJewels": [{"system": "CRM", "criticality": "   "}]}),
+           (UNTRACED, ["CRM"], False),
+           "...but a blank criticality declares nothing and is not a refusal")
         refuses(lambda: criticality_rank(store, UNTRACED),
                 "ordering a list containing untraced RAISES", "state, not a level")
         eq(criticality_rank(store, "high"), 2, "while a real level ranks normally")
