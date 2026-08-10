@@ -21,6 +21,48 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.80.0 — 2026-08-10
+
+**Completeness counts against the framework, not against the store.** BL-109, and the widest
+half of it was not in the title.
+
+A Subcategory the Core has and the store does not simply **left the denominator**. So a Profile
+missing rows reported complete coverage of a framework it no longer fully covered — exit 0, no
+note, and the percentage reaches a board page. The opposite direction was always loud: an
+assessment for a Subcategory the Core *removed* fails validation by name. The register was
+strict about extra rows and silent about missing ones, which is the wrong way round.
+
+**A missing row is UNASSESSED, never out of scope.** Out of scope is a declaration somebody
+makes; absence is a declaration nobody made, and reading it as `notApplicable` would let a store
+shrink its own denominator by deleting rows. Missing rows now count into `total` and `inScope`,
+and `notInStore` reports how many there are. `byCategory` iterates the Core too, so a Category
+the store never touched appears as fully unassessed instead of vanishing from the dashboard.
+
+**Which data produced this Profile is now recorded and compared.**
+
+- `profile.coreRef` — `{version, sha256}`, stamped by `save_store` on **every** write, in one
+  place so a command added later cannot forget it. The identity is the export's hash, following
+  BL-75: a date says when somebody downloaded a file, a hash says which file.
+- `analyze` and `overlay list` emit `provenanceNotes`. `overlay list` printed the shipped
+  dataset version and the in-force one **on adjacent lines and never compared them** — the
+  cheapest place to notice, and the place it was not noticed.
+- **Notes, never refusals.** A provenance mismatch is a fact about the data, not an invalid
+  store; refusing would strand a CISO mid-assessment the day a dataset or Core moves, which is
+  the BL-169 D-2 failure this repo declines everywhere else. Absent means *not recorded*, which
+  is its own sentence and never agreement.
+
+**And two shipped sentences were false.** `schema.md` and `cyber-ai-overlay.md` both said the
+dataset version *"is stamped into snapshots"* — it was not; a snapshot's keys were exactly
+`id, label, ts, note, assessments, actionItems, rollups`. Both also said stores *"keep reporting
+that version until re-analyzed"*, which is **backwards**: analysis reports the shipped version
+immediately and the stale stamp is what survives. Of the two ways to end a false claim, the
+first is now **made true** — snapshots carry `datasetVersion` and `coreRef`, because a stored
+report a board reads months later that cannot say what produced it is this item's own subject,
+frozen. The second is corrected in place, with the error left visible.
+
+`profile_analysis.py self-test` 656 → **667**. Every other engine, every eval suite,
+`check-twins`, `check-sources` and the 3.9 floor unchanged.
+
 ## v0.79.1 — 2026-08-10
 
 **The toolkit stops citing a publication NIST withdrew a year ago.** BL-224 T2 and T6 — the two
