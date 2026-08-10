@@ -21,6 +21,44 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.79.0 — 2026-08-10
+
+**One vendored CPRT export, pinned by hash, checked on every run.** BL-75.
+
+There were two. `tools/csf-2.0.xlsx` is pinned in `nist-csf-2.0-core.json` and was the file the
+shipped Core was built from. `tools/crosswalks/_source_csf2.xlsx` was **not** pinned — its
+provenance was a date, `RETRIEVED="2026-07-29"`, and it was the file the shipped crosswalks were
+actually built from. Their bytes differed and `tools/README.md` asserted that the vendored XLSX
+was *"provably the file the shipped Core was built from"* — true of the copy it named, and
+silently untrue of the other.
+
+**What they actually were, measured member by member:** the same CPRT release downloaded
+fourteen days apart. 16 zip members, **14 byte-identical**; the two that differed were
+`docProps/core.xml`'s created timestamp (2026-07-15 against 2026-07-29) and a time value on the
+cover sheet. `sharedStrings.xml` and the data sheet matched exactly — and regenerating the
+crosswalks from the pinned copy changed **every edge and every control not at all**, only the
+provenance stamp. That is the good outcome, and it was not knowable without checking.
+
+So the fix is a deletion, not a second pin.
+
+- **`author_catalogs.py` reads `../csf-2.0.xlsx`** — the same export the Core does — and
+  **refuses to run** if its hash is not the one the Core records. The build can no longer
+  author crosswalks from a file the Core was not built from.
+- **`retrievedAt` is replaced by `sha256`** in all six shipped crosswalk JSONs, matching what
+  `nist-csf-2.0-core.json` has always carried. *A date says when somebody downloaded a file; a
+  hash says which file* — and this item exists because two exports made the same claim about
+  their origin and had different bytes.
+- **`tools/crosswalks/_source_csf2.xlsx` is deleted.**
+- **`check-versions.py` gained `check_source_pin`**, which runs in CI on every push and PR
+  already. Three claims, each of which failed silently before: the export hashes to the Core's
+  pin, every crosswalk stamps that hash, and there is **exactly one** `.xlsx` under `tools/`.
+  The third is what stops a helpful re-download undoing this; a second file with a plausible
+  name is how it arose. An empty match fails rather than passing vacuously.
+
+`check-versions.py --self-test` 56 → **61**, with a case per failure mode including a crosswalk
+still stamping a date. Crosswalk data unchanged: 731 · 62 · 329 edges, `validate_crosswalks`
+3 catalogs / 0 errors / 0 warnings, `crosswalk-e2e` 39.
+
 ## v0.78.0 — 2026-08-10
 
 **A risk is an event, and now the engine says so.** BL-81.

@@ -209,6 +209,94 @@ MAKER = "A Cyber Aware Creation"
 MAKER_HOME = "cac_graphics.py"
 
 
+def check_source_pin(root="."):
+    """The vendored CPRT export is the one every build claims it is — and there is only one.
+
+    `tools/README.md` has asserted since the Core shipped that *"the vendored XLSX is provably
+    the file the shipped Core was built from"*. It was true of the file it named and nothing
+    checked it, which is the shape this repo distrusts everywhere else. It was also, quietly,
+    not the whole picture: a SECOND export sat at `tools/crosswalks/_source_csf2.xlsx`, whose
+    provenance was a date, whose bytes differed, and which was the file the shipped crosswalks
+    were actually built from (BL-75).
+
+    They turned out to be the same CPRT release downloaded fourteen days apart — 14 of 16 zip
+    members byte-identical, and the two that differed were a created timestamp and a time value
+    on the cover sheet. The regenerated crosswalks confirmed it: every edge and every control
+    came out unchanged. That is the good outcome, and it was not knowable without checking,
+    which is the point.
+
+    Three claims, each of which failed silently before this:
+
+      * the vendored export hashes to what `nist-csf-2.0-core.json` records
+      * every shipped crosswalk stamps that same hash as its `sourceExport.sha256`
+      * there is exactly ONE export under `tools/`
+
+    The third is what keeps the fix from being undone by a helpful download. A second file with
+    a plausible name and a date for provenance is how this arose, and nothing would have
+    objected to it reappearing.
+    """
+    import hashlib
+
+    root = Path(root)
+    ok = True
+    core_path = root / "skills/nist-csf/references/nist-csf-2.0-core.json"
+    try:
+        pinned = json.loads(core_path.read_text(encoding="utf-8"))["source"]["sha256"]
+    except (OSError, KeyError, ValueError) as exc:
+        print("ERROR: could not read source.sha256 from {}: {}".format(core_path, exc))
+        return False
+
+    exports = sorted(p for p in root.glob("tools/**/*.xlsx"))
+    if not exports:
+        print("ERROR: no .xlsx found under tools/. This check is not checking anything.")
+        return False
+    expected = root / "tools/csf-2.0.xlsx"
+    extra = [p for p in exports if p != expected]
+    if extra:
+        print("ERROR: a second vendored export is present: {}".format(
+            ", ".join(str(p.relative_to(root)) for p in extra)))
+        print("       One export, pinned by hash. Two files whose provenance is a download "
+              "date cannot be told apart, which is BL-75 exactly.")
+        ok = False
+
+    try:
+        got = hashlib.sha256(expected.read_bytes()).hexdigest()
+    except OSError as exc:
+        print("ERROR: {} could not be read: {}".format(expected, exc))
+        return False
+    if got != pinned:
+        print("ERROR: tools/csf-2.0.xlsx hashes {}".format(got))
+        print("       nist-csf-2.0-core.json records {}".format(pinned))
+        print("       The shipped Core was built from a different file than the one vendored "
+              "here. Re-pin deliberately, or fetch the export the Core names.")
+        ok = False
+
+    stamped = 0
+    for path in sorted(root.glob("skills/nist-csf/references/crosswalks/*.json")):
+        try:
+            doc = json.loads(path.read_text(encoding="utf-8"))
+        except ValueError:
+            continue
+        se = doc.get("sourceExport")
+        if not isinstance(se, dict):
+            continue
+        stamped += 1
+        if se.get("sha256") != pinned:
+            print("ERROR: {} stamps sourceExport.sha256 {!r}, not the pinned export.".format(
+                path.relative_to(root), se.get("sha256")))
+            print("       Rebuild with tools/crosswalks/author_catalogs.py, which now refuses "
+                  "to author from an export the Core was not built from.")
+            ok = False
+    if not stamped:
+        print("ERROR: no crosswalk stamps a sourceExport. The provenance check read nothing.")
+        ok = False
+
+    if ok:
+        print("source-pin: 1 vendored CPRT export, sha256 matches the Core and all {} "
+              "crosswalk stamps.".format(stamped))
+    return ok
+
+
 def check_maker_name(root="."):
     """No shipped renderer may spell the maker's name out for itself.
 
@@ -820,6 +908,48 @@ def self_test():
         ok(check_vendored(str(nocanon)) is False,
            "an unreadable canonical fails with a reason")
 
+        # -- one vendored export, pinned by hash (BL-75) --
+        #
+        # Every failure below happened for real, in the state this check was written
+        # against: a second export nobody named, a crosswalk stamped with a date instead
+        # of a hash, and a README asserting a pin that nothing compared.
+        import hashlib as _hl
+
+        def _pin_tree(name, export=b"XLSX\n", pinned=None, extra=None, stamp="pin"):
+            r = Path(tmp) / name
+            (r / "tools").mkdir(parents=True, exist_ok=True)
+            (r / "tools" / "csf-2.0.xlsx").write_bytes(export)
+            digest = _hl.sha256(export).hexdigest()
+            if extra is not None:
+                (r / "tools" / "crosswalks").mkdir(parents=True, exist_ok=True)
+                (r / "tools" / "crosswalks" / "_source_csf2.xlsx").write_bytes(extra)
+            refs = r / "skills" / "nist-csf" / "references"
+            (refs / "crosswalks").mkdir(parents=True, exist_ok=True)
+            (refs / "nist-csf-2.0-core.json").write_text(
+                json.dumps({"source": {"sha256": pinned or digest}}), encoding="utf-8")
+            (refs / "crosswalks" / "x.map.json").write_text(json.dumps(
+                {"sourceExport": {"tool": "t",
+                                  "sha256": digest if stamp == "pin" else stamp}}),
+                encoding="utf-8")
+            return str(r)
+
+        ok(check_source_pin(_pin_tree("pin-ok")) is True,
+           "one export whose hash matches the Core and every crosswalk stamp passes")
+        ok(check_source_pin(_pin_tree("pin-drift", pinned="0" * 64)) is False,
+           "an export that is not the file the Core was built from fails")
+        ok(check_source_pin(_pin_tree("pin-second", extra=b"OTHER\n")) is False,
+           "a second vendored export fails, however plausible its name")
+        ok(check_source_pin(_pin_tree("pin-stamp", stamp="2026-07-29")) is False,
+           "a crosswalk still stamping a DATE instead of the hash fails")
+        # The vacuous-pass hole, the same one check_vendored names: a tree with no export
+        # at all must fail rather than report a clean pin over nothing.
+        _bare = Path(tmp) / "pin-none"
+        (_bare / "skills" / "nist-csf" / "references").mkdir(parents=True, exist_ok=True)
+        (_bare / "skills" / "nist-csf" / "references" / "nist-csf-2.0-core.json").write_text(
+            json.dumps({"source": {"sha256": "0" * 64}}), encoding="utf-8")
+        ok(check_source_pin(str(_bare)) is False,
+           "no export at all fails instead of passing vacuously")
+
         # -- every shipped skill is named in every manifest description --
         def _cov_tree(name, skills, described):
             r = Path(tmp) / name
@@ -1206,6 +1336,7 @@ def main(argv):
 
     passed = check_consistency(root)
     passed = check_vendored(root) and passed
+    passed = check_source_pin(root) and passed
     passed = check_maker_name(root) and passed
     passed = check_import_time_palette(root) and passed
     passed = check_skill_coverage(root) and passed
