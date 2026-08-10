@@ -118,9 +118,23 @@ python3 scripts/incident_analysis.py init incidents.inc --client "Acme" \
     the Commission by EDGAR correspondence.
 
   If either is in play, the deadline computed here is not your deadline.
-- **The rules have faced rescission pressure and a materially reduced enforcement posture.** This
-  is a preparedness and defensibility tool. Do not sell it as an imminent-enforcement tool; the
-  board-safety eval fails the render if it reads that way.
+- **A rescission petition is pending and enforcement activity has visibly slowed. Neither has
+  changed the rule.** *Dated, because an undated posture claim is the fastest-decaying sentence
+  a compliance tool can carry — as at August 2026.*
+  - **The petition.** Five financial trade associations petitioned the Commission on
+    **22 May 2025** to rescind Item 1.05 and the Form 6-K counterpart — **SEC File No. 4-856**.
+    A petition is not a proposal and not a rule. The Commission has not acted on it, and
+    Items 1.05 and 106 are textually unchanged.
+  - **The enforcement half.** The SEC's SolarWinds action was dismissed with prejudice on
+    **20 November 2025** (**Litigation Release No. 26423**), which records that the dismissal
+    *"does not necessarily reflect the Commission's position on any other case"*. The
+    Enforcement Division's Cyber and Emerging Technologies Unit, announced **20 February 2025**,
+    lists *"public issuer fraudulent disclosure relating to cybersecurity"* among its stated
+    priorities. **Reduced observed activity is not a stated policy change**, and this file does
+    not report one.
+  This is a preparedness and defensibility tool. Do not sell it as an imminent-enforcement tool;
+  the board-safety eval fails the render if it reads that way. **Re-check both dates before
+  relying on either** — that is what they are here for.
 
 ---
 

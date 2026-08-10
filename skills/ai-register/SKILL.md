@@ -3,8 +3,9 @@ name: ai-register
 description: >-
   Maintain a security register of the AI the organisation actually runs — which models and
   products are in use, what each DEPLOYMENT of them touches, how critical it is, what it is
-  exposed to under the NIST adversarial machine learning taxonomy, and what is evidenced about
-  its security. This is the CISO's slice of AI governance and says so: it inventories and
+  exposed to under the NIST adversarial machine learning taxonomy (AI 100-2 E2025), and what is
+  evidenced about its security. This is the CISO's slice of AI governance and says so: it
+  inventories and
   assesses SECURITY, and does not evaluate models, assess bias, perform conformity assessment or
   determine regulatory scope — see references/scope.md, which names those boundaries with their
   sources. Whether the organisation is in scope for the EU AI Act or any other AI regime, and in

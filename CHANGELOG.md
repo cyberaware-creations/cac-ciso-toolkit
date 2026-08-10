@@ -21,6 +21,69 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.73.0 — 2026-08-10
+
+**The citation batch: one overstated claim in four files, one edition that lived only in prose,
+and one stale item that turned out to be already fixed.**
+
+### The SEC posture sentence was overstated, and undated (BL-141)
+
+Four shipped files said, in one form or another, that the SEC cyber rules *"have faced rescission
+pressure and a materially reduced enforcement posture"*. No date anywhere. **Both halves were
+overstated.**
+
+The rescission half is **one petition** — SEC File No. **4-856**, filed **22 May 2025** by five
+financial trade associations, seeking to rescind Item 1.05 and the Form 6-K counterpart. A
+petition is not a proposal and not a rule; the Commission has not acted on it; Items 1.05 and 106
+are textually unchanged.
+
+The enforcement half stated a posture **the Commission has never stated**. What is true is that
+activity has visibly slowed and that the SolarWinds action was dismissed with prejudice on
+**20 November 2025**. **Litigation Release No. 26423** records, in the same document, that the
+dismissal *"does not necessarily reflect the Commission's position on any other case"* — and the
+Enforcement Division's Cyber and Emerging Technologies Unit, announced **20 February 2025**, lists
+*"public issuer fraudulent disclosure relating to cybersecurity"* among its stated priorities.
+Reduced observed activity is not a policy change, and the product no longer reports one as if it
+were.
+
+All four now carry the dates: `incident-materiality/references/disclosure-clocks.md`,
+`references/materiality-factors.md`, `incident-materiality/SKILL.md`, and
+`ciso-board-translation/references/regulatory-receipts.md` in two places. The operational
+conclusion is unchanged — a preparedness and defensibility tool, never an imminent-enforcement
+one — and it now also refuses the opposite error, *"the rule is going away"*.
+
+**The v0.48.0 entry is corrected in place, and the error left visible.** That sweep listed the
+rescission framing among *twelve claims held*. It had checked whether the rule was still in
+force, which it is, while the claim on the page said something else. A sweep that checks a
+narrower question than the claim makes will report the claim as held.
+
+**Two instruments the product now names are declared** (CAC-RW-1): the petition and Litigation
+Release 26423, in both skills that cite them. The petition row is gated at **180 days** with an
+`intervalBecause`, because the sentence it supports is a claim that the Commission *has not
+acted* — a negative about a live docket, which stops being true without warning.
+
+### `AI 100-2 E2025` is pinned in shipped code (BL-161)
+
+The edition lived in `references/nistaml-exposure.md` and `sources.json` and nowhere in the
+engine: `ai_register.py` said bare *"AI 100-2"* twice, and `SKILL.md` named no edition at all. The
+`ai-100-2` manifest row listed only the reference file under `usedFor`, so **the release gate did
+not watch the engine's own citation** — the next edition bump would have updated the prose and
+silently left the code behind. Both mentions now say `E2025`, `SKILL.md` names it, and
+`scripts/ai_register.py` is under the row. That omission was an instance of BL-190.
+
+### BL-142 was already fixed, and the item was stale
+
+Both Delaware decision dates — *Sorenson* at **5 October 2021** and *Bingle* at **6 September
+2022** — were corrected in **v0.54.0**, along with the authoring judges. The item's evidence was
+recorded against v0.52.1 and never re-measured. Nothing to change: the dates are right, the
+affirmance (No. 411, 2022, Del. 17 May 2023) is right, and the full case names are used in both
+`sources.json` and the *Cite as* table. Nowhere in the repo says *"In re Bingle"*.
+
+One thing did need saying. The `delaware-cyber-cases` row now records that **no citator was run**
+— no Shepard's, no KeyCite — so subsequent history beyond the recorded affirmance is unconfirmed.
+`checkedBy: "claude-code"` means *machine-verified against the primary source*, and without that
+note the row claimed more than the check delivered.
+
 ## v0.72.0 — 2026-08-10
 
 **The AI security register answered a mistyped path with a stack trace** (BL-218).
@@ -1835,6 +1898,24 @@ prejudice on 20 Nov. 2025, `17 C.F.R. § 229.106`, the 5:30 p.m. EDGAR cutoff, a
 rescission-pressure framing — which remains accurate: **the rule is still in force.** Repeal was
 requested in comment letters responding to the SEC's January 2026 Regulation S-K review; it has
 not happened.
+
+> **CORRECTED 2026-08-10 (BL-141), and left visible rather than rewritten.** The last item in
+> that list — *the rescission-pressure framing* — should not have been held. This sweep asked
+> whether the rule was still in force, which it is, and the framing said something else: that
+> the rules *"have faced rescission pressure and a materially reduced enforcement posture"*,
+> undated, in four shipped files. **Both halves were overstated and neither carried a date.**
+> The rescission half is one petition — SEC File No. 4-856, filed 22 May 2025 by five financial
+> trade associations — that the Commission has not acted on. The enforcement half stated a
+> posture the Commission has never stated: Litigation Release No. 26423 records that the
+> SolarWinds dismissal *"does not necessarily reflect the Commission's position on any other
+> case"*, and the Cyber and Emerging Technologies Unit has listed public-issuer cyber
+> disclosure among its priorities since 20 February 2025.
+>
+> The attribution above is also wrong on its own terms: the rescission request this repo was
+> carrying is the **May 2025 petition**, not comment letters on a January 2026 Regulation S-K
+> review. **A sweep that checks a narrower question than the claim makes will report the claim
+> as held** — the same shape as v0.46.0 verifying four citations and leaving two wrong dates
+> beside them (see v0.54.0). Corrected in v0.73.0; the record of the error stays here.
 
 ### The technical-detail carve-out was stated too widely — in three files
 

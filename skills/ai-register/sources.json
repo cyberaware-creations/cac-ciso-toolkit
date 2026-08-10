@@ -7,13 +7,14 @@
       "label": "NIST adversarial ML taxonomy",
       "publisher": "NIST",
       "instrument": "NIST AI 100-2 E2025, Adversarial Machine Learning: A Taxonomy and Terminology of Attacks and Mitigations",
-      "version": "final 24 Mar. 2025; class ids NISTAML.01-05 are this tool's own labels, not NIST's",
-      "checkedOn": "2026-08-08",
+      "version": "E2025 confirmed current 2026-08-09; final 24 Mar. 2025; class ids NISTAML.01-05 are this tool's own labels, not NIST's",
+      "checkedOn": "2026-08-09",
       "checkedBy": "claude-code",
       "gated": true,
       "reviewIntervalDays": 365,
       "usedFor": [
-        "references/nistaml-exposure.md"
+        "references/nistaml-exposure.md",
+        "scripts/ai_register.py"
       ]
     },
     {

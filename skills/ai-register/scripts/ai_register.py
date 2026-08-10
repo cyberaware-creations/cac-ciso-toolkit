@@ -22,10 +22,15 @@ Three ideas carry the file, and each is a refusal as much as a feature:
    `references/scope.md`, which names those boundaries with their sources.
 
 **Sourcing, stated plainly.** The exposure taxonomy follows the shape of NIST's adversarial
-machine learning work (AI 100-2), which is NOT bundled in this repository the way the CSF Core
-and the 800-53 crosswalk are. This file implements the structure and attributes it; it does not
-quote the publication, and nothing here should be relied on as a citation without checking the
-source. `references/nistaml-exposure.md` says the same thing at more length.
+machine learning work (**AI 100-2 E2025**), which is NOT bundled in this repository the way the
+CSF Core and the 800-53 crosswalk are. This file implements the structure and attributes it; it
+does not quote the publication, and nothing here should be relied on as a citation without
+checking the source. `references/nistaml-exposure.md` says the same thing at more length.
+
+The EDITION is named here and not only in the references, because an edition that lives in one
+place is an edition the next bump updates in one place (BL-161). `sources.json` now lists this
+file under the `ai-100-2` row, so a change to the instrument reaches the engine's own citation
+and not just the prose.
 
 Refusals happen before the store file is opened, so a refused command leaves it byte-identical.
 Standard library only. Subcommands:
@@ -683,8 +688,8 @@ def criticality_of(rec: dict) -> str:
 # acceptance and belongs in `exceptions-register` — and the refusal here says so, because a
 # refusal with nowhere to go just gets worked around.
 #
-# Sourcing: this follows the SHAPE of NIST's adversarial ML taxonomy (AI 100-2), which is not
-# bundled in this repository. See `references/nistaml-exposure.md`.
+# Sourcing: this follows the SHAPE of NIST's adversarial ML taxonomy (AI 100-2 E2025), which is
+# not bundled in this repository. See `references/nistaml-exposure.md`.
 
 NISTAML = {
     "01": "availability",
