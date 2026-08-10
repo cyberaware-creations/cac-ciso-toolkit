@@ -157,6 +157,27 @@ Wording and rating are where you add value over a template:
   later analysis by executive leadership"* (NIST IR 8286r1 §3.3.1). Without it, two registers
   scored by wholly different methods are byte-indistinguishable.
 
+  **Not sure which method fits?** `suggest-method` prints NIST's own selection criteria
+  verbatim (IR 8286A r1 §2.3.1) beside the catalogue in `references/analysis-methods.json`. It
+  **writes nothing, ranks nothing and shortens nothing** — every method is shown every time,
+  because NIST is explicit that *"there are benefits to both qualitative and quantitative risk
+  analysis methodologies and even the use of multiple methodologies"*. `--context` changes
+  which caution is attached to which entry, never which entries survive; with no `--context` it
+  still proposes and names the criteria you left unstated, because the run that needs it most
+  is the one where nothing has been recorded yet.
+
+  **An unfamiliar method name is recorded, not refused.** `--name` is free text: this tool
+  holds no catalogue of every method a CISO might legitimately use, and refusing an unknown one
+  would make it the arbiter of that. A name outside `references/analysis-methods.json` gets a
+  note saying nothing here can check its prerequisites or quote NIST on it — and the record is
+  written either way.
+
+  **A declared method whose prerequisites are unmet escalates at `medium`** — flag, never
+  block. Two checks only: quantitative analysis with no currency recorded, and partial
+  conformance with no deviation stated. ⚠️ Methods marked `external` in the catalogue — Monte
+  Carlo, Bayesian, event tree, Open FAIR — escalate **nothing**, because their real
+  prerequisites live in the analyst's workbook and this toolkit cannot see it.
+
   **Per risk, because a register commonly holds both** — three risks somebody modelled with
   loss distributions and thirty scored by judgement in a workshop. `settings.analysisMethodDefault`
   covers the ordinary case, and a risk's own record **outranks it in both directions**: a
@@ -251,6 +272,7 @@ python3 scripts/score_register.py set-currency <reg.rr> --currency GBP --why '..
 python3 scripts/score_register.py set-method <reg.rr> <id> --name 'OPEN FAIR' \
     --type quantitative --conformance partial \
     --deviations 'no monetised loss magnitude' --why '...'
+python3 scripts/score_register.py suggest-method [--context data-scarce,cost-constrained]
 python3 scripts/score_register.py set-score <reg.rr> <id> --residual L I --why '...'
 python3 scripts/score_register.py accept <reg.rr> <id> --approver '...' --justification '...' \
     --revalidate 2027-01-31 --expiry 2027-07-31 --why '...'

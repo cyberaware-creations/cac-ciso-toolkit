@@ -1,0 +1,220 @@
+{
+  "id": "analysis-methods",
+  "datasetVersion": "1",
+  "asOf": "2026-08-10",
+  "source": {
+    "instrument": "NIST IR 8286A r1, Identifying and Estimating Cybersecurity Risk for Enterprise Risk Management",
+    "version": "December 2025",
+    "sections": "s 2.3.1 Selecting Risk Analysis Methodologies; s 2.3.2 Techniques for Estimating Likelihood and Impact",
+    "url": "https://nvlpubs.nist.gov/nistpubs/ir/2025/NIST.IR.8286Ar1.pdf",
+    "checkedOn": "2026-08-10",
+    "checkedBy": "claude-code"
+  },
+  "note": "The catalogue is DATA, not logic. `nistSays` is quoted VERBATIM from the locator beside it and is never paraphrased — an entry NIST does not discuss carries no `nistSays` at all rather than an invented one. `requires` and `visibilityWhy` are CAC's own words, derived from the quote, and are marked as such by living in different fields: nothing in this file attributes CAC's derivation to NIST.",
+  "visibilityNote": "`checkable` means every prerequisite this method needs is a fact the register itself holds, so an unmet one can be flagged from the file alone. `external` means the method's real prerequisites live in the analyst's workbook, their priors or their branch probabilities — none of which this toolkit can see. An `external` method NEVER emits `method-prerequisite-unmet`: flagging the absence of something we cannot look at would assert a fact about work done outside the toolkit. Same restraint as `untraced` being a value rather than a gap.",
+  "licensingNote": "Open FAIR and IEC 31010:2019 are third-party standards under licence. They are named and cited so a reader can find them, and NOT ONE WORD of their text is reproduced here — including the passages NIST itself quotes. Where a licensed source and NIST make the same point, this file carries NIST's public-domain sentence instead. Nothing in this catalogue requires buying a licence to read.",
+  "scopeNote": "This toolkit does not EXECUTE any of these methods and never will — see NIST's own footnote 29 at s 2.3.2, quoted on the `sme-estimation` entry. Advising that Monte Carlo fits, and that it needs software this toolkit does not provide, is the opposite of scope creep.",
+  "methods": [
+    {
+      "id": "sme-estimation",
+      "label": "Subject matter expert estimation",
+      "type": "qualitative",
+      "requires": ["named experts", "a record of who estimated and when"],
+      "nistSays": "Some analysis techniques are based on estimates from subject matter experts' (SMEs) experience and knowledge. Some methods, such as this SME estimation, can be subjective.",
+      "nistLocator": "NIST IR 8286A r1 s 2.3.2",
+      "nistScopeCaveat": "It is the intention of this document to introduce the reader to commonly used estimation techniques. The authors defer to other industry resources for comprehensive details regarding how to perform such analyses.",
+      "nistScopeCaveatLocator": "NIST IR 8286A r1 s 2.3.2 fn. 29",
+      "visibility": "checkable",
+      "visibilityWhy": "The register holds the estimator's name and the date on the method record itself.",
+      "licensing": "public-domain"
+    },
+    {
+      "id": "delphi",
+      "label": "Delphi exercise",
+      "type": "qualitative",
+      "requires": ["a panel of estimators", "more than one round", "responses not attributable between rounds"],
+      "nistLocator": "NIST IR 8286A r1 s 2.3.2",
+      "nistNames": "Named by NIST inside a worked example — \"A poll of the security leaders (using a Delphi exercise) determined that there is a 50 to 70 % chance that the payroll system will be attacked\" — and not otherwise described. No NIST statement of its requirements or limitations exists to quote, so none is claimed.",
+      "visibility": "external",
+      "visibilityWhy": "The rounds, the panel and the anonymity between rounds all happen outside the register. Nothing here can tell a Delphi exercise from a single conversation somebody labelled one.",
+      "licensing": "public-domain"
+    },
+    {
+      "id": "prior-events",
+      "label": "Estimation from knowledge of prior events",
+      "type": "semi-quantitative",
+      "requires": ["a loss history", "events comparable to the one being estimated"],
+      "nistSays": "While past performance is not a guarantee of future probability, it provides some information that helps inform likelihood estimates.",
+      "nistLocator": "NIST IR 8286A r1 s 2.3.2.1",
+      "visibility": "external",
+      "visibilityWhy": "The register holds this organisation's risks, not its incident history. Whether the prior events used were comparable is a judgement made outside it.",
+      "licensing": "public-domain"
+    },
+    {
+      "id": "three-point-estimation",
+      "label": "Three-point estimation",
+      "type": "semi-quantitative",
+      "requires": ["an optimistic, most-likely and pessimistic value", "ideally more than one estimator polled"],
+      "nistSays": "This method, illustrated in Fig. 14, is useful because it considers the judgment of available SMEs.",
+      "nistLocator": "NIST IR 8286A r1 s 2.3.2.2",
+      "nistLimitation": "Notably, the level of effort for estimating risk factors increases with the required level of rigor.",
+      "nistLimitationLocator": "NIST IR 8286A r1 s 2.3.2.2",
+      "nistBiasCaution": "For better estimates of O, M, and P and to eliminate bias, the estimator should poll multiple SMEs and determine the average of individual O values, M values, and P values before proceeding with the three-point estimate.",
+      "nistBiasCautionLocator": "NIST IR 8286A r1 s 2.3.2.2 fn. 30",
+      "visibility": "external",
+      "visibilityWhy": "The three values are not stored. Storing them is BL-86, parked on migration cost — until then the register cannot see whether an estimate had three points or one.",
+      "licensing": "public-domain"
+    },
+    {
+      "id": "event-tree-analysis",
+      "label": "Event tree analysis",
+      "type": null,
+      "typeWhy": "NIST states it can be run either way, so this catalogue does not pin it to one. The `type` recorded on the risk is the analyst's declaration, not a lookup from here.",
+      "requires": ["an initiating threat event", "a branch structure of outcomes", "for the quantitative form, a probability per branch"],
+      "nistSays": "Event Tree Analysis (ETA) is a graphical technique that helps practitioners evaluate the downstream impact of a given scenario (as determined in Sec.2.2.4).",
+      "nistLocator": "NIST IR 8286A r1 s 2.3.2.3",
+      "nistLimitation": "A qualitative approach would still describe the Yes/No conditions and outcomes but would not include specific probabilities of each branch.",
+      "nistLimitationLocator": "NIST IR 8286A r1 s 2.3.2.3",
+      "visibility": "external",
+      "visibilityWhy": "The branch probabilities live in the analyst's tree. The register holds one likelihood and one impact and cannot see the structure behind them.",
+      "licensing": "public-domain"
+    },
+    {
+      "id": "monte-carlo",
+      "label": "Monte Carlo simulation",
+      "type": "quantitative",
+      "requires": ["distributions for the input variables", "simulation software this toolkit does not provide"],
+      "nistSays": "While expert judgement is valuable in estimating risk parameters, one way to reduce subjectivity is to supplement that judgement using simulation models.",
+      "nistLocator": "NIST IR 8286A r1 s 2.3.2.4",
+      "nistLimitation": "Simulation is not always necessary, but with the variables for considering likelihood and impact values (based on the factors described in Sec.2.2), randomly sampled probabilities can help identify a range of possible values.",
+      "nistLimitationLocator": "NIST IR 8286A r1 s 2.3.2.4",
+      "visibility": "external",
+      "visibilityWhy": "The simulation, its cycles and its input distributions are all outside the register. A recorded exposure figure looks identical whether it came from several hundred thousand cycles or from a guess.",
+      "licensing": "public-domain"
+    },
+    {
+      "id": "bayesian",
+      "label": "Bayesian analysis",
+      "type": "quantitative",
+      "requires": ["a distribution model", "a set of known prior data"],
+      "nistSays": "Bayesian analysis describes methods for considering conditional probability - applying a distribution model and a set of known prior data to help estimate the probability of a future outcome.",
+      "nistLocator": "NIST IR 8286A r1 s 2.3.2.5",
+      "nistScopeCaveat": "Application and usage of Bayesian analysis is outside the scope of this document but is included here as a valid quantitative means for performing risk analysis estimation.",
+      "nistScopeCaveatLocator": "NIST IR 8286A r1 s 2.3.2.5 fn. 34",
+      "visibility": "external",
+      "visibilityWhy": "The priors are the method. They are not in the register, and a prior nobody wrote down is indistinguishable here from one carefully chosen.",
+      "licensing": "public-domain"
+    },
+    {
+      "id": "estimation-workshops",
+      "label": "Estimation workshops",
+      "type": "qualitative",
+      "requires": ["a small team", "assumptions recorded so they can be challenged"],
+      "nistSays": "utilize small teams to collaborate and challenge assumptions, anchor estimates in real-world analogies and ensure logical consistency. These sessions also reduce individual bias and increase shared understanding of scenarios and inputs.",
+      "nistLocator": "NIST IR 8286A r1 s 2.3.2",
+      "supplementary": true,
+      "supplementaryWhy": "NIST lists this as an organizational process that SUPPLEMENTS an estimation technique, not as a technique on its own: \"organizations are encouraged to utilize the following organizational processes to supplement the estimation techniques\" (s 2.3.2).",
+      "visibility": "external",
+      "visibilityWhy": "Whether a workshop happened, and who was in it, is not a fact the register holds.",
+      "licensing": "public-domain"
+    },
+    {
+      "id": "calibration-training",
+      "label": "Calibration training and assessment",
+      "type": "semi-quantitative",
+      "requires": ["estimators trained and assessed for calibration"],
+      "nistSays": "this process improves individuals' ability to estimate uncertainty accurately. Techniques such as the equivalent bet test (e.g., \"Would you bet $100 that the true value falls within this range?\") help improve probabilistic thinking and reduce overconfidence.",
+      "nistLocator": "NIST IR 8286A r1 s 2.3.2",
+      "supplementary": true,
+      "supplementaryWhy": "Listed by NIST among the organizational processes that supplement the estimation techniques (s 2.3.2).",
+      "visibility": "external",
+      "visibilityWhy": "Whether an estimator has been calibrated is a fact about a person, held nowhere in this file.",
+      "licensing": "public-domain"
+    },
+    {
+      "id": "sensitivity-analysis",
+      "label": "Sensitivity analysis",
+      "type": "quantitative",
+      "requires": ["a model with input assumptions that can be varied"],
+      "nistSays": "not just of the model, but of the input assumptions-used to identify which uncertain factors most affect the output. This guides analysts to focus effort where it matters most and improves decision-maker confidence that uncertainty has been appropriately scoped. Sensitivity analysis can also help with setting escalation thresholds for KRIs and may suggest new metrics to monitor.",
+      "nistLocator": "NIST IR 8286A r1 s 2.3.2",
+      "supplementary": true,
+      "supplementaryWhy": "Listed by NIST among the organizational processes that supplement the estimation techniques (s 2.3.2).",
+      "visibility": "external",
+      "visibilityWhy": "The model and its assumptions are outside the register.",
+      "licensing": "public-domain"
+    },
+    {
+      "id": "tracking-actuals-vs-forecasts",
+      "label": "Tracking actuals versus forecasts",
+      "type": "semi-quantitative",
+      "requires": ["historical estimates kept", "realized outcomes to compare them against"],
+      "nistSays": "a discipline common in finance but rarely applied in cybersecurity. By comparing historical estimates to realized outcomes over time, organizations can improve estimation accuracy and identify where assumptions consistently under- or over-shoot.",
+      "nistLocator": "NIST IR 8286A r1 s 2.3.2",
+      "supplementary": true,
+      "supplementaryWhy": "Listed by NIST among the organizational processes that supplement the estimation techniques (s 2.3.2).",
+      "visibility": "external",
+      "visibilityWhy": "The register keeps its own history, but the realized outcomes to compare against are incidents, and those live in incident-materiality.",
+      "licensing": "public-domain"
+    },
+    {
+      "id": "open-fair",
+      "label": "Open FAIR",
+      "type": "quantitative",
+      "requires": ["the Open Group's Risk Taxonomy standard", "loss magnitude and frequency estimates"],
+      "nistLocator": "NIST IR 8286A r1 s 2.3.1",
+      "nistNames": "NIST cites \"The Open Group Standard for Risk Taxonomy (O-RT) Version 3.0.1, part of the Open Factor Analysis of Information Risk (OpenFAIR) series of documents\" and quotes it. That quotation is NOT reproduced here.",
+      "visibility": "external",
+      "visibilityWhy": "Its factors are computed in the analyst's own model. The register sees a resulting score and nothing behind it.",
+      "licensing": "third-party-name-only",
+      "namingRule": "A FAIR analysis missing part of the taxonomy is `open-fair` at `conformance: partial` with the deviation stated. It is never renamed to a coined variant such as \"FAIR-lite\": renaming a licensed third-party standard to describe a reduced version of it is a false claim about somebody else's work."
+    },
+    {
+      "id": "iec-31010",
+      "label": "IEC 31010:2019 risk assessment techniques",
+      "type": null,
+      "typeWhy": "It is a catalogue of techniques rather than a single method.",
+      "requires": ["the standard itself, which is licensed"],
+      "nistLocator": "NIST IR 8286A r1 s 2.3.1",
+      "nistNames": "NIST cites \"International Electrotechnical Commission (IEC) standard 31010:2019, Risk management - Risk assessment techniques\" as providing a comprehensive list of risk analysis techniques, and quotes a passage from it. That quotation is NOT reproduced here. Where the licensed text and NIST make the same point about data quality, this catalogue carries NIST's own public-domain sentence instead, on the `dataDependency` note below.",
+      "visibility": "external",
+      "visibilityWhy": "Not a method this register can hold prerequisites for.",
+      "licensing": "third-party-name-only"
+    }
+  ],
+  "dataDependency": {
+    "nistSays": "Unfortunately, without supporting data, well-intentioned but misguided methods of risk analysis amount to little more than a guess.",
+    "nistLocator": "NIST IR 8286A r1 s 2.3.1",
+    "why": "This is the sentence behind v1 check 1. A register declaring quantitative analysis with no currency recorded has not written down the unit its numbers are in."
+  },
+  "selectionCriteria": {
+    "note": "What `suggest-method` reads, quoted VERBATIM from NIST IR 8286A r1 s 2.3.1. These are criteria to weigh, not a ranking, and this catalogue produces no score.",
+    "criteria": [
+      {
+        "id": "multiple-methods-are-legitimate",
+        "nistSays": "there are benefits to both qualitative and quantitative risk analysis methodologies and even the use of multiple methodologies, based on enterprise strategy, organization preference, and data availability",
+        "nistLocator": "NIST IR 8286A r1 s 2.3.1"
+      },
+      {
+        "id": "cost-against-outcome",
+        "nistSays": "When selecting a risk assessment technique, organizations should consider the analysis costs in light of the desired outcome to help determine the most cost-effective technique.",
+        "nistLocator": "NIST IR 8286A r1 s 2.3.1"
+      },
+      {
+        "id": "qualitative-can-be-the-right-move",
+        "nistSays": "Inexpensive but accurate qualitative analysis that identifies the most risks and leads to best mitigating those risks may be the right move for a particular organization.",
+        "nistLocator": "NIST IR 8286A r1 s 2.3.1"
+      },
+      {
+        "id": "quantitative-costs-more-and-may-repay-it",
+        "nistSays": "For others, a highly detailed quantitative risk assessment may require more resources than a qualitative approach but may also provide specific and actionable information that helps to focus attention on important threat scenarios.",
+        "nistLocator": "NIST IR 8286A r1 s 2.3.1"
+      },
+      {
+        "id": "the-objective",
+        "nistSays": "Quantitatively informed qualitative decision-making should be the objective in the absence of purely quantitative-driven decisions.",
+        "nistLocator": "NIST IR 8286A r1 s 2.3.1"
+      }
+    ]
+  }
+}

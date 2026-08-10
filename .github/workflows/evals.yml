@@ -543,6 +543,17 @@ jobs:
       - name: A scored risk carries an event statement
         run: PY="$(command -v python3)" ./skills/risk-register/evals/event-statement.sh
 
+      # The register records HOW a risk was analysed, and refuses to overclaim about it. Two
+      # halves that fail in opposite directions: `partial` conformance with no stated deviation
+      # is refused on WRITE and the file stays byte-identical (a register already carrying the
+      # combination still loads); and a method the catalogue marks `external` — Monte Carlo,
+      # Bayesian, event tree, Open FAIR — escalates NOTHING, because its real prerequisites are
+      # in the analyst's workbook and this toolkit cannot see them. The suite also asserts a
+      # CHECKABLE method still fires on the same two gaps, so a guard that simply disabled the
+      # trigger cannot pass the external half.
+      - name: The analysis method is recorded, bounded and never overclaimed
+        run: PY="$(command -v python3)" ./skills/risk-register/evals/analysis-method.sh
+
   rendered:
     # Width and WCAG AA contrast are properties of a *resolved layout*, so they need a real
     # layout engine. Four shipped defects lived in this blind spot.
