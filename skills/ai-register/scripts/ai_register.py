@@ -206,6 +206,29 @@ def load(path: str) -> dict:
 
 
 def save(path: str, store: dict) -> None:
+    """Write the store atomically: a crash mid-write leaves the previous file intact.
+
+    THE REFERENCE COPY of a pattern that now appears in all ten engines. `tempfile.mkstemp` in
+    the DESTINATION directory, then `os.replace`. Two details are load-bearing and must not be
+    simplified away: `dir=directory`, because `os.replace` is atomic only within one
+    filesystem; and `except BaseException` rather than `except Exception`, because the
+    interruption this exists for is a KeyboardInterrupt, which is not an Exception.
+
+    Registered as a twin under CAC-TW-1 (BL-219). The comparison is by EXECUTION against an
+    interrupted dump, because on the happy path an atomic writer and `open(path, "w")` produce
+    identical bytes — which is how two engines stayed non-atomic through nine releases with
+    every self-test green. The other nine copies:
+
+        skills/attention-surface/scripts/attention_surface.py
+        skills/business-context/scripts/business_context.py
+        skills/exceptions-register/scripts/exceptions_register.py
+        skills/incident-materiality/scripts/incident_analysis.py
+        skills/metrics-register/scripts/metrics_analysis.py
+        skills/nist-csf/scripts/profile_analysis.py
+        skills/policy-register/scripts/policy_register.py
+        skills/risk-register/scripts/score_register.py
+        skills/vendor-register/scripts/vendor_register.py
+    """
     store["updatedAt"] = now_ts()
     directory = os.path.dirname(os.path.abspath(path)) or "."
     fd, tmp = tempfile.mkstemp(dir=directory, suffix=".air.tmp")

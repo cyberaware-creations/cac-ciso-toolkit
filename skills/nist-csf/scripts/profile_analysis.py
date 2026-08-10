@@ -424,12 +424,33 @@ def save_store(store: dict, path: str, ts: str) -> None:
     """Write the store back, stamping schemaVersion and profile.updated.
 
     History is never rewritten here — callers append to store['history'] before saving.
+
+    Written atomically: a crash mid-write leaves the previous file intact. Until BL-219 this
+    was `open(path, "w")`, which TRUNCATES before the dump — an interrupted write left a
+    half-written Profile and no copy of what had been there, on a store carrying all 106
+    subcategories from `init` onwards. `dir=directory` is load-bearing: `os.replace` is atomic
+    only within one filesystem, so a temp file in /tmp would make this a copy across a
+    boundary rather than a move.
+
+    One of ten copies of this pattern, registered as a twin under CAC-TW-1 and compared by
+    executing them — `skills/ai-register/scripts/ai_register.py` holds the family list. The
+    property compared is the interrupted write, because on the happy path an atomic writer and
+    `open(path, "w")` produce identical bytes, which is how this copy stayed non-atomic
+    through nine releases with every self-test green.
     """
     store["schemaVersion"] = SCHEMA_VERSION
     store["profile"]["updated"] = ts
-    with open(path, "w", encoding="utf-8") as fh:
-        json.dump(store, fh, indent=2, ensure_ascii=False)
-        fh.write("\n")
+    directory = os.path.dirname(os.path.abspath(path)) or "."
+    fd, tmp = tempfile.mkstemp(dir=directory, suffix=".csfp.tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            json.dump(store, fh, indent=2, ensure_ascii=False)
+            fh.write("\n")
+        os.replace(tmp, path)
+    except BaseException:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+        raise
 
 
 def check_store(store: dict, index: dict) -> list[str]:
@@ -5445,6 +5466,39 @@ def _cmd_self_test(_args):
             checks += 1
         except ValueError:
             ok("...and a findings export is not a signal", True)
+
+    # --- BL-219: an interrupted write leaves the Profile exactly as it was ---------------
+    #
+    # No happy-path test can see this. `open(path, "w")` and mkstemp+os.replace write
+    # identical bytes when nothing goes wrong, which is how a store carrying all 106
+    # subcategories stayed non-atomic through nine releases with every check above green. The
+    # comparison is BYTE FOR BYTE against what was on disk before: a rollback leaving a
+    # valid-but-different Profile is a different bug in this one's clothes.
+    with tempfile.TemporaryDirectory() as _atd:
+        _apath = os.path.join(_atd, "atomic.csfp")
+        _before = '{"the Profile that was already here": "must survive"}\n'
+        with open(_apath, "w", encoding="utf-8") as _fh:
+            _fh.write(_before)
+
+        def _cut_short(*_a, **_k):
+            raise KeyboardInterrupt("interrupted part-way through the dump")
+
+        _real_dump = json.dump
+        json.dump = _cut_short
+        try:
+            save_store({"profile": {}, "subcategories": []}, _apath, "2026-01-01T00:00:00Z")
+            _propagated = "nothing"
+        except BaseException as _exc:       # KeyboardInterrupt is not an Exception
+            _propagated = type(_exc).__name__
+        finally:
+            json.dump = _real_dump
+        eq(_propagated, "KeyboardInterrupt",
+           "an interrupted write propagates rather than being swallowed")
+        with open(_apath, encoding="utf-8") as _fh:
+            eq(_fh.read(), _before,
+               "and the Profile on disk is byte-identical to before the write")
+        eq(sorted(f for f in os.listdir(_atd) if f != "atomic.csfp"), [],
+           "with no temp file left behind")
 
     print(f"self-test: {checks - len(failures)}/{checks} checks passed")
     if failures:

@@ -2023,6 +2023,40 @@ def _cmd_self_test(_: list[str]) -> int:
     eq("and the exported value is exposure() over the residual pair, not a stored field",
        _rows[0]["magnitude"]["value"], exposure(2, 3))
 
+    # --- BL-219: an interrupted write leaves the register exactly as it was --------------
+    #
+    # No happy-path test can see this. `open(path, "w")` and mkstemp+os.replace write
+    # identical bytes when nothing goes wrong, which is how the largest store in the suite
+    # stayed non-atomic through nine releases with every check above green. So the dump is
+    # interrupted, and the file is compared BYTE FOR BYTE with what was there before — a
+    # rollback that leaves a valid-but-different register is a different bug in this one's
+    # clothes, and `json.loads(...) is a dict` would pass for it.
+    with tempfile.TemporaryDirectory() as _atd:
+        _apath = os.path.join(_atd, "atomic.rr")
+        _before = json.dumps(_reg([_risk("R-001", 3, 3)]), indent=2)
+        with open(_apath, "w", encoding="utf-8") as fh:
+            fh.write(_before)
+
+        def _cut_short(*_a, **_k):
+            raise KeyboardInterrupt("interrupted part-way through the dump")
+
+        _real_dump = json.dump
+        json.dump = _cut_short
+        try:
+            save_register(_reg([_risk("R-999", 5, 5)]), _apath)
+            _propagated = "nothing"
+        except BaseException as _exc:       # KeyboardInterrupt is not an Exception
+            _propagated = type(_exc).__name__
+        finally:
+            json.dump = _real_dump
+        eq("an interrupted write propagates rather than being swallowed",
+           _propagated, "KeyboardInterrupt")
+        with open(_apath, encoding="utf-8") as fh:
+            eq("and the register on disk is byte-identical to before the write",
+               fh.read(), _before)
+        eq("with no temp file left behind",
+           sorted(f for f in os.listdir(_atd) if f != "atomic.rr"), [])
+
     failures = [(n, g, w) for (n, g, w) in checks if g != w]
     for n, g, w in checks:
         status = "ok " if (g == w) else "FAIL"
@@ -2291,12 +2325,33 @@ def parse_flags(args: list[str], known=None):
 
 def save_register(reg: dict, path: str) -> None:
     """Write the register back, stamping schemaVersion 2 and updatedAt. History is never
-    rewritten here — callers append to reg['history'] before saving."""
+    rewritten here — callers append to reg['history'] before saving.
+
+    Written atomically: a crash mid-write leaves the previous file intact. Until BL-219 this
+    was `open(path, "w")`, which TRUNCATES before the dump — an interrupted write left a
+    half-written register and no copy of what had been there, on the largest store in the
+    suite. `dir=directory` is load-bearing: `os.replace` is atomic only within one filesystem,
+    so a temp file in /tmp would make this a copy across a boundary rather than a move.
+
+    One of ten copies of this pattern, registered as a twin under CAC-TW-1 and compared by
+    executing them — `skills/ai-register/scripts/ai_register.py` holds the family list. The
+    property compared is the interrupted write, because on the happy path an atomic writer and
+    `open(path, "w")` produce identical bytes, which is how this copy stayed non-atomic
+    through nine releases with every self-test green.
+    """
     reg["schemaVersion"] = SCHEMA_VERSION
     reg.setdefault("createdAt", _now())
     reg["updatedAt"] = _now()
-    with open(path, "w", encoding="utf-8") as fh:
-        json.dump(reg, fh, indent=2, ensure_ascii=False)
+    directory = os.path.dirname(os.path.abspath(path)) or "."
+    fd, tmp = tempfile.mkstemp(dir=directory, suffix=".rr.tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            json.dump(reg, fh, indent=2, ensure_ascii=False)
+        os.replace(tmp, path)
+    except BaseException:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+        raise
 
 
 def _append_event(reg, etype, riskId=None, field=None, frm=None, to=None, rationale=None):
