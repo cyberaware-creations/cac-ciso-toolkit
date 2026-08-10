@@ -34,10 +34,15 @@ Three tests that separate a control from a sentence:
    was sent. It is not evidence that a single password got stronger.
 
 The reminder example fails a fourth way worth naming, because it is easy to miss: it is aimed
-at an objective the standard abandoned. **NIST SP 800-63B** moved off user-chosen complexity
-years ago in favour of length, screening against breached-password corpora, and no forced
-rotation. Exhorting users toward "strong" passwords asks them to do the thing the guidance
+at an objective the standard abandoned. **NIST SP 800-63B** — that edition withdrawn by NIST on
+2025-08-01 and superseded by SP 800-63B-4 — moved off user-chosen complexity years ago in
+favour of length, screening against breached-password corpora, and no forced rotation.
+Exhorting users toward "strong" passwords asks them to do the thing the guidance
 stopped asking for — so the measure is not merely weak, it is pointed at the wrong target.
+
+*The withdrawal is stated; the citation is deliberately not yet repointed. Revision 4 moved the
+volume boundaries, so which volume this particular guidance now lives in has to be read before
+it is named — repointing without checking is a new error dressed as a fix (BL-224 T3).*
 
 What a real compensating control for unenforced MFA looks like: MFA at a layer that *can* be
 enforced (VPN, SSO front end, jump host); breached-credential screening at set-time and
