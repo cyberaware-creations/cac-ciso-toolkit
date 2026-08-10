@@ -12,6 +12,16 @@ line here is refused by `tools/check-versions.py::check_maker_name`, so importin
 library is the only correct way to produce it — which settles whether the vendored copy
 belongs in a chartless skill.
 """
+#
+# BRAND TOKENS ARE A DECLARED NINE-WAY TWIN (CAC-TW-1, BL-213). `FONTS`, `INK`, `LIME`,
+# `PATINA`, `SLATE`, `WB`, `WB_SURF` and `WB_LINE` are duplicated across all nine
+# `renderers/_common.py` copies and must agree character for character — one palette, one
+# brand, whatever surface a reader is on. The family is listed in
+# skills/risk-register/renderers/_common.py; `tools/check-twins.py` compares all nine on every
+# run and fails if any token moves alone.
+#
+# Nothing else in these modules is claimed to agree. Each carries its own derivation layer and
+# its own CLI surface, deliberately.
 from __future__ import annotations
 
 import argparse
@@ -34,10 +44,22 @@ WB = "#F6F4EE"
 WB_SURF = "#FFFFFF"
 WB_LINE = "#D8D3C6"
 
+# ⚠️ ALIGNED WITH THE OTHER EIGHT IN v0.85.0, and it was wrong here (BL-213).
+#
+# This module requested `Manrope:wght@400;600;800` and `Space+Grotesk:wght@500;700` while the
+# other eight `_common.py` copies requested `400;600;700` and `500;600`. Its own stylesheet
+# uses `font-weight: 700` three times and 800 nowhere — so every bold heading on a
+# business-context page fell back to a synthesised bold off the 600 face, while the same
+# heading on a risk-register or nist-csf page rendered in the real 700. Two weights were
+# downloaded and never used; the one actually used was never fetched.
+#
+# Invisible in every test: the page renders, the CSS is valid, and the difference is a font
+# the browser quietly approximates. Found by enumerating the brand tokens across all nine
+# copies for the CAC-TW-1 registration below, which is the registration's whole point.
 FONTS = ('<link rel="preconnect" href="https://fonts.googleapis.com">'
          '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
-         '<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800'
-         '&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">')
+         '<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700'
+         '&family=Space+Grotesk:wght@500;600&display=swap" rel="stylesheet">')
 FONTS_OFFLINE = ""
 
 

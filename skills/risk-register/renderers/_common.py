@@ -12,6 +12,32 @@ skill through an optional --translations sidecar, or clearly marked as absent.
 
 Standard library only.
 """
+#
+# THE BRAND-TOKEN FAMILY (CAC-TW-1, BL-213). `FONTS`, `INK`, `LIME`, `PATINA`, `SLATE`, `WB`,
+# `WB_SURF` and `WB_LINE` are duplicated across all NINE `renderers/_common.py` copies and must
+# agree character for character. This file is the hub the other eight name:
+#
+#     skills/ai-register/renderers/_common.py
+#     skills/business-context/renderers/_common.py
+#     skills/exceptions-register/renderers/_common.py
+#     skills/incident-materiality/renderers/_common.py
+#     skills/metrics-register/renderers/_common.py
+#     skills/nist-csf/renderers/_common.py
+#     skills/policy-register/renderers/_common.py
+#     skills/vendor-register/renderers/_common.py
+#
+# Hub naming rather than all-pairs: nine members is seventy-two references, which is a list
+# nobody maintains and therefore a list that stops being true.
+#
+# The duplication was declared at ONE end and compared at none until v0.85.0, and enumerating
+# the tokens to register it found real drift — `business-context` requested a Manrope weight
+# its own stylesheet never used and never requested the one it did, and eight of the nine were
+# missing the `fonts.gstatic.com` preconnect. Neither was visible in any test: the pages
+# render, the CSS is valid, and a browser silently approximates a font it was not given.
+#
+# Nothing else in these modules is claimed to agree. Each carries its own derivation layer and
+# its own CLI surface, deliberately — see the UNCOMPARED row in tools/check-twins.py, which
+# names what is still not compared rather than implying the whole module is.
 
 from __future__ import annotations
 
@@ -127,7 +153,15 @@ def sev_of(risk: dict, view: str = "residual") -> str:
 #
 # `--offline` is the honest escape hatch: no request, system stack, layout unchanged
 # because the CSS already names fallbacks. Default stays branded.
+# The gstatic preconnect is where the font FILES come from; the googleapis one only
+# reaches the stylesheet. Eight of the nine copies had only the second until v0.85.0,
+# so the nine `FONTS` values were not identical and the CAC-TW-1 brand-token twin below
+# could not be registered without either converging them or exempting a real difference.
+# Converged on the fuller form rather than the majority one: matching eight files by
+# deleting a correct resource hint from the ninth would be the checker dictating the
+# product (BL-213).
 FONTS = ('<link rel="preconnect" href="https://fonts.googleapis.com">'
+         '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
          '<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700'
          '&family=Space+Grotesk:wght@500;600&display=swap" rel="stylesheet">')
 FONTS_OFFLINE = ""
