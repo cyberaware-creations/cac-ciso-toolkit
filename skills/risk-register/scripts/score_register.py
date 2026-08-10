@@ -1434,7 +1434,10 @@ def _cmd_self_test(_: list[str]) -> int:
     with tempfile.TemporaryDirectory() as _d:
         _rr = os.path.join(_d, "c.rr")
         _quiet(_cmd_init, [_rr, "--client", "Fixture Co", "--assessor", "D. Alleyne"])
-        _quiet(_cmd_add, [_rr, "--title", "Supplier concentration", "--il", "4", "--ii", "4",
+        _quiet(_cmd_add, [_rr, "--title", "Supplier concentration",
+                          "--description", "If the sole logistics provider fails, then "
+                                           "order fulfilment stops",
+                          "--il", "4", "--ii", "4",
                           "--rl", "3", "--ri", "4", "--why", "fixture"])
         _before = _load(_rr)
         _n_before = len(_before["history"])
@@ -1538,7 +1541,10 @@ def _cmd_self_test(_: list[str]) -> int:
     with tempfile.TemporaryDirectory() as _d2:
         _pr = os.path.join(_d2, "p.rr")
         _quiet(_cmd_init, [_pr, "--client", "Fixture Co", "--assessor", "D. Alleyne"])
-        _quiet(_cmd_add, [_pr, "--title", "PR.AA-05 partially implemented", "--il", "4",
+        _quiet(_cmd_add, [_pr, "--title", "PR.AA-05 partially implemented",
+                          "--description", "If access is not reviewed, then leavers keep "
+                                           "credentials",
+                          "--il", "4",
                           "--ii", "4", "--rl", "4", "--ri", "4", "--why", "imported"])
         _p = load_register(_pr)
         _p["risks"][0]["provisionalTitle"] = True
@@ -1599,7 +1605,10 @@ def _cmd_self_test(_: list[str]) -> int:
         with tempfile.TemporaryDirectory() as _id:
             _ir = os.path.join(_id, "i.rr")
             _quiet(_cmd_init, [_ir, "--client", "Fixture Co", "--assessor", "D. Alleyne"])
-            _quiet(_cmd_add, [_ir, "--title", "PR.AA-05 partially implemented", "--il", "4",
+            _quiet(_cmd_add, [_ir, "--title", "PR.AA-05 partially implemented",
+                              "--description", "If access is not reviewed, then leavers "
+                                               "keep credentials",
+                              "--il", "4",
                               "--ii", "4", "--rl", "4", "--ri", "4", "--why", "imported"])
             _ip = load_register(_ir)
             _ip["risks"][0]["provisionalScore"] = True
@@ -1635,7 +1644,8 @@ def _cmd_self_test(_: list[str]) -> int:
             except ValueError:
                 return (True, raw == _raw(argv[0]))
 
-        _add = [_dr, "--title", "T", "--il", "2", "--ii", "2", "--rl", "2", "--ri", "2",
+        _add = [_dr, "--title", "T", "--description", "If T happens, then U follows",
+                "--il", "2", "--ii", "2", "--rl", "2", "--ri", "2",
                 "--why", "w"]
         eq("add --review rejects an unpadded date",
            _rejects(_cmd_add, _add + ["--review", "2027-2-01"]), (True, True))
@@ -1697,10 +1707,12 @@ def _cmd_self_test(_: list[str]) -> int:
         # the typo is refused AND the file is untouched, because a refusal that had already
         # half-written the register would be worse than the silence it replaced.
         eq("a typo'd flag is refused and nothing is written",
-           _rejects(_cmd_add, [_dr, "--title", "T", "--il", "2", "--ii", "2", "--rl", "2",
+           _rejects(_cmd_add, [_dr, "--title", "T", "--description", "If T, then U",
+                               "--il", "2", "--ii", "2", "--rl", "2",
                                "--ri", "2", "--ownr", "X"]), (True, True))
         eq("...and the correctly spelled flag still works",
-           _rejects(_cmd_add, [_dr, "--title", "T", "--il", "2", "--ii", "2", "--rl", "2",
+           _rejects(_cmd_add, [_dr, "--title", "T", "--description", "If T, then U",
+                               "--il", "2", "--ii", "2", "--rl", "2",
                                "--ri", "2", "--owner", "X"]), (False, False))
         def _why_refused(fn, argv):
             try:
@@ -1712,9 +1724,65 @@ def _cmd_self_test(_: list[str]) -> int:
         # flag they typed AND one they could have meant.
         eq("the refusal names the flag and lists what is accepted",
            all(s in _why_refused(_cmd_add,
-                                 [_dr, "--title", "T", "--il", "2", "--ii", "2", "--rl", "2",
+                                 [_dr, "--title", "T", "--description", "If T, then U",
+                                  "--il", "2", "--ii", "2", "--rl", "2",
                                   "--ri", "2", "--ownr", "X"])
                for s in ("--ownr", "--owner", "Nothing was written")), True)
+
+        # --- an event, not a topic (BL-81) --------------------------------------
+        #
+        # `add` took a title and four numbers and wrote `"description": ""` — a one-word noun,
+        # scored, banded, counted in the band mix and eligible for board views, with the only
+        # trace a muted note on the rendered page long afterwards. SKILL.md has named this as
+        # its first precondition since v0.1 and the engine never enforced it.
+        _topic = [_dr, "--title", "Phishing", "--il", "4", "--ii", "4", "--rl", "3", "--ri", "3"]
+        _before_topic = open(_dr, "rb").read()
+        eq("a risk with no description is refused", _rejects(_cmd_add, _topic), (True, True))
+        eq("...and the register is byte-identical afterwards",
+           open(_dr, "rb").read(), _before_topic)
+        # A refusal that says only WHAT is one somebody works around. This has to name the
+        # flag, say why a topic cannot be scored, and show the house format.
+        _topic_why = _why_refused(_cmd_add, _topic)
+        eq("the refusal names the flag, the reason and the house format",
+           all(s in _topic_why for s in ("--description", "topic", "no likelihood",
+                                         "If <event>, then <consequence>")), True)
+        eq("an empty --description is refused as firmly as an absent one",
+           _rejects(_cmd_add, _topic + ["--description", "   "]), (True, True))
+        # `--desc` is the documented alias, and must satisfy the requirement or the refusal
+        # fires on a flag the engine itself offers.
+        eq("...and the --desc alias satisfies it",
+           _rejects(_cmd_add, _topic + ["--desc", "If x, then y"]), (False, False))
+
+        # THE LEGACY HALF. Refusals guard writes, never loads. A register written before
+        # v0.78.0 may hold description-less risks; it must still open, and refuse only when
+        # something re-scores one.
+        with tempfile.TemporaryDirectory() as _ld:
+            _lr = os.path.join(_ld, "legacy.rr")
+            _quiet(_cmd_init, [_lr, "--client", "Legacy Co", "--assessor", "D. Alleyne"])
+            _lreg = load_register(_lr)
+            _lrisk = empty_risk("R-001")
+            _lrisk.update({"title": "Phishing", "description": "",
+                           "inherent": {"likelihood": 4, "impact": 4},
+                           "residual": {"likelihood": 3, "impact": 3}})
+            _lreg["risks"].append(_lrisk)
+            save_register(_lreg, _lr)
+            eq("a register holding a description-less risk still LOADS",
+               load_register(_lr)["risks"][0]["title"], "Phishing")
+            _rescore = [_lr, "R-001", "--residual", "4", "4", "--why", "revised"]
+            eq("...and re-scoring it refuses", _rejects(_cmd_set_score, _rescore), (True, True))
+            eq("...naming set-text as the way through",
+               "set-text" in _why_refused(_cmd_set_score, _rescore), True)
+            # ⚠️ The gate that keeps the import flow alive. An imported CSF gap has NO
+            # description BY DESIGN and is marked `provisionalTitle`; the sanctioned order is
+            # set-score to assess, then set-text to reword. An unconditional refusal above
+            # would deadlock that at step one — the mechanism BL-81's own plan (D-3) says must
+            # not break.
+            _lreg = load_register(_lr)
+            _lreg["risks"][0]["provisionalTitle"] = True
+            save_register(_lreg, _lr)
+            eq("...but an IMPORTED provisional risk with no description still scores",
+               _rejects(_cmd_set_score, [_lr, "R-001", "--residual", "4", "4",
+                                         "--why", "assessed"]), (False, False))
 
         # --- cost validation (BL-105) -------------------------------------------
         eq("--cost refuses a negative", _rejects(_cmd_add, _add + ["--cost", "-5000"]),
@@ -2595,7 +2663,9 @@ def _cmd_add(args):
         "title", "description", "desc", "il", "ii", "rl", "ri", "category", "owner", "theme",
         "response", "response-desc", "cost", "review", "csf", "notes", "why"})
     if not pos:
-        raise ValueError("usage: add <register.rr> --title '...' --il L --ii I --rl L --ri I "
+        raise ValueError("usage: add <register.rr> --title '...' "
+                         "--description 'If <event>, then <consequence>' "
+                         "--il L --ii I --rl L --ri I "
                          "[--category ..] [--owner ..] [--theme ..] [--response mitigate] "
                          "[--response-desc ..] [--cost 45000] [--review DATE] [--csf ID] "
                          "[--notes ..] [--why ..]")
@@ -2605,6 +2675,36 @@ def _cmd_add(args):
     for req in ("title", "il", "ii", "rl", "ri"):
         if req not in opt:
             raise ValueError(f"add: missing --{req}")
+    # A DESCRIPTION IS REQUIRED, and it is required rather than validated.
+    #
+    # SKILL.md's first named precondition is that risks are written as events, not topics —
+    # and until v0.78.0 the engine took `--title "Phishing"` with four numbers and nothing
+    # else. A one-word noun was scored, banded, counted in the band mix and eligible for
+    # board views; the only trace was a muted "No event statement recorded." on the rendered
+    # page, produced long after the number existed.
+    #
+    # Worse than an omission. The two import paths mark their rows `provisionalTitle` exactly
+    # so raw framework wording stays out of board views until a person rewords it, and
+    # `_cmd_add` sets no such flag. So the register held an imported control objective back
+    # and let a hand-typed noun straight through — the opposite of the risk profile anyone
+    # would choose (BL-81).
+    #
+    # THE SHAPE IS NOT VALIDATED, deliberately. No regex, no `startswith("If")`, no minimum
+    # length. Requiring the field is a record requirement; pattern-matching a human's sentence
+    # for whether it is a *good* risk statement is the tool judging, which is the wrong side
+    # of `record and refuse, never judge` — and it would reject legitimate phrasings while
+    # passing "If x then y" from anyone who worked out the rule.
+    # `_s` joins multi-token values and does not strip, so an all-whitespace description
+    # would otherwise be truthy and pass. A bare `--description` flag parses as True.
+    if not str(_s(opt.get("description", opt.get("desc", ""))) or "").strip():
+        raise ValueError(
+            "add: missing --description.\n"
+            "  A title is a topic, and a topic cannot be scored: it has no likelihood and "
+            "nothing to estimate an impact against. The description is the event — "
+            "`If <event>, then <consequence>`, the CAC house format.\n"
+            "  e.g. --description 'If employees are targeted by credential-harvesting "
+            "phishing, then stolen passwords enable account takeover'\n"
+            "  The wording is yours. This refuses an empty field, never a phrasing.")
     rtype = _s(opt.get("response", "mitigate"))
     if rtype not in RESPONSES:
         raise ValueError(f"--response must be one of {sorted(RESPONSES)}")
@@ -2903,6 +3003,27 @@ def _cmd_set_score(args):
     reg = load_register(pos[0]); size = reg["settings"]["matrixSize"]; r = _find(reg, pos[1])
     if "why" not in opt:
         raise ValueError("set-score: --why is required (material change; the rationale is the audit trail).")
+    # THE LEGACY HALF OF BL-81. `add` refuses an empty description from v0.78.0, but every
+    # register written before it may hold risks that have none, and refusals guard WRITES,
+    # never loads — such a register still opens and renders unchanged. What it must not do is
+    # be re-scored silently: a new number attached to a topic is the same defect arriving a
+    # release later, through the one command whose whole purpose is to revise the number.
+    #
+    # ⚠️ GATED ON `provisionalTitle`, and that gate is load-bearing. An imported CSF gap has
+    # NO description by design — `gap_to_risk` marks it `provisionalTitle` and the sanctioned
+    # flow is `set-score` to assess, then `set-text` to reword. Refusing here unconditionally
+    # would deadlock that flow at its first step and break the mechanism BL-81's own plan
+    # (D-3) says to protect. Once `set-text` has cleared the flag the risk is board-facing,
+    # and an empty event statement is then exactly what this refuses.
+    if not str(r.get("description") or "").strip() and not r.get("provisionalTitle"):
+        raise ValueError(
+            f"set-score: {pos[1]} has no event statement, so there is nothing for this score "
+            f"to be a score OF. A topic has no likelihood and nothing to estimate an impact "
+            f"against.\n"
+            f"  Give it one first: set-text {pos[0]} {pos[1]} --description "
+            f"'If <event>, then <consequence>' --why '...'\n"
+            f"  (Registers written before v0.78.0 may hold risks like this; they load and "
+            f"render unchanged, and refuse on the next write that re-scores them.)")
     changed = False
     for field in ("inherent", "residual"):
         if field in opt:

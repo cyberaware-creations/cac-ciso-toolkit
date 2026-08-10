@@ -521,6 +521,16 @@ jobs:
       - name: Confirmation-age suite, on the floor
         run: PY="$(command -v python3)" ./skills/risk-register/evals/confirmation-age.sh
 
+      # BL-81. SKILL.md's first named precondition — risks are written as events, not topics —
+      # was documented for nine releases and enforced by nothing: `add --title "Phishing"` with
+      # four numbers wrote an empty description, and that noun was scored, banded and eligible
+      # for board views. Two halves, one per way in: creating one, and re-scoring one that
+      # already exists in a register written before the rule. The third check is the one that
+      # keeps it honest — the import path still creates description-less provisional rows, so
+      # a guard that refused everything cannot pass.
+      - name: A scored risk carries an event statement
+        run: PY="$(command -v python3)" ./skills/risk-register/evals/event-statement.sh
+
   rendered:
     # Width and WCAG AA contrast are properties of a *resolved layout*, so they need a real
     # layout engine. Four shipped defects lived in this blind spot.
