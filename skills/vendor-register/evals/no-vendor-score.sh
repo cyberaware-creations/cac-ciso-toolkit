@@ -47,6 +47,7 @@ echo "no-vendor-score: $($PY -V 2>&1)"
    --owner "CMO" >/dev/null 2>&1
 cat > "$work/ctx.json" <<'JSON'
 {"contractVersion": "CAC-AP-1",
+ "applicability": {"vendor": {"ask": [], "skipped": [], "undeclared": []}},
  "crownJewels": [{"system": "Plant historian (Dublin)", "criticality": "high",
                   "dependsOn": ["SCADA gateway"]}]}
 JSON

@@ -5,6 +5,7 @@
 **In force since:** v0.41.3 — GP-1.7 added in v0.45.0, GP-1.8 and GP-1.9 in v0.56.0,
 GP-1.10 in v0.64.1, GP-1.11 in v0.67.0, the `create` mutation form in v0.69.0
 **Sibling standards:** [CAC-LE-1](eval-lint-standard.md), the eval-harness lint ·
+[CAC-EN-1](engine-standard.md), the engine standard ·
 **CAC-TW-1** (`tools/check-twins.py`, in force since v0.68.0), which executes the deliberately
 duplicated functions against one another. That is the case this standard structurally cannot
 reach: every guard here lives inside one skill, and a skill's own suite cannot see its twin in

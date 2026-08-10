@@ -321,7 +321,9 @@ TWINS = (
                "first-ten-minutes failure for a CISO who mistypes a path, and invisible to "
                "every reading of the code, because the code reads as fine until you run it "
                "against a file that does not exist. Registering the seven is what stops the "
-               "eighth consumer inheriting whichever copy its author happened to open.",
+               "eighth consumer inheriting whichever copy its author happened to open. "
+               "The contract they hold is CAC-EN-1 §1.2 in tools/engine-standard.md, "
+               "converged across all seven in v0.82.0 (BL-226 T3).",
         # Third slot: the name of THIS engine's refusal channel, resolved against the module
         # and then builtins. Not a projection — see the `refusal` kind in the docstring.
         "members": [(_HUB_CONTEXT, "load_context", "Refusal"),
@@ -340,17 +342,21 @@ TWINS = (
         # — and one payload every one of them must ACCEPT, without which a guard that refused
         # everything would pass.
         #
-        # THE DIRECTORY ROW IS WHY THE THIRD SLOT EXISTS. Until BL-226 all seven raised
+        # THE DIRECTORY ROW IS WHY THE THIRD SLOT EXISTS. Until BL-226 T1 all seven raised
         # `IsADirectoryError` on it, identically, so member-to-member comparison called that
         # perfect agreement. It was excluded from this corpus for exactly that reason and is
         # now included with a stated contract, which is the only form in which it means
         # anything.
         #
-        # Two inputs are still deliberately absent, and their absence is a finding rather
-        # than an oversight (BL-226): a payload with no `contractVersion` (five refuse, two
-        # do not) and a payload with no decided `applicability` (five refuse, two do not).
-        # Those are genuine disagreements about what a CAC-AP-1 consumer owes, not bugs, and
-        # converging them changes what two shipped engines accept — a decision, not a fix.
+        # ⚠️ THE LAST THREE ROWS ARE THE TEST THAT T3 LANDED, and they were deliberately
+        # ABSENT until v0.82.0. Each was a real disagreement about what a CAC-AP-1 consumer
+        # owes, not a bug: no `contractVersion` (five refused, vendor accepted), no decided
+        # `applicability` (five refused, vendor and ai accepted), and a raw `.biz` store (five
+        # ACCEPTED it, only vendor and ai refused with the sentence naming the export command).
+        # Converging them changed what two shipped engines accept, so it waited on a decision
+        # rather than being improvised. **The corpus grows by exactly what converged** — which
+        # is why this list is the check that the convergence happened, and not a restatement
+        # of it.
         "payloads": [
             ("a path that does not exist", None, "refused"),
             ("a DIRECTORY path, the typo `--context .`", AS_DIRECTORY, "refused"),
@@ -358,6 +364,13 @@ TWINS = (
             ("a JSON array, which parses and then has no .get", "[]", "refused"),
             ("a payload declaring a contract this suite does not read",
              '{"contractVersion": "CAC-AP-9", "applicability": {}}', "refused"),
+            # --- converged in v0.82.0 (BL-226 T3) ---
+            ("a payload declaring NO contractVersion at all",
+             '{"applicability": {}, "crownJewels": []}', "refused"),
+            ("a payload with no decided `applicability`",
+             '{"contractVersion": "CAC-AP-1", "crownJewels": []}', "refused"),
+            ("a raw .biz store passed where an export belongs",
+             '{"family": "business-context", "schemaVersion": 1, "context": {}}', "refused"),
             ("a payload every consumer must accept",
              '{"contractVersion": "CAC-AP-1", "profileVersion": "1", "applicability": {}}',
              "accepted"),

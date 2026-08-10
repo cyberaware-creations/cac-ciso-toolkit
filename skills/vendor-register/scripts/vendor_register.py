@@ -1598,6 +1598,9 @@ def escalations(store: dict, today: str = "") -> list:
 
 # --- Context ------------------------------------------------------------------
 
+CONTEXT_CONTRACT = "CAC-AP-1"
+
+
 def load_context(path: str) -> dict:
     """Read a CAC-AP-1 payload exported by `business-context`.
 
@@ -1619,10 +1622,23 @@ def load_context(path: str) -> dict:
 
     What must agree is WHICH payloads are refused and what is returned, never the wording: two
     of the seven refuse with `ValueError` and five with a local `Refusal`, and each is that
-    engine's own refusal channel. They do not yet agree about everything — this copy accepts a
-    payload declaring no `contractVersion` where five refuse it, and five require a decided
-    `applicability` where this one does not. Those divergences are recorded in BL-226 and are
-    deliberately outside the compared corpus rather than quietly absent from it.
+    engine's own refusal channel.
+
+    ALL SEVEN NOW HOLD THE SAME CONTRACT, converged in v0.82.0 (BL-226 T3) and written down as
+    **CAC-EN-1 §1.2** in `tools/engine-standard.md`. They did not before: this copy accepted a
+    payload declaring no `contractVersion`, this copy and `ai-register` accepted one with no
+    decided `applicability`, and the other five ACCEPTED a raw `.biz` store — which §2.6 says
+    is the wrong transport. Three disagreements about what a consumer owes, and each was a
+    decision rather than a bug, which is why they waited.
+
+    ORDER IS LOAD-BEARING IN ONE PLACE. The `.biz` clause runs BEFORE the contract clause: a
+    raw store carries no `contractVersion`, so answering it with the generic contract message
+    would throw away the one sentence that tells the reader which command produces the file
+    they meant to pass.
+
+    The three rows are now IN the CAC-TW-1 corpus, and that is the check that this happened —
+    they were held out of it, with the reason in the registry entry, for exactly as long as
+    the copies disagreed.
     """
     try:
         with open(path, encoding="utf-8") as fh:
@@ -1650,9 +1666,20 @@ def load_context(path: str) -> dict:
             f"`business_context.py export {path} --out ctx.json` and pass that: the "
             f"narrowing decision belongs to that skill, and CAC-AP-1 §2.6 makes the "
             f"transport data rather than an import.")
-    if payload.get("contractVersion") not in (None, "", "CAC-AP-1"):
-        raise Refusal(f"{path} declares contract {payload.get('contractVersion')!r}, "
-                      f"which this engine does not read")
+    # STRICT, since BL-226 T3. This read `not in (None, "", "CAC-AP-1")` until then, so an
+    # UNDECLARED contract passed — any JSON object with the right shape was accepted as an
+    # applicability profile by the engine BL-218 named as its reference copy.
+    got = payload.get("contractVersion")
+    if got != CONTEXT_CONTRACT:
+        raise Refusal(
+            f"{path} declares contractVersion {got!r}; this engine reads "
+            f"{CONTEXT_CONTRACT!r}. Produce one with `business_context.py export <file.biz>`.")
+    if not isinstance(payload.get("applicability"), dict):
+        raise Refusal(
+            f"{path} carries no decided `applicability`, so this skill cannot tell which "
+            f"batteries the profile narrowed away. Re-export it with "
+            f"`business_context.py export <file.biz>`; the narrowing decision belongs to "
+            f"that skill and is not re-derived here.")
     return payload
 
 
@@ -3244,7 +3271,13 @@ def main(argv=None) -> int:
         return args.fn(args)
     except Refusal as exc:
         print("Refused: %s" % exc, file=sys.stderr)
-        return 2
+        # 1, not 2. A REFUSAL is the tool working — it read the input, understood it, and
+        # declined. 2 is argparse's usage-error code and is what these engines return when no
+        # subcommand is given, so returning it here made a well-formed refusal indistinguishable
+        # from a mistyped command line to anything scripting the suite. Converged across all
+        # eleven engines in v0.82.0; the convention is stated in tools/engine-standard.md
+        # (CAC-EN-1), which is the only reason it can be checked rather than remembered.
+        return 1
 
 
 if __name__ == "__main__":
