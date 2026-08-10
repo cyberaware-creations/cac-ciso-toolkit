@@ -272,9 +272,28 @@ stays `csf-2.0`.
 - `mode` ∈ `{advisory, reorder}`. `advisory` changes nothing computed. `reorder` changes only
   the order of the `gaps` table and anything derived from its head. **No mode changes a score,
   a target, a gap, a coverage figure, or a Tier.**
-- `datasetVersion` records which dataset produced the last analysis, and is stamped into
-  snapshots. A dataset swap is a file replacement plus a version bump; stores stamped with an
-  older version keep reporting that version until re-analyzed.
+- `datasetVersion` records which dataset the overlay was **enabled** on. It is written by
+  `overlay enable` and by nothing else — `analyze` does not re-stamp it — and since v0.80.0 it
+  is copied into every snapshot alongside `coreRef`, so a stored report states which data
+  produced it.
+
+  ⚠️ **Two sentences here were false until v0.80.0 and are corrected rather than quietly
+  replaced** (BL-109). This file said the version *"is stamped into snapshots"*: it was not —
+  a snapshot's keys were `id, label, ts, note, assessments, actionItems, rollups` and the
+  serialised record contained no `dataset` substring at all. And it said stores *"keep
+  reporting that version until re-analyzed"*, which was backwards: **analysis reports the
+  SHIPPED version immediately**, and the store's stale stamp is what survives. Re-analysing
+  never cleared it; only re-running `overlay enable` does.
+
+  What happens now: a mismatch between the stamp and the shipped dataset is reported as a
+  **note** by `analyze` and `overlay list`, and carried in the report as `provenanceNotes`.
+  It is never a refusal — a provenance mismatch is a fact about the data, not an invalid
+  store, and refusing would strand an assessment mid-flight the day a dataset moves.
+- `profile.coreRef` records **which Core the store was last written against** — `{version,
+  sha256}`, stamped by `save_store` on every write, following BL-75's rule that a hash says
+  which file where a date says only when somebody fetched one. Absent means *not recorded*
+  (every store written before v0.80.0) and is reported as its own sentence, never as
+  agreement. Completeness counts against that Core: see `compute_completeness`.
 
 Defaults are inert: absent `overlays` normalizes to disabled, no areas, `advisory`. A Profile
 that has not opted in is never perturbed. The enable command defaults to `reorder` — the safe

@@ -180,10 +180,19 @@ while `overlay enable` defaults to `reorder` (the mode worth choosing). The safe
 the useful choice are different questions, and a normalization bug should produce a Profile
 that reports nothing rather than one that silently resequences a board's top five.
 
-`datasetVersion` records which dataset produced the last analysis and is stamped into
-snapshots, so a stored report always states which data produced it. A dataset swap is a file
-replacement plus a version bump; Profiles stamped with an older version keep reporting that
-version until re-analyzed.
+`datasetVersion` records which dataset the overlay was **enabled** on. Since v0.80.0 it is
+copied into every snapshot alongside `coreRef`, so a stored report states which data produced
+it. A dataset swap is a file replacement plus a version bump.
+
+⚠️ **Both halves of this paragraph were false until v0.80.0** (BL-109), and the correction is
+left visible. Snapshots did **not** carry the version — the record's keys were `id, label, ts,
+note, assessments, actionItems, rollups` and nothing else. And *"keep reporting that version
+until re-analyzed"* was backwards: `analyze` reports the **shipped** dataset version
+immediately, while the store's older stamp survives untouched. Only `overlay enable` re-stamps.
+
+A Profile enabled on one dataset and analysed against another now gets a **note** from
+`analyze` and from `overlay list` — which printed both versions on adjacent lines and never
+compared them — and the report carries it as `provenanceNotes`. Never a refusal.
 
 ## Regenerating the dataset
 
