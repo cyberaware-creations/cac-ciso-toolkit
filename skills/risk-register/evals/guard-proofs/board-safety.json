@@ -1,7 +1,7 @@
 {
   "guard": "skills/risk-register/evals/board-safety.sh",
-  "forbids": "raw framework wording reaching a board renderer before a human has translated it",
-  "note": "Enrolled in v0.61.0, the last of the eleven candidates BL-101's registry surfaced. Guard-shaped since it was written and named nowhere until the registry made a verdict compulsory.",
+  "forbids": "raw framework wording reaching a board renderer before a human has translated it; confidence vocabulary in any shipped source but render_dashboard",
+  "note": "Enrolled in v0.61.0, the last of the eleven candidates BL-101's registry surfaced. Guard-shaped since it was written and named nowhere until the registry made a verdict compulsory. Check 10 had no registered mutation until v0.69.0: this guard's only half was `raw-title`, so the largest source scan in the suite was published, counted, and unproved. Enrolled with the file-list recomputation because the two arrived together.",
   "mutations": [
     {
       "half": "raw-title",
@@ -12,6 +12,16 @@
       "file": "skills/risk-register/renderers/render_board.py",
       "find": "title = (C.risk_title(r) if provisional",
       "replace": "title = (f'<span class=\"t\">{C.esc(r[\"title\"])}</span>' if provisional"
+    },
+    {
+      "half": "source-scan",
+      "why": "A file the guard has never been told about, carrying the prose the guard forbids. The editing form of a mutation cannot express this property: every edit lands in a file the list already names, so it proves the vocabulary scan and says nothing about the population that scan reads. That is precisely how this suite went on asserting `scanned == len(FILES)` — the length of its own tuple — while a shipped file sat outside it and a planted constant in that file passed (BL-211). Aimed at `scripts/` because this skill's measured gap was there: `scripts/score_register.py`, the engine that writes most of the strings these renderers print, sat outside the tuple with nothing saying so — next to `renderers/render_dashboard.py`, which was excluded WITH a reason. An exclusion is fine and an omission is not, and a hardcoded tuple cannot tell you which one it is looking at.",
+      "defeats": [
+        "no confidence vocabulary in any shipped source but render_dashboard"
+      ],
+      "file": "skills/risk-register/scripts/appetite_export.py",
+      "create": true,
+      "replace": "\"\"\"An appetite-vs-exposure export.\n\nAdded after the guard was last edited by hand. GP-1.7: the scan has to read this because\nthe tree has it, not because a list names it — and no list names it. That is the point.\n\"\"\"\n\n_NOTE = \"our confidence in this figure is degrading\"\n"
     }
   ]
 }
