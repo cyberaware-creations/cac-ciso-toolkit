@@ -101,9 +101,26 @@ oversight, not to be perfect.
 > appeal, and it is an **ORDER**, not a signed opinion — the same caveat the
 > *Bingle* affirmance carries.
 >
-> ⚠️ **No citator was run** — no Shepard's, no KeyCite — so subsequent history
-> beyond what these documents themselves record is unconfirmed. What each case
-> HOLDS was read; whether it has since been distinguished or overruled was not.
+> ⚠️ **NO COMMERCIAL CITATOR HAS BEEN RUN — no Shepard's, no KeyCite.** What was
+> run, on 2026-08-10, is a **subsequent-citation sweep** against a free index
+> (CourtListener's Delaware Supreme Court and Court of Chancery opinions), plus
+> a direct read of the later decision it surfaced. That is weaker than a citator
+> in two specific ways, and the difference is not cosmetic:
+>
+> - **No editorial treatment flags.** A citator tells you a case was *criticised*,
+>   *questioned* or *limited*. A citation sweep only tells you a later case
+>   mentioned it; somebody then has to read that case to find out how.
+> - **The free index is demonstrably incomplete.** It records **no reporter
+>   citation at all** for *In re TransUnion*, while a sitting Chancellor cites
+>   that case at **324 A.3d 869** in a published opinion. So the absence of a
+>   later citing case in that index is weak evidence of anything.
+>
+> **What the sweep found: no appeal, reversal, vacatur or superseding decision**
+> for *In re TransUnion*, *Giuliano*, *Marchner* or *Sorenson*, and the *Bingle*
+> affirmance date independently confirmed. **It also found one live boundary —
+> see the *TransUnion* row.** The pre-2024 landmarks in the table below were
+> **not** swept; they are stable and heavily cited, and sweeping them properly is
+> exactly what a paid citator is for.
 
 - *Giuliano v. Grenfell-Gardner* (Teligent), C.A. No. 2021-0452-KSJM (Del. Ch.,
   2 Sep. 2025) (McCormick, C.) — motion to dismiss **largely denied on prong
@@ -421,9 +438,10 @@ checked. Nothing here is a substitute for counsel reading the current text.
 | "Mission critical" | *Marchand v. Barnhill*, **212 A.3d 805 (Del. 2019)** | Delaware Supreme Court; Atlantic Reporter 3d |
 | Oversight failure, 2025 | *Giuliano v. Grenfell-Gardner*, C.A. No. 2021-0452-KSJM (Del. Ch. 2 Sep. 2025) (McCormick, C.) — Counts II and IV dismissed, Count III dismissed as to one officer, motion "otherwise denied" — **slip opinion read 2026-08-10; no citator run** | Delaware Court of Chancery |
 | Red flags, 2025 | *Brewer v. Turner*, C.A. No. 2023-1284-KSJM (Del. Ch. 29 Sep. 2025) (McCormick, C.), **2025 WL 2769895** — **slip opinion read 2026-08-10; no citator run** | Delaware Court of Chancery |
+| Red flags, 2025 — subsequent treatment | Both *Brewer* citations were **independently confirmed by Chancellor McCormick herself** in *LACERS v. Sanford* (Del. Ch. 16 Jan. 2026), citing her own decisions: *"Brewer v. Turner, 2025 WL 2769895, at \*9 (Del. Ch. Sept. 29, 2025) (denying motion to dismiss); Brewer v. Turner, 2025 WL 3048942, at \*5 (Del. Ch. Oct. 30, 2025) (denying motion to certify interlocutory appeal)"* — both WL numbers and **both dates**, from the judge who wrote them | Delaware Court of Chancery |
 | Red flags, 2025 — certification refused below | *Brewer v. Turner*, **2025 WL 3048942** (Del. Ch. 30 Oct. 2025) — the Chancery order **denying certification** of the interlocutory appeal. A **separate, later document** from the 29 Sep. memorandum opinion; several databases index the case at this date, which is why the two dates both appear and neither is wrong — **slip opinion read 2026-08-10; no citator run** | Delaware Court of Chancery |
 | Red flags, 2025 — appellate disposition | ***Turner v. Brewer***, No. 444, 2025 (Del. 15 Dec. 2025) (Seitz, C.J.; Valihura and Griffiths, JJ.) — interlocutory appeal **REFUSED**. ⚠️ **The parties reverse on appeal**, and this is an **ORDER, not a signed opinion** — the *Bingle* caveat applies. **slip opinion read 2026-08-10; no citator run** | Delaware Supreme Court |
-| Reinforcing | *In re TransUnion Deriv. S'holder Litig.*, Consolidated C.A. No. 2022-1103-LWW (Del. Ch. 1 Oct. 2024) (Will, V.C.) — motion to dismiss granted; *Marchner v. Riley*, **C.A. No. 2025-0164-LWW** (Del. Ch. **30 Mar. 2026**) (Will, V.C.) — complaint dismissed in full under Rule 23.1. ⚠️ **The *Marchner* slip opinion's own date line reads "March 30, 2025", which cannot be right**: the same header gives "Date Submitted: December 22, 2025". It is a typo in the court's document; the year is **2026**. **slip opinion read 2026-08-10; no citator run** | Delaware Court of Chancery |
+| Reinforcing | *In re TransUnion Deriv. S'holder Litig.*, **324 A.3d 869** (Del. Ch. 2024), Consolidated C.A. No. 2022-1103-LWW (Del. Ch. 1 Oct. 2024) (Will, V.C.) — motion to dismiss granted. ⚠️ **Distinguished** in *LACERS v. Sanford*, C.A. No. 2024-0998-KSJM (Del. Ch. 16 Jan. 2026) (McCormick, C.), which held that "effective inaction" distinguished the case before it from *TransUnion* and the other authorities the defendants relied on, pincited at 888–90. **The holding stands; the boundary is now drawn** — do not cite it for the proposition that a board which responds at all is safe; *Marchner v. Riley*, **C.A. No. 2025-0164-LWW** (Del. Ch. **30 Mar. 2026**) (Will, V.C.) — complaint dismissed in full under Rule 23.1. ⚠️ **The *Marchner* slip opinion's own date line reads "March 30, 2025", which cannot be right**: the same header gives "Date Submitted: December 22, 2025". It is a typo in the court's document; the year is **2026**. **slip opinion read 2026-08-10; no citator run** | Delaware Court of Chancery |
 | Boeing | *In re The Boeing Company Derivative Litigation*, C.A. No. 2019-0907-MTZ (Del. Ch. 7 Sep. 2021) | Delaware Court of Chancery |
 | DORA ICT risk-management RTS | Commission Delegated Regulation **(EU) 2024/1774**, Art. 3, point (d)(iii)–(iv); OJ 25.6.2024, in force 15 Jul. 2024 | EUR-Lex, CELEX 32024R1774 |
 | DORA incident-reporting RTS | Commission Delegated Regulation **(EU) 2025/301**, Art. 5 — the initial / intermediate / final time limits, made under DORA Art. 19(4); OJ 20.2.2025 | EUR-Lex, CELEX 32025R0301 |
