@@ -162,9 +162,12 @@ impact or reasonably likely material impact.
 **Limits, outward:** it applies to SEC registrants and nobody else; its technical-detail
 carve-out covers the *planned response*, the *systems* and the *vulnerabilities* — **not the
 incident**, whose nature, scope and timing Item 1.05(a) requires (see `disclosure-clocks.md`);
-the determination is a company-specific judgment; and the rules have faced rescission pressure
-and a materially reduced enforcement posture. Cite it as a preparedness obligation, never as an
-imminent enforcement threat.
+the determination is a company-specific judgment; and the rules are the subject of a rescission
+petition (**SEC File No. 4-856**, filed **22 May 2025**) on which the Commission has not acted,
+alongside visibly reduced enforcement activity since the SolarWinds dismissal of **20 November
+2025**. **Neither has changed the rule text or any stated Commission policy** (as at August
+2026); `disclosure-clocks.md` carries both with their receipts. Cite it as a preparedness
+obligation, never as an imminent enforcement threat.
 
 **Limits, inward:** which organisations are registrants is declared as `secItem105Scope` and
 never inferred from a listing — an unlisted issuer reporting under Exchange Act s.15(d) is

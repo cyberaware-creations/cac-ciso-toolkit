@@ -142,11 +142,17 @@ and consequence-framing feed directly into the materiality call.
 **HONEST LIMIT (load-bearing), and it runs in two directions.**
 
 *Outward.* Item 106 mandates a *description of process*, **not decision-rationale
-records**. The rule also faces rescission pressure, and the SEC's **SolarWinds
-enforcement action was dismissed with prejudice in November 2025**. Use this as
+records**. Two things have happened around the rule and **neither changed it**,
+as at August 2026. Five financial trade associations petitioned the Commission
+on **22 May 2025** to rescind Item 1.05 and the Form 6-K counterpart (**SEC File
+No. 4-856**); a petition is not a proposal, the Commission has not acted, and
+Items 1.05 and 106 are textually unchanged. And the SEC's **SolarWinds
+enforcement action was dismissed with prejudice on 20 November 2025**
+(**Litigation Release No. 26423**), which records that the dismissal *"does not
+necessarily reflect the Commission's position on any other case"*. Use this as
 *context for why boards want translation* — not as a fear-based "the SEC will
-come after you" threat. Threat-framing here is both inaccurate and disqualifying
-in the room.
+come after you" threat, and equally not as "the rule is going away". Threat-framing
+here is both inaccurate and disqualifying in the room.
 
 *Inward.* **17 CFR 229.106 carries no exemption.** Read in full it is
 definitions, risk management and strategy, governance, and a structured-data
@@ -271,5 +277,7 @@ checked. Nothing here is a substitute for counsel reading the current text.
 
 **Two of these have moved since they were written down, and both moves are
 already reflected above:** the SEC's SolarWinds enforcement action was dismissed
-with prejudice on **20 November 2025**, and the Item 106 rule faces rescission
-pressure. Check both before relying on either.
+with prejudice on **20 November 2025** (Litigation Release No. 26423), and the
+Item 1.05/106 family is the subject of a rescission petition filed **22 May 2025**
+(SEC File No. 4-856) that the Commission has not acted on. **Neither changed the
+rule text.** Check both before relying on either.

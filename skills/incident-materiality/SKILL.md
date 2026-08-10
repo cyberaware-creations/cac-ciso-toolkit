@@ -321,7 +321,10 @@ not compute a deadline it cannot compute correctly.
 
 *Outward — who the rule does not reach.* Item 1.05 binds SEC registrants and nobody else, carves
 out technical detail of the *response, systems and vulnerabilities* but **not of the incident**,
-and sits under rescission pressure with a materially reduced enforcement posture; DORA binds
+and is the subject of a rescission petition not acted on (SEC File No. 4-856, 22 May 2025)
+alongside visibly reduced enforcement activity since the SolarWinds dismissal of 20 November
+2025 — neither of which changed the rule text or a stated Commission policy, as at August 2026;
+DORA binds
 in-scope EU financial entities, its *major* classification is a judgment this tool does not
 make, and the engine does not apply the next-working-day allowance.
 
