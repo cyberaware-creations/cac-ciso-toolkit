@@ -1,17 +1,17 @@
 {
   "guard": "skills/policy-register/evals/board-safety.sh",
-  "forbids": "catastrophizing or false-confidence vocabulary in the reader-facing renderer",
+  "forbids": "catastrophizing or false-confidence vocabulary in any shipped source file",
   "note": "The same rule the other nine board-safety suites hold, on a page whose reader is an auditor. A sentence here that sounds surer than the data supports is the organisation telling a regulator something it cannot evidence, in a document it produced itself.",
   "mutations": [
     {
       "half": "source-scan",
-      "why": "a sentence of catastrophizing prose added to a shipped renderer as a module-level constant. That is the way in that matters: nobody writes `catastrophic` into an audit pack on purpose, they write it into a helper's default string and it reaches the page months later. A constant rather than live output, so it proves the SOURCE scan specifically.",
+      "why": "A file the guard has never been told about, carrying the prose the guard forbids. The editing form of a mutation cannot express this property: every edit lands in a file the list already names, so it proves the vocabulary scan and says nothing about the population that scan reads. That is precisely how this suite went on asserting `scanned == len(FILES)` — the length of its own tuple — while a shipped file sat outside it and a planted constant in that file passed (BL-211). This suite's tuple matched the tree on the day it was last edited, which is not the same property as reading the tree and cannot be told apart from it by any edit. Adding a file is the only mutation that can tell them apart.",
       "defeats": [
-        "no confidence vocabulary in the source of the reader-facing view"
+        "no confidence vocabulary in the source of any shipped file"
       ],
-      "file": "skills/policy-register/renderers/_common.py",
-      "find": "def _rebuild_derived() -> None:",
-      "replace": "_NOTE = \"an unreviewed policy here would be catastrophic and devastating\"\n\n\ndef _rebuild_derived() -> None:"
+      "file": "skills/policy-register/renderers/render_matrix.py",
+      "create": true,
+      "replace": "\"\"\"An obligation-coverage matrix renderer.\n\nAdded after the guard was last edited by hand. GP-1.7: the scan has to read this because\nthe tree has it, not because a list names it — and no list names it. That is the point.\n\"\"\"\n\n_NOTE = \"the outcome would be catastrophic and devastating\"\n"
     }
   ]
 }

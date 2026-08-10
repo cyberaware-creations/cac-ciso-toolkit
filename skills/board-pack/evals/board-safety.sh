@@ -73,16 +73,36 @@ for fmt in html pptx; do
   done
 done
 
-# 5. Our own source, by stem. Docstrings exempt: every file here carries a paragraph naming
-# the claim it declines to make, and those paragraphs have to be allowed to name it.
+# 5. Our own source, by stem. Docstrings exempt: the files that make the refusal carry a
+# paragraph naming the claim they decline to make, and it has to be allowed to name it.
 res=$(probe "$skill" <<'PY'
 import ast, pathlib, sys
 root = pathlib.Path(sys.argv[1])
 STEMS = ("confiden", "degrad", "decay", "reliab", "certainty", "uncertain", "doubt",
          "catastroph", "devastat", "existential", "crippl", "disastrous", "nightmare",
          "ruinous", "calamit", "apocalyp")
-FILES = ("scripts/assemble_pack.py", "scripts/pptx_writer.py", "renderers/render_pack.py")
+# GP-1.7 — the file list is RECOMPUTED from the tree on every run, never written down.
+# A hardcoded tuple asserts its own length, which is a tautology: `scanned == len(FILES)`
+# cannot see a file that was never in FILES. The tuple happened to match the tree the day it was
+# last edited by hand, which is not the same property and cannot be told apart from it.
+# An exclusion is allowed and must say why; one that outlives its file fails the run,
+# because an exclusion nobody can find is a scan that quietly narrowed (BL-211).
+EXCLUDE = {
+    "renderers/cac_graphics.py":
+        "vendored byte-identical from tools/cac_graphics.py and scanned there. "
+        "tools/check-versions.py fails if this copy drifts, so reading it here would "
+        "duplicate a guard rather than add one.",
+}
 problems, scanned = [], 0
+disk = sorted(str(p.relative_to(root))
+              for d in ("scripts", "renderers") for p in (root / d).glob("*.py"))
+orphan = [rel for rel in EXCLUDE if rel not in disk]
+if orphan:
+    problems.append("EXCLUDE names " + ", ".join(sorted(orphan)) + ", which is not on "
+                    "disk — an exclusion that outlived its file silently narrows the scan")
+FILES = tuple(rel for rel in disk if rel not in EXCLUDE)
+if not FILES:
+    problems.append("nothing to scan — the walk is broken, not the source clean")
 for rel in FILES:
     path = root / rel
     if not path.exists():
@@ -109,8 +129,8 @@ if scanned != len(FILES):
 print("\n".join(problems))
 PY
 )
-if [ -z "$res" ]; then ok "no banned vocabulary in the source of either renderer"
-else bad "no banned vocabulary in the source of either renderer" "$res"; fi
+if [ -z "$res" ]; then ok "no banned vocabulary in the source of any shipped file"
+else bad "no banned vocabulary in the source of any shipped file" "$res"; fi
 
 # 6-7. The footer, on both deliverables. On the PPTX it must be on EVERY slide, because a
 # deck gets split apart and pasted into other decks.

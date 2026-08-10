@@ -60,7 +60,7 @@
     {
       "path": "skills/board-pack/evals/board-safety.sh",
       "role": "guard",
-      "forbids": "catastrophizing or false-confidence vocabulary in any board-facing renderer"
+      "forbids": "catastrophizing or false-confidence vocabulary in any shipped source file"
     },
     {
       "path": "skills/board-pack/evals/deck-contrast.sh",
@@ -96,7 +96,7 @@
     {
       "path": "skills/business-context/evals/board-safety.sh",
       "role": "guard",
-      "forbids": "catastrophizing or false-confidence vocabulary in any board-facing renderer"
+      "forbids": "catastrophizing or false-confidence vocabulary in any shipped source file"
     },
     {
       "path": "skills/business-context/evals/consumers.sh",
@@ -121,7 +121,7 @@
     {
       "path": "skills/exceptions-register/evals/board-safety.sh",
       "role": "guard",
-      "forbids": "catastrophizing or false-confidence vocabulary in any board-facing renderer"
+      "forbids": "catastrophizing or false-confidence vocabulary in any shipped source file"
     },
     {
       "path": "skills/exceptions-register/evals/decisions-render.sh",
@@ -146,7 +146,7 @@
     {
       "path": "skills/incident-materiality/evals/board-safety.sh",
       "role": "guard",
-      "forbids": "catastrophizing, false confidence, or a materiality conclusion stated as fact"
+      "forbids": "catastrophizing, false confidence, or a materiality conclusion stated as fact, in any shipped source file"
     },
     {
       "path": "skills/incident-materiality/evals/decisions-render.sh",
@@ -171,7 +171,7 @@
     {
       "path": "skills/metrics-register/evals/board-safety.sh",
       "role": "guard",
-      "forbids": "catastrophizing or false-confidence vocabulary in any board-facing renderer"
+      "forbids": "catastrophizing or false-confidence vocabulary in any shipped source file"
     },
     {
       "path": "skills/metrics-register/evals/decisions-render.sh",
@@ -191,7 +191,7 @@
     {
       "path": "skills/nist-csf/evals/board-safety.sh",
       "role": "guard",
-      "forbids": "catastrophizing or false-confidence vocabulary in any board-facing renderer"
+      "forbids": "catastrophizing or false-confidence vocabulary in any shipped source file"
     },
     {
       "path": "skills/nist-csf/evals/crosswalk-e2e.sh",
@@ -216,7 +216,7 @@
     {
       "path": "skills/policy-register/evals/board-safety.sh",
       "role": "guard",
-      "forbids": "catastrophizing or false-confidence vocabulary in the reader-facing renderer"
+      "forbids": "catastrophizing or false-confidence vocabulary in any shipped source file"
     },
     {
       "path": "skills/policy-register/evals/lifecycle.sh",
@@ -246,7 +246,7 @@
     {
       "path": "skills/risk-register/evals/board-safety.sh",
       "role": "guard",
-      "forbids": "raw framework wording reaching a board renderer before a human has translated it"
+      "forbids": "raw framework wording reaching a board renderer before a human has translated it; confidence vocabulary in any shipped source but render_dashboard"
     },
     {
       "path": "skills/risk-register/evals/confirmation-age.sh",
