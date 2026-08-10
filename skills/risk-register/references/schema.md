@@ -533,6 +533,22 @@ a register that already carries that combination **loads, scores and renders unc
 refuses on the next write that touches the method. Refusing at load would make an existing
 register unopenable over a field whose whole purpose is honest disclosure.
 
+**⚠️ For an `external` method, `conformance` and `deviations` are RECORDED BUT NOT CHECKED.**
+`set-method` does not refuse `partial` with an empty `deviations`, and no escalation is raised
+about one. `name`, `type` and `conformance` are still validated — those say *which* analysis was
+run — but the follow-up question about the level stops at the same boundary the escalation
+already stopped at.
+
+Said here because otherwise the silence reads as a bug: somebody records an Open FAIR analysis
+as `partial`, names no deviation, gets no complaint, and reasonably concludes the check is
+broken. It is not. `set-method` prints a note saying so at the point of use.
+
+**What this gives up, stated plainly:** an incomplete record goes unreported when the method is
+external. That is accepted. The boundary is that this tool says nothing about analysis it cannot
+see, and **a boundary with an exception is not a boundary — it is a rule with a footnote.** The
+sentence has to survive being repeated to a third party, and *"…except when it does"* does not
+(BL-238).
+
 **Mixed methods are not comparable and the engine does not pretend otherwise.** There is no
 conversion, no normalisation and no cross-method re-ranking anywhere. Disclosure of a mixed
 register on the rendered page is Phase B (BL-93), not shipped.

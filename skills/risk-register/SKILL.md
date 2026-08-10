@@ -177,9 +177,16 @@ Wording and rating are where you add value over a template:
 
   **A declared method whose prerequisites are unmet escalates at `medium`** — flag, never
   block. Two checks only: quantitative analysis with no currency recorded, and partial
-  conformance with no deviation stated. ⚠️ Methods marked `external` in the catalogue — Monte
-  Carlo, Bayesian, event tree, Open FAIR — escalate **nothing**, because their real
-  prerequisites live in the analyst's workbook and this toolkit cannot see it.
+  conformance with no deviation stated.
+
+  ⚠️ **Methods marked `external` in the catalogue — Monte Carlo, Bayesian, event tree, Open
+  FAIR — escalate nothing AND are refused nothing about their conformance.** Their real
+  prerequisites live in the analyst's workbook and this toolkit cannot see it, so `conformance`
+  and `deviations` are **recorded but not checked**: `set-method` will accept `partial` with no
+  deviation stated and say nothing about it afterwards. The accepted cost is that an incomplete
+  record goes unreported for those methods. The boundary is absolute on purpose — a boundary
+  with an exception is a rule with a footnote, and *"this tool says nothing about analysis it
+  cannot see"* has to survive being repeated to a third party.
 
   **Per risk, because a register commonly holds both** — three risks somebody modelled with
   loss distributions and thirty scored by judgement in a workshop. `settings.analysisMethodDefault`
