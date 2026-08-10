@@ -21,6 +21,62 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.98.0 — 2026-08-10
+
+**The crosswalk is built at SP 800-53 Release 5.2.0.** No download was needed — the pinned
+workbook already carried **both** releases side by side, so this is a prefix change and a rerun,
+not a fetch. **731 → 737 edges, 206 → 210 controls, 20 families unchanged.**
+
+### The gap was that "which release" could not be said at all
+
+`sources.json` already recorded *"Final; latest patch Release 5.2.0, 27 Aug. 2025"* while the
+bundled crosswalk was still built from **5.1.1** — and nothing in the repo could see the
+disagreement, because the catalogue's only version field says `"Rev 5"`, which has read the same
+since 2020. Two surfaces claiming different things about the same release is a narrower and
+worse gap than a stale bundle.
+
+So `release` is now stamped on the catalogue and `overlayRelease` on the map, **always emitted,
+null where it does not apply** — under CAC-AP-1 §2.2 an absent key reads as *not declared*, and
+*"we did not record which release"* is a different claim from *"this framework has no separate
+release"*. ISO 27001:2022 and CIS v8.1 version in one number; 800-53 does not.
+
+**`retrievedAt` was deliberately not added**, despite being on the plan. BL-75 removed exactly
+that field for a reason still recorded at the top of `author_catalogs.py`: two exports carrying
+the same download date had different bytes. *A date says when somebody downloaded a file; a hash
+says which file.* Re-introducing the date would undo a decision made on evidence.
+
+### The four new controls got real titles, not their own IDs
+
+`RA-4`, `SA-15(13)`, `SA-24`, `SI-2(07)` had no entry in `TITLES`, and the build would **not**
+have failed — it falls back to `labelSource: "pending-verbatim-title"` and ships the ID as the
+label. That was the documented alternative. Instead they were sourced verbatim from **NIST's own
+OSCAL catalogue** (`usnistgov/oscal-content`, metadata version 5.2.0, last-modified 2026-05-11):
+
+> Risk Assessment Update · Design For Cyber Resiliency · Development Process, Standards, and
+> Tools | Logging Syntax · Flaw Remediation | Root Cause Analysis
+
+**210 of 210 titles are now `verbatim-public-domain`. Zero pending.**
+
+### ❗ And the same comparison found three that were not verbatim
+
+Machine-comparing every shipped 800-53 title against that catalogue — which had never been done
+— found **three labelled `verbatim-public-domain` that were not**: `CM-7(04)` and `CM-7(05)`
+carried a hyphen where NIST has an em dash, and `CM-7(09)` read *"the Use"* for NIST's *"The
+Use"*. Trivial as text, not trivial as a claim: the whole point of the label is that a reader can
+quote it back. Corrected, with the source document now named so the comparison can be repeated.
+
+### The one deleted edge is not a loss of coverage
+
+`DE.AE-06 → RA-3` disappears, and hand-checking it — per the procedure in
+`references/crosswalks/README.md`, rather than regenerating the fixture — shows **NIST re-pointed
+that Subcategory onto the new `RA-4`**, whose only mapped Subcategory it is. A refinement, not a
+gap. **Zero controls were lost.**
+
+In the golden fixture the only band that moves is `unknown` (153 → 157), because all four new
+controls have no rated contributors in that deliberately thin Profile. **Every rated band is
+unchanged and no hand-verified control moved** — which is the evidence that the release move
+disturbed nothing that was already checked.
+
 ## v0.97.0 — 2026-08-10
 
 **An AI exposure can cite what has actually happened to somebody.** `record-reference` records

@@ -2,6 +2,7 @@
  "frameworkId": "cis-8.1",
  "name": "CIS Critical Security Controls v8.1",
  "version": "8.1",
+ "release": null,
  "license": "cis-cc-by-nc-nd",
  "provenance": "Safeguard IDs and CSF\u2194CIS relationships come from NIST's CSF 2.0 informative references, which publish them without licence terms attached; CIS's own control materials were not used and no CIS document is republished. Labels are CAC paraphrases. The underlying CIS Controls remain CC BY-NC-ND.",
  "sourceExport": {

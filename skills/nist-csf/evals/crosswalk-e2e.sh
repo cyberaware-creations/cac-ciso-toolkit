@@ -115,7 +115,7 @@ is "ISO declares a full catalogue"        "$(read_num "d['iso-27001-2022']['comp
 is "CIS declares a referenced subset"     "$(read_num "d['cis-8.1']['completeness']['catalogueScope']")" "referenced-subset"
 is "800-53 declares a referenced subset"  "$(read_num "d['800-53-r5']['completeness']['catalogueScope']")" "referenced-subset"
 is "CIS scores 49 mapped controls"        "$(read_num "len(d['cis-8.1']['controls'])")" "49"
-is "800-53 scores 206 mapped controls"    "$(read_num "len(d['800-53-r5']['controls'])")" "206"
+is "800-53 scores 210 mapped controls"    "$(read_num "len(d['800-53-r5']['controls'])")" "210"
 is "CIS 1.1 is the weakest link, 1"       "$(read_num "[c['score'] for c in d['cis-8.1']['controls'] if c['controlId']=='CIS 1.1'][0]")" "1"
 # 3 of 4 is 0.75, which is short of the 0.85 strong floor. This is the assertion that
 # fails if bands are ever computed against a fixed maximum again.
