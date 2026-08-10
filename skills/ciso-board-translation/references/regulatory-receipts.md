@@ -119,8 +119,17 @@ oversight, not to be perfect.
 > for *In re TransUnion*, *Giuliano*, *Marchner* or *Sorenson*, and the *Bingle*
 > affirmance date independently confirmed. **It also found one live boundary —
 > see the *TransUnion* row.** The pre-2024 landmarks in the table below were
-> **not** swept; they are stable and heavily cited, and sweeping them properly is
-> exactly what a paid citator is for.
+> **not** swept.
+>
+> **The standing position, decided 2026-08-10: one paid citator pass, then free
+> sweeps.** A single commercial pass over all nine decisions is authorised and
+> **has not yet been run**; it is the only way to clear the pre-2024 landmarks
+> and to get treatment flags, and its result will be recorded here with the date
+> and the service used. Between passes, the free sweep keeps the recent
+> decisions current — **on a 180-day interval, enforced at the release gate**
+> rather than left to memory. Until that paid pass happens, this block is
+> **swept, not Shepardised**, and every sentence above about what was and was
+> not checked continues to apply.
 
 - *Giuliano v. Grenfell-Gardner* (Teligent), C.A. No. 2021-0452-KSJM (Del. Ch.,
   2 Sep. 2025) (McCormick, C.) — motion to dismiss **largely denied on prong
