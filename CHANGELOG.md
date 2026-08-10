@@ -21,6 +21,56 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.92.0 — 2026-08-10
+
+**A subsequent-citation sweep was run on the Delaware block. It is NOT a citator, and the
+receipts now say so in those words.**
+
+Shepard's and KeyCite are paid services and neither has ever been run on this block. What was
+run is a sweep of a **free index** — CourtListener's Delaware Supreme Court and Court of Chancery
+opinions — plus a direct read of the one later decision it surfaced.
+
+### The marker states the two ways this is weaker than a citator
+
+- **No editorial treatment flags.** A citator tells you a case was *criticised*, *questioned* or
+  *limited*. A sweep only tells you a later case mentioned it; somebody then has to read that
+  case to find out how. Here, somebody did.
+- **The free index is demonstrably incomplete.** It holds **no reporter citation at all** for
+  *In re TransUnion*, while a sitting Chancellor cites that case at **324 A.3d 869** in a
+  published opinion. Absence of a later citing case in that index is therefore weak evidence of
+  anything — which is the honest reason this cannot be written up as a clean bill of health.
+
+### ✅ What it found: nothing has moved
+
+**No appeal, reversal, vacatur or superseding decision** for *In re TransUnion* (Del. Supr.,
+nothing since 1 Oct. 2024), *Giuliano* (nothing since 2 Sep. 2025), *Marchner* (nothing since
+30 Mar. 2026) or *Sorenson* (nothing since 5 Oct. 2021). The *Bingle* affirmance was
+independently confirmed at **Del. Supr. No. 411, 2022, filed 17 May 2023** — matching the row.
+
+### ⚠️ And one live boundary, which is the reason to have done this
+
+***In re TransUnion* has been distinguished.** In *LACERS v. Sanford*, C.A. No. 2024-0998-KSJM
+(Del. Ch. 16 Jan. 2026) (McCormick, C.), the court held that **"effective inaction"**
+distinguished the case before it from *TransUnion* and the other authorities the defendants
+relied on, pincited at **888–90**.
+
+**The holding stands — but the receipts now carry the boundary**, because *TransUnion* is used
+in this block as *reinforcing*, and a reader taking it to mean "a board that responds at all is
+safe" would be reading it further than a later Chancery decision allows.
+
+### Also
+
+- ***In re TransUnion*** gained its reporter citation, **324 A.3d 869 (Del. Ch. 2024)** —
+  sourced from a Chancellor's own pincite, not from a database field that does not have it.
+- **Both *Brewer* citations were confirmed by the judge who wrote them.** *Sanford* cites
+  *"Brewer v. Turner, 2025 WL 2769895, at \*9 (Del. Ch. Sept. 29, 2025) (denying motion to
+  dismiss); Brewer v. Turner, 2025 WL 3048942, at \*5 (Del. Ch. Oct. 30, 2025) (denying motion
+  to certify interlocutory appeal)"* — both WL numbers and **both dates**, settling the
+  two-dates question from v0.91.0 beyond argument.
+- **The pre-2024 landmarks were not swept** — *Caremark*, *Stone*, *Marchand*, *Zuckerberg*,
+  *Boeing*. They are stable and heavily cited, and sweeping them properly is exactly what a paid
+  citator is for. The marker says this rather than implying whole-block coverage.
+
 ## v0.91.0 — 2026-08-10
 
 **The Delaware slip opinions were read.** BL-230's reading pass — P1, P2 and P3, the three
