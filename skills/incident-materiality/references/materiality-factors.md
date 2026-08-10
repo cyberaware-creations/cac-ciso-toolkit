@@ -162,11 +162,22 @@ impact or reasonably likely material impact.
 **Limits, outward:** it applies to SEC registrants and nobody else; its technical-detail
 carve-out covers the *planned response*, the *systems* and the *vulnerabilities* — **not the
 incident**, whose nature, scope and timing Item 1.05(a) requires (see `disclosure-clocks.md`);
-the determination is a company-specific judgment; and the rules are the subject of a rescission
-petition (**SEC File No. 4-856**, filed **22 May 2025**) on which the Commission has not acted,
-alongside visibly reduced enforcement activity since the SolarWinds dismissal of **20 November
-2025**. **Neither has changed the rule text or any stated Commission policy** (as at August
-2026); `disclosure-clocks.md` carries both with their receipts. Cite it as a preparedness
+the determination is a company-specific judgment; and two things have happened around the rule
+that changed neither it nor any stated Commission policy. Both are quoted **verbatim** from
+Reference Watch dossier RW-001, findings F1 and F3:
+
+> In May 2025 five financial-industry trade associations petitioned the SEC to rescind Form 8-K
+> Item 1.05 (File No. 4-856). As of 2026-08-08 the Commission has not acted on the petition: no
+> proposal has been issued, the item does not appear on the SEC's regulatory agenda, and Items
+> 1.05 and 106 remain in force unchanged.
+
+> As of 2026-08-08 the SEC has announced no public-company cybersecurity-disclosure enforcement
+> action since 2024-10-22, and dismissed the SolarWinds action with prejudice on 2025-11-20. The
+> Commission has not stated a change of policy: the Cyber and Emerging Technologies Unit's stated
+> scope still includes public-issuer cyber disclosure, and Items 1.05 and 106 remain in force.
+> This is a change in observed enforcement activity, not in stated obligation.
+
+`disclosure-clocks.md` carries both with their receipts. Cite Item 1.05 as a preparedness
 obligation, never as an imminent enforcement threat.
 
 **Limits, inward:** which organisations are registrants is declared as `secItem105Scope` and

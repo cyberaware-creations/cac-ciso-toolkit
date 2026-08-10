@@ -319,14 +319,24 @@ not compute a deadline it cannot compute correctly.
 
 `references/disclosure-clocks.md` carries every limit with its receipt, **in both directions**.
 
-*Outward — who the rule does not reach.* Item 1.05 binds SEC registrants and nobody else, carves
-out technical detail of the *response, systems and vulnerabilities* but **not of the incident**,
-and is the subject of a rescission petition not acted on (SEC File No. 4-856, 22 May 2025)
-alongside visibly reduced enforcement activity since the SolarWinds dismissal of 20 November
-2025 — neither of which changed the rule text or a stated Commission policy, as at August 2026;
-DORA binds
-in-scope EU financial entities, its *major* classification is a judgment this tool does not
-make, and the engine does not apply the next-working-day allowance.
+*Outward — who the rule does not reach.* Item 1.05 binds SEC registrants and nobody else, and
+carves out technical detail of the *response, systems and vulnerabilities* but **not of the
+incident**. DORA binds in-scope EU financial entities, its *major* classification is a judgment
+this tool does not make, and the engine does not apply the next-working-day allowance.
+
+*And the SEC's posture, dated and quoted verbatim from Reference Watch dossier RW-001 (F1, F3),
+because an undated posture claim is the fastest-decaying sentence a compliance tool can carry:*
+
+> In May 2025 five financial-industry trade associations petitioned the SEC to rescind Form 8-K
+> Item 1.05 (File No. 4-856). As of 2026-08-08 the Commission has not acted on the petition: no
+> proposal has been issued, the item does not appear on the SEC's regulatory agenda, and Items
+> 1.05 and 106 remain in force unchanged.
+
+> As of 2026-08-08 the SEC has announced no public-company cybersecurity-disclosure enforcement
+> action since 2024-10-22, and dismissed the SolarWinds action with prejudice on 2025-11-20. The
+> Commission has not stated a change of policy: the Cyber and Emerging Technologies Unit's stated
+> scope still includes public-issuer cyber disclosure, and Items 1.05 and 106 remain in force.
+> This is a change in observed enforcement activity, not in stated obligation.
 
 *Inward — who inside the perimeter is excluded, delayed or unmodelled.* A limit that only scopes
 outward tells an exempt organisation that a lawful gap is a failure, which is the defect BL-188
