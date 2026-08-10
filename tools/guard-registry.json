@@ -10,7 +10,7 @@
     {
       "path": "skills/ai-register/evals/board-safety.sh",
       "role": "guard",
-      "forbids": "a board artifact that does not say it is not legal advice"
+      "forbids": "a board artifact that does not say it is not legal advice, and banned vocabulary in any shipped source file — scripts included"
     },
     {
       "path": "skills/ai-register/evals/decisions-render.sh",
@@ -276,7 +276,7 @@
     {
       "path": "skills/vendor-register/evals/board-safety.sh",
       "role": "guard",
-      "forbids": "a board artifact that does not say it is not legal advice"
+      "forbids": "a board artifact that does not say it is not legal advice, and banned vocabulary in any shipped source file — scripts included"
     },
     {
       "path": "skills/vendor-register/evals/criticality.sh",

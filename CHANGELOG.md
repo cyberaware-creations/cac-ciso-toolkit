@@ -21,6 +21,46 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.77.0 — 2026-08-10
+
+**The last two board-safety suites read the engine.** BL-221, and with it GP-1.7 is complete
+across all ten.
+
+`ai-register` and `vendor-register` scanned their source through a shell glob —
+`renderers/render_*.py` plus `renderers/_common.py` — so they reached **every renderer and no
+engine script at all**, while `ai_register.py` and `vendor_register.py` write most of the
+strings those renderers print. Both now recompute the population from the tree through a new
+`_vocab.py --tree` mode, and each registers a `create` mutation landing in **`scripts/`**,
+because a mutation in `renderers/` is one the old glob already covered and would prove nothing.
+
+**The suites assert the population, not the count.** `scanned == len(files)` is true of any
+list, including one with no engine in it — which was the state being fixed. The scan prints
+`POPULATION:` and the suite checks the engine is in it.
+
+Two things this conversion needed that the other eight did not:
+
+- **A `self_test` exemption, by line span.** An assertion that a word is ABSENT has to name the
+  word. `no key or value describes a class as mitigated, resolved, closed or accepted` is a
+  self-test's own failure message; flagging it puts the check that forbids the vocabulary and
+  the check that proves the forbidding works in direct contradiction. `nist-csf` has done it
+  this way since v0.69.0. It removed the entire assertion population — and with it a `resolved`
+  that was only ever the negation *"Controls are recorded, never resolved."*
+- **An `UNDECIDED` map, which is new.** Three hits survive and none is a defect: two are
+  NISTAML.01's own description of an attack class (*an attacker degrading the service* — the
+  attacker's certainty, not ours), and one per skill is `FINDING_SCORING_KEYS`, a tuple of keys
+  the engine **refuses**, where the word is present in order to be banned.
+
+**Those three are allowed and ANNOUNCED, not excluded.** BL-221 D-3 says their disposition —
+narrow the stems, move the class descriptions into data, or accept them — is a judgement about
+product language to be raised rather than improvised. So each is printed on every run with its
+reason, and an entry whose hit no longer occurs **fails**, exactly as an orphaned `EXCLUDE`
+does. An exclusion is a decision; this is a decision that has not been made, kept visible until
+it is. Filed in ⚖️ Open Decisions.
+
+- `board-safety (ai-register)` 20 → **22 checks**, `(vendor-register)` 15 → **17**
+- `prove-guards` 38 guards, **71 halves** (was 69), **91 of 376** proved (floor 89 → 91)
+- `tools/guard-proof-standard.md` GP-1.7 no longer names a remainder
+
 ## v0.76.0 — 2026-08-10
 
 **`--context <a directory>` was a raw traceback out of all seven consumers, and they agreed

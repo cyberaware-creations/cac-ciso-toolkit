@@ -186,14 +186,33 @@ is on the record: the same planted file passes `metrics-register`'s pre-conversi
 fails the converted one. `risk-register`'s check 10 — the largest source scan in the suite —
 had no registered mutation at all until this, and is proved for the first time here.
 
-The remaining two are `ai-register` and `vendor-register`, which glob
-`renderers/render_*.py` and `renderers/_common.py` and so reach every renderer and **no engine
-script at all**. Converting them is not the same edit: `_vocab.py --source` over
-`scripts/ai_register.py` reports `degrading`/`degraded`, `rating` and `resolved`, and over
-`scripts/vendor_register.py` reports `rating` — all of them in self-test assertions and in
-strings that *describe an attack class* rather than claim one, which is the population
-`nist-csf` handles with a `self_test` exemption. That is a judgement about each hit, not a
-mechanical widening, and it is filed as **BL-221** with those line numbers rather than left here.
+**The remaining two were converted in v0.77.0** (BL-221). `ai-register` and `vendor-register`
+globbed `renderers/render_*.py` and `renderers/_common.py`, reaching every renderer and **no
+engine script at all** — while `ai_register.py` and `vendor_register.py` write most of the
+strings those renderers print. Both now recompute from the tree through `_vocab.py --tree`, and
+each registers a `create` mutation that lands in **`scripts/`**, because a mutation in
+`renderers/` is one the old glob already covered and would prove nothing new.
+
+Two things came out of converting them that the other eight did not need.
+
+*A `self_test` exemption, by line span.* An assertion that a word is ABSENT has to name the
+word, so `no key or value describes a class as mitigated, resolved, closed or accepted` — a
+self-test's own failure message — was a hit. Flagging it puts the check that forbids the
+vocabulary and the check that proves the forbidding works in direct contradiction, which is how
+a guard gets switched off rather than fixed. `nist-csf` has exempted `self_test` functions this
+way since v0.69.0; this is that pattern reaching two more suites. It removed the whole
+assertion population, and with it a `resolved` that was only ever the negation *"Controls are
+recorded, never resolved."*
+
+*And an `UNDECIDED` map, which is new here.* Three hits survive the exemption and are not
+defects: two are NISTAML.01's own description of an attack class (*an attacker degrading the
+service*), and one per skill is `FINDING_SCORING_KEYS`, a tuple of keys the engine **refuses**
+— the word is present in order to be banned. Their disposition is a judgement about product
+language (narrow the stems? move the class descriptions into data? accept them?) and BL-221 D-3
+says to raise it rather than improvise. So they are **allowed and announced**: printed on every
+run with their reason, and an entry whose hit no longer occurs **fails**, the same rule
+`EXCLUDE` carries. That is deliberately not the same thing as an exclusion — an exclusion is a
+decision, and this is a decision that has not been made yet staying visible until it is.
 
 *The registry.* Same rule applied to this document. `prove-guards.sh` now compares the table
 below against the guards it discovers and fails on either mismatch. That table said *"eight
@@ -386,7 +405,7 @@ prove only that the fixture still works.
 | `decisions-render.sh` | `risk-register` | a decision rendered as a raw Python dict repr instead of its text | render |
 | `decisions-render.sh` | `vendor-register` | a decision rendered as a raw Python dict repr instead of its text | render |
 | `exposure.sh` | `ai-register` | a hand-selectable exposure class — the guard is the ABSENCE of a command | absence · derivation |
-| `board-safety.sh` | `ai-register` | a board artifact that does not say it is not legal advice | legal-advice |
+| `board-safety.sh` | `ai-register` | a board artifact that does not say it is not legal advice, and banned vocabulary in any shipped source file — scripts included | legal-advice · source-scan |
 | `board-safety.sh` | `risk-register` | raw framework wording reaching a board renderer; confidence vocabulary in any shipped source but `render_dashboard` | raw-title · source-scan |
 | `questions.sh` | `vendor-register` | a vendor assertion shrinking the question set | subtraction |
 | `board-safety.sh` | `board-pack` | catastrophizing or false-confidence vocabulary in any shipped source file | source-scan |
@@ -395,7 +414,7 @@ prove only that the fixture still works.
 | `board-safety.sh` | `incident-materiality` | catastrophizing, false confidence, or a materiality conclusion stated as fact, in any shipped source file | source-scan |
 | `board-safety.sh` | `metrics-register` | catastrophizing or false-confidence vocabulary in any shipped source file | source-scan |
 | `board-safety.sh` | `nist-csf` | catastrophizing or false-confidence vocabulary in any shipped source file | source-scan |
-| `board-safety.sh` | `vendor-register` | a board artifact that does not say it is not legal advice | legal-advice |
+| `board-safety.sh` | `vendor-register` | a board artifact that does not say it is not legal advice, and banned vocabulary in any shipped source file — scripts included | legal-advice · source-scan |
 | `board-safety.sh` | `policy-register` | catastrophizing or false-confidence vocabulary in any shipped source file | source-scan |
 | `no-coverage-claim.sh` | `policy-register` | any state, key, token or chip saying a requirement is met because a policy maps to it | static · behavioural |
 | `no-coverage-percentage.sh` | `policy-register` | a proportion, percentage or float in the requirement view — counts only | behavioural · static |
