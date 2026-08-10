@@ -46,6 +46,17 @@ declares what is compared:
   divergent  the KEYS must match and every VALUE must differ — a twin whose wording is
              required not to converge. Without this kind such a pair could only be omitted
              (unguarded and undeclared) or forced to match (wrong).
+  atomic     run every member's WRITE with the dump interrupted, and compare what survived
+             against a stated contract. Alone among the kinds here it does not compare
+             members against member zero, because ten copies that all truncate in place
+             would agree with each other perfectly and all be wrong (BL-219).
+
+NAMING. By default every member must name every other member's path in its own source — a
+twin declared at one end is a twin the other end's next reader will not know exists. An entry
+may instead set `"naming": "hub"`, where each member names members[0] and members[0] lists
+them all. That is for families rather than pairs: all-pairs naming of the ten save paths is
+ninety references, which is a list nobody maintains and therefore a list that stops being
+true. Every copy still stays one hop from the family, which is the property being bought.
 
 Usage:  check-twins.py [repo-root]
         check-twins.py --self-test
@@ -53,9 +64,12 @@ Usage:  check-twins.py [repo-root]
 import importlib.util
 import io
 import contextlib
+import json
 import os
 import re
+import shutil
 import sys
+import tempfile
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _REPO = os.path.abspath(os.path.join(_HERE, ".."))
@@ -65,6 +79,17 @@ _RANGES = lambda d: {b: ("0–%dd" % hi if b == "within" else
                          ("over %dd" % (lo - 1) if hi is None else "%d–%dd" % (lo, hi)))
                      for b, (lo, hi) in d.items()}
 _STATUSED = lambda d: {k: v for k, v in d.items() if v is not None}
+
+# Callers for the `atomic` kind. The store passed in is deliberately minimal: nothing here
+# asserts anything about the CONTENT written, only about what survives when the write is cut
+# short, so a fixture shaped like any one engine's schema would be a fixture the other nine
+# have to tolerate for no gain. `profile.updated` is the single exception — nist-csf stamps it
+# before the dump and would raise a KeyError instead of reaching the write.
+_CALL_PATH_FIRST = lambda fn, path: fn(path, {"probe": "interrupted-write"})
+_CALL_STORE_FIRST = lambda fn, path: fn({"probe": "interrupted-write"}, path)
+_CALL_CSFP = lambda fn, path: fn({"probe": "interrupted-write", "profile": {}}, path,
+                                 "2026-01-01T00:00:00Z")
+_HUB_SAVE = "skills/ai-register/scripts/ai_register.py"
 
 # Age-band corpus. Thresholds include 0 and 1 deliberately: `t // 2` is 0 for both, so every
 # boundary collapses onto the same value and the four bands have to be told apart with no room
@@ -211,6 +236,42 @@ TWINS = (
         "members": [("skills/board-pack/scripts/assemble_pack.py", "METRIC_STATUS_SEV"),
                     ("skills/metrics-register/renderers/_common.py", "STATUS_SEV", _STATUSED)],
     },
+    {
+        "name": "the store write",
+        "kind": "atomic",
+        "naming": "hub",
+        "why": "Ten engines, one pattern, and until BL-219 two of them did not follow it — "
+               "risk-register and nist-csf, the two largest stores in the suite. They wrote "
+               "with `open(path, \"w\")`, which truncates before the dump, so an interrupted "
+               "write left a half-written file AND no copy of what had been there. Nothing "
+               "could catch it: on the happy path the two writers produce identical bytes, "
+               "and every self-test only ever took the happy path. So this executes the "
+               "unhappy one.",
+        # The third slot is a CALLER, not a projection: the ten copies take (path, store),
+        # (store, path) and (store, path, ts), and an adapter per member is the honest way to
+        # compare functions that agree about a property while disagreeing about a signature.
+        "members": [(_HUB_SAVE, "save", _CALL_PATH_FIRST),
+                    ("skills/attention-surface/scripts/attention_surface.py", "save",
+                     _CALL_PATH_FIRST),
+                    ("skills/business-context/scripts/business_context.py", "save",
+                     _CALL_PATH_FIRST),
+                    ("skills/exceptions-register/scripts/exceptions_register.py", "save_store",
+                     _CALL_PATH_FIRST),
+                    ("skills/incident-materiality/scripts/incident_analysis.py", "save_store",
+                     _CALL_PATH_FIRST),
+                    ("skills/metrics-register/scripts/metrics_analysis.py", "save_store",
+                     _CALL_PATH_FIRST),
+                    ("skills/policy-register/scripts/policy_register.py", "save_store",
+                     _CALL_PATH_FIRST),
+                    ("skills/vendor-register/scripts/vendor_register.py", "save",
+                     _CALL_PATH_FIRST),
+                    ("skills/risk-register/scripts/score_register.py", "save_register",
+                     _CALL_STORE_FIRST),
+                    ("skills/nist-csf/scripts/profile_analysis.py", "save_store", _CALL_CSFP)],
+        # What every copy must do when the dump raises part-way: propagate rather than
+        # swallow, leave the previous store byte-identical, and leave no temp file behind.
+        "expect": ("KeyboardInterrupt", True, 0),
+    },
 )
 
 # A cross-skill path reference that is NOT an agreement obligation. Listed with its own reason,
@@ -281,6 +342,46 @@ def _outcome(fn, args, kind):
     return ("returned", got)
 
 
+def _interrupted_write(fn, call):
+    """Run one save path with the dump cut short, and report what survived.
+
+    `json.dump` is replaced rather than the file object being sabotaged, because that is the
+    one line every one of these functions has in common and the failure it models — the
+    process stopping part-way through serialising — is the one BL-219 is about.
+
+    KeyboardInterrupt, and not a plain Exception, for two reasons. It is what an operator
+    actually sends. And it is the only input that tells `except BaseException` apart from
+    `except Exception`: a copy narrowed to the latter cleans up after every failure it was
+    tested with and leaves its temp file behind on the one it was not.
+
+    Returns (what propagated, whether the previous store is byte-identical, temp files left).
+    """
+    def _cut_short(*_args, **_kwargs):
+        raise KeyboardInterrupt("the dump was interrupted (check-twins fault injection)")
+
+    d = tempfile.mkdtemp(prefix="cac-tw-atomic-")
+    try:
+        path = os.path.join(d, "store.json")
+        before = '{"the store that was already here": "must survive"}\n'
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(before)
+        real = json.dump
+        json.dump = _cut_short
+        try:
+            call(fn, path)
+            raised = "nothing — an interrupted dump did not propagate"
+        except BaseException as exc:                            # noqa: BLE001 — the point
+            raised = type(exc).__name__
+        finally:
+            json.dump = real
+        with open(path, encoding="utf-8") as fh:
+            preserved = fh.read() == before
+        return (raised, preserved,
+                len([f for f in os.listdir(d) if f != "store.json"]))
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
 def run(repo, twins, not_a_twin, uncompared, scan=True):
     """Every check, against an explicit registry. Returns (problems, counts)."""
     problems = []
@@ -324,16 +425,43 @@ def run(repo, twins, not_a_twin, uncompared, scan=True):
         # 2. Every member names every other member's path in its own source. The house
         #    instruction is "grep the sibling path", so the path is the artifact — a prose
         #    reference to "board-pack's renderer" is not one, and that is the pair that drifted.
+        #
+        #    Under `"naming": "hub"` the obligation is spoke-to-hub and hub-to-all instead.
+        #    See NAMING in the module docstring for why a ten-member family is not all-pairs.
+        hub = loaded[0][0] if entry.get("naming") == "hub" else None
         for rel, _sym, _p in loaded:
             body = open(os.path.join(repo, rel), encoding="utf-8").read()
             for other, _s2, _p2 in loaded:
-                if other != rel and other not in body:
+                if other == rel or (hub and rel != hub and other != hub):
+                    continue
+                if other not in body:
                     problems.append(
                         "%s: %s does not name %s anywhere in its source. A twin declared at "
                         "one end is a twin the other end's next reader will not know exists."
                         % (name, rel, other))
 
         # 3. The comparison itself.
+        if kind == "atomic":
+            # Against a stated contract, not against member zero. Every other kind here asks
+            # whether the copies agree; this one asks whether each copy is right, because the
+            # defect it exists for was two copies agreeing with each other and neither with
+            # the pattern.
+            expect = entry.get("expect")
+            if not expect:
+                problems.append(
+                    "%s: kind 'atomic' with no `expect`. Comparing the members against each "
+                    "other alone would pass a family that truncates in unison." % name)
+                continue
+            for rel, fn, call in loaded:
+                compared += 1
+                got = _interrupted_write(fn, call)
+                if got != expect:
+                    problems.append(
+                        "%s: %s comes out of an interrupted write as %r; the contract is %r "
+                        "— (what propagated, the previous store survived byte-identical, "
+                        "temp files left behind)." % (name, rel, got, expect))
+            continue
+
         if kind in ("constant", "divergent"):
             vals = [(rel, proj(obj)) for rel, obj, proj in loaded]
             base_rel, base = vals[0]
@@ -461,8 +589,6 @@ def _self_test():
     twins are meant to agree, so a guard run against them alone reports the same thing whether
     it works or not.
     """
-    import shutil
-    import tempfile
     results = []
 
     AGREE = "def f(x):\n    return 'v%s' % x\nK = {'a': 1}\nL = {'a': 'one'}\n"
@@ -470,6 +596,28 @@ def _self_test():
     # Same keys, different wording — a divergent twin in its CORRECT state. Without this the
     # convergence check could fire on everything and no case would notice.
     WORDED = "def f(x):\n    return 'v%s' % x\nK = {'a': 1}\nL = {'a': 'ONE, said twice'}\n"
+
+    # Three writers that are BYTE-IDENTICAL in what they produce on the happy path and can
+    # only be told apart by cutting the dump short. That is the kind's whole premise, so the
+    # fixtures have to have the property too, or the cases below would pass for other reasons.
+    _HEAD = "import json\nimport os\nimport tempfile\n\n\n"
+    SAVES = _HEAD + (
+        "def save(path, store):\n"
+        "    d = os.path.dirname(os.path.abspath(path)) or '.'\n"
+        "    fd, tmp = tempfile.mkstemp(dir=d, suffix='.tmp')\n"
+        "    try:\n"
+        "        with os.fdopen(fd, 'w', encoding='utf-8') as fh:\n"
+        "            json.dump(store, fh)\n"
+        "        os.replace(tmp, path)\n"
+        "    except BaseException:\n"
+        "        if os.path.exists(tmp):\n"
+        "            os.unlink(tmp)\n"
+        "        raise\n")
+    TRUNCATES = _HEAD + ("def save(path, store):\n"
+                         "    with open(path, 'w', encoding='utf-8') as fh:\n"
+                         "        json.dump(store, fh)\n")
+    # Cleans up after every failure it would be tested with, and leaks on the one it would not.
+    NARROW = SAVES.replace("except BaseException:", "except Exception:")
 
     def build(root, one=AGREE, two=AGREE, decl=True):
         for skill, body, other in (("alpha", one, "skills/beta/scripts/b.py"),
@@ -482,6 +630,23 @@ def _self_test():
         return root
 
     A, B = "skills/alpha/scripts/a.py", "skills/beta/scripts/b.py"
+    G = "skills/gamma/scripts/c.py"
+
+    def build_hub(root, one=AGREE, two=AGREE, decl=True):
+        """Three copies in hub shape: alpha lists both spokes, each spoke names only alpha.
+
+        Deliberately NOT all-pairs — beta and gamma never mention each other. That is the tree
+        the `naming` rule has to accept under "hub" and reject by default.
+        """
+        for skill, fname, body, others in (("alpha", "a.py", one, [B, G]),
+                                           ("beta", "b.py", two, [A]),
+                                           ("gamma", "c.py", two, [A] if decl else [])):
+            d = os.path.join(root, "skills", skill, "scripts")
+            os.makedirs(d)
+            head = "".join("# twin: %s\n" % o for o in others) or "# no declaration here\n"
+            with open(os.path.join(d, fname), "w") as fh:
+                fh.write(head + body)
+        return root
 
     def entry(kind, sym="f", corpus=((1,), ("", ), (0,))):
         e = {"name": "t", "kind": kind, "why": "x",
@@ -490,11 +655,22 @@ def _self_test():
             e["corpus"] = list(corpus)
         return e
 
+    def atomic(members=None, expect=("KeyboardInterrupt", True, 0), naming=None):
+        e = {"name": "t", "kind": "atomic", "why": "x", "expect": expect,
+             "members": members or [(A, "save", _CALL_PATH_FIRST),
+                                    (B, "save", _CALL_PATH_FIRST)]}
+        if naming:
+            e["naming"] = naming
+        return e
+
+    THREE = [(A, "save", _CALL_PATH_FIRST), (B, "save", _CALL_PATH_FIRST),
+             (G, "save", _CALL_PATH_FIRST)]
+
     def case(label, twins, want_rc, needle="", one=AGREE, two=AGREE, decl=True,
-             nat=(), unc=(), scan=False):
+             nat=(), unc=(), scan=False, builder=None):
         root = tempfile.mkdtemp()
         try:
-            build(root, one, two, decl)
+            (builder or build)(root, one, two, decl)
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 problems, _ = run(root, twins, nat, unc, scan=scan)
@@ -555,6 +731,28 @@ def _self_test():
          nat=({"from": "skills/gone/x.py", "to": B,
                "reason": "a row left behind by a rename, which is exactly how a "
                          "classification table stops describing the tree"},))
+
+    # --- the atomic kind (BL-219) -------------------------------------------------------
+    case("an atomic twin whose copies both survive an interrupted write passes",
+         [atomic()], 0, one=SAVES, two=SAVES)
+    case("a copy that truncates in place fails, saying the store did not survive",
+         [atomic()], 1, "('KeyboardInterrupt', False, 0)", one=SAVES, two=TRUNCATES)
+    case("a copy narrowed to `except Exception` fails on the temp file it leaves behind",
+         [atomic()], 1, "('KeyboardInterrupt', True, 1)", one=SAVES, two=NARROW)
+    # The case that makes the kind's stated contract load-bearing rather than decorative:
+    # two copies that truncate in unison agree with each other completely.
+    case("an atomic entry with no contract fails rather than comparing copies to each other",
+         [atomic(expect=None)], 1, "no `expect`", one=TRUNCATES, two=TRUNCATES)
+
+    # --- hub naming ---------------------------------------------------------------------
+    case("under hub naming a spoke need not name the other spoke",
+         [atomic(members=THREE, naming="hub")], 0, one=SAVES, two=SAVES, builder=build_hub)
+    case("...while the default is still all-pairs, so the same tree fails without it",
+         [atomic(members=THREE)], 1, "does not name", one=SAVES, two=SAVES,
+         builder=build_hub)
+    case("...and under hub naming a spoke that names nothing still fails",
+         [atomic(members=THREE, naming="hub")], 1, "does not name", one=SAVES, two=SAVES,
+         decl=False, builder=build_hub)
 
     for ok, label, tail in results:
         print("  %-4s %s" % ("ok" if ok else "FAIL", label))

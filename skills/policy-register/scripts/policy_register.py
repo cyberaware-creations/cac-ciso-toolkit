@@ -282,6 +282,14 @@ def load_store(path: str) -> dict:
 
 
 def save_store(path: str, store: dict) -> None:
+    """Write the store atomically: a crash mid-write leaves the previous file intact.
+
+    One of ten copies of this pattern, registered as a twin under CAC-TW-1 and compared by
+    executing them — `skills/ai-register/scripts/ai_register.py` holds the family list. The
+    property compared is the interrupted write, because on the happy path an atomic writer and
+    `open(path, "w")` produce identical bytes, which is how two copies stayed non-atomic
+    through nine releases with every self-test green (BL-219).
+    """
     store["updatedAt"] = now_ts()
     directory = os.path.dirname(os.path.abspath(path)) or "."
     fd, tmp = tempfile.mkstemp(dir=directory, suffix=".pol.tmp")

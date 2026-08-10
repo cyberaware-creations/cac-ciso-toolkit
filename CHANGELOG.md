@@ -21,6 +21,64 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.71.0 — 2026-08-10
+
+**Two engines emptied the store before writing it** (BL-219).
+
+`risk-register` and `nist-csf` saved with `open(path, "w")`, which **truncates the file before
+the dump begins**. A process killed in between left a half-written store *and no copy of what
+had been there* — there is no `.bak` scheme anywhere in the suite, deliberately. These are the
+two largest stores it holds: a `.csfp` carries all 106 CSF 2.0 Subcategories from `init`
+onwards, and a `.rr` grows with every gap and every finding imported into it. They are also
+the two an import path bulk-loads, so the exposure sat exactly where the largest writes happen.
+
+Both now use the pattern eight other engines already used (`ai_register.py:208-220`):
+`tempfile.mkstemp` in the **destination directory**, then `os.replace`, then unlink on any
+exception. Nothing here is a new idea. These two functions predate the pattern and were never
+brought forward. `dir=directory` is not decoration — `os.replace` is atomic only within one
+filesystem, so a temp file in `/tmp` would make the move a copy across a boundary.
+
+**Why nine releases of green tests never saw it.** When nothing goes wrong, an atomic writer
+and `open(path, "w")` produce byte-identical output. Every test took the happy path. So the
+new checks take the other one: `json.dump` is replaced with one that raises `KeyboardInterrupt`
+part-way, and the file left on disk is compared **byte for byte** with what was there before.
+Asserting only that the store still parses would pass a rollback that left a valid but
+different register — a different bug wearing this test's clothes.
+
+**The store write is now a declared twin, compared by execution** (CAC-TW-1). Ten copies across
+ten engines, with two additions to `tools/check-twins.py`:
+
+- a new kind, `atomic`, which runs each member's write with the dump cut short and compares
+  what survived against a **stated contract** rather than against member zero. Every other
+  kind in that file asks whether the copies agree; this one asks whether each copy is right,
+  because the defect it exists for was two copies agreeing with each other and neither with
+  the pattern. Ten writers that truncate in unison agree perfectly and are all wrong.
+- `"naming": "hub"`, because the existing rule — every member names every other member's path
+  in its own source — is ninety references for a family of ten, and a list that size is one
+  nobody maintains. Each copy names `ai_register.py`; `ai_register.py` lists the family. Every
+  copy stays one hop from it, which is the property that rule buys. The default is unchanged
+  and a self-test case holds it there.
+
+Two mutations were run against the finished guard. Reverting one copy to `open(path, "w")`
+reports `('KeyboardInterrupt', False, 0)` — the previous store did not survive. Narrowing one
+copy's `except BaseException` to `except Exception` reports `('KeyboardInterrupt', True, 1)` —
+the temp file it leaves behind. The second is *why* the house pattern catches `BaseException`,
+and nothing in the repo had ever tested it.
+
+**A correction to the record.** The item was filed as "nine of eleven engines write
+atomically". It is **eight of ten**: `board-pack`'s `mkstemp` at `assemble_pack.py:1645` writes
+an exported applicability payload, not a store, and `ciso-board-translation` has no store at
+all.
+
+Counts: `score_register.py self-test` 213 → **216**, `profile_analysis.py self-test` 653 →
+**656**, `check-twins` 8 twins / 241 comparisons → **9 / 251**, its own self-test 19 → **26**.
+Reverting either engine's fix turns that engine's own self-test red on the byte comparison,
+verified both ways.
+
+`fsync` before `os.replace` was **not** added. The eight existing copies do not, and diverging
+one copy of a registered twin to answer a power-loss question that none of the others answers
+is the drift this release is closing. Raised separately (BL-225).
+
 ## v0.70.0 — 2026-08-09
 
 **The twelfth skill is wired into the product** (BL-212).
