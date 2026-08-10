@@ -21,6 +21,72 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.91.0 — 2026-08-10
+
+**The Delaware slip opinions were read.** BL-230's reading pass — P1, P2 and P3, the three
+propositions a citation check could not reach. All four opinions plus the appellate order were
+opened from the courts' own servers.
+
+### ✅ P2 — the one gap corroborated, and closed
+
+The *Brewer* interlocutory appeal was the block's only uncorroborated citation. The Supreme
+Court's order was opened and reads, in terms: **"IT IS ORDERED that the interlocutory appeal is
+REFUSED."** No. 444, 2025, decided 15 December 2025, before Seitz, C.J., Valihura and Griffiths,
+JJ. The receipts' date and disposition were right.
+
+Two things about it that the receipts did not carry and now do: **the parties reverse on
+appeal** — it is ***Turner v. Brewer*** — and it is an **ORDER, not a signed opinion**, the same
+caveat the *Bingle* affirmance carries.
+
+### ❌ P3 — two things the receipts said about *Brewer* were wrong
+
+- **"The information-systems theory was rejected."** It was not. The opinion contains no such
+  analysis at all — *"information systems"*, *"reporting system"* and *"first prong"* appear
+  **zero** times in it. What was dismissed was **Count II, the officer defendants, in its
+  entirety**, and **Count I as to the directors who were not on the board during the period of
+  alleged wrongdoing**. The parallel ***Massey* claim was not reached** — the court declined to
+  address it, having found the *Caremark* claim viable.
+- **"A whistleblower complaint discussed in board minutes."** *"Board minutes"* appears nowhere;
+  the minutes in the opinion are **committee** minutes. What the record supports is that the
+  former general counsel **sent a draft complaint to the board**.
+
+The red-flags half was right, and is now stated as the court states it: a majority of the demand
+board faced a substantial likelihood of liability on that theory, so demand was excused.
+
+### ⚠️ P1 — *TransUnion* does not use the two cases the same way
+
+The claim was that it *"cites both Sorenson and Bingle approvingly."* Half of that holds.
+
+- ***Sorenson*** — cited **six times**, approvingly and substantively, with a parenthetical
+  describing it as *"dismissing a Caremark claim where the directors were informed that remedial
+  actions were taken"*.
+- ***Bingle*** — cited **once**, in a footnote, on a bare *"See"* signal, for the black-letter
+  statement of the two conditions of oversight liability. Nothing disapproving; nothing that
+  engages its reasoning either. **The receipts no longer imply *TransUnion* endorses *Bingle*.**
+
+That footnote also yielded the *Bingle* affirmance at **297 A.3d 1083 (Del. 2023) (TABLE)** —
+the table designation independently confirming the "order, not opinion" point BL-142 made.
+
+### ❗ Two date findings, both worth carrying
+
+- **The two *Brewer* dates are both real and neither is wrong.** 29 Sep. 2025 is the memorandum
+  opinion (**2025 WL 2769895**); 30 Oct. 2025 is the Chancery order **denying certification**
+  (**2025 WL 3048942**), which is what several databases index the case at. Both now have rows.
+- **The *Marchner* slip opinion contains a typo in its own date line.** Its header reads
+  *"Date Submitted: December 22, 2025"* and *"Date Decided: March 30, 2025"* — decided three
+  months before it was submitted. The year is **2026**, and the receipts were right. Recorded on
+  the row, because anyone verifying against the slip would otherwise conclude the opposite.
+
+### Also
+
+- ***Marchner v. Riley*** gained the locator flagged as missing in v0.88.1: **C.A. No.
+  2025-0164-LWW**, Will, V.C. Complaint dismissed in full under Rule 23.1.
+- ***Giuliano***'s disposition stated as the court states it: Counts II and IV dismissed, Count
+  III dismissed as to one officer, motion *"otherwise denied"*.
+- ***In re TransUnion*** carried at its full caption and **Consolidated** C.A. number.
+- **No citator was run.** What each case holds was read; whether it has since been distinguished
+  or overruled was not, and the block marker says so.
+
 ## v0.90.0 — 2026-08-10
 
 **The deck is read at two distances, so it has two type floors.** BL-168 **T1 and T2 only** —
