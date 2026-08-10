@@ -30,11 +30,12 @@ skill="$(cd "$here/.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=9
+EXPECTED_CHECKS=13
 checks=0
 fails=0
 ok()  { checks=$((checks + 1)); printf '  ok    %s\n' "$1"; }
 bad() { checks=$((checks + 1)); fails=$((fails + 1)); printf '  FAIL  %s\n         %s\n' "$1" "$2"; }
+eq()  { if [ "$2" = "$3" ]; then ok "$1"; else bad "$1" "expected '$2', got '$3'"; fi; }
 
 echo "deck-fit: $($PY -V 2>&1)"
 
@@ -180,6 +181,72 @@ if grep -q "walk is broken" "$work/empty.txt"; then
 else
   bad "the empty-deck message blames the walk" "$(head -2 "$work/empty.txt")"
 fi
+
+# --- 10-13. THE TYPE FLOORS ARE DECLARED (BL-168 T1/T2) ------------------------
+#
+# ⚠️ DECLARED, NOT YET ENFORCED. Raising the emitted sizes to meet these floors forces real
+# editorial cuts — BL-126 measured 0.24" of headroom on the mix slide — and deciding what
+# gets dropped per slide is the maintainer's, not a machine's. T1 and T2 establish the vocabulary;
+# T3 onward applies it. These checks pin the vocabulary so it cannot drift before then, and
+# they pin the CURRENT sub-floor inventory so nothing new slips under it in the meantime.
+#
+# The fit assertions above are UNCHANGED and stay. Fit is a document property and it is
+# already correct for the narrative half; legibility is a second property beside it, not a
+# replacement for it.
+flr="$("$PY" - "$skill/scripts" <<'PY'
+import sys
+sys.path.insert(0, sys.argv[1])
+import pptx_writer as P
+print("%d %d %d %d %s" % (
+    P.NARRATIVE_TYPE_FLOOR, P.DECISIONS_TYPE_FLOOR,
+    P.TYPE_FLOOR_GOVERNS["narrative"], P.TYPE_FLOOR_GOVERNS["decisions"],
+    "yes" if P.CHROME_EXEMPT else "no"))
+PY
+)"
+set -- $flr
+# Two floors, not one. A single number would have to serve a desk read and a ten-foot read,
+# which means being wrong for one of them.
+if [ "$1" -lt "$2" ] && [ "$1" -gt 0 ]; then
+  ok "two type floors are declared and ordered — narrative ${1}, decisions ${2} centipoints"
+else
+  bad "two type floors are declared and ordered" "narrative=$1 decisions=$2"
+fi
+# The map names the classes rather than leaving a reader to infer them from constant names,
+# and it must hold the SAME values — a copied number is a number that drifts.
+if [ "$3" = "$1" ] && [ "$4" = "$2" ]; then
+  ok "...and TYPE_FLOOR_GOVERNS names which slide class each governs, without copying it"
+else
+  bad "TYPE_FLOOR_GOVERNS agrees with the constants" "got $3/$4, want $1/$2"
+fi
+if [ "$5" = "yes" ]; then
+  ok "the deck's own chrome is named as exempt from BOTH floors, not pattern-matched"
+else
+  bad "chrome exemptions are declared" "CHROME_EXEMPT is empty"
+fi
+# THE INVENTORY, and it is the only one of these four that can catch a regression today.
+# It pins exactly which sub-floor sizes the shipped deck emits, so T3 starts from a known
+# list and nothing new can slip under the floor while the floors are unenforced.
+under="$("$PY" - "$work/p.pptx" "$skill/scripts" <<'PY'
+import re, sys, zipfile
+sys.path.insert(0, sys.argv[2])
+import pptx_writer as P
+SZ = re.compile(r'sz="(\d+)"')
+sizes = set()
+with zipfile.ZipFile(sys.argv[1]) as z:
+    for n in z.namelist():
+        if n.startswith("ppt/slides/slide") and n.endswith(".xml"):
+            sizes |= {int(v) for v in SZ.findall(z.read(n).decode("utf-8"))}
+print(",".join(str(v) for v in sorted(v for v in sizes if v < P.NARRATIVE_TYPE_FLOOR)))
+PY
+)"
+# 1050 is in this list and is NOT on the item page, which names only 900 and 950. The
+# inventory found it: `pptx_writer.py:590` (chart labels) and `render_pack.py:745`/`:832`
+# (escalation evidence lines). 1000 likewise, at `pptx_writer.py:585`/`:595` and
+# `render_pack.py:880`/`:898`. Recorded as a finding rather than quietly folded in — T3 has
+# more sites to raise than the plan anticipated, and pinning the true set is the point of
+# having an inventory at all.
+eq "the sizes below the narrative floor are exactly the known ones, awaiting T3" \
+   "900,950,1000,1050" "$under"
 
 echo
 if [ "$checks" -ne "$EXPECTED_CHECKS" ]; then

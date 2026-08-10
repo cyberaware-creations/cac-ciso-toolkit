@@ -58,6 +58,49 @@ LIMESTONE_DIM = "9AA0A6"   # muted text on ink; the footer stamp
 PATINA = "2FA98C"          # brand/action accent — chrome only, never a measurement
 WORKBENCH = "F6F4EE"       # light working ground
 
+# --- Type floors (CAC deck legibility, BL-168 T1/T2) --------------------------
+#
+# TWO FLOORS, NOT ONE, because the deck is read at two distances and a single number would
+# have to serve both — which means being wrong for one of them. the maintainer's call, 2026-08-10:
+#
+#   the seven section-narrative slides   read at a desk, circulated before the meeting
+#   (including band-mix)                 -> NARRATIVE_TYPE_FLOOR, ~11pt
+#
+#   the decisions slides                 projected, ten feet away, explained aloud by the
+#                                        CISO -> DECISIONS_TYPE_FLOOR, ~18pt
+#
+# ⚠️ THIS IS NOT A THIRD `--deck-mode`. Both classes ship in the SAME deck at two floors.
+# `--deck-mode full | board` is untouched: the decision explicitly declined a mode, because
+# two constants are cheaper and the evidence does not ask for more.
+#
+# Sizes are centipoints, matching `_para(..., sz, ...)` throughout this file: 1100 == 11pt.
+NARRATIVE_TYPE_FLOOR = 1100
+DECISIONS_TYPE_FLOOR = 1800
+
+# Which class each floor governs, named rather than left to a reader to infer from the
+# constant name. A slide class absent from both is not yet classified, which is a different
+# state from being exempt.
+TYPE_FLOOR_GOVERNS = {
+    "narrative": NARRATIVE_TYPE_FLOOR,
+    "decisions": DECISIONS_TYPE_FLOOR,
+}
+
+# T2 — THE CHROME EXEMPTIONS, exempt from BOTH floors.
+#
+# The deck's own furniture is not content: a footer stamp, a page number and the lockup are
+# there to identify the artifact, not to be read at either distance. Holding them to a
+# legibility floor written for content would inflate the deck's chrome to the size of its
+# argument, which is the opposite of legible.
+#
+# Named individually rather than pattern-matched on shape names, because "it looks like
+# chrome" is exactly the judgement that lets a real measurement slip out of the floor.
+CHROME_EXEMPT = frozenset({
+    "footer",       # `_footer_shapes` — the running stamp on every slide, both grounds
+    "page-number",  # the slide number in the footer band
+    "lockup",       # `LOCKUP`, the brand mark on the cover
+    "spark",        # `_spark` — a rule, carrying no text to read
+})
+
 LOCKUP = "Cyber Aware Creations"
 
 

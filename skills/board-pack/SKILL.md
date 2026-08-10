@@ -401,6 +401,33 @@ it.
 sentence a board reads, and it is purely additive — the contract version did not move, because
 bumping it would have refused every existing sidecar to gain nothing.
 
+## Two type floors, because the deck is read at two distances
+
+The seven section-narrative slides — band-mix included — are a **pre-read**: circulated before
+the meeting and read at a desk. The decisions slides are **projected**, taken in from ten feet
+while the CISO explains them aloud. One number cannot serve both, so there are two:
+
+| slide class | read at | floor |
+|---|---|---|
+| section narrative, including band-mix | a desk, before the meeting | `NARRATIVE_TYPE_FLOOR` — ~11pt |
+| decisions | ten feet, explained aloud | `DECISIONS_TYPE_FLOOR` — ~18pt |
+
+**This is not a third `--deck-mode`.** Both classes ship in the same deck at two floors;
+`--deck-mode full | board` is untouched. Two constants are cheaper than a mode, and the
+evidence does not ask for more.
+
+**The deck's own chrome is exempt from both** — the footer stamp, the page number, the lockup
+and the rules. They identify the artifact rather than carrying an argument, and holding
+furniture to a floor written for content would inflate the chrome to the size of the case.
+They are named individually in `CHROME_EXEMPT` rather than pattern-matched, because *"it looks
+like chrome"* is exactly the judgement that lets a real measurement slip out of the floor.
+
+⚠️ **Declared, not yet enforced.** Raising the emitted sizes to meet these floors forces real
+editorial cuts, and deciding what gets dropped per slide is a person's call. `deck-fit.sh` pins
+the floors, their class mapping, the exemptions, and an inventory of every size the shipped
+deck currently emits below the narrative floor — so nothing new slips under while the work to
+raise them is outstanding.
+
 ## The board deck mode
 
 ```bash

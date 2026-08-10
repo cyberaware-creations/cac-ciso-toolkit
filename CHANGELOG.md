@@ -21,6 +21,56 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.90.0 — 2026-08-10
+
+**The deck is read at two distances, so it has two type floors.** BL-168 **T1 and T2 only** —
+declared, deliberately not yet enforced.
+
+| slide class | read at | floor |
+|---|---|---|
+| the seven section-narrative slides, band-mix included | a desk, circulated before the meeting | `NARRATIVE_TYPE_FLOOR` — 1100 (~11pt) |
+| the decisions slides | ten feet, explained aloud by the CISO | `DECISIONS_TYPE_FLOOR` — 1800 (~18pt) |
+
+`TYPE_FLOOR_GOVERNS` names which class each governs rather than leaving it to be inferred from
+a constant name, and holds the same objects rather than copies that can drift.
+
+**Not a third `--deck-mode`.** Both classes ship in the same deck at two floors;
+`--deck-mode full | board` is untouched. The decision explicitly declined a mode — two
+constants are cheaper and the evidence does not ask for more.
+
+**T2 — the chrome exemptions.** The footer stamp, page number, lockup and rules are exempt from
+**both** floors: they identify the artifact rather than carrying an argument. Named individually
+in `CHROME_EXEMPT` rather than pattern-matched, because *"it looks like chrome"* is the
+judgement that lets a real measurement slip out of the floor.
+
+### ⛔ Stopped after T2, and the reason is not caution
+
+Raising the emitted sizes forces real editorial cuts — BL-126 measured **0.24" of headroom** on
+the mix slide — and deciding what gets dropped per slide is editorial. The verification also
+still asks for the deck to be *read at the distance it is meant for*, now two distances, which
+is a person looking at it. Machine checks can assert the constants and the emitted sizes; they
+cannot assert legibility.
+
+### ❗ The inventory found a fourth sub-floor size the plan does not name
+
+`deck-fit.sh` **9 → 13 checks**. Three pin the vocabulary; the fourth is the one that can catch
+a regression today — it pins **every size the shipped deck emits below the narrative floor**, so
+nothing new slips under while the floors are unenforced.
+
+That inventory returned **900, 950, 1000 and 1050**. The item page names only 900 and 950. The
+extra two are real:
+
+- **1050** — `pptx_writer.py:590` (chart labels), `render_pack.py:745` and `:832` (escalation
+  evidence lines)
+- **1000** — `pptx_writer.py:585` and `:595`, `render_pack.py:880` and `:898`
+
+**T3 has more sites to raise than the plan anticipated.** Recorded rather than quietly folded
+in — pinning the true set is the entire point of having an inventory.
+
+**The fit assertions are unchanged and stay.** Fit is a document property and it is already
+correct for the narrative half; legibility is a second property beside it, not a replacement.
+`EXPECTED_GUARDS` stays at **40** — T6's new guard is out of this slice's scope.
+
 ## v0.89.0 — 2026-08-10
 
 **Withholding the clock was right. Withholding it in silence was not.** BL-207 — decided, and
