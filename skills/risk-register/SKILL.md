@@ -39,6 +39,20 @@ A register earns its keep only if these are true, and each is where people usual
    8286r1's own example is cause-and-effect prose. Earlier releases of this file said "8286 wants
    this if-then framing", which claimed more of the source than the source says. Always draft it
    for them.
+
+   **Enforced since v0.78.0**, and it was only a documented precondition before that: `add`
+   refuses without `--description`, and `set-score` refuses to re-score a risk that has none.
+   **The shape is not validated** — no regex, no `startswith("If")`. Requiring the field is a
+   record requirement; judging whether a human's sentence is a *good* risk statement is the
+   tool deciding something a person should, and it would reject legitimate phrasings while
+   passing anything from someone who worked out the rule.
+
+   Two deliberate exceptions, both about not breaking a working path. The **import** commands
+   still create description-less rows — that is what `provisionalTitle` is for, and the
+   sanctioned order is `set-score` to assess, then `set-text` to reword. And a **register
+   written before v0.78.0 still loads and renders unchanged**: refusals guard writes, never
+   loads, so an old risk with no event statement refuses on the next write that re-scores it
+   rather than on the next time you open the file.
 2. **Scoring is deterministic.** Two people scoring the same risk must get the same band — so banding
    is done by the script, never by eye. See [Scoring](#scoring-always-use-the-script).
 3. **It's a living record, not a snapshot.** The value compounds through change tracking: what moved,
@@ -174,7 +188,8 @@ not by memory:
 ```bash
 python3 scripts/score_register.py init <reg.rr> --client 'Acme Corp' --assessor 'CISO' \
     --matrix 5 --appetite medium --scope-note '...' --currency GBP
-python3 scripts/score_register.py add <reg.rr> --title '...' --il 4 --ii 5 --rl 2 --ri 4 \
+python3 scripts/score_register.py add <reg.rr> --title '...' \
+    --description 'If <event>, then <consequence>' --il 4 --ii 5 --rl 2 --ri 4 \
     --category PR --owner '...' --theme identity --response mitigate --cost 45000 --why '...'
 python3 scripts/score_register.py set-text <reg.rr> <id> --title '...' --description '...' --why '...'
 python3 scripts/score_register.py set-response <reg.rr> <id> --cost 45000 --why '...'

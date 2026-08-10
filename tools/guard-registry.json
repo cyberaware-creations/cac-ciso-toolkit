@@ -264,6 +264,11 @@
       "forbids": "a decision rendered as a raw Python dict repr instead of its text"
     },
     {
+      "path": "skills/risk-register/evals/event-statement.sh",
+      "role": "guard",
+      "forbids": "a scored risk with no event statement — a topic given a likelihood and an impact"
+    },
+    {
       "path": "skills/risk-register/evals/python-compat.sh",
       "role": "not-a-guard",
       "reason": "Environment check, not a property of the product's behaviour."
