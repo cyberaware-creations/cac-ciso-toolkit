@@ -21,6 +21,52 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.85.0 — 2026-08-10
+
+**Nine copies of the brand tokens, declared at one end and compared at none — and registering
+them found drift already there.** BL-213, closing the registry's sole `UNCOMPARED` scope
+question.
+
+`nist-csf/renderers/_common.py` has said since it was written: *"change the brand tokens in one
+and you must change them in the other."* Only it and `risk-register` named each other. **The
+other seven named nothing**, and there are nine copies.
+
+**Enumerating the tokens to register the twin found two real divergences, neither visible in
+any test:**
+
+- **`business-context` requested a Manrope weight its own stylesheet never used, and never
+  requested the one it did.** It asked for `400;600;800` while using `font-weight: 700` three
+  times — so every bold heading on a business-context page rendered as a browser-synthesised
+  bold off the 600 face, while the same heading on a risk-register or nist-csf page rendered in
+  the real 700. Two weights were downloaded and never used.
+- **Eight of the nine were missing the `fonts.gstatic.com` preconnect** — the one that reaches
+  where the font *files* live, rather than just the stylesheet.
+
+Both pages render, both stylesheets are valid, and a browser silently approximates a face it
+was not given. That is why this was worth registering before there was anything to find, and
+why there was something to find anyway.
+
+**Converged on the fuller form**, not the majority one: matching eight files by deleting a
+correct resource hint from the ninth would be the checker dictating the product.
+
+`tools/check-twins.py` gained a nine-member `constant` entry over `FONTS`, `INK`, `LIME`,
+`PATINA`, `SLATE`, `WB`, `WB_SURF`, `WB_LINE`, under **hub naming** — nine members is
+seventy-two all-pairs references, a list nobody maintains. A member may now name a **tuple** of
+symbols, so a set of constants that travel together is one registry row rather than eight
+near-identical ones; a token defined in eight copies and not the ninth **fails**, because that
+is the drift rather than an excuse to compare the eight.
+
+**Seen to fail before it passed**, as the item required: changing `LIME` in `policy-register`
+turns `check-twins` red and names both values; reverting turns it green. A constant twin over
+values that already agree would otherwise be exactly the vacuous assertion this repo forbids.
+
+**The `UNCOMPARED` row stays and is narrowed** — from *"everything except the age_bounds pair"*
+to *"the derivation layer and the CLI surface, deliberately"*. An exemption that names what it
+does not cover is the feature; deleting the row would claim the whole module is compared.
+
+`check-twins` 11 twins, **334 comparisons** (was 326), **57 cross-skill references classified**
+(was 43). Every eval suite green; 98 files on 3.9.6.
+
 ## v0.84.0 — 2026-08-10
 
 **Four decisions the receipts already rested on, and two that put a floor under *Bingle*.**
