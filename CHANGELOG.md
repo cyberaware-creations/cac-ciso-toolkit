@@ -21,6 +21,48 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.84.0 — 2026-08-10
+
+**Four decisions the receipts already rested on, and two that put a floor under *Bingle*.**
+BL-172 and BL-143 — one editorial pass over the same file, as the dossier's own note asks.
+
+**BL-172 — the two the file leaned on implicitly.** *United Food & Commercial Workers Union v.
+Zuckerberg*, 262 A.3d 1034 (Del. 2021) is the universal three-part demand-futility test
+**Sorenson applied** — a receipt that turns on a pleading standard and does not name it invites
+a reader to think the case was decided on the merits. *Marchand v. Barnhill*, 212 A.3d 805 (Del.
+2019) is the "mission critical" line, carried with its own limit: it is authority for what a
+prong-one failure looks like, **not** for cybersecurity being mission critical at any particular
+company — that is a fact about a business, and *Marchand* was about food safety at an ice-cream
+manufacturer. An earlier pass considered *Marchand* and deliberately declined it; that call is
+superseded by RW-001's finding that the claims already rest on it.
+
+**BL-143 — and the disclaimer now has authority behind it.** The *Bingle* bullet says do not
+cite it for the proposition that a minimal system is sufficient, a caution the file had to state
+on its own. *Giuliano v. Grenfell-Gardner* (Teligent, Del. Ch., 2 Sep. 2025) largely **denied**
+dismissal on prong one and named the specific failure: *"a board's reporting practice that
+allows management to elect to report (or not) on central compliance risks fails Caremark's
+baseline requirement."* *Brewer v. Turner* (Regions Financial, Del. Ch., 29 Sep. 2025) rejected
+the information-systems theory and sustained the red-flags theory on a whistleblower complaint
+discussed in board minutes.
+
+**The corollary, and it cuts both ways.** Documented board-level process earns prong-one
+protection **and is the discoverable record that can establish prong-two knowledge** — *Brewer*
+is that in one case. Not an argument for recording less: an argument for a recorded *decision*
+with a rationale rather than a note that something was mentioned. A minute saying the board was
+told is prong-two evidence with no prong-one benefit.
+
+**And the negative finding, which is the more useful one in a room.** There has been **no
+Delaware oversight decision squarely about cybersecurity since the *Bingle* affirmance of 17 May
+2023.** Vendor posts asserting Delaware has recently expanded cyber-oversight expectations could
+not be corroborated to any case. If somebody cites recent Delaware cyber authority, ask which.
+
+⚠️ **The provenance is NOT uniform, and the file says so beside the block.** *Zuckerberg* and
+*Marchand* are landmarks carried at their reporter citations. The four 2024–2026 decisions come
+from the RW-001 dossier **alone** and were **not independently corroborated** in this pass —
+unlike the *Sorenson* and *Bingle* dates, which two separate source paths agreed on.
+`sources.json` records the distinction rather than flattening it, and the receipts file tells a
+reader to pull the primary text before quoting any of them.
+
 ## v0.83.1 — 2026-08-10
 
 **A DORA note that stated a fact and its negation in one sentence.** BL-176, open across ten
