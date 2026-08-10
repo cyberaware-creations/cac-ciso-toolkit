@@ -23,7 +23,7 @@ work="$(mktemp -d)"
 . "$here/../../../tools/eval-probe.sh"   # `probe` — a crashed check is not a clean one (BL-121)
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=15
+EXPECTED_CHECKS=17
 checks=0
 fails=0
 ok()  { checks=$((checks + 1)); printf '  ok    %s\n' "$1"; }
@@ -62,22 +62,51 @@ for page in board op; do
   done
 done
 
-# --- 9-10. our own source, docstrings and comments exempt ---------------------
+# --- 9-11. our own SOURCE — every shipped .py, scripts included -------------------
 #
-# The refusal has to be explainable: every file here carries a paragraph naming the claim it
-# declines to make, and those paragraphs necessarily use the words. What must stay clean is the
-# code that can reach a page.
-res=""
-for f in "$skill"/renderers/render_*.py "$skill"/renderers/_common.py; do
-  for list in confidence scoring; do
-    hit=$("$PY" "$here/_vocab.py" "$f" "$list" --source)
-    [ -n "$hit" ] && res="$res $(basename "$f"):$hit"
-  done
-done
-if [ -z "$res" ]; then
-  ok "no confidence or scoring vocabulary in the executable source of any view"
+# GP-1.7, reaching the two suites BL-211 scoped out (BL-221). This scanned
+# `renderers/render_*.py` and `renderers/_common.py` through a shell glob until v0.77.0 —
+# every renderer and NO engine script — while `scripts/vendor_register.py` writes most of the strings
+# the renderers print. Three checks, because the scan and the population it read are separate
+# claims and a clean scan over the wrong population is the failure being fixed.
+#
+# Docstrings, comments and any `self_test` function are exempt: the refusal has to be
+# explainable, and an assertion that a word is ABSENT has to name the word.
+tree=$("$PY" "$here/_vocab.py" "$skill" --tree)
+hits=$(printf '%s\n' "$tree" | grep '^SCAN: ' || true)
+listp=$(printf '%s\n' "$tree" | grep '^LIST: ' || true)
+orph=$(printf '%s\n' "$tree" | grep '^UNDECIDED-ORPHAN: ' || true)
+pop=$(printf '%s\n' "$tree" | sed -n 's/^POPULATION: //p')
+
+if [ -z "$hits" ]; then
+  ok "no banned vocabulary in the executable source of any shipped file"
 else
-  bad "no confidence or scoring vocabulary in the source of any view" "$res"
+  bad "no banned vocabulary in the executable source of any shipped file" \
+      "$(printf '%s' "$hits" | tr '\n' ' ')"
+fi
+
+# The population, ASSERTED rather than counted. `scanned == len(files)` is true of any list,
+# including one with no engine script in it — which is precisely the state this suite was in.
+case ",$pop," in
+  *",scripts/vendor_register.py,"*) popok=1 ;;
+  *) popok="" ;;
+esac
+if [ -n "$popok" ] && [ -z "$listp" ]; then
+  ok "the file list is recomputed from the tree and includes the engine ($pop)"
+else
+  bad "the file list is recomputed from the tree and includes the engine" \
+      "${listp:-the engine script is not in the population: $pop}"
+fi
+
+# BL-221 D-3. Hits that ship, are not defects, and whose disposition is NOT YET DECIDED are
+# allowed AND ANNOUNCED — printed on every run, and required to still match a real hit. An
+# allowance that outlives its hit fails here, so this cannot decay into a silent exemption.
+if [ -z "$orph" ]; then
+  printf '%s\n' "$tree" | grep '^UNDECIDED: ' | sed 's/^/        /' || true
+  ok "every undecided hit is still present and still named (BL-221 D-3, open)"
+else
+  bad "every undecided hit is still present and still named" \
+      "$(printf '%s' "$orph" | tr '\n' ' ')"
 fi
 # And the stripper actually works, proved on a file built for the purpose rather than on a
 # shipped one. The first version of this check probed render_board.py and passed only because
