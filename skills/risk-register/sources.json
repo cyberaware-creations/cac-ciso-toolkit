@@ -78,6 +78,22 @@
         "references/history-and-review.md"
       ],
       "renderedAs": "NYDFS 23 NYCRR 500"
+    },
+    {
+      "id": "ir-8286b-upd1",
+      "label": "NIST IR 8286B-upd1",
+      "publisher": "NIST",
+      "instrument": "NIST IR 8286B-upd1, Prioritizing Cybersecurity Risk for Enterprise Risk Management",
+      "version": "Update 1, 26 Feb. 2025. CITED FOR ONE THING ONLY: the caution that a heat map 'should be used with caution... not necessarily an indicator of rigid boundaries', which now ships as a caption on the board heat map (BL-54 R-7). ⚠️ THE QUOTE IS TRANSCRIBED FROM THE REGISTER-ALIGNMENT DESIGN (strategy/register-alignment-design-2026-08-08.md rev b, pasted onto BL-54) AND THE SECTION NUMBER §2.2.5 IS THE DESIGN'S. Neither has been re-read against the published text in this pass, which is why checkedBy is 'unverified' rather than 'claude-code' — that value means machine-verified against the primary source, and this was not. The board-facing caption therefore names the document and NOT the section: an unverified locator does not belong on an artifact a director forwards",
+      "checkedOn": "2026-08-10",
+      "checkedBy": "unverified",
+      "whyUnverified": "IR 8286B-upd1 is not vendored in this repository and this session had no access to the published PDF. The quote and the section number both come from the register-alignment design pasted onto BL-54, which is a second-hand record however carefully it was made. Shipping the caution is a net gain over shipping no caution at all, so it ships — with the document named, the section kept off the board-facing artifact, and this row saying why. Clearing it needs somebody to open the PDF, which is a reading pass.",
+      "gated": false,
+      "reviewIntervalDays": 365,
+      "usedFor": [
+        "references/dashboards.md",
+        "renderers/render_board.py"
+      ]
     }
   ]
 }

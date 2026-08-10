@@ -90,10 +90,27 @@ def heat_block(ctx: C.Context) -> str:
         note = (f'<div class="note">{skipped} risk{"s" if many else ""} scored above the '
                 f'{ctx.size}×{ctx.size} matrix and {"are" if many else "is"} not plotted; '
                 f'{"they remain" if many else "it remains"} counted in every total.</div>')
+    # THE CAUTION SHIPS ON THE PAGE, not in a reference nobody in the room is holding
+    # (BL-54 R-7). NIST IR 8286B-upd1 §2.2.5 asks that a heat map be "used with caution... not
+    # necessarily an indicator of rigid boundaries", and a heat map's whole persuasive power is
+    # that the boundaries look real: four flat colour zones, and a risk one point either side of
+    # a threshold lands in a different one. The board reads the picture, so the picture carries
+    # the caveat.
+    #
+    # The section number is transcribed from the register-alignment design and has not been
+    # re-read against the published text; `sources.json` records that. The caption itself
+    # therefore states the caution and names the document WITHOUT a section — a board-facing
+    # artifact is the wrong place to carry an unverified locator.
     caption = (f'<p class="lead">Likelihood runs across, impact up. Every cell is coloured '
                f'by the band that cell scores, and every cell holding risks carries how many '
                f'— the count is on the cell because two of the four bands sit too close '
-               f'in colour to tell apart on their own.</p>')
+               f'in colour to tell apart on their own.</p>'
+               f'<p class="note">Read the zones as guidance, not as rigid boundaries. NIST IR '
+               f'8286B-upd1 asks that a graphic like this be used with caution: a risk a '
+               f'single point either side of a threshold lands in a different colour, and the '
+               f'difference between those two risks is far smaller than the picture implies. '
+               f'The band order ranks severity — it is not the order the work should be done '
+               f'in.</p>')
     return (f'<div class="gfxrow"><div class="gfxcol">{C.gfx(svg)}{note}</div>'
             f'<div class="gfxcol">{caption}{C.gfx_legend()}</div></div>')
 
