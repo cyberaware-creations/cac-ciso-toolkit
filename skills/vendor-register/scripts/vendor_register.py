@@ -1629,6 +1629,14 @@ def load_context(path: str) -> dict:
             payload = json.load(fh)
     except FileNotFoundError:
         raise Refusal(f"no such context payload: {path}")
+    except OSError as exc:
+        # A DIRECTORY, an unreadable file, a symlink to nowhere. `except FileNotFoundError`
+        # does NOT catch `IsADirectoryError`, so `--context .` or `--context ~/ctx/` came out
+        # of all seven copies as a raw traceback until BL-226 — the same BL-169 D-1 failure
+        # BL-218 was raised for, one exception class along. Caught after FileNotFoundError,
+        # which is an OSError subclass and keeps its own sentence.
+        raise Refusal(f"cannot read the context payload {path}: "
+                      f"{exc.strerror or exc}")
     except json.JSONDecodeError as exc:
         raise Refusal(f"{path} is not valid JSON: {exc.msg}")
     # `[]` parses cleanly and `.get` then raises AttributeError on the next line — a raw
@@ -2767,6 +2775,25 @@ def _cmd_self_test(_args):
                              "reason: %s" % exc)
         except BaseException as exc:                # noqa: BLE001 — a crash is the failure
             fails.append("a --context payload that is a JSON array: raised %s instead of "
+                         "refusing — %s" % (type(exc).__name__, exc))
+
+        # `--context .` and `--context ~/ctx/` are ordinary typos, and `IsADirectoryError` is
+        # NOT a `FileNotFoundError` — so a directory path came out of all seven consumers as a
+        # raw traceback until BL-226. Checked here in the hub because a skill copied out on
+        # its own has no CAC-TW-1; the family as a whole is proved by the `refusal` twin,
+        # which now states each payload's expected outcome rather than only comparing the
+        # copies to one another. All seven agreed on crashing, and the agreement is precisely
+        # why nothing saw it.
+        checks[0] += 1
+        _dir = os.path.join(work, "ctxdir")
+        os.makedirs(_dir)
+        try:
+            load_context(_dir)
+            fails.append("a --context path that is a directory: did not refuse")
+        except Refusal:
+            pass
+        except BaseException as exc:                # noqa: BLE001 — a crash is the failure
+            fails.append("a --context path that is a directory: raised %s instead of "
                          "refusing — %s" % (type(exc).__name__, exc))
 
     finally:
