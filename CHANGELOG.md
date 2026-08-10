@@ -21,6 +21,61 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.97.0 — 2026-08-10
+
+**An AI exposure can cite what has actually happened to somebody.** `record-reference` records
+a MITRE ATLAS technique (`AML.T####`) or case study (`AML.CS####`), a paper or an advisory,
+against a class a deployment is *already* derived-exposed to. NIST AI 100-2 E2025 cites ATLAS
+twice — §2.2.4 p.16 and §2.3.5 p.27, ref [248] — in the same publication this register draws
+`NISTAML.01`–`.05` from, and cites it as a catalogue of **real-world incidents** rather than a
+rival taxonomy. So it answers a question the classes could not: *has anything in this class
+actually happened to anyone?*
+
+### The sibling of v0.96.0, and the trap is at the opposite end
+
+BL-117's trap was on **import** — a hand-typed reference in a matching key silently *updates* an
+assessed risk. This one is on **recompute** — a naively-added key is silently *destroyed*. Same
+harm, opposite doors, and no shared implementation (the no-cross-skill-imports rule).
+
+`map_exposure` **rebuilds** `rec["exposure"]` from scratch on every recompute and keeps only the
+keys it names. It named `controls` alone. And the retention test for a class that stops being
+derivable read `controls` alone too — so a class carrying references and **no** controls was
+deleted outright. **Both failed by construction**, and both would have failed *after* the write
+succeeded: the command prints `1 reference(s) recorded`, the store on disk is correct, and the
+loss arrives at the next attribute change with no error at all.
+
+### A new guard, with three separable halves
+
+`exposure-references.sh` — **preserve**, **retain**, **state**. The third is the opposite risk:
+`exposure_state()` reads `controls` and nothing else, because letting a cited technique ID read
+as `controls-recorded` would make **reading about an attack look like defending against one**.
+That is the most attractive wrong move available in this file.
+
+**CAC-GP-1.9 rejected the first attempt, and it was right to.** The retention scenario ran
+*after* an ordinary recompute, so `preserve`'s mutation had already destroyed the reference
+before retention was reached — making the two halves indistinguishable. The fix was not to
+re-register the overlap but to isolate the path: retention reads `prior`, so what it guards is
+reachable **without** a prior recompute, and testing it through one was measuring the wrong
+thing.
+
+Ratchets move together, in this commit: **41 guards / 79 halves / 113 proved**.
+
+### Silence is still not safety
+
+`nistaml-exposure.md` §5 now says so in the citation's own terms: a cited case study does not
+make a class worse, and **the absence of one does not make an exposure less real.** Most attack
+classes have no public incident. Reading that silence as safety is the move §4 already refuses,
+arriving by citation instead of by a `closed` key — which is why it is written down rather than
+left to be inferred.
+
+### Answered on the way
+
+The plan's open question 1 — does a reference need its own `on` and `by`, as `record_control`
+requires? **Yes**, matching `record_control`. Cheap, consistent, and a register that records who
+added a pointer and when is worth more than one that does not. Open question 2 (should
+`board-pack` surface references) stays open and unbuilt: a board does not need a technique ID,
+and the section contract is additive-only, so it can wait for a reason.
+
 ## v0.96.0 — 2026-08-10
 
 **A risk can say where it came from.** `references` — a plural list of free text on the risk: an

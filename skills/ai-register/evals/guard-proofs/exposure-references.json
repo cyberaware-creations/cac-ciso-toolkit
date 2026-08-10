@@ -1,0 +1,41 @@
+{
+  "guard": "skills/ai-register/evals/exposure-references.sh",
+  "forbids": "a recorded reference being silently destroyed by a routine exposure recompute, through either door — the rebuild that keeps only named keys, or the retention test for a class that stops being derivable — and a reference being promoted into a control",
+  "note": "Registered with the feature (BL-119 T8) rather than after it. Both destruction paths FAILED BY CONSTRUCTION before this change: `map_exposure` rebuilds `rec[\"exposure\"]` from scratch and named `controls` alone, and the `noLongerDerived` retention condition tested `controls` alone too. The user would have recorded a reference, been told it was accepted, and lost it with no error on the next attribute change — which is why the write-side check alone was never going to be enough.",
+  "mutations": [
+    {
+      "half": "preserve",
+      "why": "The rebuild forgets the key again. This is not a hypothetical regression: it is the code as it stood before v0.97.0, and it is what any future key added to an exposure entry will do unless somebody names it here. Note what survives the mutation — the write still succeeds, the command still prints '1 reference(s) recorded', and the store on disk is correct until the next recompute. Only the recompute check can see it.",
+      "defeats": [
+        "a reference SURVIVES an ordinary recompute",
+        "...with its text intact, not an empty shell"
+      ],
+      "file": "skills/ai-register/scripts/ai_register.py",
+      "find": "            \"references\": list(keep.get(\"references\") or []),",
+      "replace": "            \"references\": [],"
+    },
+    {
+      "half": "retain",
+      "why": "The other door, and it is invisible to the mutation above. Reverts the retention test to `controls` alone, so a class carrying references and no controls is deleted outright when it stops being derivable. An ordinary recompute still preserves references perfectly under this mutation — the loss only happens to a class somebody stopped being exposed to, which is exactly the moment nobody is looking.",
+      "defeats": [
+        "a class with references and NO controls survives losing its derivation",
+        "...marked noLongerDerived rather than quietly still applicable",
+        "...with its references still on it"
+      ],
+      "file": "skills/ai-register/scripts/ai_register.py",
+      "find": "        if cls not in fresh and ((keep.get(\"controls\") or []) or (keep.get(\"references\") or [])):",
+      "replace": "        if cls not in fresh and (keep.get(\"controls\") or []):"
+    },
+    {
+      "half": "state",
+      "why": "The opposite failure, and the one a well-meaning change actually makes: counting a reference as evidence the class is attended to. Under this mutation nothing is destroyed and nothing errors — a deployment that has only READ ABOUT an attack simply starts reading as `controls-recorded`, which is the register asserting a defence nobody put in place. Registered because it is the most attractive wrong move in this file and the least likely to be noticed by a test that only asks whether the data survived.",
+      "defeats": [
+        "a reference does not move exposure_state on write",
+        "...nor after a recompute — reading about an attack is not defending against one"
+      ],
+      "file": "skills/ai-register/scripts/ai_register.py",
+      "find": "    return \"controls-recorded\" if (entry.get(\"controls\") or []) else \"no-controls-recorded\"",
+      "replace": "    return \"controls-recorded\" if (entry.get(\"controls\") or entry.get(\"references\") or []) else \"no-controls-recorded\""
+    }
+  ]
+}

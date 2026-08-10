@@ -123,6 +123,17 @@ gap rather than a decision, and restoring it is a one-line change nothing else w
   make sure it does not.
 - **Not a control framework.** The class says what the deployment is exposed to. What to do
   about it is a control question, and controls are rated in `nist-csf`.
+- **Not answered by a citation.** `record-reference` cites published work against a class —
+  NIST AI 100-2 E2025 points at MITRE ATLAS twice, at §2.2.4 (p. 16) and §2.3.5 (p. 27), as a
+  catalogue of *real-world incidents* rather than a rival taxonomy. That answers a question the
+  classes cannot: *has anything in this class actually happened to anyone?* It answers no
+  others. A cited case study does not make the class worse, and it produces no severity, score
+  or priority.
+
+  **And the direction that matters more: the ABSENCE of a case study does not make an exposure
+  less real.** Most attack classes have no public incident. Reading that silence as safety is
+  the same move §4 refuses, arriving by citation instead of by a `closed` key — which is
+  exactly why it is written down here rather than left to be inferred.
 
 ---
 

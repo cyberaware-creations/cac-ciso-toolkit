@@ -45,6 +45,10 @@ Standard library only. Subcommands:
   map-exposure      <store.air> --deployment D-001
   record-control    <store.air> --deployment D-001 --class NISTAML.02 --control '..'
                                 --evidence '..' --on YYYY-MM-DD
+  record-reference  <store.air> --deployment D-001 --class NISTAML.02
+                                --ref 'ATLAS AML.T0043' [--note '..'] [--on YYYY-MM-DD]
+                                Cites published work against a class. NOT a control:
+                                nothing is scored, counted or closed by it.
   declare           <store.air> --deployment D-001 --flag regulatedDataHeld --value true
                                 --by NAME
   ingest            <store.air> --deployment D-001 --kind model-card --tier T3 --source '..'
@@ -797,12 +801,23 @@ def map_exposure(store: dict, did: str, by: str = "") -> dict:
             "because": entry["because"],
             # Preserved, never reset by a recompute.
             "controls": list(keep.get("controls") or []),
+            # BL-119 T3, and this line is the whole item. This function REBUILDS the entry
+            # from scratch on every recompute, so any key not named here is destroyed the next
+            # time an attribute changes — silently, with no error, after the user recorded
+            # something and saw it accepted. That is worse than not having the field at all.
+            "references": list(keep.get("references") or []),
         }
     # A class that stopped being derivable but carries controls is kept, marked as no longer
     # derived. Deleting it would throw away evidence; pretending it is still applicable would
     # be a different lie.
+    #
+    # EITHER, not just controls (BL-119 T4). A class carrying references but no controls used
+    # to fail this test and be deleted outright, taking its references with it — the same
+    # silent destruction as T3, reached by the other door. Somebody who recorded that a
+    # published case study exists for this class has produced a record too, and losing it
+    # because they had not yet recorded a control is the wrong way round.
     for cls, keep in prior.items():
-        if cls not in fresh and (keep.get("controls") or []):
+        if cls not in fresh and ((keep.get("controls") or []) or (keep.get("references") or [])):
             entry = dict(keep)
             entry["noLongerDerived"] = True
             fresh[cls] = entry
@@ -812,8 +827,62 @@ def map_exposure(store: dict, did: str, by: str = "") -> dict:
     return fresh
 
 
+def record_reference(store: dict, did: str, cls: str, ref: str, note: str = "",
+                     on: str = "", by: str = "") -> dict:
+    """Record a published reference against an attack class — an ATLAS technique or case study.
+
+    NIST AI 100-2 E2025 cites MITRE ATLAS twice (s 2.2.4 p.16, s 2.3.5 p.27, ref [248]) — the
+    same publication this register draws `NISTAML.01`-`.05` from. NIST cites it as a catalogue
+    of REAL-WORLD INCIDENTS, not as a competing taxonomy, and that distinction is the value:
+    the classes say what KIND of attack applies, a reference says whether anything in that
+    class has actually happened to anyone.
+
+    **A reference is not a control, and never behaves like one.** It records no severity, no
+    score, no priority, and it does not close, reduce or resolve the class. `exposure_state`
+    does not read it. The refusal below is `record_control`'s, deliberately word-for-word in
+    shape: exposure is derived from attributes and cannot be selected by hand.
+
+    **Silence is not safety, and this is the direction that matters here.** A case study
+    recorded against a class does not make the class worse; the ABSENCE of one does not make
+    it less real. Most attack classes have no public incident, and reading that as evidence of
+    safety is exactly the reasoning `evals/no-closed-state.sh` exists to refuse.
+
+    Free text. The ATLAS corpus is not bundled, not fetched and not validated — an ID that
+    never existed is the author's problem, and one that stops existing when MITRE reorganises
+    must not break a store somebody wrote two years ago.
+    """
+    if not str(ref or "").strip():
+        raise Refusal(
+            "--ref names the published work: an ATLAS technique (AML.T0043), a case study "
+            "(AML.CS0011), a paper, an advisory.\n"
+            "  Free text and nothing is validated against a catalogue — but an empty "
+            "reference points at nothing, and a pointer to nothing is not a record.")
+    rec = find_deployment(store, did)
+    if cls not in (rec.get("exposure") or {}):
+        known = ", ".join(sorted(rec.get("exposure") or {})) or "none derived yet"
+        raise Refusal(
+            "%s is not a class this deployment is exposed to (derived: %s).\n"
+            "  Exposure is derived from attributes and cannot be selected by hand. If this "
+            "class should apply, the attribute that would make it apply is what needs "
+            "declaring." % (cls, known))
+    entry = {"ref": ref.strip(), "note": str(note or "").strip(),
+             "on": check_date(on, "--on") if on else utc_today(),
+             "by": str(by or "").strip()}
+    rec["exposure"][cls].setdefault("references", []).append(entry)
+    append_history(store, "reference-recorded", did, by, why=ref.strip(),
+                   detail={"class": cls})
+    return entry
+
+
 def exposure_state(entry: dict) -> str:
-    """One of exactly two states. There is no third, by design."""
+    """One of exactly two states. There is no third, by design.
+
+    Reads `controls` and NOTHING ELSE — in particular not `references` (BL-119 T5). A
+    reference is a pointer to somebody else's published work; a control is a claim that this
+    organisation put something in place. Letting a cited technique ID move a deployment from
+    `no-controls-recorded` to `controls-recorded` would let reading about an attack read as
+    defending against one, which is the single most attractive wrong move available here.
+    """
     return "controls-recorded" if (entry.get("controls") or []) else "no-controls-recorded"
 
 
@@ -3034,6 +3103,22 @@ def _cmd_record_control(args) -> int:
     return 0
 
 
+def _cmd_record_reference(args) -> int:
+    store = load(args.store)
+    record_reference(store, args.deployment, args.klass, args.ref, args.note,
+                     on=args.on, by=args.by)
+    save(args.store, store)
+    entry = find_deployment(store, args.deployment)["exposure"][args.klass]
+    print("%s  %s — %d reference(s) recorded" % (args.deployment, args.klass,
+                                                 len(entry["references"])))
+    # Said every time, because this is the sentence the feature exists to protect. Recording
+    # that somebody else was attacked this way changes nothing about this deployment's own
+    # posture, and a reader who takes a citation for a mitigation has read it backwards.
+    print("  A reference is not a control. The class is unchanged, and nothing here is "
+          "counted, scored or closed.")
+    return 0
+
+
 def _cmd_declare(args) -> int:
     store = load(args.store)
     raw = str(args.value).strip().lower()
@@ -3289,6 +3374,16 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--on", default="")
     sp.add_argument("--by", default="")
     sp.set_defaults(fn=_cmd_record_control)
+
+    sp = store_arg(sub.add_parser("record-reference"))
+    sp.add_argument("--deployment", required=True)
+    sp.add_argument("--class", dest="klass", required=True)
+    sp.add_argument("--ref", default="",
+                    help="the published work: an ATLAS technique, case study, paper or advisory")
+    sp.add_argument("--note", default="")
+    sp.add_argument("--on", default="")
+    sp.add_argument("--by", default="")
+    sp.set_defaults(fn=_cmd_record_reference)
 
     sp = store_arg(sub.add_parser("declare"))
     sp.add_argument("--deployment", required=True)

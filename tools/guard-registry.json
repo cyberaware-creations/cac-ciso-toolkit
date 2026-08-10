@@ -18,6 +18,11 @@
       "forbids": "a decision rendered as a raw Python dict repr instead of its text"
     },
     {
+      "path": "skills/ai-register/evals/exposure-references.sh",
+      "role": "guard",
+      "forbids": "a recorded reference being silently destroyed by a routine exposure recompute — through the rebuild that keeps only named keys, or through the retention test for a class that stops being derivable — and a reference being promoted into a control by `exposure_state`"
+    },
+    {
       "path": "skills/ai-register/evals/exposure.sh",
       "role": "guard",
       "forbids": "a hand-selectable exposure class — the guard is the ABSENCE of a command"

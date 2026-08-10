@@ -408,6 +408,7 @@ prove only that the fixture still works.
 | `event-statement.sh` | `risk-register` | a scored risk with no event statement — a topic given a likelihood and an impact | add · rescore |
 | `decisions-render.sh` | `vendor-register` | a decision rendered as a raw Python dict repr instead of its text | render |
 | `exposure.sh` | `ai-register` | a hand-selectable exposure class — the guard is the ABSENCE of a command | absence · derivation |
+| `exposure-references.sh` | `ai-register` | a cited reference silently destroyed by a routine recompute, through either door — and a reference promoted into a control | preserve · retain · state |
 | `board-safety.sh` | `ai-register` | a board artifact that does not say it is not legal advice, and banned vocabulary in any shipped source file — scripts included | legal-advice · source-scan |
 | `board-safety.sh` | `risk-register` | raw framework wording reaching a board renderer; confidence vocabulary in any shipped source but `render_dashboard` | raw-title · source-scan |
 | `questions.sh` | `vendor-register` | a vendor assertion shrinking the question set | subtraction |
