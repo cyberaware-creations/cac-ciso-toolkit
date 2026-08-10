@@ -33,7 +33,7 @@
       "label": "Delaware cyber oversight cases",
       "publisher": "Delaware Court of Chancery",
       "instrument": "Firemen's Retirement System of St. Louis v. Sorenson, C.A. No. 2019-0965-LWW (Del. Ch. 5 Oct. 2021); Construction Industry Laborers Pension Fund v. Bingle, C.A. No. 2021-0940-SG (Del. Ch. 6 Sep. 2022), aff'd No. 411, 2022 (Del. 17 May 2023); In re The Boeing Co. Derivative Litig., C.A. No. 2019-0907-MTZ (Del. Ch. 7 Sep. 2021)",
-      "version": "dates corrected 2026-08-08; two were wrong before this check",
+      "version": "dates corrected 2026-08-08; two were wrong before this check. Checked against the Court of Chancery's published opinion records and CourtListener. NO CITATOR WAS RUN — no Shepard's, no KeyCite — so subsequent history beyond the recorded Bingle affirmance is unconfirmed, and this row does not claim otherwise (BL-142)",
       "checkedOn": "2026-08-08",
       "checkedBy": "claude-code",
       "gated": true,
@@ -191,6 +191,35 @@
         "references/regulatory-receipts.md"
       ],
       "intervalBecause": "A disclosure clock, where the harm from a missed amendment is a LATE FILING and is asymmetric — nobody is penalised for reading the rule too often. The operative text of these instruments is comparatively stable; the staff interpretation around them is not, and it is the interpretation that moves a deadline. 365 days would let a changed clock sit unnoticed for up to a year on the one artifact whose value is being on time. Halved to 180 on 2026-08-09."
+    },
+    {
+      "id": "sec-cyber-rescission-petition",
+      "label": "Petition to rescind Item 1.05",
+      "publisher": "SIFMA, ABA, BPI, ICBA and IIB, to the U.S. Securities and Exchange Commission",
+      "instrument": "Joint Petition for Rulemaking to amend the Cybersecurity Risk Management, Strategy, Governance and Incident Disclosure rule to rescind Form 8-K Item 1.05 and the Form 6-K counterpart, SEC File No. 4-856, 22 May 2025",
+      "version": "pending; no Commission action recorded as at 2026-08-09. A petition is not a proposal and not a rule — this row exists because the product now names it, and a claim about pendency decays the moment the Commission acts",
+      "checkedOn": "2026-08-09",
+      "checkedBy": "claude-code",
+      "gated": true,
+      "reviewIntervalDays": 180,
+      "intervalBecause": "the claim carried in the product is that the Commission HAS NOT ACTED. That is a negative about a live docket, and the day it stops being true every sentence citing it becomes wrong. 365 days is a year of being wrong; the disclosure-clock rows moved to 180 for the weaker version of the same argument",
+      "usedFor": [
+        "references/regulatory-receipts.md"
+      ]
+    },
+    {
+      "id": "solarwinds-dismissal",
+      "label": "SEC v. SolarWinds and Brown, dismissed",
+      "publisher": "U.S. Securities and Exchange Commission",
+      "instrument": "Litigation Release No. 26423, 20 November 2025 — SEC v. SolarWinds Corp. and Timothy G. Brown, joint stipulation of dismissal with prejudice",
+      "version": "final; the release records that the dismissal \"does not necessarily reflect the Commission's position on any other case\", which is the half the product quotes and the half commentary drops",
+      "checkedOn": "2026-08-09",
+      "checkedBy": "claude-code",
+      "gated": true,
+      "reviewIntervalDays": 365,
+      "usedFor": [
+        "references/regulatory-receipts.md"
+      ]
     }
   ]
 }
