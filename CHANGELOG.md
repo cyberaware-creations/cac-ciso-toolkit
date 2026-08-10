@@ -21,6 +21,40 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.75.0 — 2026-08-10
+
+**The SEC posture sentences now carry the dossier's own words, in all five places, plus the
+SolarWinds limit and the origin of the error.** BL-141, finished properly.
+
+v0.73.0 dated these claims but shipped **my wording**, because `research/refwatch-dossier-sec-posture-2026-08-08.md`
+could not be found — it lives in a Claude Project the build sessions cannot read (BL-227). The
+text has since been supplied. Every location now carries **findings F1 and F3 verbatim**, quoted
+as blockquotes rather than paraphrased, because a paraphrase of a posture claim is exactly how
+the undated original got here. The facts are unchanged from v0.73.0; the words are now the
+approved ones and are visibly a quotation, which is checkable in a way a paraphrase is not.
+
+- `incident-materiality/references/disclosure-clocks.md`, `references/materiality-factors.md`,
+  `SKILL.md`, and `ciso-board-translation/references/regulatory-receipts.md` in two places
+
+**F5 — the SolarWinds limit, which v0.73.0 did not touch.** `regulatory-receipts.md` said to
+cite the matter *"never as standing precedent"*. That is imprecise in the direction that matters:
+the voluntary dismissal ended the case but **did not vacate Judge Engelmayer's 2024-07-18
+opinion**, which remains a published district-court decision on which cybersecurity statements
+are actionable. F5's replacement wording lands verbatim, including the personal exposure a named
+CISO carried for roughly two years — the part a board actually reacts to.
+
+**And the v0.48.0 entry now says where the claim came from.** RW-001 finding F2: on 12 June 2025
+the SEC withdrew fourteen pending rule **proposals** (Release 33-11377), two of them cyber —
+S7-04-22 and S7-06-23. **Neither was ever adopted and neither was ever in force; the
+public-company rules were untouched.** Reading *"SEC withdraws cybersecurity rules"* without
+checking which rules is how that became a rescission-pressure claim about Items 1.05 and 106.
+Recorded rather than quietly fixed: the mechanism — right headline, wrong instrument — is
+reusable, and the next instance will not look like this one.
+
+One claim from the item page is still **deliberately not shipped**: that the items are *"being
+filed under in 2026"*. It rests on EDGAR counts BL-130's own method notes record as phrase-match
+and directional only, and F1's verbatim text does not make it either.
+
 ## v0.74.0 — 2026-08-10
 
 **A crown jewel's criticality carries its own basis — and two shapes live on disk permanently,
@@ -1958,6 +1992,20 @@ not happened.
 > review. **A sweep that checks a narrower question than the claim makes will report the claim
 > as held** — the same shape as v0.46.0 verifying four citations and leaving two wrong dates
 > beside them (see v0.54.0). Corrected in v0.73.0; the record of the error stays here.
+>
+> **WHERE THE CLAIM CAME FROM, added 2026-08-10 from RW-001 finding F2, and it is the part
+> worth keeping.** The origin is a conflation, not an invention. On **12 June 2025** the SEC
+> *did* withdraw cybersecurity rules: **Release 33-11377** withdrew fourteen pending rule
+> **proposals**, two of them cyber — **S7-04-22** (advisers and funds) and **S7-06-23**
+> (broker-dealers). **Neither had ever been adopted. Neither was ever in force. The
+> public-company rules were untouched.** Reading *"SEC withdraws cybersecurity rules"* without
+> checking **which** rules is how the withdrawal of two never-adopted proposals became a
+> rescission-pressure claim about Items 1.05 and 106.
+>
+> That is the error this publishing arm exists to correct in other people, made here, and then
+> carried through a sweep that reported it as checked. It is recorded rather than quietly fixed
+> because the mechanism — right headline, wrong instrument — is reusable, and the next instance
+> will not look like this one.
 
 ### The technical-detail carve-out was stated too widely — in three files
 

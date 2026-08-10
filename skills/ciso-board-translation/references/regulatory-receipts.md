@@ -76,11 +76,24 @@ the **oversight / board level** — not to accumulating granular internal risk
 records. Candid internal risk documents can cut the *other* way when they
 contradict public statements: internal SolarWinds risk docs helped sustain the
 one SEC claim that survived the motion to dismiss (S.D.N.Y., 18 July 2024, which
-dismissed most of the action). **That case no longer exists** — the SEC
-dismissed it with prejudice by joint stipulation on 20 November 2025 — so cite
-this as an illustration of *litigation risk*, never as standing precedent. The
-illustration survives the dismissal: candid internal documents were what carried
-a claim that far. So the goal is **board-level decision records, not a sprawling
+dismissed most of the action).
+
+**How far that matter may be cited — RW-001 finding F5, verbatim:**
+
+> The SEC's action was dismissed with prejudice on 2025-11-20 and produced no
+> judgment or penalty against the company or the CISO. Judge Engelmayer's
+> 2024-07-18 opinion was not vacated and remains a published district-court
+> decision on which cybersecurity statements are actionable. Treat the matter as
+> an illustration of litigation exposure — including personal exposure for a
+> named CISO over roughly two years — rather than as a settled rule. The SEC's
+> own release states the dismissal was in the exercise of its discretion and does
+> not necessarily reflect its position on any other case.
+
+This replaces *"never as standing precedent"*, which was imprecise in the
+direction that matters: a voluntary dismissal ends the case, it does not vacate
+the opinion, and the opinion is still on the books. The illustration survives the
+dismissal for a second reason too — candid internal documents were what carried a
+claim that far. So the goal is **board-level decision records, not a sprawling
 internal confessional**. More internal documentation is not automatically safer.
 
 ## DORA RTS 2024/1774 (EU financial entities)
@@ -142,17 +155,30 @@ and consequence-framing feed directly into the materiality call.
 **HONEST LIMIT (load-bearing), and it runs in two directions.**
 
 *Outward.* Item 106 mandates a *description of process*, **not decision-rationale
-records**. Two things have happened around the rule and **neither changed it**,
-as at August 2026. Five financial trade associations petitioned the Commission
-on **22 May 2025** to rescind Item 1.05 and the Form 6-K counterpart (**SEC File
-No. 4-856**); a petition is not a proposal, the Commission has not acted, and
-Items 1.05 and 106 are textually unchanged. And the SEC's **SolarWinds
-enforcement action was dismissed with prejudice on 20 November 2025**
-(**Litigation Release No. 26423**), which records that the dismissal *"does not
-necessarily reflect the Commission's position on any other case"*. Use this as
-*context for why boards want translation* — not as a fear-based "the SEC will
-come after you" threat, and equally not as "the rule is going away". Threat-framing
-here is both inaccurate and disqualifying in the room.
+records**. Two things have happened around the rule and **neither changed it**.
+Both are quoted **verbatim** from Reference Watch dossier RW-001, findings F1 and
+F3, rather than summarised — a paraphrase of a posture claim is how the undated
+sentence this replaces got here.
+
+> In May 2025 five financial-industry trade associations petitioned the SEC to
+> rescind Form 8-K Item 1.05 (File No. 4-856). As of 2026-08-08 the Commission
+> has not acted on the petition: no proposal has been issued, the item does not
+> appear on the SEC's regulatory agenda, and Items 1.05 and 106 remain in force
+> unchanged.
+
+> As of 2026-08-08 the SEC has announced no public-company cybersecurity-disclosure
+> enforcement action since 2024-10-22, and dismissed the SolarWinds action with
+> prejudice on 2025-11-20. The Commission has not stated a change of policy: the
+> Cyber and Emerging Technologies Unit's stated scope still includes public-issuer
+> cyber disclosure, and Items 1.05 and 106 remain in force. This is a change in
+> observed enforcement activity, not in stated obligation.
+
+The dismissal is **Litigation Release No. 26423**, which records in the same
+document that it *"does not necessarily reflect the Commission's position on any
+other case"*. Use all of this as *context for why boards want translation* — not
+as a fear-based "the SEC will come after you" threat, and equally not as "the
+rule is going away". Threat-framing here is both inaccurate and disqualifying in
+the room.
 
 *Inward.* **17 CFR 229.106 carries no exemption.** Read in full it is
 definitions, risk management and strategy, governance, and a structured-data
@@ -280,4 +306,7 @@ already reflected above:** the SEC's SolarWinds enforcement action was dismissed
 with prejudice on **20 November 2025** (Litigation Release No. 26423), and the
 Item 1.05/106 family is the subject of a rescission petition filed **22 May 2025**
 (SEC File No. 4-856) that the Commission has not acted on. **Neither changed the
-rule text.** Check both before relying on either.
+rule text, and neither is a stated change of Commission policy** — the dated,
+verbatim statements of both are in the *Outward* limit above, quoted from
+Reference Watch dossier RW-001 findings F1 and F3 as at **2026-08-08**. Check
+both before relying on either.
