@@ -2775,7 +2775,7 @@ def _cmd_self_test(_args):
         # scan alone would not tell a reader of this file that the sentence is load-bearing.
         _note = export_findings(fb)["note"]
         ok("SP 800-30" in _note and "own" in _note,
-           "the export note names SP 800-30 for the labels and the arithmetic as ours")
+           "the export note names SP 800-30 for the labels and the arithmetic as CAC's own")
         ok("under SP 800-30" not in _note,
            "...and does not attribute the SCORING to it — the misattribution v0.51.0 removed")
 
