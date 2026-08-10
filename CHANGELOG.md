@@ -21,6 +21,49 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.86.0 — 2026-08-10
+
+**The register says which word it uses and whose it is.** BL-54 **Phase 0 / R-7 only** —
+vocabulary corrections. Documentation, plus one renderer caption.
+
+This skill cites **two NIST documents that do not use the same words for the same things**, and
+until now it used one vocabulary while citing both. Six corrections, each with the source's own
+sentence:
+
+- **`exposure` is IR 8286r1's word** for likelihood × impact — *"the combination of impact and
+  likelihood is referred to as exposure."* **SP 800-30 Rev. 1, cited here for the rating labels,
+  calls the same quantity *level of risk*.** Aliases in this tool; **not** aliases in general —
+  800-30 Rev. 1 combines the two through Table I-2, a 5×5 **lookup**, and this tool multiplies.
+  Same axis, different calculation.
+- **`inherent` is a stage, not a permanent partner to `residual`** — *"On the first iteration…
+  this may also be considered the initial assessment, whereas subsequent cycles refer to this as
+  inherent."* A register on its first pass records an **initial** assessment, and calling it
+  inherent asserts a before/after relationship that pass has not established.
+- **`residual` here is always the ACTUAL residual.** 8286r1 also uses *target residual risk*;
+  this register does not record one, so a reader arriving from the source does not read the
+  field as an aspiration.
+- **Band order ranks severity; it does not schedule work** — *"priority is not necessarily a
+  reflection of the chronological order in which risk should be mitigated."* The register ranks,
+  the plan sequences, and they may differ as long as somebody can say why.
+- **`vulnerability` is wider than a scanner finding** — *a condition that enables a threat event
+  to occur*, including planning gaps, training deficiencies, physical access and supply chain. A
+  register reading it as *unpatched software* silently excludes every risk whose enabling
+  condition is a process nobody owns.
+- **The heat map ships with its caution, on the page** — NIST IR 8286B-upd1 asks that such a
+  graphic be *"used with caution… not necessarily an indicator of rigid boundaries."* A heat
+  map's persuasive power is that the boundaries look real: a risk one point either side of a
+  threshold lands in a different colour. The board reads the picture, not a reference file, so
+  the caption carries it.
+
+⚠️ **The quotes are transcribed from the register-alignment design, not re-read against the
+published text in this pass**, and the section numbers are the design's. `sources.json` declares
+IR 8286B-upd1 with `checkedBy: unverified` and a `whyUnverified` saying exactly that — 52
+declared sources, 2 unverified, neither gated. **The board-facing caption names the document and
+not the section:** an unverified locator does not belong on an artifact a director forwards.
+
+**Phase 0 ships alone, by the plan's own design.** `git diff --stat` touches **one** `.py` — the
+heat-map caption in `render_board.py` — and no engine. Every suite unchanged and green.
+
 ## v0.85.0 — 2026-08-10
 
 **Nine copies of the brand tokens, declared at one end and compared at none — and registering

@@ -40,6 +40,12 @@ A register earns its keep only if these are true, and each is where people usual
    this if-then framing", which claimed more of the source than the source says. Always draft it
    for them.
 
+   **And `vulnerability` there is wider than a scanner finding.** 8286A r1's element is *a
+   condition that enables a threat event to occur*, explicitly including planning gaps, training
+   deficiencies, physical access and supply-chain conditions. A register that reads the word as
+   *unpatched software* silently excludes every risk whose enabling condition is a process
+   nobody owns — which is most of what a CSF gap import produces.
+
    **Enforced since v0.78.0**, and it was only a documented precondition before that: `add`
    refuses without `--description`, and `set-score` refuses to re-score a risk that has none.
    **The shape is not validated** — no regex, no `startswith("If")`. Requiring the field is a
@@ -131,6 +137,24 @@ Wording and rating are where you add value over a template:
 - **Inherent** = before/without today's controls. **Residual** = with them working as described.
   Residual should be below inherent wherever a real control exists; if they're equal, either the
   control is missing or the risk is being **accepted** — make that explicit (`response.type: accept`).
+
+  ⚠️ **They are not a permanent pair, and on a first assessment they are not one at all.** NIST
+  IR 8286r1: *"On the first iteration… this may also be considered the initial assessment,
+  whereas subsequent cycles refer to this as inherent."* A register on its first pass is
+  recording an **initial** assessment, and reading it as before-controls/after-controls asserts a
+  relationship that pass has not established. Later cycles earn the word. The engine treats both
+  fields identically either way — this is about what a board is told the comparison means. Full
+  note in `references/schema.md`, *Vocabulary*.
+
+- **`residual` here is always the ACTUAL residual.** NIST IR 8286r1 also uses *target residual
+  risk* — what a treatment is aiming at — and this register does not record one. If somebody
+  arrives from the source expecting `residual` to be an aspiration, it is not.
+
+- **Band order ranks severity; it does not schedule work.** NIST IR 8286r1: *"priority is not
+  necessarily a reflection of the chronological order in which risk should be mitigated."* A
+  critical risk whose treatment waits on a system being replaced next quarter may legitimately
+  be sequenced after a high one that closes this week. **The register ranks, the plan sequences,
+  and they are allowed to differ** — as long as somebody can say why.
 - Choose the response honestly: `transfer` (e.g. insurance) moves *financial* loss but rarely reduces
   likelihood or impact, so a transferred risk often stays over appetite. Don't let a response type
   flatter the residual.
@@ -152,6 +176,15 @@ python3 scripts/score_register.py self-test                    # verify engine p
 
 `--json` adds `inherentExposure/Band`, `residualExposure/Band`, `overAppetite`, and a `summary`
 block. Feed it to the renderers in step 7.
+
+**A word about `exposure`, because this skill cites two documents that do not use the same one.**
+`exposure` means likelihood × impact, and it is NIST IR 8286r1's word — *"the combination of
+impact and likelihood is referred to as exposure."* **SP 800-30 Rev. 1, which this skill cites
+for its rating labels, calls the same quantity *level of risk*.** They are aliases here, and they
+are not aliases in general: 800-30 Rev. 1 combines the two through **Table I-2, a 5×5 lookup**,
+and this tool multiplies. So *level of risk* names the same axis and a different calculation —
+which is why the description above says the labels are 800-30's and the arithmetic is CAC's own.
+Full note in `references/schema.md`, *Vocabulary*.
 
 #### What the treatments cost
 
