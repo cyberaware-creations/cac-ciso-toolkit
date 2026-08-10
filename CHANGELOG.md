@@ -21,6 +21,60 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.94.0 — 2026-08-10
+
+**A correction that was itself wrong, withdrawn — and the rule that would have caught it.**
+BL-233 arrived as *"a shipped, board-facing sentence asserts a holding the opinion does not
+contain."* Read against the opinion, the sentence is right and **the v0.91.0 correction
+condemning it is the thing that is wrong.**
+
+### What v0.91.0 got wrong, and how
+
+v0.91.0 recorded that *Brewer v. Turner* contains **no information-systems analysis at all**,
+citing a count: the phrase appeared **zero** times. That count was real. What it counted was the
+**PDF text extractor**, which renders the phrase `i nformation - s ystems`, so a literal search
+returns zero whether or not the opinion contains it. Squeezed — letters only, both sides — the
+same file returns **three**.
+
+The opinion is explicit. The plaintiff pleaded **both** theories; the court took the
+information-systems theory *"in short order"* and held there was *"no straight-faced argument
+that Regions lacked an information system."*
+
+### The corollary is restored, and it is stronger than it was
+
+*Brewer* really is the corollary in one case, and now says why. Footnote 67 — the footnote
+disposing of prong one — cites Risk Committee minutes, joint Risk-and-Audit Committee minutes,
+and **December 2019 and September 2020 Board meeting minutes**. Those come from the same §220
+production that shows the board received the whistleblower's draft complaint and left the
+practices alone for around twenty months. **One production, both jobs.**
+
+Stated with the limit that matters: prong one fell away because a system's existence was **not
+seriously contestable**, *not* on a merits finding that the system was adequate.
+
+### The forward sweep found two live sentences anyway
+
+Both overstated what later cases do with *Bingle*, and both are corrected. *In re TransUnion*
+cites *Bingle* **once, in a footnote, on a bare "See"** — it is not "approving". *Marchner v.
+Riley* cites it **twice, both footnotes**; its prong-two authority is *In re TransUnion* and
+*In re Citigroup*. *Marchner*'s actual holding — disregarded risks must be **legal violations**,
+not business risk — stands unchanged. *Marchner* also cites *In re TransUnion* at **324 A.3d 869,
+886–87**, independently corroborating a reporter citation this file took from another source.
+
+### CAC-RW-1.14 — a correction is a claim, and gets checked like one
+
+A negative finding from extracted text is not a finding; a zero that overturns shipped work
+needs a second, differently-shaped check; and correcting a characterisation means sweeping
+derived sentences **in both directions**. The forward sweep was run and was worth running. The
+backward sweep — *is the correction sound?* — was skipped, and it was the one that mattered.
+
+`sources.json` names the false statement as **withdrawn**, with the reason it was believed,
+rather than quietly editing it away.
+
+### One count corrected forward
+
+The v0.93.0 entry below says the block holds **nine** decisions. Counting its distinct decisions
+gives **eleven**. The shipped entry is left as written; the number is corrected here.
+
 ## v0.93.0 — 2026-08-10
 
 **Decided: one paid citator pass, then free sweeps.** The half that can be built is built; the
