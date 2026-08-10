@@ -2065,20 +2065,47 @@ def export_findings(store: dict, today: str = "") -> dict:
 
 # --- Context ------------------------------------------------------------------
 
+CONTEXT_CONTRACT = "CAC-AP-1"
+
+
 def load_context(path: str) -> dict:
     """Read a CAC-AP-1 payload exported by `business-context`.
 
     Data, never an import (§2.6). A raw `.biz` is refused with the command that turns one into
     a payload, because reading the store directly would put the narrowing decision in the
     wrong skill.
+
+    EVERY WAY OF GETTING THIS WRONG REFUSES. Until BL-218 the open had no guard at all, and
+    this was the only one of seven `--context` consumers that answered a mistyped path with a
+    raw Python traceback — a direct BL-169 D-1 violation, and the one a CISO meets in the
+    first ten minutes. The guard is `skills/vendor-register/scripts/vendor_register.py`'s,
+    which is this function's twin; the pair is registered under CAC-TW-1 and compared by
+    running both against a corpus of malformed payloads, so the next copy cannot drift alone.
     """
-    with open(path, encoding="utf-8") as fh:
-        payload = json.load(fh)
+    try:
+        with open(path, encoding="utf-8") as fh:
+            payload = json.load(fh)
+    except FileNotFoundError:
+        raise Refusal(f"no such context payload: {path}")
+    except json.JSONDecodeError as exc:
+        raise Refusal(f"{path} is not valid JSON: {exc.msg}")
+    # A JSON array parses cleanly and then `.get` raises AttributeError on the next line. Five
+    # of the seven consumers check this and the two that did not both crashed on it (BL-226).
+    if not isinstance(payload, dict):
+        raise Refusal(f"{path} must contain a JSON object, got {type(payload).__name__}")
     if payload.get("family") == "business-context":
         raise Refusal(
             "%s is a raw .biz store, not an exported payload. Run `business_context.py export "
             "%s --out ctx.json` and pass that: CAC-AP-1 §2.6 makes the transport between "
             "skills data rather than an import." % (path, path))
+    # After the `.biz` clause, not before it: a raw store carries no contractVersion, and
+    # answering it with the generic contract message would throw away the one sentence that
+    # tells the reader which command produces the file they meant to pass.
+    got = payload.get("contractVersion")
+    if got != CONTEXT_CONTRACT:
+        raise Refusal(
+            f"{path} declares contractVersion {got!r}; this engine reads "
+            f"{CONTEXT_CONTRACT!r}. Produce one with `business_context.py export <file.biz>`.")
     return payload
 
 
@@ -2800,6 +2827,52 @@ def _cmd_self_test(_args):
             {"requirement": "monitoring.degradation", "met": False, "checkedBy": ""})
         eq(len(export_findings(store, today="2026-08-01")["findings"]), 1,
            "a requirement marked not met by nobody is not exported")
+
+        # --- BL-218: every way of getting `--context` wrong REFUSES -----------
+        #
+        # This engine opened the payload with no guard at all and was the only one of seven
+        # `--context` consumers that answered a mistyped path with a raw Python traceback.
+        # Each case asserts the exception CLASS and the message, never merely that something
+        # went wrong — a `FileNotFoundError` is also "an exception", and it IS the defect.
+        def refuses_context(label, filename, content, needle):
+            checks[0] += 1
+            p = os.path.join(work, filename)
+            if content is not None:
+                with open(p, "w", encoding="utf-8") as fh:
+                    fh.write(content)
+            try:
+                load_context(p)
+            except Refusal as exc:
+                if needle not in str(exc):
+                    fails.append("%s: refused, but not for the stated reason: %s"
+                                 % (label, exc))
+            except BaseException as exc:            # noqa: BLE001 — a crash is the failure
+                fails.append("%s: raised %s instead of refusing — %s"
+                             % (label, type(exc).__name__, exc))
+            else:
+                fails.append("%s: did not refuse" % label)
+
+        refuses_context("a --context path that does not exist", "gone.json", None,
+                        "no such context payload")
+        refuses_context("a --context payload that is not JSON", "badctx.json", "{",
+                        "is not valid JSON")
+        refuses_context("a --context payload that is a JSON array", "arrctx.json", "[]",
+                        "must contain a JSON object, got list")
+        refuses_context("a --context payload declaring no contractVersion", "noverctx.json",
+                        '{"applicability": {}}', "declares contractVersion None")
+        refuses_context("a --context payload declaring another contract", "otherctx.json",
+                        '{"contractVersion": "CAC-AP-9"}', "this engine reads 'CAC-AP-1'")
+        # The `.biz` clause runs BEFORE the contract check, so a raw store still gets the one
+        # sentence naming the command that turns it into a payload.
+        refuses_context("a raw .biz store handed straight to --context", "rawctx.json",
+                        '{"family": "business-context"}', "is a raw .biz store")
+        _okctx = os.path.join(work, "okctx.json")
+        with open(_okctx, "w", encoding="utf-8") as fh:
+            fh.write('{"contractVersion": "CAC-AP-1", "profileVersion": "1", '
+                     '"applicability": {}}')
+        eq(load_context(_okctx)["profileVersion"], "1",
+           "and a well-formed payload still loads — every refusal above would pass "
+           "equally well against a guard that refused everything")
 
     finally:
         shutil.rmtree(work, ignore_errors=True)

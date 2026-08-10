@@ -1584,6 +1584,25 @@ def load_context(path: str) -> dict:
     Data, never an import (§2.6). A raw `.biz` is refused with the command that turns one
     into a payload, because reading the store directly would put the narrowing decision in
     the wrong skill.
+
+    THE REFERENCE COPY for the seven `--context` consumers, registered under CAC-TW-1 and
+    compared by RUNNING all seven against a corpus of malformed payloads (BL-218) — the item
+    was found by executing each consumer against a path that does not exist, because the code
+    reads as fine until you do. The other six:
+
+        skills/ai-register/scripts/ai_register.py
+        skills/exceptions-register/scripts/exceptions_register.py
+        skills/incident-materiality/scripts/incident_analysis.py
+        skills/metrics-register/scripts/metrics_analysis.py
+        skills/nist-csf/scripts/profile_analysis.py
+        skills/risk-register/scripts/score_register.py
+
+    What must agree is WHICH payloads are refused and what is returned, never the wording: two
+    of the seven refuse with `ValueError` and five with a local `Refusal`, and each is that
+    engine's own refusal channel. They do not yet agree about everything — this copy accepts a
+    payload declaring no `contractVersion` where five refuse it, and five require a decided
+    `applicability` where this one does not. Those divergences are recorded in BL-226 and are
+    deliberately outside the compared corpus rather than quietly absent from it.
     """
     try:
         with open(path, encoding="utf-8") as fh:
@@ -1592,6 +1611,11 @@ def load_context(path: str) -> dict:
         raise Refusal(f"no such context payload: {path}")
     except json.JSONDecodeError as exc:
         raise Refusal(f"{path} is not valid JSON: {exc.msg}")
+    # `[]` parses cleanly and `.get` then raises AttributeError on the next line — a raw
+    # traceback from the same cause BL-218 was filed against, in the copy that item named as
+    # the reference. Found by executing the twin registration rather than by reading it.
+    if not isinstance(payload, dict):
+        raise Refusal(f"{path} must contain a JSON object, got {type(payload).__name__}")
     if payload.get("family") == "business-context":
         raise Refusal(
             f"{path} is a raw .biz store, not an exported payload. Run "
@@ -2686,6 +2710,25 @@ def _cmd_self_test(_args):
                % banned)
         ok(isinstance(out["counts"]["byCriticality"], dict),
            "criticality is counted, never aggregated into a single number")
+
+        # A JSON array parses cleanly and `.get` then raises AttributeError on the next line —
+        # a raw traceback out of the copy BL-218 named as its reference guard, found by
+        # EXECUTING the twin registration rather than by reading it. The `--context` file this
+        # engine is handed is chosen by a person, so every shape a person can type refuses.
+        checks[0] += 1
+        _arr = os.path.join(work, "arrctx.json")
+        with open(_arr, "w", encoding="utf-8") as fh:
+            fh.write("[]")
+        try:
+            load_context(_arr)
+            fails.append("a --context payload that is a JSON array: did not refuse")
+        except Refusal as exc:
+            if "must contain a JSON object, got list" not in str(exc):
+                fails.append("a --context JSON array: refused, but not for the stated "
+                             "reason: %s" % exc)
+        except BaseException as exc:                # noqa: BLE001 — a crash is the failure
+            fails.append("a --context payload that is a JSON array: raised %s instead of "
+                         "refusing — %s" % (type(exc).__name__, exc))
 
     finally:
         shutil.rmtree(work, ignore_errors=True)
