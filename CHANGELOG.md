@@ -21,6 +21,51 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.88.1 — 2026-08-10
+
+**The Delaware markers were understating what is known, and flattening the one thing that is
+not.** BL-230, partial — the marker pass only.
+
+All four 2025–2026 Delaware decisions were corroborated on 2026-08-10 against a second,
+independent source path. The ⚠️ block marker still said they came from the RW-001 dossier
+**alone** and were *"not independently corroborated"*. A marker that undersells its evidence
+gets ignored, and an ignored marker is worse than none.
+
+They now carry the **same two-path standard as *Sorenson* and *Bingle*** — an existing
+convention applied, not a new one invented: *checked against the RW-001 dossier's primary-source
+pass and independently corroborated by authoritative secondary reporting; no slip opinion
+opened, no citator run.*
+
+### ⚠️ The point of this change is the citation that did NOT corroborate
+
+***Brewer v. Turner*'s interlocutory appeal** — No. 444, 2025 (Del. 15 Dec. 2025) — is the one
+that did not. The Chancery memorandum opinion in the same case did.
+
+The receipts file previously folded the Chancery opinion and the appellate disposition into
+**one row with one marker**. Upgrading that row wholesale would have hidden the only real gap in
+the block behind a stronger claim than the appeal can support. So:
+
+- the two are **split into separate rows** with **different** markers
+- the appellate row says outright that it is the one citation in the block that did not
+  corroborate, and that it is split precisely so the fact cannot be read off the wrong marker
+- the block marker **names its own exception** rather than describing only the general case
+- the narrative statement of the appeal refusal, which carried **no marker at all**, now carries
+  the weaker one
+
+### Also
+
+- ***In re TransUnion*** gained the **`C.A. No. 2022-1103-LWW`** and **Will, V.C.** it was
+  missing while every neighbouring row carried both
+- ***Marchner v. Riley*** still carries **neither**, and the row now says so — this pass did not
+  obtain them
+- `sources.json`'s `delaware-cyber-cases` row carries all of the above, since the superseded
+  wording appeared there verbatim too
+
+**Not touched, and deliberately:** the holdings. Three propositions about what these opinions
+*say* — that *TransUnion* cites *Sorenson* and *Bingle* approvingly, the characterisation of the
+*Brewer* appeal, and whether each case is used for what it actually holds — remain
+single-sourced. They need a reading pass, not a marker pass, and are filed separately.
+
 ## v0.88.0 — 2026-08-10
 
 **A declared method whose prerequisites are unmet is worth a CISO's attention — and a method
