@@ -479,6 +479,94 @@ def check_citation_specificity(root="."):
     return True
 
 
+# --- SP 800-30 attribution (BL-187) -------------------------------------------------------
+#
+# What the source ACTUALLY provides: five qualitative rating labels and a 5x5 Table I-2 lookup.
+# What it does NOT provide, and what this repo repeatedly attributed to it anyway:
+# multiplication, numeric band thresholds, the 4- and 3-level scales. v0.51.0 exists to draw
+# that line, corrected five surfaces, and MISSED TWO — one of them a `note` field in
+# `export-findings`, which is shipped user-facing JSON retained as evidence and handed to
+# auditors. The other was the header of `no-vendor-score.sh`, the guard protecting the
+# neighbouring boundary, which explained where scoring legitimately happens and got its
+# provenance wrong.
+#
+# Neither was reported. Every release test cited the engine line; the second was found by
+# grepping for the PATTERN rather than checking the one reported line, in the time it takes to
+# run a grep. That is the whole argument for a scan: one reported instance, two actual.
+_SP80030 = re.compile(r"SP\s*800-30", re.I)
+_SP80030_CLAIM = re.compile(
+    r"\b(scor(?:e|es|ed|ing)|multipl\w*|arithmetic|band(?:s|ed|ing)?|threshold\w*|L\s*[x\u00d7]\s*I)\b",
+    re.I)
+# A line may NAME the misattribution in order to correct it — the CHANGELOG does, and so do
+# the two code comments that record what the strings used to say. Same shape as
+# do-not-cite.json's markers and for the same reason: banning the string outright would ban
+# the correction, and a repo that cannot write down its own error stops writing them down.
+_SP80030_MARKER = re.compile(
+    r"\b(was wrong|used to|until v0|it read|it said|corrected|misattribut\w*|does not|"
+    r"never|not\s+800-30|removed|labels? from)\b"
+    # Attributing the arithmetic ELSEWHERE is the sentence this scan exists to protect,
+    # not one it should flag. Deliberately possessive and specific: a bare `own` would
+    # launder "SP 800-30's own banding", which is the misattribution itself.
+    r"|\b(?:this tool|the tool|CAC|our|this repo|this suite)'s own\b", re.I)
+_SP80030_EXEMPT = ("CHANGELOG.md", "docs/", "research/", "tools/check-versions.py")
+
+
+def check_sp80030_attribution(root="."):
+    """Nothing shipped may attribute scoring, arithmetic, banding or thresholds to SP 800-30.
+
+    The labels are the source's. The multiplication, the numeric thresholds and the 4- and
+    3-level scales are CAC's own, and saying so is the product's whole pitch: a compliance
+    tool whose citations are checkable. Shipping the corrected claim in five surfaces and the
+    wrong one in the JSON an auditor keeps means the repo disagrees with itself, and the
+    disagreement is visible only to somebody who reads both (BL-187).
+
+    A line that NAMES the misattribution in order to correct it is allowed, on a marker bound
+    to the same line. Banning the string outright would ban the correction, which is how a
+    repo stops recording its own errors.
+    """
+    root = Path(root)
+    problems, scanned = [], 0
+    for path in sorted(root.rglob("*")):
+        if not path.is_file():
+            continue
+        rel = str(path.relative_to(root))
+        if (path.suffix.lower() not in (".py", ".md", ".json", ".sh", ".yml", ".yaml")
+                and path.name not in _CITATION_NAMES):
+            continue
+        if rel.startswith(".git/") or "__pycache__" in rel:
+            continue
+        if any(rel == e or rel.startswith(e) for e in _SP80030_EXEMPT):
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        scanned += 1
+        for n, line in enumerate(text.splitlines(), 1):
+            if not _SP80030.search(line):
+                continue
+            if not _SP80030_CLAIM.search(line):
+                continue
+            if _SP80030_MARKER.search(line):
+                continue
+            problems.append("{}:{}: {}".format(rel, n, line.strip()[:110]))
+    if not scanned:
+        print("ERROR: the SP 800-30 scan read no files; its glob stopped matching.")
+        return False
+    if problems:
+        print("ERROR: scoring, arithmetic or banding attributed to SP 800-30:")
+        for p in problems:
+            print("         {}".format(p))
+        print("       SP 800-30 Rev. 1 does not multiply likelihood by impact -- the phrase "
+              "appears nowhere in it -- and sets no numeric band thresholds. It combines the "
+              "two through Table I-2, a 5x5 LOOKUP. The labels are its; the arithmetic is "
+              "CAC's, and the product's pitch is that the difference is checkable.")
+        return False
+    print("sp-800-30: {} shipped files, nothing attributes scoring or banding to it.".format(
+        scanned))
+    return True
+
+
 PALETTE_NAMES = frozenset({
     "INK", "INK_RAISED", "INK_LINE", "LIME", "LIME_DIM", "PATINA", "PATINA_H",
     "PATINA_TEXT", "SLATE", "WB", "WB_SURF", "WB_LINE", "MUTED", "text_on",
@@ -907,6 +995,43 @@ def self_test():
         (nocanon / "skills" / "a" / "renderers").mkdir(parents=True, exist_ok=True)
         ok(check_vendored(str(nocanon)) is False,
            "an unreadable canonical fails with a reason")
+
+        # -- SP 800-30 attribution (BL-187) --
+        #
+        # BOTH REAL DEFECT STRINGS ARE PINNED AS REJECTIONS. They shipped for eight releases
+        # after v0.51.0 corrected five other surfaces, and only one of them was ever reported.
+        def _sp_tree(name, line):
+            r = Path(tmp) / name
+            (r / "skills" / "probe").mkdir(parents=True, exist_ok=True)
+            (r / "skills" / "probe" / "x.py").write_text(line + "\n", encoding="utf-8")
+            return str(r)
+
+        ok(check_sp80030_attribution(_sp_tree("sp-1",
+           '"note": "risk-register scores them once, under SP 800-30, against an appetite."'))
+           is False,
+           "BL-187: the shipped export note is rejected -- scoring attributed to SP 800-30")
+        ok(check_sp80030_attribution(_sp_tree("sp-2",
+           "# scored once, there, under L x I and SP 800-30 with an appetite")) is False,
+           "BL-187: the guard header is rejected too -- the location no report ever named")
+        ok(check_sp80030_attribution(_sp_tree("sp-3",
+           "# Rating LABELS are SP 800-30 Rev. 1's five-level qualitative scale")) is True,
+           "...while citing SP 800-30 for the LABELS passes -- that part is true")
+        ok(check_sp80030_attribution(_sp_tree("sp-4",
+           "# The arithmetic is this tool's own. SP 800-30 Rev. 1 sets no band thresholds."))
+           is True,
+           "...and so does attributing the arithmetic elsewhere in the same sentence")
+        # The marker is possessive on purpose: a bare `own` would launder the misattribution.
+        ok(check_sp80030_attribution(_sp_tree("sp-5",
+           "# banding follows SP 800-30's own thresholds")) is False,
+           "...but `SP 800-30's own thresholds` is still rejected -- `own` alone launders nothing")
+        # A citation with no claim attached is not this scan's business.
+        ok(check_sp80030_attribution(_sp_tree("sp-6",
+           "# See NIST SP 800-30 Rev. 1 for the qualitative scale.")) is True,
+           "a bare SP 800-30 citation with no scoring claim passes")
+        _sp_empty = Path(tmp) / "sp-none"
+        _sp_empty.mkdir(parents=True, exist_ok=True)
+        ok(check_sp80030_attribution(str(_sp_empty)) is False,
+           "a tree with nothing to scan fails instead of passing vacuously")
 
         # -- one vendored export, pinned by hash (BL-75) --
         #
@@ -1341,6 +1466,7 @@ def main(argv):
     passed = check_import_time_palette(root) and passed
     passed = check_skill_coverage(root) and passed
     passed = check_citation_specificity(root) and passed
+    passed = check_sp80030_attribution(root) and passed
     if base is not None:
         passed = check_bump(base, root) and passed
         passed = check_changelog(base, root) and passed

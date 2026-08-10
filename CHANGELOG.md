@@ -21,6 +21,42 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.83.0 — 2026-08-10
+
+**The SP 800-30 misattribution v0.51.0 removed is gone from the two places it survived — and
+nothing can put it back quietly.** BL-187.
+
+v0.51.0 exists to separate what SP 800-30 Rev. 1 actually provides — five qualitative rating
+labels and a 5×5 Table I-2 lookup — from CAC's own conventions: the multiplication, the numeric
+thresholds, the 4- and 3-level scales. It corrected five surfaces and **missed two**, and only
+one of the two was ever reported.
+
+- **`export-findings`'s `note` field** — shipped, user-facing JSON, retained as evidence,
+  handed to auditors, read by `risk-register`. It said scoring happens *"under SP 800-30"*.
+  This is the one place a third party is most likely to read the claim.
+- **`no-vendor-score.sh`'s own header** — *"scored once, there, under L×I and SP 800-30"*. The
+  misattribution was sitting **inside the guard that protects the neighbouring boundary**, in
+  the paragraph a maintainer reads to understand why the rule exists. **No release test ever
+  named it.** It was found by grepping for the pattern rather than checking the one reported
+  line, in the time a grep takes — which is the whole argument for a scan rather than a fix.
+
+**`check-versions.py` gained `check_sp80030_attribution`.** It fails any shipped file that puts
+`SP 800-30` on the same line as scoring, arithmetic, banding or thresholds. Seven self-test
+cases pin it, including **both real defect strings as rejections**.
+
+A line may still NAME the misattribution in order to correct it — same reasoning as
+`do-not-cite.json`'s markers: banning the string outright would ban the correction, and a repo
+that cannot write down its own error stops writing them down. The marker is **possessive on
+purpose** — `this tool's own`, `CAC's own` — because a bare `own` would launder
+*"SP 800-30's own thresholds"*, which is the misattribution itself. That case is pinned too.
+
+The engine's own self-test asserts the note as well: the scan is the net that catches the next
+author explaining the bridge in their own words; the local check fails in the skill that owns
+the string, and tells a reader of that file the sentence is load-bearing.
+
+`vendor_register.py self-test` 236 → **238**; `check-versions.py --self-test` 61 → **68**;
+`sp-800-30: 326 shipped files, nothing attributes scoring or banding to it`.
+
 ## v0.82.0 — 2026-08-10
 
 **Seven `--context` consumers, one contract.** BL-226 T3, unblocked by both decisions being on

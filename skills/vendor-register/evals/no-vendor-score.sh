@@ -4,8 +4,14 @@
 # Every commercial vendor-risk product emits a score, and it is the same failure this suite
 # refuses everywhere else: a generated number that looks like an assessment, that nobody can
 # reproduce, and that disagrees with the register which actually owns scoring. Findings go to
-# `risk-register` through a one-way bridge and are scored once, there, under L×I and SP
-# 800-30 with an appetite to judge them against.
+# `risk-register` through a one-way bridge and are scored once, there, against an appetite —
+# under CAC's own L×I arithmetic, with rating labels from SP 800-30 Rev. 1.
+#
+# That last clause was wrong until v0.83.0: it read "under L×I and SP 800-30", attributing the
+# multiplication to a document that does not multiply. The misattribution was sitting INSIDE
+# the guard that protects the neighbouring boundary, in the paragraph a maintainer reads to
+# understand why the rule exists — and no report ever named it, because every report cited the
+# one line in the engine (BL-187).
 #
 # Two halves, because either alone is escapable:
 #

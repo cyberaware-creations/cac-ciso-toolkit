@@ -1857,8 +1857,17 @@ def export_findings(store: dict, today: str = "") -> dict:
         "asOf": today,
         "organisation": store["meta"].get("orgName") or "",
         "findings": rows,
+        # ⚠️ THE ATTRIBUTION IN THIS NOTE IS SHIPPED, USER-FACING JSON — retained as evidence,
+        # handed to auditors, fed into the risk register. It said "under SP 800-30" until
+        # v0.83.0, which is the exact external attribution v0.51.0 was written to remove:
+        # SP 800-30 Rev. 1 does not multiply likelihood by impact and sets no numeric band
+        # thresholds. v0.51.0 corrected five surfaces and missed this one and the header of
+        # `evals/no-vendor-score.sh`, so the repo disagreed with itself in the one place a
+        # third party is most likely to read (BL-187). `check-versions.py` now scans for the
+        # claim repo-wide, because one reported instance turned out to be two.
         "note": ("Candidate risks. This register does not score: no likelihood, no impact, no "
-                 "band. risk-register scores them once, under SP 800-30, against an appetite."),
+                 "band. risk-register scores them once, against an appetite, using its own "
+                 "arithmetic with rating labels from SP 800-30 Rev. 1."),
     }
 
 
@@ -2754,6 +2763,21 @@ def _cmd_self_test(_args):
             {"requirement": "something", "met": False, "checkedBy": ""})
         eq(len(export_findings(fb)["findings"]), 1,
            "a requirement nobody is recorded as checking is not exported")
+
+        # BL-187. The `note` in this payload is SHIPPED, USER-FACING JSON — retained as
+        # evidence, handed to auditors, read by `risk-register`. It said scoring happens
+        # "under SP 800-30" for eight releases after v0.51.0 corrected five other surfaces,
+        # and SP 800-30 Rev. 1 does not multiply likelihood by impact.
+        #
+        # Asserted HERE as well as by the repo-wide scan in check-versions.py, on purpose: the
+        # scan is the net that catches the next author explaining the bridge in their own
+        # words, and this is the local one that fails in the skill that owns the string. The
+        # scan alone would not tell a reader of this file that the sentence is load-bearing.
+        _note = export_findings(fb)["note"]
+        ok("SP 800-30" in _note and "own" in _note,
+           "the export note names SP 800-30 for the labels and the arithmetic as ours")
+        ok("under SP 800-30" not in _note,
+           "...and does not attribute the SCORING to it — the misattribution v0.51.0 removed")
 
         # --- T14: the consolidation guard -------------------------------------
         multi = new_store("Group Plc")
