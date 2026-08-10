@@ -1,6 +1,6 @@
 {
   "guard": "skills/vendor-register/evals/board-safety.sh",
-  "forbids": "a board artifact that does not say it is not legal advice",
+  "forbids": "a board artifact that does not say it is not legal advice, and banned vocabulary in any shipped source file — scripts included",
   "note": "Enrolled in v0.60.0. Guard-shaped since it was written and classified `candidate` by BL-101's registry, which is how it became countable. BL-121 was the blocker: 51 checks across these nine suites read a crashed probe as a pass, so a mutation registered here would have been registered against a check that could not fail. That closed in v0.59.0.",
   "mutations": [
     {
@@ -12,6 +12,16 @@
       "file": "skills/vendor-register/renderers/_common.py",
       "find": "bits = [G.footer(\"Not legal advice\"), f\"generated {esc(self.today)}\"]",
       "replace": "bits = [f\"generated {esc(self.today)}\"]"
+    },
+    {
+      "half": "source-scan",
+      "why": "A file in `scripts/` the guard has never been told about, carrying the vocabulary it forbids. TWO properties at once, and only the `create` form can express either. First, GP-1.7: the scan must read this because the tree has it, not because a list names it. Second, and specific to BL-221: until v0.77.0 this suite globbed `renderers/render_*.py` plus `renderers/_common.py`, so NO edit anywhere in `scripts/` could fail it — the engine that writes most of the strings the renderers print was outside the population entirely. A new file in `scripts/` is the only mutation that tells a scan reading the tree apart from a scan reading a glob that happens to cover the files somebody remembered.",
+      "defeats": [
+        "no banned vocabulary in the executable source of any shipped file"
+      ],
+      "file": "skills/vendor-register/scripts/export_helpers.py",
+      "create": true,
+      "replace": "\"\"\"Export helpers for the engine.\n\nAdded after the guard was last edited by hand, and placed in `scripts/` on purpose:\nthat is the half the old glob could not reach at all.\n\"\"\"\n\n_NOTE = \"the deployment is degrading and its rating is unreliable\"\n"
     }
   ]
 }
