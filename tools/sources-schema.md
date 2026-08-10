@@ -318,6 +318,45 @@ the interpretation that moves a deadline.
 The rule found an unexplained 180 on `nist-csf/cyber-ai-profile` on its first run — set before
 this rule existed, with no reason recorded. The cadence was right and now says so.
 
+## RW-1.14 A correction is a claim, and gets checked like one
+
+Added 2026-08-10 after a correction shipped that was wrong about the same passage it was
+correcting.
+
+A pass over `ciso-board-translation/references/regulatory-receipts.md` recorded that *Brewer v.
+Turner* contains **no information-systems analysis at all**, and supported it with a count: the
+phrase appeared **zero** times, as did two others. On the strength of that, a shipped paragraph
+was condemned as asserting a holding the opinion does not contain, and the row's provenance in
+`sources.json` was updated to say so.
+
+The opinion says the opposite. The plaintiff pleaded both theories; the court addressed the
+information-systems theory *"in short order"* and held there was *"no straight-faced argument
+that Regions lacked an information system."* The count was real. What it counted was the **text
+extractor**, which renders the phrase `i nformation - s ystems` — so a literal search for
+`information systems` finds nothing, and finds nothing whether or not the opinion contains it.
+The same search run on the squeezed text returns three.
+
+Three rules follow, and they are cheap:
+
+1. **A negative finding from extracted text is not a finding.** Absence of a string proves the
+   string absent from *that extraction*. Before recording a zero, re-run it squeezed — strip
+   everything but letters from both needle and haystack — or search for a term that must
+   co-occur, to confirm the extraction contains the region at all.
+2. **A zero that overturns something already shipped needs a second, differently-shaped
+   check.** The asymmetry is deliberate. A positive finding is self-evidencing, because you can
+   quote it; a negative one is only as good as the search that produced it, and the cost of
+   being wrong is highest exactly when it is being used to delete somebody's earlier work.
+3. **Correcting a characterisation means sweeping every sentence derived from it, in both
+   directions.** The forward sweep — *does anything still repeat the old claim?* — was the one
+   anticipated, and it was worth running: it found two live sentences overstating what *In re
+   TransUnion* and *Marchner* do with *Bingle*. The backward sweep — *is the correction itself
+   sound, and what did it wrongly delete?* — is the one that was skipped, and it is the one
+   that mattered.
+
+The provenance now carries the withdrawal rather than a quiet edit: the false statement is
+named in `sources.json` as withdrawn, with the reason it was believed. A correction that
+disappears teaches nobody why the check exists.
+
 ---
 
 *A Cyber Aware Creation · Not affiliated with NIST.*

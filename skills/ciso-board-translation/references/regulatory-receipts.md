@@ -144,7 +144,13 @@ oversight, not to be perfect.
   now a decision holding that a system can be insufficient, and *management
   electing what reaches the board* is the specific failure it names.
 - *Brewer v. Turner* (Regions Financial), C.A. No. 2023-1284-KSJM (Del. Ch.,
-  29 Sep. 2025) (McCormick, C.) — the **red-flags** theory was **sustained**:
+  29 Sep. 2025) (McCormick, C.) — the plaintiff pleaded **both** *Caremark*
+  theories. The **information-systems** theory was disposed of *"in short
+  order"*: on the §220 record there was *"no straight-faced argument that
+  Regions lacked an information system."* ⚠️ That is a holding that the
+  existence of a system was not seriously contestable — **not** a merits finding
+  that the system was adequate, and not a ruling on its quality at all.
+  The **red-flags** theory was **sustained**:
   the court found that a majority of the demand board faced a substantial
   likelihood of liability on it, so demand was excused as futile. The red flag
   was a draft complaint Regions' former general counsel sent **to the board**,
@@ -181,9 +187,25 @@ confirming what the *Bingle* row already says: an order, not a signed opinion.
 
 **⚠️ THE COROLLARY, AND IT CUTS BOTH WAYS.** Documented board-level process is
 what earns prong-one protection — and it is simultaneously **the discoverable
-record that can establish prong-two knowledge.** *Brewer* is that in one case: the
-minutes that show the board had a system are the minutes that show the board saw
-the complaint.
+record that can establish prong-two knowledge.** *Brewer* is that in one case,
+and the opinion is unusually clean about it, because the plaintiff pleaded
+**both** theories and the court took them in turn.
+
+The information-systems theory *"can be addressed in short order"*: the **§220
+documents** showed multiple Board committees tasked with risk management, and
+the court concluded there was *"no straight-faced argument that Regions lacked
+an information system."* The footnote carrying that conclusion (n.67) cites Risk
+Committee minutes, joint Risk-and-Audit Committee minutes, and **December 2019
+and September 2020 Board meeting minutes**. Those are documents from the same
+§220 production that shows the board received the whistleblower's draft
+complaint and left the practices in place for around twenty months — which is
+the red-flags theory that **survived**. One production, both jobs.
+
+⚠️ **Note precisely what that is and is not.** Prong one fell away because the
+existence of a system was **not seriously contestable** — not because a court
+weighed the system and pronounced it adequate. A record good enough to make
+prong one unarguable buys nothing on prong two, and in *Brewer* it supplied the
+evidence on the other side.
 
 That is not an argument for recording less. It is the reason this file keeps
 saying **board-level decision records, not a sprawling internal confessional** —
@@ -198,11 +220,22 @@ asserting that Delaware has recently *"expanded expectations for board oversight
 of cybersecurity"* could not be corroborated to any case. If somebody in the room
 cites recent Delaware cyber authority, ask which case.
 
-Two decisions reinforce the line without being about cyber: *In re TransUnion*
-(Del. Ch., 1 Oct. 2024) cites both *Sorenson* and *Bingle* approvingly, and
-*Marchner v. Riley* (Del. Ch., 30 Mar. 2026) restates *Bingle* directly and holds
-that red flags must signal **legal violations**, not business risk — which is the
-same material condition the *Bingle* bullet already carries.
+Two decisions reinforce the line without being about cyber — and **neither leans
+on *Bingle* the way an earlier draft of this paragraph claimed.** *In re
+TransUnion* (Del. Ch., 1 Oct. 2024) relies on *Sorenson* substantively, six
+citations with approving parentheticals, but cites *Bingle* **once, in a
+footnote, on a bare "See"**, for black-letter. *Marchner v. Riley* (Del. Ch.,
+30 Mar. 2026) cites *Bingle* **twice, and both are footnotes** — its prong-two
+authority is *In re TransUnion* and *In re Citigroup*, not *Bingle*.
+
+What *Marchner* does hold, and this part stands unchanged, is that the risks
+disregarded must be **legal violations** rather than business risk: it quotes
+Chancellor Chandler in *In re Citigroup* to the effect that imposing oversight
+liability for failing to monitor business risk would eviscerate the core
+protections of the business judgment rule. That is the same material condition
+the *Bingle* bullet already carries. *Marchner* also cites *In re TransUnion* at
+**324 A.3d 869, 886–87**, independently corroborating the reporter citation this
+file added from a different source.
 
 **Translation implication.** An answer that names the exposure and forces a
 *recorded* board decision manufactures the documented, decision-ready oversight
