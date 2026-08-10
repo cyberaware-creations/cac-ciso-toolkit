@@ -13,6 +13,7 @@
 - Categories / taxonomy
 - Matrix sizes and rating labels
 - Band thresholds
+- Vocabulary — which word we use, and whose it is
 - Risk appetite semantics
 - Derived-not-stored rule
 - v1 → v2 migration
@@ -465,6 +466,75 @@ Exposure = likelihood × impact. Band = highest band whose inclusive lower bound
 | 3×3 | 1 | 3 | 5 | 7 |
 
 Band order (ascending): `low < medium < high < critical`. Lives in `scripts/score_register.py`.
+
+## Vocabulary — which word we use, and whose it is
+
+This register borrows vocabulary from two NIST documents that **do not use the same words for the
+same things**, and it cites both. Where they differ, this section says which word this tool uses
+and what the other one means, so a reader holding either document is not quietly misled.
+
+> ⚠️ **Provenance of the quotes below.** They are transcribed from the register-alignment design
+> (`strategy/register-alignment-design-2026-08-08.md` rev b, pasted onto BL-54). The wording is
+> verbatim as recorded there. **The section numbers are the design's and have not been re-read
+> against the published text in this pass** — where a section is given below it carries that
+> caveat. `sources.json` records the same distinction. Pull the primary text before quoting any
+> of these in a room.
+
+### Exposure, and *level of risk*
+
+**This tool says `exposure`, and it means likelihood × impact.** That is NIST IR 8286r1's word
+— *"the combination of impact and likelihood is referred to as exposure."*
+
+**SP 800-30 Rev. 1, which this tool cites for its rating labels, calls the same quantity
+*level of risk*.** The two are aliases here. They are not aliases in general: 800-30 Rev. 1
+combines likelihood and impact through **Table I-2, a 5×5 lookup**, and this tool multiplies —
+see *Band thresholds* above, and the engine docstring, which states the arithmetic is CAC's own.
+So *level of risk* names the same **axis**; it does not name the same **calculation**.
+
+### Inherent — a stage, not a permanent partner to residual
+
+**`inherent` is the assessment before today's controls, and it is a stage in a cycle rather than
+half of a fixed pair.** NIST IR 8286r1: *"On the first iteration… this may also be considered the
+initial assessment, whereas subsequent cycles refer to this as inherent."*
+
+The practical consequence, and the reason this correction exists: a register on its **first**
+pass is recording an *initial* assessment, and calling it inherent asserts a
+before-controls/after-controls relationship the first pass has not established. Later cycles earn
+the word. Nothing in the engine changes — both fields are recorded and scored identically — but
+a board asked to read "inherent vs residual" on a first assessment is being shown a comparison
+that is really initial-vs-current.
+
+### Residual — this tool records the ACTUAL residual only
+
+**`residual` here always means *actual* residual: the exposure with today's controls working as
+described.**
+
+NIST IR 8286r1 also uses **target residual risk** — the level a treatment is aiming at — and
+observes that *"actual residual risk should be equal to or less than the target residual risk."*
+**This register does not record a target residual today.** The word is defined here so that a
+reader who meets it in the source knows which of the two this tool's field is, and does not read
+`residual` as an aspiration. (Recording a target is BL-54 R-4, not shipped.)
+
+### Band order is not a work queue
+
+**The band ordering `low < medium < high < critical` ranks severity. It does not schedule work.**
+NIST IR 8286r1: *"priority is not necessarily a reflection of the chronological order in which
+risk should be mitigated."*
+
+A critical risk whose treatment depends on a system that is being replaced next quarter may
+legitimately be sequenced after a high one that can be closed this week. The register ranks; the
+plan sequences; and the two are allowed to differ as long as somebody can say why.
+
+### Vulnerability is wider than a scanner finding
+
+**A vulnerability here is *a condition that enables a threat event to occur*** — the definition
+NIST IR 8286A r1 uses for the scenario element of that name.
+
+It explicitly includes **planning gaps, training deficiencies, physical access and supply-chain
+conditions**, not only a software defect with a CVE. This matters at the point a risk is written:
+the house event statement carries asset, threat, vulnerability and impact, and a register that
+reads `vulnerability` as *unpatched software* will silently exclude every risk whose enabling
+condition is a process nobody owns.
 
 ## Risk appetite semantics
 

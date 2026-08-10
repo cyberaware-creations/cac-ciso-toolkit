@@ -69,6 +69,16 @@ range — the scored JSON flags these as `outOfRange: true`, so filter on that i
 it — and note the count, since they remain counted in the register and band totals. The board PDF
 uses the residual view.
 
+**Ship it with its caution, and put the caution on the page rather than in this file.** NIST IR
+8286B-upd1 §2.2.5: *"such a graphic should be used with caution… not necessarily an indicator of
+rigid boundaries."* A heat map's whole persuasive power is that the boundaries look real — four
+flat colour zones, and a risk one point either side of a threshold lands in a different one. The
+board reads the picture, not this reference, so the caption carries the caution and the caption
+is part of the artifact. `render_board.py` holds it.
+
+> ⚠️ The section number is transcribed from the register-alignment design and has **not** been
+> re-read against the published text in this pass. `sources.json` records the same caveat.
+
 ## Theme rollup
 
 Aggregate risks by `theme`: count, worst residual band, over-appetite count, and trend direction per
