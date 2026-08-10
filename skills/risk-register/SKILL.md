@@ -150,6 +150,27 @@ Wording and rating are where you add value over a template:
   risk* — what a treatment is aiming at — and this register does not record one. If somebody
   arrives from the source expecting `residual` to be an aspiration, it is not.
 
+- **Record HOW you analysed it, not just what you concluded.** `set-method` stores the
+  method's name, one of NIST's three analysis **types**, whether you followed it in **full or
+  in part**, and — when in part — **in what respect**. NIST ties defensibility to the method:
+  quantitative analysis *"may provide defensible prioritization and treatment evidence for
+  later analysis by executive leadership"* (NIST IR 8286r1 §3.3.1). Without it, two registers
+  scored by wholly different methods are byte-indistinguishable.
+
+  **Per risk, because a register commonly holds both** — three risks somebody modelled with
+  loss distributions and thirty scored by judgement in a workshop. `settings.analysisMethodDefault`
+  covers the ordinary case, and a risk's own record **outranks it in both directions**: a
+  register defaulting to `quantitative` must be able to say *this one is qualitative because we
+  have nothing to count*.
+
+  ⚠️ **Never rename somebody else's method.** A FAIR analysis without monetised loss is
+  `open-fair` at `conformance: partial` with that deviation stated — **not** a coined
+  "FAIR-lite". Renaming a licensed third-party standard to describe a reduced variant is a
+  false claim about work that is not ours. The refusal says so.
+
+  Absent means **not declared**, never *no method was used*. Full model in
+  `references/schema.md`.
+
 - **Band order ranks severity; it does not schedule work.** NIST IR 8286r1: *"priority is not
   necessarily a reflection of the chronological order in which risk should be mitigated."* A
   critical risk whose treatment waits on a system being replaced next quarter may legitimately
@@ -227,6 +248,9 @@ python3 scripts/score_register.py add <reg.rr> --title '...' \
 python3 scripts/score_register.py set-text <reg.rr> <id> --title '...' --description '...' --why '...'
 python3 scripts/score_register.py set-response <reg.rr> <id> --cost 45000 --why '...'
 python3 scripts/score_register.py set-currency <reg.rr> --currency GBP --why '...'
+python3 scripts/score_register.py set-method <reg.rr> <id> --name 'OPEN FAIR' \
+    --type quantitative --conformance partial \
+    --deviations 'no monetised loss magnitude' --why '...'
 python3 scripts/score_register.py set-score <reg.rr> <id> --residual L I --why '...'
 python3 scripts/score_register.py accept <reg.rr> <id> --approver '...' --justification '...' \
     --revalidate 2027-01-31 --expiry 2027-07-31 --why '...'

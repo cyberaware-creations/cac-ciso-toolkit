@@ -971,6 +971,12 @@ class Context:
         # asked for a quieter first quarter" would attribute a risk's movement to a
         # reporting threshold that moved nothing.
         "escalation-policy-changed",
+        # It records the WARRANT, not a movement. `set-method`'s rationale answers "why this
+        # method", and captioning "residual Medium → High" with "we switched to OPEN FAIR"
+        # would present a change in how the risk was analysed as the reason the risk got
+        # worse — which is exactly the confusion the method record exists to prevent, arriving
+        # through the renderer instead of the store (BL-92).
+        "method-recorded",
     })
 
     def _rationales_since_baseline(self) -> dict[str, str]:
