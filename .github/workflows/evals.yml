@@ -205,6 +205,15 @@ jobs:
       - name: One fact per flag, on the floor
         run: PY="$(command -v python3)" ./skills/business-context/evals/one-fact-per-flag.sh
 
+      # BL-216 R-3. Sensitivity is free text with no scale — the organisation's own
+      # classification is the answer and this skill does not write one — so the basis is the
+      # whole difference between a determination and an adjective. Both halves: the engine
+      # refuses one without the other, AND the basis reaches the page. A rule enforced on
+      # write and dropped on read is ceremony, and this renderer showed neither criticality
+      # nor sensitivity at all until v0.68.2, so that is a state this skill has been in.
+      - name: A declared sensitivity carries a basis, and it reaches the page
+        run: PY="$(command -v python3)" ./skills/business-context/evals/sensitivity-basis.sh
+
       # BL-188, and it covers two skills — `ciso-board-translation` ships no evals directory,
       # so the guard lives with the other two locations. §500.19 was absent from `skills/`
       # entirely across five release tests: every NYDFS limit in the suite scoped OUTWARD, at

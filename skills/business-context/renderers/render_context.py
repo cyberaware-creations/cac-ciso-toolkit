@@ -60,12 +60,31 @@ def build(payload: dict, store: dict, mode: str, offline: bool) -> str:
     reviewed = C.esc(payload.get("profileReviewedOn") or "")
     rev = ctx.get("revenue")
 
+    # Criticality and sensitivity are shown, and shown as two lines rather than one.
+    # Neither appeared on this page at all until v0.68.2, which made `sensitivity`'s required
+    # basis a rule enforced on write and invisible on read — a required field nobody can see
+    # decays into ceremony. They stay separate because they answer different questions: what
+    # stops when this stops, against what it holds.
+    #
+    # `sensitivity` is a declared() record and `criticality` is still a bare string, so the
+    # two are read differently here. That asymmetry is deliberate and temporary — see
+    # add_crown_jewel — and reading them the same way would mean guessing at one of them.
     jewels = ""
     for cj in (ctx.get("crownJewels") or []):
+        marks = ""
+        crit = cj.get("criticality")
+        if isinstance(crit, str) and crit.strip():
+            marks += '<div class="mark">Criticality: %s</div>' % C.esc(crit.strip())
+        sens = cj.get("sensitivity")
+        if isinstance(sens, dict) and str(sens.get("value") or "").strip():
+            marks += ('<div class="mark">Sensitivity: %s'
+                      '<span class="basis"> — %s</span></div>'
+                      % (C.esc(sens.get("value")),
+                         C.esc(sens.get("basis") or "no basis recorded")))
         jewels += ('<div class="jewel"><span class="sys">%s</span> — %s'
-                   '<div class="stake">At stake: %s</div></div>'
+                   '<div class="stake">At stake: %s</div>%s</div>'
                    % (C.esc(cj.get("system")), C.esc(cj.get("enables")),
-                      C.esc(cj.get("atStake"))))
+                      C.esc(cj.get("atStake")), marks))
     if not jewels:
         jewels = ('<p class="stake">No crown jewels recorded. The join between a system and '
                   'the business consequence of losing it is what lets a risk be stated as '

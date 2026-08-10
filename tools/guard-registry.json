@@ -114,6 +114,11 @@
       "forbids": "a profile flag that states two facts, or a battery gated on a flag that does not name its regime"
     },
     {
+      "path": "skills/business-context/evals/sensitivity-basis.sh",
+      "role": "guard",
+      "forbids": "a declared sensitivity with no basis, and a basis the read surface drops"
+    },
+    {
       "path": "skills/exceptions-register/evals/board-safety.sh",
       "role": "guard",
       "forbids": "catastrophizing or false-confidence vocabulary in any board-facing renderer"
