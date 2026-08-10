@@ -6,7 +6,8 @@
  "provenance": "Mapped control/clause IDs come from NIST's CSF 2.0 informative references (mixed/third-party authority); the rest of the Annex A numbering completes the set (see catalogueScope). Labels are CAC paraphrases \u2014 ISO/IEC text is copyright; bring your own copy.",
  "sourceExport": {
   "tool": "NIST CSF 2.0 Reference Export (xlsx)",
-  "retrievedAt": "2026-07-29"
+  "file": "csf-2.0.xlsx",
+  "sha256": "cc4ec545881141711dacf056e4c806057325b441081f704d9aa32c4eeaf9b616"
  },
  "catalogueScope": {
   "coverage": "full",

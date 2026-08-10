@@ -30,13 +30,31 @@ The bundled Core is built in two passes.
 | `tools/csf-2.0.xlsx` | **Vendored here.** The NIST CPRT CSF 2.0 catalog export, originally from `https://csrc.nist.gov/extensions/nudp/services/json/csf/download?olirids=all` — despite the `/json` path it returns an XLSX. NIST publications are US Government works and are not subject to copyright. |
 | `NIST.CSWP.29.pdf` | `https://nvlpubs.nist.gov/nistpubs/CSWP/NIST.CSWP.29.pdf` — the CSF 2.0 publication. Tier text lives in Appendix B, Table 2. Not vendored: it is a stable NIST URL and only its extracted text is needed. |
 
-The vendored XLSX is provably the file the shipped Core was built from — its sha256 matches the
-`source.sha256` recorded inside `nist-csf-2.0-core.json`. Check it any time:
+**There is exactly one vendored export, and its hash is checked on every CI run.** It matches
+the `source.sha256` recorded inside `nist-csf-2.0-core.json`, and every shipped crosswalk stamps
+the same hash as its `sourceExport.sha256`. Check it any time:
 
 ```bash
 shasum -a 256 tools/csf-2.0.xlsx
 python3 -c "import json;print(json.load(open('skills/nist-csf/references/nist-csf-2.0-core.json'))['source']['sha256'])"
 ```
+
+⚠️ **This paragraph used to say "provably", and nothing proved it** (BL-75). It was true of the
+file it named and silently incomplete: a **second** export sat at
+`tools/crosswalks/_source_csf2.xlsx`, its provenance was a download date rather than a hash, its
+bytes differed, and it was the file the shipped crosswalks were actually built from.
+
+The two turned out to be the same CPRT release downloaded fourteen days apart — 14 of 16 zip
+members byte-identical, and the two that differed were a created timestamp in `docProps` and a
+time value on the cover sheet. `sharedStrings.xml` and the data sheet matched exactly, and
+regenerating the crosswalks from the pinned copy changed **every edge and control not at all**.
+That was the good outcome and it was not knowable without checking, which is the whole argument.
+
+So: the second file is deleted rather than pinned, `author_catalogs.py` reads the same export
+the Core does and **refuses to run** if its hash is not the Core's, and `check-versions.py`
+enforces three things on every run — the hash matches, every crosswalk stamps it, and there is
+**only one** `.xlsx` under `tools/`. A date says when somebody downloaded a file; a hash says
+which file, and a second plausible download is how this arose.
 
 ### Pass 1 — hierarchy, examples, informative references
 
