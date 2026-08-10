@@ -114,6 +114,22 @@ PRODUCERS = {
         "argv": ["analyze", "{store}", "--today", "{today}", "--json"],
         "context": True,
     },
+    "policy-register": {
+        "script": "policy_register.py",
+        "argv": ["analyze", "{store}", "--today", "{today}", "--json"],
+        # `False`, and not because policy-register DECLINED CAC-AP-1 — because nobody has
+        # decided yet, and the two are different facts. That decision is BL-202, filed with
+        # its own scope: the skill would join `business-context/evals/consumers.sh`, and
+        # §2.2's guarantee that an absent profile leaves the output byte-identical would need
+        # its own proof. `True` here would pre-empt it by asking for a flag the engine has no
+        # code for, and the non-zero exit would be reported as an unreadable producer.
+        #
+        # The twelfth skill shipped in v0.64.0 and was absent from this table until v0.70.0.
+        # A CISO with three policy reviews overdue asked what needed them this week and got a
+        # clean list with no NOT READ row — because a producer this surface does not know
+        # about cannot be reported as unread either (BL-212).
+        "context": False,
+    },
 }
 
 # CAC-EL-1 §1.3. Six keys, and an item missing any of them is reported as malformed rather than

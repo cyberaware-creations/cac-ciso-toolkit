@@ -146,19 +146,64 @@ def register_table(ctx: C.Context) -> str:
 
 
 def attention(ctx: C.Context) -> str:
-    """Derived every time, stored nowhere, and never a reason to withhold a row above."""
+    """The escalations: a line has been crossed. Two triggers only, since v0.70.0.
+
+    One paragraph per item rather than the old headline-and-consequence pair. The consequence
+    did not disappear — it is inside `evidence`, which is now the single place that sentence
+    is written. It used to live in `what` and `soWhat`, which the CAC-EL-1 contract does not
+    carry, so a weekly surface reading this register got the first half of the sentence and a
+    board pack got the other. One fact, one source.
+    """
     if not ctx.escalations:
         return ('<p class="muted">%s</p>'
-                % C.esc("Nothing is flagged. That means no review is overdue and no "
-                        "requirement is left with only a draft or only a superseded "
-                        "document — not that the policy programme is complete."))
+                % C.esc("Nothing is escalating. That means no review is overdue and no "
+                        "requirement is left with only superseded documents — not that the "
+                        "policy programme is complete, and not that nothing is coming. "
+                        "What is coming is the separate list below."))
     out = []
     for e in ctx.escalations:
-        out.append('<div class="esc"><div class="what">%s %s</div>'
-                   '<p class="muted">%s</p></div>'
-                   % (C.severity_chip(e["severity"], e["kind"]),
-                      C.esc(e["what"]), C.esc(e["soWhat"])))
+        out.append('<div class="esc"><div class="what">%s %s</div></div>'
+                   % (C.severity_chip(e["severity"], e["trigger"]), C.esc(e["evidence"])))
     return "".join(out)
+
+
+# The three demoted out of `escalations` in v0.70.0. Each carries its own note, because a bare
+# list of ids under a heading is indistinguishable from a fault list — which is the confusion
+# the demotion exists to end.
+_AGENDA = (
+    ("reviewDue", "Due for review inside the window",
+     "On schedule. Listed so the review can be booked, not because anything has lapsed."),
+    ("noReviewDate", "Approved, with no next review date",
+     "Not on a cycle, which is the thing GV.PO-02 is about. Here rather than escalating, "
+     "because nobody has missed a date that was never set."),
+    ("draftOnly", "Covered only by a draft",
+     "Somebody is working on it and the register says so. This shares its end state with "
+     "superseded-only — no approved document in force — and differs in the one way that "
+     "decides which list it belongs on: this gap is visible to anyone reading the register "
+     "above, and a requirement covered only by superseded documents is not."),
+)
+
+
+def agenda(ctx: C.Context) -> str:
+    """The review agenda: things to look at, none of which has gone wrong yet.
+
+    Rendered even when empty, deliberately. A page showing only escalations lets a reader
+    conclude that a quiet week and a week with three reviews falling due are the same week.
+    """
+    blocks = []
+    for key, heading, note in _AGENDA:
+        ids = ctx.attention.get(key) or []
+        if not ids:
+            continue
+        blocks.append('<div class="esc"><div class="what">%s — %s</div>'
+                      '<p class="muted">%s</p></div>'
+                      % (C.esc(heading), C.esc(", ".join(ids)), C.esc(note)))
+    if not blocks:
+        return ('<p class="muted">%s</p>'
+                % C.esc("Nothing is coming up. No review falls inside the window, every "
+                        "approved policy has a next review date, and no requirement is "
+                        "covered only by a draft."))
+    return "".join(blocks)
 
 
 def main(argv=None) -> int:
@@ -177,10 +222,13 @@ def main(argv=None) -> int:
             + '<p class="muted">%s</p>' % C.esc(C.SPINE_NOTE)
             + C.section("Mapped outside the catalogue", outside_block(ctx))
             + C.section("The register", register_table(ctx))
-            + C.section("Attention", attention(ctx))
+            + C.section("Escalating", attention(ctx))
+            + C.section("On the review agenda", agenda(ctx))
             + ctx.footer())
+    agenda_count = sum(len(v) for v in ctx.attention.values())
     return C.write(ctx, C.page("Policy register — %s" % org, body, ctx.offline),
-                   "%d record(s), %d flagged" % (len(ctx.policies), len(ctx.escalations)))
+                   "%d record(s), %d escalating, %d on the review agenda"
+                   % (len(ctx.policies), len(ctx.escalations), agenda_count))
 
 
 if __name__ == "__main__":

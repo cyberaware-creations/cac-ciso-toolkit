@@ -155,9 +155,15 @@ python3 scripts/policy_register.py unmap    register.pol --id P-001 --requiremen
 
 python3 scripts/policy_register.py requirements register.pol      # the auditor's view
 python3 scripts/policy_register.py analyze      register.pol --out analysis.json
+python3 scripts/policy_register.py analyze      register.pol --json   # stdout, for a consumer
 python3 scripts/policy_register.py export       register.pol --format csv --out policies.csv
 python3 scripts/policy_register.py self-test
 ```
+
+`--json` writes the read model to stdout and is how `attention-surface` reads this register.
+It is a flag rather than the default because `analyze` with neither flag prints a summary a
+person reads, and swapping that for a JSON dump would be a break for everyone already running
+it at a terminal. `vendor-register` and `ai-register` draw the line in the same place.
 
 The page:
 
@@ -176,6 +182,42 @@ attention palette, because both describe a document problem this register can ac
 Painting the first green would make the coverage claim in colour that the guards forbid in
 words — and colour is what a board reads first.
 
+## What escalates, and what is only on the agenda
+
+Two triggers reach `attention-surface`, and they are the two where a line has been crossed:
+
+| Trigger | Subject | `since` | Cluster |
+|---|---|---|---|
+| `review-overdue` | the policy | the `review.nextOn` that passed | clocks running out |
+| `superseded-only` | the requirement | the supersession that ended the cover | uncontrolled exposure |
+
+Three more are **on the review agenda** — `analyze()["attention"]` — and escalate nothing:
+`reviewDue`, `noReviewDate`, `draftOnly`. A policy inside its review window is on schedule.
+`exceptions-register` states the rule and three other skills repeat it: *due is the attention
+list; overdue is an escalation*, because escalating a deadline nobody has missed teaches a
+reader to ignore the list by the second quarter. All three were escalations until v0.70.0.
+
+**`draft-only` is the one worth explaining, because demoting it will read as a mistake.** It
+shares its end state with `superseded-only`: neither requirement has an approved document in
+force. The distinction is not how bad it is — it is whether the gap is **visible**. A draft
+shows in the register as a draft, and anybody reading the requirement view sees it. A
+requirement covered only by superseded documents looks *populated*. Deceptive escalates;
+visible does not. Restoring `draft-only` to the escalations would flatten that distinction
+and put the two on the same page, where the second one stops standing out.
+
+Every escalation carries the six CAC-EL-1 §1.3 keys — `trigger`, `subjectKind`, `subjectRef`,
+`severity`, `since`, `evidence` — and `subjectKind` is genuinely two values here, `policy` or
+`requirement`, because this register holds concerns about both. `since` is always a recorded
+date and never today: a derived date stamped on a historic fact is a fact this register did
+not have.
+
+**CAC-AP-1 is not adopted, and that is not the same as declined.** This skill takes no
+`--context`, so `attention-surface` reads it with `context: False`. It reads the CSF Core
+rather than a `business-context` profile, and whether it should become a consumer is an open
+decision with its own scope — joining `business-context/evals/consumers.sh`, and proving
+§2.2's guarantee that an absent profile leaves the output byte-identical. Recorded here so
+the absence reads as undecided rather than as an oversight.
+
 ## Entry anywhere, and a partial programme is normal
 
 No other skill has to have been run. No store this skill wants to read has to exist. Every
@@ -193,7 +235,8 @@ this skill does not nag.**
 - **Generate policy text, or judge whether a policy is any good.**
 - **Behave for `kind: plan` or `kind: playbook`.** The field ships so a store written today
   needs no migration when they land; recording one now is refused, with that reason.
-- **Produce a board section.** Deliberately deferred.
+- **Produce a board section.** Deliberately deferred. It reaches
+  `attention-surface` weekly; the quarterly pack is a different contract and a separate item.
 - **Carry ISO 27001 or CIS identifiers** in the requirement view.
 
 ## Reading

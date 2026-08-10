@@ -22,7 +22,7 @@ repo="$(cd "$skill/../.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=12
+EXPECTED_CHECKS=15
 checks=0
 fails=0
 ok()  { checks=$((checks + 1)); printf '  ok    %s\n' "$1"; }
@@ -195,6 +195,72 @@ if grep -q "escalations" "$A" && grep -qF "malformed" "$A"; then
   ok "and an item missing one is carried as malformed rather than discarded"
 else
   bad "malformed items are carried" "no malformed handling in the engine"
+fi
+
+# --- 13-15. the twelfth producer, end to end ----------------------------------
+#
+# `_triggerscan.py` above reads the producers, so policy-register's triggers are already
+# covered in the abstract. This runs the whole path: declare the source, execute the engine,
+# land the items in clusters, and read them back off the rendered page.
+#
+# Checked for policy-register by name rather than generically, because the defect was
+# specific: the skill shipped in v0.64.0 and appeared in no producer table until v0.70.0, so
+# a CISO with three reviews overdue got a clean list — and not even a NOT READ row, because a
+# producer this surface has never heard of cannot be reported as unread either (BL-212).
+POL="$repo/skills/policy-register/examples/example.pol"
+"$PY" "$A" init "$work/p.att" --org "Regression Co" >/dev/null 2>&1
+"$PY" "$A" add-source "$work/p.att" --skill policy-register --store "$POL" >/dev/null 2>&1
+add_rc=$?
+"$PY" "$A" review "$work/p.att" --today 2026-08-09 --label "wiring" >"$work/pol.out" 2>&1
+if [ "$add_rc" -eq 0 ] && "$PY" -c '
+import sys
+text = open(sys.argv[1], encoding="utf-8").read()
+missing = []
+for cluster, trigger, ref in (("Clocks running out", "review-overdue", "P-002"),
+                              ("Uncontrolled exposure", "superseded-only", "SC-1")):
+    head = text.find("## %s" % cluster)
+    if head == -1:
+        missing.append("no %r cluster on the page" % cluster); continue
+    nxt = text.find("\n## ", head + 1)
+    body = text[head:nxt if nxt != -1 else len(text)]
+    if trigger not in body or ref not in body:
+        missing.append("%s/%s is not under %r" % (trigger, ref, cluster))
+# The CSF grounding has to survive the reshape into `evidence`. It used to live in a `soWhat`
+# key CAC-EL-1 does not carry, so any consumer would have dropped it without saying so.
+if "GV.PO-02" not in text:
+    missing.append("the CSF grounding did not survive into the rendered evidence")
+if missing:
+    print("; ".join(missing), file=sys.stderr); sys.exit(1)
+' "$work/pol.out" 2>"$work/p.err"; then
+  ok "policy-register reaches the surface, in the right clusters, with its evidence"
+else
+  bad "policy-register reaches the surface" "$(cat "$work/p.err")"
+fi
+
+# The demotion, seen from the consumer end. `review-due`, `no-review-date` and `draft-only`
+# stopped escalating in v0.70.0: a policy inside its review window is on schedule, and four
+# sibling skills say in nearly these words that escalating a deadline nobody has missed
+# teaches a reader to ignore the list by the second quarter. Asserted here as well as in the
+# producer, because this page is where that noise would have landed.
+if grep -qE "review-due|no-review-date|draft-only" "$work/pol.out"; then
+  bad "a deadline nobody has missed does not reach this surface" \
+      "$(grep -oE 'review-due|no-review-date|draft-only' "$work/pol.out" | sort -u | tr '\n' ' ')"
+else
+  ok "and a deadline nobody has missed does not reach it — due is the register's own agenda"
+fi
+
+# An unreadable policy store is NOT READ, never clean. The mechanism is generic and is proved
+# above against another producer; what is proved here is that the twelfth skill is inside it,
+# which is exactly what was not true before.
+printf 'not a store at all' > "$work/broken.pol"
+"$PY" "$A" init "$work/b.att" --org "Regression Co" >/dev/null 2>&1
+"$PY" "$A" add-source "$work/b.att" --skill policy-register --store "$work/broken.pol" >/dev/null 2>&1
+"$PY" "$A" review "$work/b.att" --today 2026-08-09 --label "unread" >"$work/broken.out" 2>&1
+if grep -q "NOT READ" "$work/broken.out" && grep -q "policy-register" "$work/broken.out"; then
+  ok "a policy register that cannot be read is reported as unread, never as clean"
+else
+  bad "an unreadable policy register is reported" \
+      "$(tail -4 "$work/broken.out" | tr '\n' ' ')"
 fi
 
 echo
