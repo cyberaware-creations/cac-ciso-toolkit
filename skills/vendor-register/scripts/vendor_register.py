@@ -462,6 +462,22 @@ def criticality_rank(store: dict, value: str) -> int:
 
 
 # --- The criticality walk (NISTIR 8179 Process E, bounded) --------------------
+#
+# TWINNED with skills/ai-register/scripts/ai_register.py, which holds the same four functions
+# — _norm, context_workflow_for, context_parent_of, derive_criticality — and says so in its
+# own header: "Criticality: mirrored from vendor-register, deliberately". This end said
+# nothing back for the whole life of that copy, so a maintainer editing the walk HERE, in the
+# original, had nothing telling them a second copy existed.
+#
+# Deliberately duplicated on the usual terms: every shipped script must run standalone, so a
+# cross-skill import needs sys.path surgery and breaks the moment one skill directory is used
+# on its own. What replaces the import is tools/check-twins.py (CAC-TW-1), which executes both
+# copies over a shared corpus of contexts on every push. Each skill's own self-test cannot see
+# the other copy, by construction.
+#
+# The path above is what makes this greppable. The sibling's declaration named the SKILL and
+# not the file, which is why CAC-TW-1 could not find the pair — the same ungreppable-prose
+# failure that let evidence_text drift for four releases (BL-191, BL-217).
 
 def _norm(name: str) -> str:
     return re.sub(r"\s+", " ", str(name or "")).strip().casefold()
@@ -486,6 +502,49 @@ def context_parent_of(context: dict, node: str) -> str:
             if _norm(dep) == _norm(node):
                 return wf.get("system") or ""
     return ""
+
+
+def declared_criticality(wf: dict) -> str:
+    """The level a crown jewel declares, or `""` when it declares none.
+
+    REFUSES A CONTAINER, and that is the whole reason this exists as a function. The walk
+    below used to read the field inline:
+
+        if wf and str(wf.get("criticality") or "").strip():
+            return str(wf["criticality"]).strip(), path, False
+
+    `str({...})` is truthy and non-empty. A crown jewel whose `criticality` was a dict
+    therefore sailed straight past that guard and the walk returned
+    `"{'value': 'high', 'basis': 'board said so'}"` **as the criticality level** — a Python
+    repr standing in for a governance decision, produced confidently, and only caught later
+    (if at all) when `_rank` refused it as off-scale.
+
+    That is BL-209's defect one layer below the renderers: `esc()` now refuses a container
+    because a container never belongs in a text slot, and a derived criticality level is a
+    text slot with more riding on it than a page.
+
+    It is not hypothetical. BL-54's R-3 changes `crownJewels[].criticality` from a bare
+    string to a record carrying its own basis. **This refusal is what makes that migration
+    safe rather than hopeful** — until the reader lands, a container here is a store written
+    against a contract this engine does not yet implement, and saying so is the only honest
+    answer. When R-3 ships, this function is where the new shape is read; the refusal stays
+    for everything that is still neither a level nor a record.
+
+    An empty or whitespace-only value is NOT a refusal — it is a crown jewel that declares
+    no criticality, which is ordinary and yields `untraced` further down. Scalars are passed
+    through unchanged so the off-scale message still comes from `_rank`, which words it
+    better than anything here could.
+    """
+    raw = wf.get("criticality")
+    if isinstance(raw, (dict, list, tuple, set)):
+        raise Refusal(
+            "crown jewel %r declares a criticality that is a %s, not a level: %.120r\n"
+            "  The walk cannot turn a container into a level, and rendering it would put a "
+            "Python repr where a governance decision belongs. Either the store was written "
+            "against a newer crown-jewel shape than this engine reads, or the field was "
+            "hand-edited. Neither is something this walk may guess past."
+            % (wf.get("system") or "(unnamed)", type(raw).__name__, raw))
+    return "" if raw is None else str(raw).strip()
 
 
 def derive_criticality(arrangement: dict, context: dict, max_hops: int = TRACE_MAX_HOPS):
@@ -515,8 +574,10 @@ def derive_criticality(arrangement: dict, context: dict, max_hops: int = TRACE_M
         seen.add(_norm(node))
         path.append(node)
         wf = context_workflow_for(context, node)
-        if wf and str(wf.get("criticality") or "").strip():
-            return str(wf["criticality"]).strip(), path, False
+        if wf:
+            level = declared_criticality(wf)
+            if level:
+                return level, path, False
         node = context_parent_of(context, node)
     # `node` still set means the chain continued past where we stopped — either the hop
     # budget ran out or we re-entered a cycle. Both are "more to walk", both truncate.
@@ -2019,6 +2080,23 @@ def _cmd_self_test(_args):
         ]}
         lvlc, _, _ = derive_criticality({"supports": "A"}, cyclic, max_hops=99)
         eq(lvlc, UNTRACED, "a cycle terminates rather than spinning")
+
+        # A container where a level belongs. `str({...})` is truthy and non-empty, so the
+        # inline read this replaced returned the repr AS the level. `check-twins` proves this
+        # walk and ai-register's agree; agreement is not correctness, and two copies can agree
+        # on a repr. These pin what the right answer IS on this side.
+        for shape in ({"value": "high", "basis": "board said so"}, ["high"], ("high",)):
+            refuses(lambda s=shape: derive_criticality(
+                {"supports": "Plant historian (Dublin)"},
+                {"crownJewels": [{"system": "Plant historian (Dublin)",
+                                  "criticality": s}]}),
+                    "a %s criticality is refused, not stringified into a level"
+                    % type(shape).__name__, "not a level")
+        eq(derive_criticality({"supports": "Plant historian (Dublin)"},
+                              {"crownJewels": [{"system": "Plant historian (Dublin)",
+                                                "criticality": "   "}]}),
+           (UNTRACED, ["Plant historian (Dublin)"], False),
+           "...but a blank criticality declares nothing and is not a refusal")
 
         # --- T7: derive proposes, a person confirms -------------------------
         before = open(path, "rb").read()
