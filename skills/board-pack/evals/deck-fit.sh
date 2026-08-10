@@ -30,7 +30,7 @@ skill="$(cd "$here/.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=13
+EXPECTED_CHECKS=16
 checks=0
 fails=0
 ok()  { checks=$((checks + 1)); printf '  ok    %s\n' "$1"; }
@@ -247,6 +247,76 @@ PY
 # having an inventory at all.
 eq "the sizes below the narrative floor are exactly the known ones, awaiting T3" \
    "900,950,1000,1050" "$under"
+
+# --- BL-124 T1. EVERY CHART IS DRAWN OR NAMED -----------------------------------------
+#
+# The defect: eleven charts reach the pack, the HTML draws eleven, the writer draws the
+# three band mixes, and the other eight left NO trace on the deck at all — not a title, not
+# a pointer. Nothing failed, because nothing was looking: the deck is a valid file with or
+# without them, and a reader working from the deck could not learn that a chart existed to
+# go and look for. The writer's own comment claimed the deck "says where the rest are",
+# which had been aspirational since it was written.
+#
+# What is asserted is the INVARIANT, not the current count. A chart is accounted for if its
+# title appears anywhere in the deck's text — as a drawn "Mix title", or on the pointer
+# slide. That holds whatever the pack contains and whatever the writer later learns to
+# draw: teach it bullets tomorrow and this stays green without an edit, because a drawn
+# chart carries its title too. Pinning "8 undrawn" instead would need editing the day the
+# writer improved, which is how a check ends up asserting the fixture.
+missing="$("$PY" - "$work/pack.json" "$work/p.pptx" <<'PY'
+import json, re, sys, zipfile
+charts = json.load(open(sys.argv[1])).get("charts") or []
+text = ""
+with zipfile.ZipFile(sys.argv[2]) as z:
+    for n in z.namelist():
+        if re.match(r"ppt/slides/slide\d+\.xml$", n):
+            text += " ".join(re.findall(r"<a:t>([^<]*)</a:t>", z.read(n).decode("utf-8")))
+print("|".join(c["title"] for c in charts if c.get("title") and c["title"] not in text))
+PY
+)"
+eq "every chart in the pack is either drawn on the deck or named on it" "" "$missing"
+
+# The negative half, and it is the one that catches the lazy fix. Listing ALL eleven on the
+# pointer slide would satisfy the check above while telling the reader that the three charts
+# they can see in front of them are somewhere else. So the slide must name the undrawn ones
+# and ONLY those — the count comes from the writer's own MIX_PER_SLIDE, never from a
+# constant repeated here.
+named="$("$PY" - "$work/pack.json" "$work/p.pptx" "$skill/scripts" <<'PY'
+import json, re, sys, zipfile
+sys.path.insert(0, sys.argv[3])
+import pptx_writer as P
+charts = json.load(open(sys.argv[1])).get("charts") or []
+drawn = [c for c in charts if c.get("kind") == "band-mix"][:P.Deck.MIX_PER_SLIDE]
+want = [c["title"] for c in charts if c not in drawn]
+page = ""
+with zipfile.ZipFile(sys.argv[2]) as z:
+    for n in z.namelist():
+        if re.match(r"ppt/slides/slide\d+\.xml$", n):
+            x = z.read(n).decode("utf-8")
+            if "Charts in the document" in x:
+                page += " ".join(re.findall(r"<a:t>([^<]*)</a:t>", x))
+absent = [t for t in want if t not in page]
+extra = [c["title"] for c in drawn if c["title"] in page]
+print("absent=%s extra=%s" % (len(absent), len(extra)))
+PY
+)"
+eq "...and the pointer slide names the undrawn charts, and only those" \
+   "absent=0 extra=0" "$named"
+
+# A pointer that lands in the appendix of a board deck is a pointer the board does not see.
+# `--deck-mode board` moves item detail behind the divider; this slide is navigation, not
+# detail, and belongs in front of it.
+core_has="$("$PY" - "$work/p.pptx" <<'PY'
+import re, sys, zipfile
+with zipfile.ZipFile(sys.argv[1]) as z:
+    names = sorted((n for n in z.namelist() if re.match(r"ppt/slides/slide\d+\.xml$", n)),
+                   key=lambda n: int(re.search(r"(\d+)", n).group(1)))
+    hit = [i for i, n in enumerate(names)
+           if "Charts in the document" in z.read(n).decode("utf-8")]
+print("once" if len(hit) == 1 else "%d slides" % len(hit))
+PY
+)"
+eq "...on exactly one slide, so it is a pointer and not a refrain" "once" "$core_has"
 
 echo
 if [ "$checks" -ne "$EXPECTED_CHECKS" ]; then

@@ -808,6 +808,42 @@ def build_pptx(pack: dict, path: str, mode: str = "full") -> None:
     if mixes:
         deck.mixes("How the totals break down", mixes, eyebrow=eyebrow)
 
+    # BL-124 T1. The comment above says the deck "says where the rest are rather than faking
+    # them". Until now it did not. Eleven charts reach the pack, the HTML draws eleven, this
+    # writer draws the three mixes, and the other eight left NO trace on the deck — no title,
+    # no pointer, nothing. A reader working from the deck could not learn that a chart existed
+    # to go and look for, which is the same silent divergence between deliverables that the
+    # placeholder pair has prevented for prose since this skill shipped. The decision to draw
+    # only the mixes stands; going undeclared about it does not.
+    #
+    # Derived from what the writer ACTUALLY drew, never from a hand-kept list, so it cannot
+    # drift. That also catches a second gap for free: `Deck.mixes` renders
+    # `charts[:MIX_PER_SLIDE]` with no pagination, so a fourth band-mix would vanish as
+    # silently as the bars do today. Counting it as undrawn is correct rather than convenient
+    # — it IS undrawn — and it means the deck reports the drop instead of swallowing it.
+    # Paginating `mixes()` properly is a separate change and is filed, not smuggled in here.
+    drawn = mixes[:PX.Deck.MIX_PER_SLIDE]
+    undrawn = [c for c in (pack.get("charts") or []) if c not in drawn]
+    if undrawn:
+        # Sizes at or above NARRATIVE_TYPE_FLOOR (1100), deliberately. `deck-fit.sh` check 13
+        # pins the set of sub-floor sizes the deck emits to exactly {900,950,1000,1050}; a new
+        # size under the floor would fail it, and this slide has no reason to want one.
+        kinds = {"bar": "bar chart", "bullet": "bullet chart", "band-mix": "band mix"}
+        paras = [("The deck draws the band compositions as native shapes. The charts below "
+                  "are in the pack and are drawn in full in the HTML document — they are "
+                  "named here so that nothing is missing without saying so.",
+                  1250, False, PX.INK, False)]
+        for c in undrawn:
+            paras.append(("%s  ·  %s" % (c.get("title") or "(untitled)",
+                                         kinds.get(c.get("kind"), c.get("kind") or "chart")),
+                          1150, False, PX.MUTED, True))
+        paras.append(("A bullet needs a zone axis and a bar needs a scale. Both are marks the "
+                      "SVG library draws properly and this writer would only approximate, and "
+                      "half a chart in a board deck is worse than a clear pointer to the "
+                      "document that has the whole one.",
+                      1100, False, PX.MUTED, False))
+        deck.add("Charts in the document, not on these slides", paras, eyebrow=eyebrow)
+
     # Escalations reach the deck as well as the document, and before the decisions for the
     # same reason they lead in the HTML. A figure that reaches one deliverable and not the
     # other means two readers of "the same pack" saw different things — the rule the

@@ -21,6 +21,54 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.95.0 — 2026-08-10
+
+**The deck now names the charts it does not draw.** Eleven charts reach the pack. The HTML draws
+**eleven**. The PPTX writer draws **three** — the band mixes — and until now the other **eight**
+left no trace on the deck at all: no title, no pointer, nothing. Nothing failed, because nothing
+was looking. A reader working from the deck could not learn that a chart existed to go and find.
+
+The writer's own comment has said, since it was written, that the deck *"says where the rest are
+rather than faking them."* That was aspirational. It is now true.
+
+### The decision to draw only the mixes stands
+
+A bullet needs a zone axis and a bar needs a scale; both are marks the SVG library draws properly
+and this writer would only approximate. **Half a chart in a board deck is worse than a clear
+pointer to the document that has the whole one.** What changes is that the deck stops being
+silent about the trade.
+
+### Derived from what was drawn, never from a list
+
+The pointer slide is computed from the writer's actual output, so it cannot drift — and that
+catches a second gap for free. `Deck.mixes` renders `charts[:MIX_PER_SLIDE]` with **no
+pagination**, so a fourth band mix would vanish exactly as silently as the bars did. It now
+counts as undrawn, because it *is* undrawn, so the deck reports the drop instead of swallowing
+it. Paginating `mixes()` properly is filed separately rather than smuggled in here.
+
+### Three checks in `deck-fit.sh`, and the second is the one that matters
+
+The invariant asserted is **every chart is drawn or named** — not "eight are undrawn". Teach the
+writer bullets tomorrow and this stays green without an edit, because a drawn chart carries its
+title too. Pinning the count would need editing the day the writer improved, which is how a
+check ends up asserting its own fixture.
+
+The negative half catches the lazy fix: listing **all eleven** would satisfy the first check
+while telling the board that the three charts in front of them are somewhere else. Proven by
+mutation — removing the slide fails three checks; listing everything fails only the negative one.
+
+### ⚠️ The board core is now at its ceiling
+
+`--deck-mode board` moves from **17 to 18** slides, against a declared band of 8–18. It passes,
+and it is now **at the limit**. The slide is navigation rather than detail, so the appendix is
+the wrong side of the divider for it. **BL-166 has to account for this**: the headroom it was
+written against is gone.
+
+### Not in this pass
+
+Tier 2 — drawing the bars and bullets natively — is unchanged and unstarted. The SPLIT decision
+puts charts in the pre-read half, where the HTML document stays primary.
+
 ## v0.94.0 — 2026-08-10
 
 **A correction that was itself wrong, withdrawn — and the rule that would have caught it.**
