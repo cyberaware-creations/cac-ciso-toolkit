@@ -359,6 +359,11 @@ class Context:
         self.policies = self.data.get("policies") or []
         self.counts = self.data.get("stateCounts") or {}
         self.escalations = self.data.get("escalations") or []
+        # The review agenda, beside the escalations rather than inside them (v0.70.0). An
+        # analysis written by an older engine carries no `attention` key, and an empty dict
+        # is the honest reading of that: this renderer cannot re-derive the lists, because
+        # the engine computed them against a review window it does not hold.
+        self.attention = self.data.get("attention") or {}
         self.limits = self.data.get("limits") or []
 
     def in_catalogue(self) -> list:

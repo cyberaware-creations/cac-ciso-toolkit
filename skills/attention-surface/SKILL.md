@@ -11,15 +11,15 @@ description: >-
   the first one is a baseline, and the page says so outright rather than reporting that nothing
   changed. What stopped firing is reported as *no longer firing*, never as *resolved* — the
   underlying record may simply have been edited, and this surface cannot tell those apart. Reads
-  the escalations the seven producing skills emit — risk-register, metrics-register,
-  exceptions-register, incident-materiality, vendor-register, ai-register and business-context —
-  groups them by DECISION rather than by producer (clocks running out, something moved under us,
+  the escalations the eight producing skills emit — risk-register, metrics-register,
+  exceptions-register, incident-materiality, vendor-register, ai-register, policy-register and
+  business-context — groups them by DECISION rather than by producer (clocks running out, something moved under us,
   nobody owns it, we disagree with ourselves, uncontrolled exposure, over tolerance), orders them
   deterministically, and shows what changed since the last review. Weekly and operational, where
   board-pack is quarterly and board-facing: same escalation contract, different period and
   audience. It OWNS NO DATA and computes no status — every fact comes from a producer's store and
-  the producer is named on every item, which is what stops the list becoming a thirty-first
-  opinion. There is no priority score: ordering is severity as the producer declared it, then age,
+  the producer is named on every item, which is what stops the list becoming one more opinion
+  beside the registers it reads. There is no priority score: ordering is severity as the producer declared it, then age,
   then subject reference, and nothing is weighted or blended. There is no mute and no snooze — if
   volume is unusable the fix is threshold tuning at the producer, logged and visible. A producer
   whose store is missing is reported as NOT READ, never as clean, because a quiet list and an
@@ -37,9 +37,14 @@ description: >-
 
 **What needs the CISO this week.** A projection, not a register.
 
-The suite emits thirty escalation triggers across seven producers. Every one is computed, dated,
-evidenced and carries a subject reference — and until this skill there was nowhere to look at
-them together on a working cadence.
+The suite emits thirty-one escalation triggers across eight producers. Every one is computed,
+dated, evidenced and carries a subject reference — and until this skill there was nowhere to look
+at them together on a working cadence.
+
+Both numbers are read off the tree by `evals/_triggerscan.py` on every run, not maintained here.
+The eighth producer is `policy-register`, which shipped in v0.64.0 and was in this table for the
+first time in v0.70.0 — six versions during which a CISO with an overdue policy review asked what
+needed them this week and got a clean list (BL-212).
 
 `board-pack` consumes the same escalations for a **quarterly** artifact aimed at a **board**.
 This consumes them **weekly**, for the **person who has to act**. Same input contract, different
@@ -50,7 +55,7 @@ first.
 
 Every fact comes from a producer's store. This skill orders, groups, and shows what changed. It
 computes no status, assigns no severity, and merges nothing — the same discipline `board-pack`
-holds, and what stops an attention list becoming a thirty-first opinion.
+holds, and what stops an attention list becoming one more opinion beside the registers it reads.
 
 | Not owned | Owner |
 |---|---|
@@ -61,7 +66,7 @@ holds, and what stops an attention list becoming a thirty-first opinion.
 | The quarterly board narrative | `board-pack` |
 | Task assignment and tracking | out of scope, permanently — see `references/scope.md` |
 
-## Three things make thirty items useful
+## Three things make a list this long useful
 
 ### 1. Grouping by decision, not by producer
 

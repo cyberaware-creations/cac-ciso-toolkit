@@ -620,59 +620,102 @@ def state_counts(rows: list) -> dict:
     return counts
 
 
+# CAC-EL-1 §1.3. The six keys every escalation this register emits must carry, so that
+# `attention-surface` and `board-pack` can read it without either of them patching the input.
+# Declared here rather than assumed, because a consumer that fills a blank is inventing a fact.
+ESCALATION_KEYS = ("evidence", "severity", "since", "subjectKind", "subjectRef", "trigger")
+
+
+def _superseded_on(store: dict, row: dict) -> str:
+    """The date a requirement lost its last document in force.
+
+    Every policy mapped here is superseded — that is what `superseded-only` means — so the
+    LATEST `supersededOn` among them is the day the cover ended. A recorded date, taken from
+    the act that ended it, and never `today`: stamping now on a historic fact is BL-111, and
+    this skill is young enough not to repeat it.
+    """
+    by_id = dict((r["id"], r) for r in store["policies"])
+    dates = [str((by_id.get(p["id"]) or {}).get("supersededOn") or "")
+             for p in (row.get("policies") or [])]
+    dates = [d for d in dates if d]
+    return max(dates) if dates else ""
+
+
 def escalations(store: dict, today: str, rows: list = None) -> list:
-    """Derived on every read, stored nowhere, and never a reason to withhold anything."""
+    """Derived on every read, stored nowhere, and never a reason to withhold anything.
+
+    **Two triggers, and the other three are an attention list.** `review-due`,
+    `no-review-date` and `draft-only` were escalations until v0.70.0, which contradicted a
+    rule four sibling skills state in nearly the same words — `exceptions-register`: *"Due is
+    the attention list; overdue is an escalation… escalating a deadline nobody has missed
+    teaches a reader to ignore the list by the second quarter."* A policy inside its review
+    window is on schedule. Nothing has gone wrong yet, and saying it has, weekly, is how a
+    surface trains its reader to skim. They live in `analyze()["attention"]` instead — see
+    `attention_lists`, which is a review agenda rather than a claim that something failed.
+
+    `draft-only` is the interesting one to demote and the reasoning is recorded because it
+    will read as a mistake later. It shares its END STATE with `superseded-only`: neither
+    requirement has an approved document in force. The distinction is not severity, it is
+    whether the gap is VISIBLE. A draft is somebody's work in progress and the register shows
+    it as a draft; a requirement covered only by superseded documents looks populated and is
+    not, which is the state that goes unnoticed. Deceptive escalates. Visible does not.
+    """
     rows = rows if rows is not None else requirement_rows(store, today)
     window = int(store["settings"].get("dueWindowDays", DEFAULT_DUE_WINDOW_DAYS))
     out = []
+
+    def add(trigger, kind, ref, severity, since, evidence):
+        out.append({"trigger": trigger, "subjectKind": kind, "subjectRef": ref,
+                    "severity": severity, "since": since, "evidence": evidence})
+
+    # Two subject kinds, deliberately. Three of this register's concerns are about a POLICY
+    # and two about a REQUIREMENT, so `subjectKind` cannot be a constant the way it is in
+    # vendor-register. A consumer grouping by subject must be able to tell a document that
+    # went stale from an obligation nothing covers.
     for rec in store["policies"]:
         label, remaining = review_state(rec, today, window)
-        if label == "review-overdue":
-            out.append({
-                "severity": "high", "kind": "review-overdue", "target": rec["id"],
-                "what": "%s (%s) was due for review on %s, %d day(s) ago."
-                        % (rec.get("title"), rec["id"],
-                           (rec.get("review") or {}).get("nextOn"), -remaining),
-                "soWhat": "GV.PO-02 asks that policy be updated to reflect changes in "
-                          "requirements, threats and technology. An unreviewed policy is "
-                          "still in force; nothing here removes it.",
-            })
-        elif label == "review-due":
-            out.append({
-                "severity": "medium", "kind": "review-due", "target": rec["id"],
-                "what": "%s (%s) is due for review on %s, in %d day(s)."
-                        % (rec.get("title"), rec["id"],
-                           (rec.get("review") or {}).get("nextOn"), remaining),
-                "soWhat": "Schedule the review, or record why the interval changed.",
-            })
-        elif label == "no-review-date":
-            out.append({
-                "severity": "medium", "kind": "no-review-date", "target": rec["id"],
-                "what": "%s (%s) is approved with no next review date."
-                        % (rec.get("title"), rec["id"]),
-                "soWhat": "A policy with no review date is not on a cycle, which is the "
-                          "thing GV.PO-02 is about.",
-            })
-    for row in rows:
-        if not row.get("inCatalogue"):
+        if label != "review-overdue":
             continue
-        if row["state"] == REQ_SUPERSEDED_ONLY:
-            out.append({
-                "severity": "high", "kind": "superseded-only", "target": row["id"],
-                "what": "%s — every policy mapped here has been superseded and nothing "
-                        "approved replaced it." % row["id"],
-                "soWhat": "This is the state that goes unnoticed: the register looks "
-                          "populated and the requirement has no document in force.",
-            })
-        elif row["state"] == REQ_DRAFT_ONLY:
-            out.append({
-                "severity": "medium", "kind": "draft-only", "target": row["id"],
-                "what": "%s — every policy mapped here is still a draft." % row["id"],
-                "soWhat": "Nobody has approved a document aimed at this requirement.",
-            })
+        nxt = (rec.get("review") or {}).get("nextOn")
+        add("review-overdue", "policy", rec["id"], "high", nxt or "",
+            "%s (%s) was due for review on %s, %d day(s) ago. "
+            "GV.PO-02 asks that policy be updated to reflect changes in requirements, "
+            "threats and technology. An unreviewed policy is still in force; nothing here "
+            "removes it." % (rec.get("title"), rec["id"], nxt, -remaining))
+
+    for row in rows:
+        if not row.get("inCatalogue") or row["state"] != REQ_SUPERSEDED_ONLY:
+            continue
+        add("superseded-only", "requirement", row["id"], "high",
+            _superseded_on(store, row),
+            "%s — every policy mapped here has been superseded and nothing approved "
+            "replaced it. This is the state that goes unnoticed: the register looks "
+            "populated and the requirement has no document in force." % row["id"])
+
     order = dict((s, i) for i, s in enumerate(ESCALATION_SEVERITY_ORDER))
-    out.sort(key=lambda e: (order.get(e["severity"], 99), e["target"]))
+    out.sort(key=lambda e: (order.get(e["severity"], 99), e["subjectRef"]))
     return out
+
+
+def attention_lists(policies: list, rows: list) -> dict:
+    """The review agenda: things to look at, none of which has gone wrong yet.
+
+    Beside `escalations`, never inside it, and the boundary is the whole point. An escalation
+    says a line has been crossed. These three say a line is coming, or that a gap is visible
+    to anyone reading the register. `exceptions-register` draws the same line in the same
+    place and this is modelled on it.
+
+    Ids only. A consumer that wants the record has the record — `policies` and `requirements`
+    are in the same payload, and repeating their fields here would give two places to read
+    one fact and one of them would go stale.
+    """
+    return {
+        "reviewDue": [p["id"] for p in policies if p.get("reviewState") == "review-due"],
+        "noReviewDate": [p["id"] for p in policies
+                         if p.get("reviewState") == "no-review-date"],
+        "draftOnly": [r["id"] for r in rows
+                      if r.get("inCatalogue") and r["state"] == REQ_DRAFT_ONLY],
+    }
 
 
 def analyze(store: dict, today: str, requirements=None) -> dict:
@@ -708,6 +751,10 @@ def analyze(store: dict, today: str, requirements=None) -> dict:
         "stateCounts": counts,
         "stateMeans": dict(REQUIREMENT_STATE_MEANS),
         "escalations": escalations(store, today, rows),
+        # Beside `escalations`, not inside it. A line crossed against a line coming — the
+        # same boundary `exceptions-register` draws, and the reason `review-due` stopped
+        # escalating in v0.70.0.
+        "attention": attention_lists(policies, rows),
         "limits": [
             "A mapped policy records that a document exists, that a named person approved "
             "it on a date, and what it is aimed at. It is not evidence that the requirement "
@@ -908,8 +955,11 @@ def _cmd_self_test(_args):
               reloaded["policies"][0]["state"] == STATE_APPROVED)
         got = analyze(reloaded, "2026-08-09")
         check("and analyze reports it rather than hiding it",
-              any(e["kind"] == "no-review-date" for e in got["escalations"]),
-              [e["kind"] for e in got["escalations"]])
+              "P-001" in got["attention"]["noReviewDate"], got["attention"])
+        check("as an agenda item and not as an escalation, because no date was missed",
+              not [e for e in got["escalations"]
+                   if e["trigger"] == "no-review-date"],
+              [e["trigger"] for e in got["escalations"]])
     finally:
         os.unlink(tmp)
 
@@ -974,13 +1024,16 @@ def _cmd_self_test(_args):
     rows = dict((r["id"], r) for r in result["requirements"])
     check("a requirement left with only a superseded policy reads superseded-only",
           rows["MP-1"]["state"] == REQ_SUPERSEDED_ONLY, rows["MP-1"]["state"])
-    check("and escalates as high",
-          any(e["kind"] == "superseded-only" and e["target"] == "MP-1"
-              and e["severity"] == "high" for e in result["escalations"]))
+    sup = [e for e in result["escalations"]
+           if e["trigger"] == "superseded-only" and e["subjectRef"] == "MP-1"]
+    check("and escalates as high", sup and sup[0]["severity"] == "high", result["escalations"])
+    check("against a requirement, not a policy", sup and sup[0]["subjectKind"] == "requirement")
+    check("dated from the supersession that ended the cover, never from today",
+          sup and sup[0]["since"] == "2026-06-15", sup and sup[0]["since"])
 
     # --- R-6 an overdue review flags and never blocks -------------------------
     late = analyze(store, "2028-01-01")
-    overdue = [e for e in late["escalations"] if e["kind"] == "review-overdue"]
+    overdue = [e for e in late["escalations"] if e["trigger"] == "review-overdue"]
     check("an overdue review raises an escalation", overdue, late["escalations"])
     check("and the policy is still in the register", len(late["policies"]) == len(store["policies"]))
     check("and still appears in its requirement rows",
@@ -989,6 +1042,44 @@ def _cmd_self_test(_args):
           all("reviewState" not in p and "escalation" not in p
               for p in store["policies"]),
           "a derived field was persisted")
+
+    # --- CAC-EL-1 §1.3, the shape the consumers read --------------------------
+    #
+    # Iterated from ESCALATION_KEYS rather than listed by hand. A hand-written list is a
+    # second copy of the contract that can drift from the first, and the drift would be
+    # invisible: both would be wrong in the same direction and agree with each other.
+    missing = [(e.get("trigger"), k) for e in late["escalations"]
+               for k in ESCALATION_KEYS if k not in e]
+    check("every escalation carries all six CAC-EL-1 keys", not missing, missing)
+    check("and the key set is the contract, not a longer one",
+          all(set(e) == set(ESCALATION_KEYS) for e in late["escalations"]),
+          [sorted(set(e) - set(ESCALATION_KEYS)) for e in late["escalations"]])
+    check("the overdue escalation is dated from the review date that passed",
+          overdue and overdue[0]["since"] == "2027-01-15", overdue and overdue[0]["since"])
+    check("and names a policy as its subject",
+          overdue and overdue[0]["subjectKind"] == "policy")
+    check("the CSF grounding survives into evidence",
+          overdue and "GV.PO-02" in overdue[0]["evidence"])
+    check("no escalation carries a `since` of today — a derived date is not a recorded one",
+          all(e["since"] != "2028-01-01" for e in late["escalations"]),
+          [e["since"] for e in late["escalations"]])
+
+    # --- the demotion, asserted from both sides -------------------------------
+    #
+    # Both halves, because only asserting the absence would pass just as well if the states
+    # had been deleted rather than moved. Due must be ON the agenda AND off the escalations.
+    triggers = set(e["trigger"] for e in late["escalations"])
+    check("review-due, no-review-date and draft-only no longer escalate",
+          not (triggers & {"review-due", "no-review-date", "draft-only"}), sorted(triggers))
+    check("and the only two triggers this register emits are the two that are clocks or gaps",
+          triggers <= {"review-overdue", "superseded-only"}, sorted(triggers))
+    # Inside the 30-day window ahead of the 2027-01-15 next review, so the same record that
+    # escalates above is merely due here. One record, two dates, two different lists.
+    soon = analyze(store, "2026-12-20")
+    check("a policy due inside the window is on the agenda",
+          soon["attention"]["reviewDue"], soon["attention"])
+    check("and is not escalating, because nobody has missed anything",
+          "review-due" not in [e["trigger"] for e in soon["escalations"]])
 
     # --- review is an act, not a timer ----------------------------------------
     refuses("a review with no reason",
@@ -1008,9 +1099,14 @@ def _cmd_self_test(_args):
     check("a revision returns the policy to draft", rec["state"] == STATE_DRAFT)
     check("and clears the approval, because the new text is not the approved text",
           rec["approval"] is None)
-    rows = dict((r["id"], r) for r in analyze(store, "2027-02-01")["requirements"])
+    revised = analyze(store, "2027-02-01")
+    rows = dict((r["id"], r) for r in revised["requirements"])
     check("so its requirement drops back to draft-only",
           rows["IA-1"]["state"] == REQ_DRAFT_ONLY, rows["IA-1"]["state"])
+    check("and lands on the review agenda, not in the escalations",
+          "IA-1" in revised["attention"]["draftOnly"]
+          and "draft-only" not in [e["trigger"] for e in revised["escalations"]],
+          revised["attention"])
 
     # --- mapping --------------------------------------------------------------
     refuses("mapping to nothing", lambda: map_requirements(store, rec["id"], []),
@@ -1178,24 +1274,47 @@ def _cmd_requirements(args):
     return 0
 
 
+ATTENTION_LABEL = {
+    "reviewDue": "due for review inside the window",
+    "noReviewDate": "approved with no next review date",
+    "draftOnly": "covered only by a draft",
+}
+
+
 def _cmd_analyze(args):
     result = analyze(load_store(args.store), _today(args))
-    if args.out:
+    # `--json`, not a changed default. `vendor_register.py` and `ai_register.py` take the same
+    # flag and `attention-surface`'s PRODUCERS table already calls them with it. Making JSON
+    # the default would replace the human summary for everybody running this at a terminal,
+    # which is a break for a reason that has nothing to do with them.
+    if args.out or getattr(args, "json", False):
         _write(args.out, json.dumps(result, indent=2, ensure_ascii=False) + "\n")
+        return 0
+    counts = result["stateCounts"]
+    print("%s — %d policy record(s), %d requirement(s) in catalogue"
+          % (result["meta"].get("orgName") or args.store, result["policyCount"],
+             result["requirementCount"]))
+    print("  " + ", ".join("%d %s" % (counts[s], s) for s in REQUIREMENT_STATES))
+    if result["escalations"]:
+        print("  %d escalation(s):" % len(result["escalations"]))
+        for e in result["escalations"]:
+            print("    [%s] %s" % (e["severity"], e["evidence"]))
     else:
-        counts = result["stateCounts"]
-        print("%s — %d policy record(s), %d requirement(s) in catalogue"
-              % (result["meta"].get("orgName") or args.store, result["policyCount"],
-                 result["requirementCount"]))
-        print("  " + ", ".join("%d %s" % (counts[s], s) for s in REQUIREMENT_STATES))
-        if result["escalations"]:
-            print("  %d escalation(s):" % len(result["escalations"]))
-            for e in result["escalations"]:
-                print("    [%s] %s" % (e["severity"], e["what"]))
-        else:
-            print("  no escalations")
-        for note in result["limits"]:
-            print("* %s" % note)
+        print("  no escalations")
+    # Printed even when empty, and named as an agenda rather than a fault. A reader who sees
+    # "no escalations" and nothing else cannot tell a register with three reviews due next
+    # week from one with nothing coming at all.
+    attention = result["attention"]
+    total = sum(len(v) for v in attention.values())
+    if total:
+        print("  %d on the review agenda (nothing has gone wrong yet):" % total)
+        for key in ("reviewDue", "noReviewDate", "draftOnly"):
+            if attention[key]:
+                print("    %s: %s" % (ATTENTION_LABEL[key], ", ".join(attention[key])))
+    else:
+        print("  nothing on the review agenda")
+    for note in result["limits"]:
+        print("* %s" % note)
     return 0
 
 
@@ -1315,6 +1434,9 @@ def build_parser() -> argparse.ArgumentParser:
     store_arg(sp)
     sp.add_argument("--today", default="")
     sp.add_argument("--out", default="")
+    sp.add_argument("--json", action="store_true",
+                    help="the whole read model as JSON on stdout, which is how "
+                         "attention-surface and board-pack read this register")
 
     sp = sub.add_parser("export", help="the register as CSV or JSON")
     store_arg(sp)

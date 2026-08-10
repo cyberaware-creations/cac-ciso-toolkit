@@ -1,6 +1,6 @@
 {
   "id": "attention-clusters",
-  "datasetVersion": "2",
+  "datasetVersion": "3",
   "asOf": "2026-08-09",
   "note": "A CISO does not think 'show me vendor escalations'. They think 'what is overdue', 'what changed under me', 'what is unowned'. Triggers cluster across producers, and the clustering is DATA rather than logic: a new trigger lands in a cluster by declaration. An unmapped trigger surfaces in an explicit `unclustered` group and is never silently dropped — evals/clusters.sh asserts that every trigger the shipped producers can emit has a home here, and that an unknown one still appears.",
   "orderNote": "Clusters are presented in this order. It is a judgement about what a person should read first, written down as chosen: a clock that has run out is already late, whereas an uncontrolled exposure is a standing condition. It is NOT a ranking of the items inside them, and there is no number anywhere.",
@@ -15,7 +15,8 @@
         "assessment-overdue",
         "expired",
         "evidence-expired",
-        "profile-stale"
+        "profile-stale",
+        "review-overdue"
       ]
     },
     {
@@ -64,7 +65,8 @@
       "triggers": [
         "attack-class-uncontrolled",
         "exit-untested",
-        "unconfirmed-proposals"
+        "unconfirmed-proposals",
+        "superseded-only"
       ]
     },
     {
@@ -82,7 +84,9 @@
     "triggers": {
       "autonomy-increased": "moved-under-us — the deployment can reach more than it could when it was assessed",
       "provider-arrangement-missing": "unowned — the contractual questions this raises have nowhere to be asked",
-      "evidence-expired": "clocks-running-out — the artifact holding up a satisfied requirement has run out"
+      "evidence-expired": "clocks-running-out — the artifact holding up a satisfied requirement has run out",
+      "review-overdue": "clocks-running-out — a policy review date the organisation set has passed. Beside revalidation-overdue and assessment-overdue, which are the same shape: an interval somebody chose, and nobody kept.",
+      "superseded-only": "uncontrolled-exposure — every policy aimed at a requirement has been superseded and nothing approved replaced it. A standing condition rather than a deadline, which is this cluster's own definition. Its sibling `draft-only` is deliberately NOT here and not a trigger at all: the two share an end state — no approved document in force — and differ in whether the gap is VISIBLE. A draft shows as a draft; a requirement covered only by superseded documents looks populated. Deceptive escalates, visible does not."
     }
   }
 }
