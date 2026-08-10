@@ -441,6 +441,14 @@ def load_context(path: str) -> dict:
             payload = json.load(fh)
     except FileNotFoundError:
         raise Refusal(f"no such context payload: {path}")
+    except OSError as exc:
+        # A DIRECTORY, an unreadable file, a symlink to nowhere. `except FileNotFoundError`
+        # does NOT catch `IsADirectoryError`, so `--context .` or `--context ~/ctx/` came out
+        # of all seven copies as a raw traceback until BL-226 — the same BL-169 D-1 failure
+        # BL-218 was raised for, one exception class along. Caught after FileNotFoundError,
+        # which is an OSError subclass and keeps its own sentence.
+        raise Refusal(f"cannot read the context payload {path}: "
+                      f"{exc.strerror or exc}")
     except json.JSONDecodeError as exc:
         raise Refusal(f"{path} is not valid JSON (line {exc.lineno}, "
                       f"column {exc.colno}): {exc.msg}")

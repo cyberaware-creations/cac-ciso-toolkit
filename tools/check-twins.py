@@ -58,6 +58,12 @@ declares what is compared:
              business, not an agreement (BL-218). A member declaring `ValueError` cannot tell
              an uncaught `JSONDecodeError` from a refusal, since one subclasses the other;
              both such members catch it explicitly, and that is the reason this is safe.
+             EVERY PAYLOAD ALSO STATES ITS EXPECTED OUTCOME, and both checks run: the members
+             must agree with each other AND with the contract. Agreement alone was not enough
+             — all seven consumers raised `IsADirectoryError` on `--context <a directory>`,
+             identically, so a member-to-member comparison reported perfect agreement while
+             every copy was wrong (BL-226). That is the same hole `atomic` opened `expect` for,
+             and this is the same answer.
 
 NAMING. By default every member must name every other member's path in its own source — a
 twin declared at one end is a twin the other end's next reader will not know exists. An entry
@@ -100,6 +106,15 @@ _CALL_CSFP = lambda fn, path: fn({"probe": "interrupted-write", "profile": {}}, 
                                  "2026-01-01T00:00:00Z")
 _HUB_SAVE = "skills/ai-register/scripts/ai_register.py"
 _HUB_CONTEXT = "skills/vendor-register/scripts/vendor_register.py"
+
+AS_DIRECTORY = object()
+"""Payload sentinel: create the path as a DIRECTORY rather than a file.
+
+`--context .` and `--context ~/ctx/` are ordinary typos, and `except FileNotFoundError` does
+not catch `IsADirectoryError` — so every one of the seven consumers answered them with a raw
+traceback until BL-226. It could not be written as file content, which is why it is a sentinel
+and not a string.
+"""
 
 # Age-band corpus. Thresholds include 0 and 1 deliberately: `t // 2` is 0 for both, so every
 # boundary collapses onto the same value and the four bands have to be told apart with no room
@@ -321,23 +336,31 @@ TWINS = (
                      "ValueError"),
                     ("skills/risk-register/scripts/score_register.py", "load_context",
                      "ValueError")],
-        # The failure modes all seven must answer the same way, and one payload every one of
-        # them must ACCEPT — without that last row a guard that refused everything would pass.
+        # The failure modes all seven must answer the same way, each with the answer it OWES
+        # — and one payload every one of them must ACCEPT, without which a guard that refused
+        # everything would pass.
         #
-        # Three inputs are deliberately NOT here, and their absence is a finding rather than
-        # an oversight (BL-226): a payload with no `contractVersion` (five refuse, two do
-        # not), a payload with no decided `applicability` (five refuse, two do not), and a
-        # DIRECTORY path, which raises IsADirectoryError out of all seven. The last would
-        # pass this guard by unanimous agreement while every copy is wrong, which is the
-        # shape `expect` exists for in the `atomic` kind and the reason it is named here.
+        # THE DIRECTORY ROW IS WHY THE THIRD SLOT EXISTS. Until BL-226 all seven raised
+        # `IsADirectoryError` on it, identically, so member-to-member comparison called that
+        # perfect agreement. It was excluded from this corpus for exactly that reason and is
+        # now included with a stated contract, which is the only form in which it means
+        # anything.
+        #
+        # Two inputs are still deliberately absent, and their absence is a finding rather
+        # than an oversight (BL-226): a payload with no `contractVersion` (five refuse, two
+        # do not) and a payload with no decided `applicability` (five refuse, two do not).
+        # Those are genuine disagreements about what a CAC-AP-1 consumer owes, not bugs, and
+        # converging them changes what two shipped engines accept — a decision, not a fix.
         "payloads": [
-            ("a path that does not exist", None),
-            ("a file that is not JSON", "{"),
-            ("a JSON array, which parses and then has no .get", "[]"),
+            ("a path that does not exist", None, "refused"),
+            ("a DIRECTORY path, the typo `--context .`", AS_DIRECTORY, "refused"),
+            ("a file that is not JSON", "{", "refused"),
+            ("a JSON array, which parses and then has no .get", "[]", "refused"),
             ("a payload declaring a contract this suite does not read",
-             '{"contractVersion": "CAC-AP-9", "applicability": {}}'),
+             '{"contractVersion": "CAC-AP-9", "applicability": {}}', "refused"),
             ("a payload every consumer must accept",
-             '{"contractVersion": "CAC-AP-1", "profileVersion": "1", "applicability": {}}'),
+             '{"contractVersion": "CAC-AP-1", "profileVersion": "1", "applicability": {}}',
+             "accepted"),
         ],
     },
 )
@@ -459,11 +482,14 @@ def _refusal_outcome(fn, refusal, content):
     refusal and reported the seven consumers as agreeing.
 
     `content is None` means the file is never created, which is the missing-payload case.
+    `content is AS_DIRECTORY` makes the path a directory instead.
     """
     d = tempfile.mkdtemp(prefix="cac-tw-refusal-")
     try:
         path = os.path.join(d, "ctx.json")
-        if content is not None:
+        if content is AS_DIRECTORY:
+            os.mkdir(path)
+        elif content is not None:
             with open(path, "w", encoding="utf-8") as fh:
                 fh.write(content)
         try:
@@ -578,12 +604,27 @@ def run(repo, twins, not_a_twin, uncompared, scan=True):
                     "result here means the guard ran and asked nothing." % name)
                 continue
             base_rel, base_fn, base_cls = loaded[0]
-            for label, content in payloads:
+            for row in payloads:
+                if len(row) != 3:
+                    problems.append(
+                        "%s: payload %r states no expected outcome. Agreement is not "
+                        "correctness — all seven consumers crashed on a directory path in "
+                        "unison (BL-226) — so every payload names what the right answer is."
+                        % (name, row[0]))
+                    continue
+                label, content, expect_kind = row
                 base_out = _refusal_outcome(base_fn, base_cls, content)
-                for rel, fn, cls in loaded[1:]:
+                # Two checks per member, and they catch different things. Against the
+                # CONTRACT: is this the right answer at all. Against MEMBER ZERO: do the
+                # copies still answer alike. Either alone passes a state the other fails.
+                for rel, fn, cls in [(base_rel, base_fn, base_cls)] + loaded[1:]:
                     compared += 1
-                    out = _refusal_outcome(fn, cls, content)
-                    if out != base_out:
+                    out = base_out if rel == base_rel else _refusal_outcome(fn, cls, content)
+                    if out[0] != expect_kind:
+                        problems.append(
+                            "%s: given %s, %s -> %r; the contract says %r."
+                            % (name, label, rel, out, expect_kind))
+                    if rel != base_rel and out != base_out:
                         problems.append(
                             "%s: given %s\n           %s -> %r\n           %s -> %r"
                             % (name, label, base_rel, base_out, rel, out))
@@ -758,6 +799,14 @@ def _self_test():
     UNGUARDED = _RHEAD + ("def read(path):\n"
                           "    with open(path, encoding='utf-8') as fh:\n"
                           "        return json.load(fh)\n")
+    # READS catches FileNotFoundError only, so a DIRECTORY path escapes it as
+    # IsADirectoryError — and it escapes both copies identically, which is the unanimity hole
+    # `expect` closes. READS_DIR is the same reader with the fix (BL-226 T1).
+    READS_DIR = READS.replace(
+        "    except FileNotFoundError:\n",
+        "    except IsADirectoryError:\n"
+        "        raise Refusal('not a file: %s' % path)\n"
+        "    except FileNotFoundError:\n")
 
     def build(root, one=AGREE, two=AGREE, decl=True):
         for skill, body, other in (("alpha", one, "skills/beta/scripts/b.py"),
@@ -806,7 +855,8 @@ def _self_test():
     THREE = [(A, "save", _CALL_PATH_FIRST), (B, "save", _CALL_PATH_FIRST),
              (G, "save", _CALL_PATH_FIRST)]
 
-    def refusal(cls="Refusal", payloads=(("missing", None), ("valid", '{"a": 1}'))):
+    def refusal(cls="Refusal", payloads=(("missing", None, "refused"),
+                                         ("valid", '{"a": 1}', "accepted"))):
         return {"name": "t", "kind": "refusal", "why": "x",
                 "members": [(A, "read", "Refusal"), (B, "read", cls)],
                 "payloads": list(payloads)}
@@ -911,6 +961,24 @@ def _self_test():
          one=READS, two=READS)
     case("a refusal entry with no payloads fails — nothing executed is not a pass",
          [refusal(payloads=())], 1, "asked nothing", one=READS, two=READS)
+
+    # --- the stated contract (BL-226) -----------------------------------------------------
+    # The case the kind was missing, and the reason it was missing it: two copies that are
+    # wrong the SAME way agree perfectly. READS catches FileNotFoundError only, so both
+    # copies let IsADirectoryError out of `--context <a directory>` — which is precisely what
+    # all seven shipped consumers did until BL-226.
+    DIRPAY = (("a directory path", AS_DIRECTORY, "refused"),)
+    case("two copies crashing IDENTICALLY on a directory fail against the contract",
+         [refusal(payloads=DIRPAY)], 1, "the contract says 'refused'",
+         one=READS, two=READS)
+    case("...and pass once both catch it, which is the fix rather than the agreement",
+         [refusal(payloads=DIRPAY)], 0, one=READS_DIR, two=READS_DIR)
+    case("...while one copy fixed alone still fails, on the divergence as well",
+         [refusal(payloads=DIRPAY)], 1, "the contract says 'refused'",
+         one=READS_DIR, two=READS)
+    case("a payload that states no expected outcome fails rather than comparing copies",
+         [refusal(payloads=(("missing", None),))], 1, "states no expected outcome",
+         one=READS, two=READS)
 
     for ok, label, tail in results:
         print("  %-4s %s" % ("ok" if ok else "FAIL", label))
