@@ -196,6 +196,11 @@ filled in its profile looking identical to one that is genuinely out of scope. S
 withheld, visibly — and where the incident is tracked against that regime anyway, it escalates
 as `scope-undeclared`, so the attention survives the withholding.
 
+**And that escalation carries a conditional date.** *If `sec-1.05` applies, the four-business-day
+Item 1.05 window closes on — .* The clock field stays empty and nothing goes `overdue`; the
+registrant still gets a date to work to. A conditional asserts nothing about whether the regime
+applies, which is exactly why computing the clock is refused and stating the conditional is not.
+
 **A disagreement is reported, never resolved.** An incident tracked against `sec-1.05` while
 the profile says the organisation is not listed keeps its window and raises a conflict. The
 profile keeps the default question set proportionate; it does not overrule an assessor who

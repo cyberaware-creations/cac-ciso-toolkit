@@ -273,6 +273,34 @@ reports the contradiction rather than picking a side. A silence is not an answer
 nothing to contradict, and nothing to compute a date from. The tracking still earns attention —
 that is what `scope-undeclared` is for — but it does not manufacture a deadline.
 
+### The escalation carries a CONDITIONAL date, and the clock still does not
+
+Withholding the clock is right and withholding it *in silence* is not. A real registrant who has
+simply not filled in the profile is left with no date at all against an obligation that runs four
+business days from the materiality determination — and that is a worse outcome than the
+manufactured date this rule exists to prevent, arriving by a different route.
+
+So `scope-undeclared` states it: **if `sec-1.05` applies, the four-business-day Item 1.05 window
+closes on that date.** The clock field stays empty, the state stays `scope-not-declared`, and
+nothing goes `overdue`.
+
+**A conditional is not a judgement.** *"If X applies, the date is Y"* asserts nothing whatever
+about whether X applies, and the sentence says so in the same breath rather than trusting the
+reader to infer it. Computing the clock instead would assert that Item 1.05 *does* apply,
+inferred from an assessor's tag — a legal conclusion, and *record and refuse, never judge*
+forbids it.
+
+The conditional clause is **load-bearing and lives in the emitted text**, not only here.
+*"Window closes 20 July"* is wrong. *"If `sec-1.05` applies, the window closes 20 July"* is right.
+`evals/scope-withheld.sh` asserts the date is the one the declared path would compute **to the
+day**, and separately that no escalation ever states the window closes without its clause.
+
+**It is `sec-1.05` only.** DORA windows run in clock hours from anchors that may themselves be
+missing, and whether they should carry the same conditional is an open question rather than an
+oversight — filed, not guessed. A declared-false profile gets no conditional either: it already
+has a real clock and a reported conflict, and a conditional beside them would put two dates on
+one incident.
+
 ## Not legal advice
 
 These clocks are decision support. The determination, the classification and any filing are legal
