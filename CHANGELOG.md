@@ -21,6 +21,45 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.83.1 — 2026-08-10
+
+**A DORA note that stated a fact and its negation in one sentence.** BL-176, open across ten
+releases and reported unchanged six times.
+
+Both anchors recorded — aware `2026-07-01T08:00Z`, classified 36 hours later — and the engine
+printed:
+
+> `4 hours from classification as major; classification came more than 24h after awareness, so
+> Art. 5(2) of RTS 2025/301 governs and the awareness cap no longer binds` **`(the other anchor
+> is not recorded, so this bound is used alone)`**
+
+**The arithmetic was right and the audit record was false.** In a skill whose whole premise is
+that it records reasoning rather than emitting a verdict, the note *is* the deliverable — and
+it is what counsel or a supervisor reads closely, precisely when it matters.
+
+**Root cause: a proxy standing in for a fact.** The suffix was gated on `len(bounds) == 1`, and
+one bound happens for two opposite reasons the count cannot tell apart — a **data gap**, where
+the suffix is true, and Art. 5(2) **deliberately excluding** the awareness bound, where it is
+false. v0.49.0 added the second case and never told the suffix about it. The condition is now
+`not aware or not classified`: test the fact, not a proxy for it.
+
+**Suppressed rather than reworded**, per the item's own D-2 lean: the clause immediately before
+it already says the awareness cap no longer binds, so the sentence is complete without a
+replacement.
+
+**Asserted in both directions**, in the self-test *and* the eval, because a one-sided check
+would pass an engine that stopped explaining anything: the Art. 5(2) note must name the
+provision and must **not** claim a missing anchor, and a classification-only incident must
+still carry the missing-anchor sentence — a fix that deletes a true explanation is not a fix.
+
+**Open question 2 answered.** Every other `len(...) == 1` in the suite is grammatical agreement
+— *"carries"* against *"carry"*, *"its"* against *"their"*. None describes *why*. This is the
+second instance of the shape overall (BL-120 was the first) and there is no third.
+
+`incident_analysis.py self-test` 198 → **201**; `disclosure-clock.sh` 38 → **39**. No deadline,
+state or hours-remaining value changed — this is a text fix and the surrounding assertions
+prove it.
+
 ## v0.83.0 — 2026-08-10
 
 **The SP 800-30 misattribution v0.51.0 removed is gone from the two places it survived — and

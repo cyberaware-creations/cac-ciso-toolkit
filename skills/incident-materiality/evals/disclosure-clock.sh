@@ -26,7 +26,7 @@ E="$skill/scripts/incident_analysis.py"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=38
+EXPECTED_CHECKS=39
 checks=0
 fails=0
 seen_states=""
@@ -146,6 +146,32 @@ eq "three hours remain at 10:00" "3.0" \
 snap 2026-07-06 2026-07-06T14:00:00+00:00
 eq "and it is overdue an hour after the window closes" "overdue" \
    "$(q '[c for c in a["incidents"][1]["clocks"] if c["window"]=="initial"][0]["state"]')"
+
+# BL-176. The NOTE, not the clock. Under Art. 5(2) the engine drops the awareness bound as a
+# LEGAL determination, and the missing-anchor suffix was gated on `len(bounds) == 1` — a
+# proxy that cannot tell a legal exclusion from a data gap. So the engine said "classification
+# came more than 24h after awareness" and "the other anchor is not recorded" in one sentence,
+# having been handed both. Ten releases, correct arithmetic, false audit record — and in this
+# skill the note IS the deliverable.
+#
+# Both directions, because a one-sided check passes an engine that stopped explaining anything.
+"$PY" "$E" set-anchor "$S" --id I-002 --aware 2026-07-06T06:00:00+00:00 \
+  --classified 2026-07-08T09:00:00+00:00 --actor eval >/dev/null
+snap 2026-07-08 2026-07-08T10:00:00+00:00
+note52=$(q '[c for c in a["incidents"][1]["clocks"] if c["window"]=="initial"][0]["note"]')
+case "$note52" in
+  *"Art. 5(2)"*) case "$note52" in
+      *"not recorded"*) bad "the Art. 5(2) note makes no missing-anchor claim" \
+                            "both anchors were given and the note denies one: $note52" ;;
+      *) ok "the Art. 5(2) note cites the provision and makes no missing-anchor claim" ;;
+    esac ;;
+  *) bad "the Art. 5(2) note cites the provision and makes no missing-anchor claim" \
+         "the note does not name the provision that governed: $note52" ;;
+esac
+# Restore the prompt-classification anchors the checks below build on.
+"$PY" "$E" set-anchor "$S" --id I-002 --aware 2026-07-06T06:00:00+00:00 \
+  --classified 2026-07-06T09:00:00+00:00 --actor eval >/dev/null
+snap 2026-07-06 2026-07-06T14:00:00+00:00
 
 # 24-27. Each DORA window anchors on the previous filing, not on the incident.
 eq "the intermediate window has not started" "not-started" \
