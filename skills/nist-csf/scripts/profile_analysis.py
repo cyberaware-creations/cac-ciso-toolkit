@@ -3017,6 +3017,13 @@ def load_context(path: str) -> dict:
     Both refusals are deliberate. `--context` was passed on purpose, so a payload that
     cannot be honoured must say so rather than quietly leave the Profile un-narrowed: a full
     question set would read as a profile that decided nothing applied.
+
+    Twinned with `skills/vendor-register/scripts/vendor_register.py`, which holds
+    the family list. Compared under CAC-TW-1 by running all seven `--context`
+    consumers against a corpus of malformed payloads (BL-218). What must agree is
+    WHICH payloads are refused and what is returned, never the wording: two of the
+    seven refuse with `ValueError` and five with a local `Refusal`, and each is that
+    engine's own refusal channel.
     """
     try:
         with open(path, encoding="utf-8") as fh:

@@ -21,6 +21,61 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.72.0 — 2026-08-10
+
+**The AI security register answered a mistyped path with a stack trace** (BL-218).
+
+Seven skills accept `--context`. Six refused a missing payload with a phrased message.
+`ai-register` printed a raw Python traceback, because `load_context` opened the file with no
+guard at all and the top-level handler catches only `Refusal`. A CISO who mistypes a path, or
+who has not built a business-context store yet, got a traceback out of the AI security
+register — the first-ten-minutes failure BL-169's entry-anywhere requirement exists to prevent.
+
+It now carries its twin's guard (`vendor_register.py`), plus the `contractVersion` check the
+five stricter consumers already had, so an arbitrary JSON object is no longer accepted as an
+applicability profile. The `.biz` clause deliberately runs **before** the contract check: a raw
+store carries no `contractVersion`, and answering it with the generic contract message would
+throw away the one sentence naming the command that produces the file the user meant to pass.
+
+**A second crash, in the copy this item named as its reference.** Registering the twin meant
+running all seven consumers against one corpus, and `vendor-register` turned out to raise
+`AttributeError` on a payload that is a JSON array — `[]` parses cleanly and `.get` fails on
+the next line. Identical defect, identical cause, two lines from the function being copied.
+Fixed here rather than filed, because shipping a known crash while fixing a crash is not a
+scope boundary worth holding. Five of the seven already had the `isinstance` check; now all
+seven do.
+
+**`load_context` is a declared twin, compared by execution** (CAC-TW-1). A new `refusal` kind
+in `tools/check-twins.py` materialises each payload as a file, hands every member the path, and
+distinguishes **refused through the engine's own channel** from **anything else that escaped**.
+That distinction is the entire point: a guard that only recorded "it raised" would have called
+BL-218's `FileNotFoundError` a refusal and reported the seven as agreeing. Each member declares
+its own channel by name — two refuse with `ValueError`, five with a local `Refusal` — because
+the class is the top-level handler's business and not an agreement.
+
+Reverting the fix reports it exactly:
+
+```
+PROBLEM load_context: given a path that does not exist
+           vendor_register.py -> ('refused',)
+           ai_register.py     -> ('crashed', 'FileNotFoundError')
+```
+
+**What the seven still do not agree about is recorded, not hidden** (BL-226). Three inputs are
+deliberately outside the compared corpus, with the reason written into the registry entry: a
+payload with no `contractVersion` (six refuse, `vendor-register` accepts), one with no decided
+`applicability` (five refuse, two accept), and a raw `.biz` store (two refuse with the useful
+sentence, five accept). A fourth is worse — **a directory path raises `IsADirectoryError` out
+of all seven**, so member-to-member comparison would report perfect agreement while every copy
+is wrong. BL-218's page recorded the other six consumers as "correct today"; executing them
+says otherwise, and BL-226 carries the measured table.
+
+Counts: `ai_register.py self-test` 151 → **158** (seven cases, each asserting the exception
+class *and* the message, plus one well-formed payload that must still load — every refusal
+above would pass equally well against a guard that refused everything).
+`vendor_register.py self-test` 228 → **229**. `check-twins` 9 twins / 251 comparisons →
+**10 / 281**; its own self-test 26 → **30**.
+
 ## v0.71.0 — 2026-08-10
 
 **Two engines emptied the store before writing it** (BL-219).

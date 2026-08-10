@@ -50,6 +50,14 @@ declares what is compared:
              against a stated contract. Alone among the kinds here it does not compare
              members against member zero, because ten copies that all truncate in place
              would agree with each other perfectly and all be wrong (BL-219).
+  refusal    materialise each payload in `payloads` as a file, hand every member the path,
+             and compare refused-or-accepted — distinguishing a REFUSAL through the engine's
+             own channel from anything else that escaped. Each member declares that channel
+             by name in its third slot, because two of these engines refuse with `ValueError`
+             and five with a local `Refusal`, and the class is the top-level handler's
+             business, not an agreement (BL-218). A member declaring `ValueError` cannot tell
+             an uncaught `JSONDecodeError` from a refusal, since one subclasses the other;
+             both such members catch it explicitly, and that is the reason this is safe.
 
 NAMING. By default every member must name every other member's path in its own source — a
 twin declared at one end is a twin the other end's next reader will not know exists. An entry
@@ -63,6 +71,7 @@ Usage:  check-twins.py [repo-root]
 """
 import importlib.util
 import io
+import builtins
 import contextlib
 import json
 import os
@@ -90,6 +99,7 @@ _CALL_STORE_FIRST = lambda fn, path: fn({"probe": "interrupted-write"}, path)
 _CALL_CSFP = lambda fn, path: fn({"probe": "interrupted-write", "profile": {}}, path,
                                  "2026-01-01T00:00:00Z")
 _HUB_SAVE = "skills/ai-register/scripts/ai_register.py"
+_HUB_CONTEXT = "skills/vendor-register/scripts/vendor_register.py"
 
 # Age-band corpus. Thresholds include 0 and 1 deliberately: `t // 2` is 0 for both, so every
 # boundary collapses onto the same value and the four bands have to be told apart with no room
@@ -272,6 +282,49 @@ TWINS = (
         # swallow, leave the previous store byte-identical, and leave no temp file behind.
         "expect": ("KeyboardInterrupt", True, 0),
     },
+    {
+        "name": "load_context",
+        "kind": "refusal",
+        "naming": "hub",
+        "why": "Seven skills accept `--context`. Six refused a missing payload with a phrased "
+               "message and `ai-register` printed a raw Python traceback (BL-218) — a "
+               "first-ten-minutes failure for a CISO who mistypes a path, and invisible to "
+               "every reading of the code, because the code reads as fine until you run it "
+               "against a file that does not exist. Registering the seven is what stops the "
+               "eighth consumer inheriting whichever copy its author happened to open.",
+        # Third slot: the name of THIS engine's refusal channel, resolved against the module
+        # and then builtins. Not a projection — see the `refusal` kind in the docstring.
+        "members": [(_HUB_CONTEXT, "load_context", "Refusal"),
+                    ("skills/ai-register/scripts/ai_register.py", "load_context", "Refusal"),
+                    ("skills/exceptions-register/scripts/exceptions_register.py",
+                     "load_context", "Refusal"),
+                    ("skills/incident-materiality/scripts/incident_analysis.py",
+                     "load_context", "Refusal"),
+                    ("skills/metrics-register/scripts/metrics_analysis.py", "load_context",
+                     "Refusal"),
+                    ("skills/nist-csf/scripts/profile_analysis.py", "load_context",
+                     "ValueError"),
+                    ("skills/risk-register/scripts/score_register.py", "load_context",
+                     "ValueError")],
+        # The failure modes all seven must answer the same way, and one payload every one of
+        # them must ACCEPT — without that last row a guard that refused everything would pass.
+        #
+        # Three inputs are deliberately NOT here, and their absence is a finding rather than
+        # an oversight (BL-226): a payload with no `contractVersion` (five refuse, two do
+        # not), a payload with no decided `applicability` (five refuse, two do not), and a
+        # DIRECTORY path, which raises IsADirectoryError out of all seven. The last would
+        # pass this guard by unanimous agreement while every copy is wrong, which is the
+        # shape `expect` exists for in the `atomic` kind and the reason it is named here.
+        "payloads": [
+            ("a path that does not exist", None),
+            ("a file that is not JSON", "{"),
+            ("a JSON array, which parses and then has no .get", "[]"),
+            ("a payload declaring a contract this suite does not read",
+             '{"contractVersion": "CAC-AP-9", "applicability": {}}'),
+            ("a payload every consumer must accept",
+             '{"contractVersion": "CAC-AP-1", "profileVersion": "1", "applicability": {}}'),
+        ],
+    },
 )
 
 # A cross-skill path reference that is NOT an agreement obligation. Listed with its own reason,
@@ -382,6 +435,35 @@ def _interrupted_write(fn, call):
         shutil.rmtree(d, ignore_errors=True)
 
 
+def _refusal_outcome(fn, refusal, content):
+    """Hand one member a payload file and report how it answered.
+
+    Three outcomes, and the distinction between the last two is the whole point: `refused`
+    means the engine's own refusal channel, `crashed` means anything else escaped. A guard
+    that only recorded "it raised" would have called BL-218's raw `FileNotFoundError` a
+    refusal and reported the seven consumers as agreeing.
+
+    `content is None` means the file is never created, which is the missing-payload case.
+    """
+    d = tempfile.mkdtemp(prefix="cac-tw-refusal-")
+    try:
+        path = os.path.join(d, "ctx.json")
+        if content is not None:
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(content)
+        try:
+            got = fn(path)
+        except refusal:
+            return ("refused",)
+        except BaseException as exc:                            # noqa: BLE001 — the point
+            return ("crashed", type(exc).__name__)
+        # Serialised, because the members return their own parsed copy of the same bytes and
+        # two equal dicts must compare equal regardless of key order.
+        return ("accepted", json.dumps(got, sort_keys=True, default=repr))
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
 def run(repo, twins, not_a_twin, uncompared, scan=True):
     """Every check, against an explicit registry. Returns (problems, counts)."""
     problems = []
@@ -418,6 +500,17 @@ def run(repo, twins, not_a_twin, uncompared, scan=True):
                 missing = True
                 continue
             proj = m[2] if len(m) > 2 else (lambda x: x)
+            if kind == "refusal":
+                # The slot is a class NAME, resolved against the module first so a skill's own
+                # `Refusal` wins over anything of that name in builtins.
+                proj = getattr(mod, m[2], None) or getattr(builtins, m[2], None)
+                if not (isinstance(proj, type) and issubclass(proj, BaseException)):
+                    problems.append(
+                        "%s: %s declares its refusal channel as %r, which is not an exception "
+                        "class in that module or in builtins. Without it, a crash cannot be "
+                        "told from a refusal." % (name, rel, m[2]))
+                    missing = True
+                    continue
             loaded.append((rel, getattr(mod, sym), proj))
         if missing:
             continue
@@ -460,6 +553,25 @@ def run(repo, twins, not_a_twin, uncompared, scan=True):
                         "%s: %s comes out of an interrupted write as %r; the contract is %r "
                         "— (what propagated, the previous store survived byte-identical, "
                         "temp files left behind)." % (name, rel, got, expect))
+            continue
+
+        if kind == "refusal":
+            payloads = entry.get("payloads") or []
+            if not payloads:
+                problems.append(
+                    "%s: kind 'refusal' with no payloads. Nothing was executed, so a clean "
+                    "result here means the guard ran and asked nothing." % name)
+                continue
+            base_rel, base_fn, base_cls = loaded[0]
+            for label, content in payloads:
+                base_out = _refusal_outcome(base_fn, base_cls, content)
+                for rel, fn, cls in loaded[1:]:
+                    compared += 1
+                    out = _refusal_outcome(fn, cls, content)
+                    if out != base_out:
+                        problems.append(
+                            "%s: given %s\n           %s -> %r\n           %s -> %r"
+                            % (name, label, base_rel, base_out, rel, out))
             continue
 
         if kind in ("constant", "divergent"):
@@ -619,6 +731,19 @@ def _self_test():
     # Cleans up after every failure it would be tested with, and leaks on the one it would not.
     NARROW = SAVES.replace("except BaseException:", "except Exception:")
 
+    # Two readers of the same payload. One refuses through its own channel; the other has no
+    # guard and lets the OS exception out — BL-218's defect, reproduced in miniature.
+    _RHEAD = "import json\n\n\nclass Refusal(Exception):\n    pass\n\n\n"
+    READS = _RHEAD + ("def read(path):\n"
+                      "    try:\n"
+                      "        with open(path, encoding='utf-8') as fh:\n"
+                      "            return json.load(fh)\n"
+                      "    except FileNotFoundError:\n"
+                      "        raise Refusal('no such payload: %s' % path)\n")
+    UNGUARDED = _RHEAD + ("def read(path):\n"
+                          "    with open(path, encoding='utf-8') as fh:\n"
+                          "        return json.load(fh)\n")
+
     def build(root, one=AGREE, two=AGREE, decl=True):
         for skill, body, other in (("alpha", one, "skills/beta/scripts/b.py"),
                                    ("beta", two, "skills/alpha/scripts/a.py")):
@@ -665,6 +790,11 @@ def _self_test():
 
     THREE = [(A, "save", _CALL_PATH_FIRST), (B, "save", _CALL_PATH_FIRST),
              (G, "save", _CALL_PATH_FIRST)]
+
+    def refusal(cls="Refusal", payloads=(("missing", None), ("valid", '{"a": 1}'))):
+        return {"name": "t", "kind": "refusal", "why": "x",
+                "members": [(A, "read", "Refusal"), (B, "read", cls)],
+                "payloads": list(payloads)}
 
     def case(label, twins, want_rc, needle="", one=AGREE, two=AGREE, decl=True,
              nat=(), unc=(), scan=False, builder=None):
@@ -753,6 +883,19 @@ def _self_test():
     case("...and under hub naming a spoke that names nothing still fails",
          [atomic(members=THREE, naming="hub")], 1, "does not name", one=SAVES, two=SAVES,
          decl=False, builder=build_hub)
+
+    # --- the refusal kind (BL-218) --------------------------------------------------------
+    case("a refusal twin where both copies refuse and both accept passes",
+         [refusal()], 0, one=READS, two=READS)
+    # The distinction the kind exists for: an unguarded copy DOES raise on a missing file, so
+    # a guard that only recorded "it raised" would call this agreement.
+    case("a copy with no guard fails, and says it crashed rather than refused",
+         [refusal()], 1, "('crashed', 'FileNotFoundError')", one=READS, two=UNGUARDED)
+    case("a member whose declared refusal channel is not an exception class fails",
+         [refusal(cls="NotAnException")], 1, "not an exception class",
+         one=READS, two=READS)
+    case("a refusal entry with no payloads fails — nothing executed is not a pass",
+         [refusal(payloads=())], 1, "asked nothing", one=READS, two=READS)
 
     for ok, label, tail in results:
         print("  %-4s %s" % ("ok" if ok else "FAIL", label))
