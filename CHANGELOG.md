@@ -21,6 +21,41 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.76.0 — 2026-08-10
+
+**`--context <a directory>` was a raw traceback out of all seven consumers, and they agreed
+about it perfectly.** BL-226 T1, T2 and T4.
+
+`except FileNotFoundError` does not catch `IsADirectoryError`. So `--context .` or
+`--context ~/ctx/` — an ordinary typo, and what a tab-completed path produces — came out of
+`risk-register`, `nist-csf`, `metrics-register`, `exceptions-register`, `incident-materiality`,
+`vendor-register` and `ai-register` alike as a Python traceback. It is the same BL-169 D-1
+failure BL-218 was raised for, one exception class along. All seven now catch `OSError` after
+`FileNotFoundError`, so a missing file keeps its own sentence and a directory, an unreadable
+file or a symlink to nowhere get a phrased refusal.
+
+**And the guard that should have caught it was structurally unable to.** CAC-TW-1's `refusal`
+kind compares members to member zero, and all seven crashed **identically** — perfect
+agreement, every copy wrong. That is exactly the hole the `atomic` kind opened `expect` for in
+v0.71.0, and it gets the same answer: **every payload in a `refusal` corpus now states its
+expected outcome**, and both checks run — the members must agree with each other *and* with the
+contract. A payload with no stated outcome is a failure, not a comparison.
+
+The self-test carries the proof in both directions: two copies crashing identically on a
+directory now **fail**, and pass only once both catch it.
+
+- seven `load_context` copies · `tools/check-twins.py` — the `AS_DIRECTORY` payload sentinel,
+  the stated-outcome contract, four new self-test cases (30 → **34**)
+- `check-twins` **305 comparisons** (was 293); `vendor_register` self-test 235 → **236**
+
+**T3 is not here, and that is deliberate.** Three of the four disagreements the item measured
+are genuine disagreements about what a CAC-AP-1 consumer owes — whether a raw `.biz`, an absent
+`contractVersion` and an absent `applicability` must be refused — and converging them changes
+what payloads two shipped engines accept. With the exit-code split (2 for two engines, 1 for
+four), that is a decision rather than a fix, filed in ⚖️ Open Decisions as **BL-226 Q1/Q2**
+rather than improvised here. Those rows stay out of the twin corpus with the reason written
+into the registry entry, not silently absent.
+
 ## v0.75.1 — 2026-08-10
 
 **The *Bingle* affirmance is an order, not an opinion — and the manifest now says which paths
