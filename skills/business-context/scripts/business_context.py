@@ -27,6 +27,7 @@ Standard library only. Subcommands:
   init         <file.biz> --org 'Name' [--prepared-by ..] [--fiscal-year-end ..]
   declare      <file.biz> --flag aiInUse --value true --by 'Name' --basis '...'
   set-fact     <file.biz> --crown-jewel 'CRM' --enables '..' --at-stake '..' --by .. --basis ..
+               [--criticality '..'] [--sensitivity '..' --sensitivity-basis '..']
                <file.biz> --segment '..' | --goal '..' | --obligation '..'
                <file.biz> --board-tolerance '..' --by 'Name' --on YYYY-MM-DD
   set-revenue  <file.biz> --exact 412000000 --currency USD --fiscal-year FY26 --by .. --basis ..
@@ -351,8 +352,9 @@ def declare_flag(store: dict, flag: str, raw_value, by: str, basis: str,
 
 def add_crown_jewel(store: dict, system: str, enables: str, at_stake: str,
                     by: str = "", basis: str = "", criticality: str = "",
-                    depends_on=None) -> dict:
-    """Record a system the business cannot lose, and optionally how critical it is.
+                    depends_on=None, sensitivity: str = "",
+                    sensitivity_basis: str = "") -> dict:
+    """Record a system the business cannot lose, and optionally how critical and how sensitive.
 
     `criticality` and `dependsOn` exist for one consumer — a criticality analysis walking
     from a third-party arrangement back to the workflow it supports. They are the business
@@ -370,6 +372,32 @@ def add_crown_jewel(store: dict, system: str, enables: str, at_stake: str,
     whatever the organisation ranks by, and the consumer that has a scale checks the value
     against it and reports a disagreement rather than coercing one. Validating here would
     mean this skill deciding what a criticality level is allowed to be.
+
+    SENSITIVITY IS A DIFFERENT QUESTION FROM CRITICALITY, which is why it is a second field
+    and not a second word for the first. Criticality is *how much the business depends on
+    this* — what stops when it stops. Sensitivity is *what it holds* — the consequence of the
+    contents being seen rather than of the system being gone. A payroll file nobody's day
+    depends on can be the most sensitive thing in the estate, and a build server everything
+    depends on can hold nothing worth reading. Collapsing them makes one of those two systems
+    invisible, and which one depends only on which word the register happened to use.
+
+    Free text with a REQUIRED basis, decided 2026-08-09 (BL-216 Q-1). No scale, for the same
+    reason criticality has none — the organisation's own classification scheme is the answer,
+    and imposing `low/moderate/high` here would make this skill the author of a data
+    classification policy it has no business writing. The basis is what makes free text
+    defensible: `--sensitivity 'Special category under UK GDPR Art. 9'` with a basis naming
+    who determined that and from what is a record an assessor can follow. The same words with
+    no basis is an adjective.
+
+    Stored through `declared()`, so the value carries its own `declaredBy`, `declaredOn` and
+    `basis`, rather than leaning on the record-level `basis` — which answers a different
+    question again, namely why this system is a crown jewel at all.
+
+    A NOTE ON THE ASYMMETRY, because a reader will see it before they see this docstring:
+    `sensitivity` is a `declared()` record and `criticality` is still a bare string. That is
+    deliberate and temporary. Adding a key is additive and breaks nothing; changing
+    `criticality`'s shape is a migration this store has no path for, and that decision is
+    open (BL-216 Q-2). Shipping the half that is safe was preferred to shipping neither.
     """
     missing = [n for n, v in (("--crown-jewel", system), ("--enables", enables),
                               ("--at-stake", at_stake)) if not str(v or "").strip()]
@@ -380,12 +408,27 @@ def add_crown_jewel(store: dict, system: str, enables: str, at_stake: str,
             "it is not there. Without the second it is an asset inventory row, and the join "
             "to a business consequence — the whole reason this record exists — is missing."
             % ", ".join(missing))
+    sens, sens_basis = str(sensitivity or "").strip(), str(sensitivity_basis or "").strip()
+    if sens and not sens_basis:
+        raise Refusal(
+            "declaring --sensitivity %r requires --sensitivity-basis.\n"
+            "  There is no scale here: sensitivity is whatever the organisation's own "
+            "classification says, so the words alone carry no meaning a reader can check. "
+            "The basis is what a determination is made of — who decided, and from what. "
+            "Without it this is an adjective on a record an assessor is entitled to follow."
+            % sens)
+    if sens_basis and not sens:
+        raise Refusal(
+            "--sensitivity-basis was given with no --sensitivity. A basis for nothing is "
+            "not a record; say what was determined, or leave both off.")
     rec = {"system": system.strip(), "enables": enables.strip(),
            "atStake": at_stake.strip(),
            "declaredBy": str(by or "").strip(), "declaredOn": utc_today(),
            "basis": str(basis or "").strip()}
     if str(criticality or "").strip():
         rec["criticality"] = criticality.strip()
+    if sens:
+        rec["sensitivity"] = declared(sens, str(by or "").strip(), utc_today(), sens_basis)
     depends = [str(d).strip() for d in (depends_on or []) if str(d or "").strip()]
     if depends:
         rec["dependsOn"] = depends
@@ -1172,6 +1215,35 @@ def _cmd_self_test(_args) -> int:
             if c.get("criticality")], ["Plant historian", "Ledger"],
            "and a declared level travels in the CAC-AP-1 payload")
 
+        # --- sensitivity: what it HOLDS, not what stops when it stops ------------
+        # A second field and not a second word for criticality. A payroll file nobody's day
+        # depends on can be the most sensitive thing in the estate; collapsing the two makes
+        # one of those systems invisible, and which one depends only on the word chosen.
+        ok("sensitivity" not in cj,
+           "a crown jewel with no sensitivity declared carries no key, not an empty one")
+        refuses(lambda: add_crown_jewel(scratch, "HR file", "payroll", "a reportable breach",
+                                        sensitivity="Special category, UK GDPR Art. 9"),
+                "sensitivity without a basis is refused", "adjective")
+        refuses(lambda: add_crown_jewel(scratch, "HR file", "payroll", "a reportable breach",
+                                        sensitivity_basis="DPO assessment, 2026-07-01"),
+                "a basis with nothing determined is refused", "basis for nothing")
+        sens = add_crown_jewel(scratch, "HR file", "payroll", "a reportable breach",
+                               by="DPO", sensitivity="Special category, UK GDPR Art. 9",
+                               sensitivity_basis="DPO record-of-processing review 2026-07-01")
+        eq(sens["sensitivity"]["value"], "Special category, UK GDPR Art. 9",
+           "a declared sensitivity is recorded verbatim, with no scale imposed")
+        eq(sens["sensitivity"]["basis"], "DPO record-of-processing review 2026-07-01",
+           "and carries its own basis, not the record's")
+        eq(sens["sensitivity"]["declaredBy"], "DPO", "and who determined it")
+        ok("criticality" not in sens,
+           "sensitivity and criticality are independent — declaring one declares nothing "
+           "about the other")
+        # The asymmetry is deliberate and temporary: adding a key is additive, changing
+        # `criticality`'s shape is a migration this store has no path for (BL-216 Q-2).
+        ok(isinstance(rated["criticality"], str)
+           and isinstance(sens["sensitivity"], dict),
+           "criticality is still a bare string while sensitivity is a declared record")
+
         # The board's own words, verbatim. Quotes and non-ASCII survive a round trip,
         # because the one thing this field must never do is paraphrase.
         quote = ('We will not accept a "material" outage in the payments rail — '
@@ -1652,7 +1724,9 @@ def _cmd_set_fact(args) -> int:
         cj = add_crown_jewel(store, args.crown_jewel, args.enables, args.at_stake,
                              by=args.by, basis=args.basis,
                              criticality=args.criticality,
-                             depends_on=args.depends_on)
+                             depends_on=args.depends_on,
+                             sensitivity=args.sensitivity,
+                             sensitivity_basis=args.sensitivity_basis)
         wrote.append("crown jewel %r — at stake: %s" % (cj["system"], cj["atStake"]))
     if args.board_tolerance:
         add_board_tolerance(store, args.board_tolerance, args.by, on=args.on or "")
@@ -1881,6 +1955,16 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--depends-on", action="append", default=[],
                     help="a component this system relies on. Repeatable. Lets a consumer "
                          "trace from a supplied component back to this system.")
+    # A different question from criticality: what it HOLDS, not what stops when it stops.
+    # Free text with a required basis (BL-216 Q-1) — no scale, because the organisation's own
+    # classification is the answer and this skill does not write one.
+    sp.add_argument("--sensitivity", default="",
+                    help="what this system holds, in the organisation's own classification "
+                         "— a different question from how much depends on it. Free text. "
+                         "Requires --sensitivity-basis.")
+    sp.add_argument("--sensitivity-basis", default="",
+                    help="who determined that sensitivity and from what. Required whenever "
+                         "--sensitivity is given: without it the value is an adjective.")
     sp.add_argument("--board-tolerance", default="",
                     help="the board's words, verbatim — never paraphrased on write")
     sp.add_argument("--segment", action="append", default=[])

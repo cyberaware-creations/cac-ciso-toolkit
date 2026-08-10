@@ -100,7 +100,7 @@ it up and it would be silent.
 |---|---|
 | `revenue` | The denominator `incident-materiality`'s financial factor had nowhere to get |
 | `segments` | Impact expressed as *which part of the business*, not "high" |
-| `crownJewels` | `{system, enables, atStake}` — the join between a technical asset and a business consequence. Optionally `criticality` (this organisation's own ranking, recorded as declared and never checked against a scale this skill does not own) and `dependsOn` (components the system relies on, so a consumer can trace a supplied component back to the workflow). Both keys are **absent unless declared**: missing means *not declared*, never *not critical* |
+| `crownJewels` | `{system, enables, atStake}` — the join between a technical asset and a business consequence. Optionally `criticality` (this organisation's own ranking), `sensitivity` (a `declared()` record: what the system HOLDS, in the organisation's own classification, free text with a **required basis**) and `dependsOn` (components the system relies on, so a consumer can trace a supplied component back to the workflow). None is checked against a scale this skill does not own. Every one is **absent unless declared**: missing means *not declared*, never *not critical* and never *not sensitive* |
 | `strategicGoals` | Lets a board pack open on the business's year, not security's |
 | `boardTolerance` | The sentence an appetite band was derived from — verbatim, attributed, dated |
 | `obligations` | The commitments an exception is actually deviating from |
