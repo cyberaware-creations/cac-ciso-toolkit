@@ -266,6 +266,18 @@ jobs:
       - name: Every declared twin agrees, executed rather than read
         run: python3 ./tools/check-twins.py
 
+      # CAC-CD-1, and it exists because the v0.44.0 release note claimed it did (BL-192).
+      # Two defects: a command `--help` does not list, which only the three print(__doc__)
+      # engines can suffer, and a command no shipped document names, which nearly all of them
+      # did. Its own tests first, same reason as above — and one of those tests is that an
+      # engine parsed to zero commands FAILS, because a checker reporting success over nothing
+      # is the exact shape this whole item is about.
+      - name: Command checker's own tests, on the floor
+        run: python3 ./tools/check-commands.py --self-test
+
+      - name: Every command an engine accepts is a command the docs name
+        run: python3 ./tools/check-commands.py
+
       # Every consumer of CAC-AP-1, held to the contract from the side that DEFINES it.
       # Each consumer's own suite pins that consumer; none of them can see four engines
       # implementing the same six clauses and drifting apart one release at a time, each
