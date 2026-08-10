@@ -9,7 +9,7 @@ projection of an existing CSF assessment. The enforced contract is in
 
 | Lens | Edges | Catalogue | Labels | Mapping authority |
 |---|---|---|---|---|
-| `800-53-r5` | 731 | 206 controls / 20 families | verbatim NIST titles | `nist-developed` |
+| `800-53-r5` | 737 | 210 controls / 20 families | verbatim NIST titles | `nist-developed` |
 | `iso-27001-2022` | 329 | 119 (93 Annex A + 26 ISMS clauses) / 5 groups | ours | `mixed-third-party` |
 | `cis-8.1` | 62 | 49 mapped safeguards / 16 controls | ours | `cis-authored` |
 
@@ -32,7 +32,21 @@ expression is reproduced, so a no-derivatives clause has nothing here to bite on
 string on each catalogue records the first; the `cac-generated` rule below enforces the second.
 
 NIST SP 800-53 Rev 5 is a work of the US Government and not subject to copyright, so its family
-names and all 206 control titles are verbatim.
+names and all 210 control titles are verbatim.
+
+**Which release, said explicitly.** The mapping is built at **Release 5.2.0**, stamped as
+`release` on the catalogue and `overlayRelease` on the map. `version` stays `"Rev 5"` — that is
+the revision, it has read the same since 2020, and it cannot express which patch release a
+mapping was built from. It had to, because for one release two surfaces in this repo disagreed:
+`sources.json` already recorded 5.2.0 while the bundle was still built from 5.1.1, and nothing
+could see the difference (BL-160).
+
+The titles are verbatim from NIST's own OSCAL catalogue — `usnistgov/oscal-content`,
+`nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_catalog.json`, metadata version 5.2.0,
+last-modified 2026-05-11. Naming the document matters because `labelSource:
+"verbatim-public-domain"` is a claim, and a machine comparison against that catalogue found
+**three shipped titles that were not verbatim** — two hyphens for em dashes, one capitalisation.
+They are corrected, and the comparison is the reason they were found rather than assumed.
 
 This boundary is enforced in two places rather than trusted:
 

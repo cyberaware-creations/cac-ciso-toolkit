@@ -3,6 +3,7 @@
  "overlayFrameworkId": "cis-8.1",
  "direction": "bidirectional",
  "mappingAuthority": "cis-authored",
+ "overlayRelease": null,
  "sourceExport": {
   "tool": "NIST CSF 2.0 Reference Export (xlsx)",
   "file": "csf-2.0.xlsx",

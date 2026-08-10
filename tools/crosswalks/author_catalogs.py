@@ -116,17 +116,38 @@ CIS_SG={
 }
 # ---- 800-53 Rev 5 family names (verbatim; public domain) ----
 FAM={"AC":"Access Control","AT":"Awareness and Training","AU":"Audit and Accountability","CA":"Assessment, Authorization, and Monitoring","CM":"Configuration Management","CP":"Contingency Planning","IA":"Identification and Authentication","IR":"Incident Response","MA":"Maintenance","MP":"Media Protection","PE":"Physical and Environmental Protection","PL":"Planning","PM":"Program Management","PS":"Personnel Security","PT":"PII Processing and Transparency","RA":"Risk Assessment","SA":"System and Services Acquisition","SC":"System and Communications Protection","SI":"System and Information Integrity","SR":"Supply Chain Risk Management"}
-# ---- SP 800-53 Rev 5 verbatim control titles (public domain; sourced from NIST Rev 5 catalog) ----
+# ---- SP 800-53 verbatim control titles (public domain) ----
+#
+# Source, named so it is checkable: NIST's own OSCAL catalogue, `usnistgov/oscal-content`,
+# `nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_catalog.json`, whose metadata reads
+# version 5.2.0, last-modified 2026-05-11. `labelSource: "verbatim-public-domain"` is a claim
+# about these strings, so it is worth being able to say WHICH document they are verbatim from.
+#
+# Enhancements take `<parent title> | <enhancement title>`, matching the existing entries.
+#
+# ⚠️ Three entries were NOT verbatim and are corrected here (BL-160). CM-7(04) and CM-7(05)
+# carried a hyphen where NIST has an em dash, and CM-7(09) read "the Use" for NIST's "The
+# Use". Trivial as text and not trivial as a claim: the whole point of the `verbatim` label is
+# that a reader can quote it back, and it had never been machine-compared against the
+# catalogue it names. It has now.
 TITLES={
 "AC-1":"Policy and Procedures","AC-2":"Account Management","AC-3":"Access Enforcement","AC-4":"Information Flow Enforcement","AC-5":"Separation of Duties","AC-6":"Least Privilege","AC-7":"Unsuccessful Logon Attempts","AC-9":"Previous Logon Notification","AC-10":"Concurrent Session Control","AC-12":"Session Termination","AC-14":"Permitted Actions Without Identification or Authentication","AC-16":"Security and Privacy Attributes","AC-17":"Remote Access","AC-18":"Wireless Access","AC-19":"Access Control for Mobile Devices","AC-20":"Use of External Systems","AC-24":"Access Control Decisions",
 "AT-1":"Policy and Procedures","AT-2":"Literacy Training and Awareness","AT-3":"Role-based Training",
 "AU-1":"Policy and Procedures","AU-2":"Event Logging","AU-3":"Content of Audit Records","AU-6":"Audit Record Review, Analysis, and Reporting","AU-7":"Audit Record Reduction and Report Generation","AU-9":"Protection of Audit Information","AU-11":"Audit Record Retention","AU-12":"Audit Record Generation","AU-13":"Monitoring for Information Disclosure","AU-16":"Cross-organizational Audit Logging",
 "CA-1":"Policy and Procedures","CA-2":"Control Assessments","CA-3":"Information Exchange","CA-5":"Plan of Action and Milestones","CA-7":"Continuous Monitoring","CA-8":"Penetration Testing","CA-9":"Internal System Connections",
 "CM-1":"Policy and Procedures","CM-2":"Baseline Configuration","CM-3":"Configuration Change Control","CM-4":"Impact Analyses","CM-5":"Access Restrictions for Change","CM-6":"Configuration Settings","CM-7":"Least Functionality","CM-8":"System Component Inventory","CM-9":"Configuration Management Plan","CM-10":"Software Usage Restrictions","CM-11":"User-installed Software","CM-12":"Information Location","CM-13":"Data Action Mapping",
-"CM-7(02)":"Least Functionality | Prevent Program Execution","CM-7(04)":"Least Functionality | Unauthorized Software - Deny-by-exception","CM-7(05)":"Least Functionality | Authorized Software - Allow-by-exception","CM-7(09)":"Least Functionality | Prohibiting the Use of Unauthorized Hardware",
+"CM-7(02)":"Least Functionality | Prevent Program Execution","CM-7(04)":"Least Functionality | Unauthorized Software \u2014 Deny-by-exception","CM-7(05)":"Least Functionality | Authorized Software \u2014 Allow-by-exception","CM-7(09)":"Least Functionality | Prohibiting The Use of Unauthorized Hardware",
 "CP-1":"Policy and Procedures","CP-2":"Contingency Plan","CP-4":"Contingency Plan Testing","CP-6":"Alternate Storage Site","CP-7":"Alternate Processing Site","CP-8":"Telecommunications Services","CP-9":"System Backup","CP-10":"System Recovery and Reconstitution",
 "CP-2(08)":"Contingency Plan | Identify Critical Assets",
 "IA-1":"Policy and Procedures","IA-2":"Identification and Authentication (Organizational Users)","IA-3":"Device Identification and Authentication","IA-4":"Identifier Management","IA-5":"Authenticator Management","IA-6":"Authentication Feedback","IA-7":"Cryptographic Module Authentication","IA-8":"Identification and Authentication (Non-organizational Users)","IA-9":"Service Identification and Authentication","IA-10":"Adaptive Authentication","IA-11":"Re-authentication","IA-12":"Identity Proofing","IA-13":"Identity Providers and Authorization Servers",
+# --- new in Release 5.2.0 (BL-160). Verbatim from the OSCAL catalogue named above, NOT
+# paraphrased and NOT inferred from the ID: the fallback for a missing title is
+# `labelSource: "pending-verbatim-title"`, which ships the ID as the label and says so, and
+# that was the alternative to sourcing these properly.
+"RA-4":"Risk Assessment Update",
+"SA-24":"Design For Cyber Resiliency",
+"SA-15(13)":"Development Process, Standards, and Tools | Logging Syntax",
+"SI-2(07)":"Flaw Remediation | Root Cause Analysis",
 "IR-1":"Policy and Procedures","IR-3":"Incident Response Testing","IR-4":"Incident Handling","IR-5":"Incident Monitoring","IR-6":"Incident Reporting","IR-7":"Incident Response Assistance","IR-8":"Incident Response Plan",
 "MA-1":"Policy and Procedures","MA-2":"Controlled Maintenance","MA-6":"Timely Maintenance",
 "MA-3(06)":"Maintenance Tools | Software Updates and Patches",
@@ -167,12 +188,20 @@ def parse_cis(v):
     return []
 
 FW={
- '800-53-r5':dict(pre='SP 800-53 Rev 5.1.1',parse=parse_80053,auth='nist-developed',
-                  name='NIST SP 800-53 Rev 5',ver='Rev 5',lic='public-domain'),
+ # `pre` is the row filter AND the release selector. The workbook carries BOTH releases
+ # side by side — 5.1.1 and 5.2.0 — so moving between them is this one string, not a fetch.
+ # `rel` is what gets stamped into the shipped bundle: `ver` says which REVISION of 800-53
+ # this is, which has been "Rev 5" since 2020 and says nothing about which patch release the
+ # mapping was built from. Two surfaces in this repo disagreed about that for one release,
+ # because only one of them could express it (BL-160).
+ '800-53-r5':dict(pre='SP 800-53 Rev 5.2.0',parse=parse_80053,auth='nist-developed',
+                  name='NIST SP 800-53 Rev 5',ver='Rev 5',rel='Release 5.2.0',
+                  lic='public-domain'),
  'iso-27001-2022':dict(pre='ISO/IEC 27001:2022',parse=parse_iso,auth='mixed-third-party',
-                  name='ISO/IEC 27001:2022',ver='2022',lic='iso-copyright'),
+                  name='ISO/IEC 27001:2022',ver='2022',rel=None,lic='iso-copyright'),
  'cis-8.1':dict(pre='CIS Controls v8.1',parse=parse_cis,auth='cis-authored',
-                  name='CIS Critical Security Controls v8.1',ver='8.1',lic='cis-cc-by-nc-nd'),
+                  name='CIS Critical Security Controls v8.1',ver='8.1',rel=None,
+                  lic='cis-cc-by-nc-nd'),
 }
 rows=read_rows(SRC,'CSF 2.0')
 edges={k:set() for k in FW}
@@ -228,7 +257,13 @@ def catalog(fid, ctrl_ids):
     # access to the source. Absent = the ordinary case.
     for c in controls:
         if c["id"] in CATONLY[fid]: c["csfReference"]="category-only"
-    return {"frameworkId":fid,"name":spec['name'],"version":spec['ver'],"license":spec['lic'],
+    return {"frameworkId":fid,"name":spec['name'],"version":spec['ver'],
+            # ALWAYS EMITTED, null where it does not apply, rather than omitted. Under
+            # CAC-AP-1 s 2.2 an absent key reads as NOT DECLARED, and "we did not record which
+            # release" is a different claim from "this framework has no separate release".
+            # ISO 27001:2022 and CIS v8.1 version in one number; 800-53 does not, which is the
+            # whole reason this field exists.
+            "release":spec['rel'],"license":spec['lic'],
             "provenance":PROV[fid],"sourceExport":dict(SOURCE_EXPORT),
             # Declared, not inferred. Whether a catalogue holds its framework's whole
             # control set decides what an empty "outside CSF" list MEANS: genuinely
@@ -274,7 +309,8 @@ for fid,spec in FW.items():
     es=sorted({(a,b) for a,b,_ in edges[fid]})
     ids={b for _,b in es}
     m={"csfFrameworkId":"csf-2.0","overlayFrameworkId":fid,"direction":"bidirectional",
-       "mappingAuthority":spec['auth'],"sourceExport":dict(SOURCE_EXPORT),
+       "mappingAuthority":spec['auth'],"overlayRelease":spec['rel'],
+       "sourceExport":dict(SOURCE_EXPORT),
        "edges":[{"csfSubId":a,"controlId":b,"authority":spec['auth']} for a,b in es]}
     json.dump(m,open(os.path.join(DATA,f"csf-2.0__{fid}.map.json"),"w"),indent=1)
     cat=catalog(fid, ids)

@@ -132,7 +132,10 @@ CORE_EXPECTED = {
 # move these counts — that is the point. The rebuild diffs against them, so a
 # changed catalog is a deliberate review step rather than silent drift.
 CROSSWALK_EXPECTED = {
-    "800-53-r5":      {"edges": 731, "controls": 206, "groupings": 20,
+    # Moved 731/206 -> 737/210 at Release 5.2.0 (BL-160), and reviewed rather than accepted:
+    # +7 edges, -1 edge (DE.AE-06 -> RA-3), +4 controls (RA-4, SA-15(13), SA-24, SI-2(07)),
+    # ZERO controls lost. The one deletion is the kind of change this pin exists to surface.
+    "800-53-r5":      {"edges": 737, "controls": 210, "groupings": 20,
                        "labelSource": "verbatim-public-domain", "verbatimAllowed": True},
     "iso-27001-2022": {"edges": 329, "controls": 119, "groupings": 5,
                        "labelSource": "cac-generated", "verbatimAllowed": False},

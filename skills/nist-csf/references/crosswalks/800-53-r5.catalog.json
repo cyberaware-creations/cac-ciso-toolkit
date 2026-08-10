@@ -2,6 +2,7 @@
  "frameworkId": "800-53-r5",
  "name": "NIST SP 800-53 Rev 5",
  "version": "Rev 5",
+ "release": "Release 5.2.0",
  "license": "public-domain",
  "provenance": "NIST-developed CSF\u2192800-53 mapping (public domain). Family names verbatim; per-control titles pending a titles ingest.",
  "sourceExport": {
@@ -414,21 +415,21 @@
   },
   {
    "id": "CM-7(04)",
-   "label": "Least Functionality | Unauthorized Software - Deny-by-exception",
+   "label": "Least Functionality | Unauthorized Software \u2014 Deny-by-exception",
    "groupingId": "CM",
    "labelSource": "verbatim-public-domain",
    "text": null
   },
   {
    "id": "CM-7(05)",
-   "label": "Least Functionality | Authorized Software - Allow-by-exception",
+   "label": "Least Functionality | Authorized Software \u2014 Allow-by-exception",
    "groupingId": "CM",
    "labelSource": "verbatim-public-domain",
    "text": null
   },
   {
    "id": "CM-7(09)",
-   "label": "Least Functionality | Prohibiting the Use of Unauthorized Hardware",
+   "label": "Least Functionality | Prohibiting The Use of Unauthorized Hardware",
    "groupingId": "CM",
    "labelSource": "verbatim-public-domain",
    "text": null
@@ -1085,6 +1086,13 @@
    "text": null
   },
   {
+   "id": "RA-4",
+   "label": "Risk Assessment Update",
+   "groupingId": "RA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
    "id": "RA-5",
    "label": "Vulnerability Monitoring and Scanning",
    "groupingId": "RA",
@@ -1218,6 +1226,13 @@
    "text": null
   },
   {
+   "id": "SA-15(13)",
+   "label": "Development Process, Standards, and Tools | Logging Syntax",
+   "groupingId": "SA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
    "id": "SA-17",
    "label": "Developer Security and Privacy Architecture and Design",
    "groupingId": "SA",
@@ -1234,6 +1249,13 @@
   {
    "id": "SA-22",
    "label": "Unsupported System Components",
+   "groupingId": "SA",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SA-24",
+   "label": "Design For Cyber Resiliency",
    "groupingId": "SA",
    "labelSource": "verbatim-public-domain",
    "text": null
@@ -1409,6 +1431,13 @@
   {
    "id": "SI-2",
    "label": "Flaw Remediation",
+   "groupingId": "SI",
+   "labelSource": "verbatim-public-domain",
+   "text": null
+  },
+  {
+   "id": "SI-2(07)",
+   "label": "Flaw Remediation | Root Cause Analysis",
    "groupingId": "SI",
    "labelSource": "verbatim-public-domain",
    "text": null
