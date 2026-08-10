@@ -21,6 +21,57 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.87.0 — 2026-08-10
+
+**The register records HOW a risk was analysed, not only what was concluded.** BL-92 Phase A,
+A1–A7.
+
+Two registers scored by wholly different methods were **byte-indistinguishable**. NIST ties
+defensibility to the method — quantitative analysis *"may provide defensible prioritization and
+treatment evidence for later analysis by executive leadership"* (NIST IR 8286r1 §3.3.1) — and
+the register kept the conclusion while discarding the warrant.
+
+`set-method <register.rr> <id> --name … --type … --conformance … [--deviations …] --why …`
+records **name, type, conformance, deviations, setBy, asOf** on the risk.
+
+**Per risk, not per register**, because a register commonly holds both: three risks somebody
+modelled with loss distributions and thirty scored by judgement in a workshop. A register-level
+field has to describe the least rigorous of them or overstate the rest.
+`settings.analysisMethodDefault` covers the ordinary case — **and a risk's own record outranks
+it in both directions.** That half is load-bearing: a register defaulting to `quantitative` must
+be able to say *this one is qualitative because we have nothing to count*, and a default that
+could only raise the floor would quietly assert monetised analysis on a risk nobody costed.
+
+**⚠️ The tool never renames somebody else's method.** A FAIR analysis without monetised loss is
+`open-fair` at `conformance: partial` **with the deviation stated** — never a coined
+"FAIR-lite". Renaming a licensed third-party standard to describe a reduced variant is a false
+claim about work that is not ours, and the refusal says so in those words. Same reasoning as
+`incident-materiality`'s documented disclosure-clock deviations.
+
+**Validation guards writes, never loads** — and that is the design in one check. `partial` with
+no `deviations` is refused **on write**, leaving the register byte-identical; a file that
+already carries the combination **loads, scores and renders unchanged** and refuses on the next
+write that touches the method. Refusing at load would make an existing register unopenable over
+a field whose entire purpose is honest disclosure.
+
+**Absent means NOT DECLARED, never *no method was used*** (CAC-AP-1 §2.2). The engine normalises
+to `null`, not `{}` — every risk scored before this release is in that state, and a reader has
+to be able to tell it from a risk deliberately recorded as qualitative.
+
+- `ANALYSIS_TYPES` is NIST's three and the only definition; `name` is free text and an
+  unfamiliar one is **not** refused — this tool holds no catalogue of every method a CISO might
+  legitimately use, and refusing an unknown name would make it the arbiter of that
+- `method-recorded` is classified in **both** partitions as non-affirming and
+  non-change-explaining: recording the warrant is not a re-affirmation of the score, and
+  captioning *"residual Medium → High"* with *"we switched to OPEN FAIR"* would present a change
+  of method as the reason the risk got worse
+- `score_register.py self-test` 225 → **246**; `set-method` declares its flags, so the
+  undeclared-flag count is unchanged at 14 of **21** commands
+
+Mixed methods are not comparable and the engine does not pretend otherwise — no conversion, no
+normalisation, no cross-method re-ranking. Disclosing a mixed register on the page is Phase B
+(BL-93), not shipped.
+
 ## v0.86.0 — 2026-08-10
 
 **The register says which word it uses and whose it is.** BL-54 **Phase 0 / R-7 only** —

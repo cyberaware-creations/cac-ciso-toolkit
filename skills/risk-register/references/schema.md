@@ -13,6 +13,7 @@
 - Categories / taxonomy
 - Matrix sizes and rating labels
 - Band thresholds
+- Analysis method — the warrant behind the score
 - Vocabulary — which word we use, and whose it is
 - Risk appetite semantics
 - Derived-not-stored rule
@@ -146,6 +147,7 @@ Confirmation age below); everything else leaves it exactly where it was.
 | `escalation-policy-changed` | `set-escalation` | no |
 | `response-changed` | `set-response` | no |
 | `settings-changed` | `set-currency` | no |
+| `method-recorded` | `set-method` | no |
 | `risk-closed`, `risk-reopened`, `risk-deleted` | *nothing writes them yet* | no |
 
 Only an assertion about a risk's **magnitude** or its **treatment decision** affirms age. A
@@ -466,6 +468,55 @@ Exposure = likelihood × impact. Band = highest band whose inclusive lower bound
 | 3×3 | 1 | 3 | 5 | 7 |
 
 Band order (ascending): `low < medium < high < critical`. Lives in `scripts/score_register.py`.
+
+## Analysis method — the warrant behind the score
+
+Each risk may carry `analysisMethod`, and `settings.analysisMethodDefault` holds a register-wide
+fallback of the same shape:
+
+```json
+"analysisMethod": {
+  "name": "OPEN FAIR",              // free text — the method as its owners call it
+  "type": "quantitative",           // one of: qualitative, semi-quantitative, quantitative
+  "conformance": "partial",         // full | partial
+  "deviations": "no monetised loss magnitude; frequency estimated from three incidents",
+  "setBy": "R. Calder",
+  "asOf": "2026-08-10"
+}
+```
+
+**Absent means NOT DECLARED, never *no method was used*** (CAC-AP-1 §2.2). Every risk scored
+before v0.87.0 is in that state, and a reader has to be able to tell it from a risk somebody
+deliberately recorded as qualitative. The engine stores `null`, not `{}`.
+
+**Why per risk and not per register.** A register commonly holds both: three risks somebody
+modelled with loss distributions and thirty scored by judgement in a workshop. A register-level
+field has to describe the least rigorous of them or overstate the rest.
+`settings.analysisMethodDefault` covers the ordinary case where one method genuinely applies to
+everything, and **a risk's own record outranks it in both directions** — a register defaulting
+to `quantitative` must be able to say *this one is qualitative because we have nothing to
+count*. A default that could only raise the floor would quietly assert monetised analysis on a
+risk nobody costed.
+
+**`type` is constrained; `name` is not.** The three types are NIST's. The name is free text and
+an unfamiliar one is not refused: this tool does not hold a catalogue of every method a CISO
+might legitimately use, and refusing an unknown name would make it the arbiter of that.
+
+**⚠️ The tool never renames somebody else's method.** A FAIR analysis run without monetised loss
+is `open-fair` at `conformance: partial` **with the deviation stated** — never a coined
+"FAIR-lite". Renaming a licensed third-party standard to describe a reduced variant is a false
+claim about work that is not ours, and it is exactly the kind of claim that gets repeated by
+people who never read the original. Same reasoning as `incident-materiality`'s documented
+disclosure-clock deviations.
+
+**Validation guards writes, never loads.** `set-method` refuses `partial` with no `deviations`;
+a register that already carries that combination **loads, scores and renders unchanged** and
+refuses on the next write that touches the method. Refusing at load would make an existing
+register unopenable over a field whose whole purpose is honest disclosure.
+
+**Mixed methods are not comparable and the engine does not pretend otherwise.** There is no
+conversion, no normalisation and no cross-method re-ranking anywhere. Disclosure of a mixed
+register on the rendered page is Phase B (BL-93), not shipped.
 
 ## Vocabulary — which word we use, and whose it is
 

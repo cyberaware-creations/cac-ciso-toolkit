@@ -66,6 +66,13 @@ Mutations (each appends an append-only history event and writes a schema-valid f
                                          wrongly at `add`. Appends response-changed.
   set-currency <register.rr> --currency GBP --why ...
                                          Relabels treatment costs; never converts them.
+  set-method   <register.rr> <id> --name 'OPEN FAIR' --type qualitative|semi-quantitative|
+                                         quantitative --conformance full|partial
+                                         [--deviations ...] --why ...
+                                         Records HOW this risk was analysed. `partial`
+                                         requires --deviations; the tool never renames
+                                         somebody else's method to describe a reduced
+                                         variant of it.
   set-escalation <register.rr> [--sustained N] [--dwell-days D] [--band-cross on|off]
                                          [--lapsed-acceptance on|off] --why ...
                                          Tune when this register escalates. Logged: a
@@ -279,6 +286,99 @@ def parse_gaps_csv(text: str) -> list[dict]:
     return [row for row in reader if any((v or "").strip() for v in row.values())]
 
 
+# --- Analysis method (BL-92) --------------------------------------------------
+#
+# The register stored scores with no record of HOW they were produced. Two registers scored by
+# wholly different methods were byte-indistinguishable, and NIST ties defensibility to the
+# method: quantitative analysis "may provide defensible prioritization and treatment evidence
+# for later analysis by executive leadership" (NIST IR 8286r1 s 3.3.1). The conclusion was kept
+# and the warrant discarded.
+#
+# THE THREE TYPES ARE NIST'S AND THE NAME IS YOURS. `type` is constrained to this tuple; `name`
+# is free text and an unrecognised one WARNS rather than refusing — the tool does not hold a
+# catalogue of every method a CISO might legitimately use, and refusing an unknown name would
+# make it the arbiter of that.
+ANALYSIS_TYPES = ("qualitative", "semi-quantitative", "quantitative")
+
+# THE TOOL NEVER RENAMES A METHOD. A FAIR analysis run without monetised loss is `open-fair` at
+# `conformance: partial` with the deviation stated — never a coined "FAIR-lite". Renaming a
+# licensed third-party standard to describe a reduced variant is a false claim about somebody
+# else's work, and it is the kind of claim that is repeated back by people who did not read the
+# original. Same reasoning as incident-materiality's documented disclosure-clock deviations.
+CONFORMANCE_LEVELS = ("full", "partial")
+
+
+def resolve_method(risk: dict, settings: dict):
+    """The method in force for one risk: its own if it declares one, else the register default.
+
+    Returns `(method_or_None, source)` where source is `"risk"`, `"settings"` or `"none"`.
+
+    **`None` means NOT DECLARED, never "no method was used"** (CAC-AP-1 s 2.2). Every risk
+    scored before v0.87.0 is in that state, and a reader has to be able to tell it from a risk
+    somebody deliberately recorded as qualitative.
+
+    **The override runs in BOTH directions, and that is the load-bearing half.** A register
+    defaulting to `quantitative` must be able to say *this one risk is qualitative because we
+    have nothing to count* — a default that only ever raises the floor would quietly assert
+    monetised analysis on a risk nobody costed.
+    """
+    own = risk.get("analysisMethod")
+    if isinstance(own, dict) and own:
+        return own, "risk"
+    fallback = (settings or {}).get("analysisMethodDefault")
+    if isinstance(fallback, dict) and fallback:
+        return fallback, "settings"
+    return None, "none"
+
+
+def check_method(method: dict) -> None:
+    """Refuse a method record that cannot be read as a disclosure. WRITES ONLY.
+
+    ⚠️ **Never called from `load_register`, and that is the design in one line.** A file already
+    carrying `partial` with no deviations still loads, scores and renders; it refuses on the
+    next write that touches the method. Validating at load would make an existing register
+    unopenable over a field whose entire purpose is honest disclosure — which is the opposite
+    of what the field is for, and the same rule `set-escalation` and the date fields follow.
+    """
+    # `parse_flags` yields True for a BARE flag — `--name` with no value — and True has no
+    # `.strip()`. A bare flag is an ordinary typo on a command with five of them, so every
+    # field is coerced before it is read. Found by the self-test below rather than by
+    # reading: the first version of this function tracebacked on `--name` alone.
+    def _field(key):
+        raw = method.get(key)
+        if raw is None or raw is True or raw is False:
+            return ""
+        return _s(raw).strip()
+
+    name = _field("name")
+    if not name:
+        raise ValueError(
+            "set-method: --name is required. A type without a name records that somebody chose "
+            "a family of analysis and not which analysis they ran, and the point of this record "
+            "is that a reader can go and look at the method.")
+    mtype = _field("type")
+    if mtype not in ANALYSIS_TYPES:
+        raise ValueError(
+            f"set-method: --type must be one of {', '.join(ANALYSIS_TYPES)} (got {mtype!r}). "
+            f"These are NIST's three analysis types and the tool does not invent a fourth; "
+            f"the METHOD NAME is free text, so record an unusual approach there.")
+    conf = _field("conformance")
+    if conf not in CONFORMANCE_LEVELS:
+        raise ValueError(
+            f"set-method: --conformance must be one of {', '.join(CONFORMANCE_LEVELS)} "
+            f"(got {conf!r}).")
+    if conf == "partial" and not _field("deviations"):
+        raise ValueError(
+            "set-method: --conformance partial requires --deviations. Partial conformance with "
+            "no stated deviation is the claim without the caveat — a reader is told the method "
+            "was followed loosely and not in what respect, which is less useful than saying "
+            "nothing.\n"
+            "  And name the method as it is: a FAIR analysis without monetised loss is "
+            "`open-fair` at partial conformance with that deviation recorded, never a coined "
+            "'FAIR-lite'. This tool does not rename somebody else's standard to describe a "
+            "reduced variant of it.")
+
+
 def empty_risk(risk_id: str) -> dict:
     return {
         "id": risk_id, "title": "", "description": "", "category": "", "owner": "",
@@ -463,7 +563,11 @@ def load_register(path: str) -> dict:
     # `currency` defaults to empty, and empty means *not recorded* — never a guessed symbol.
     # A cost total rendered with the wrong currency is worse than one rendered with none,
     # because only the second is obviously incomplete to the person reading it.
+    # `analysisMethodDefault` joins the same per-key merge: absent is NOT DECLARED, and a
+    # register that sets only this one keeps the shipped `matrixSize`, `appetite` and
+    # `currency` rather than losing them to a partial block (BL-92 A2).
     obj["settings"] = {"matrixSize": 5, "appetite": "medium", "currency": "",
+                       "analysisMethodDefault": None,
                        **obj.get("settings", {})}
     # Merged per key rather than defaulted wholesale, so a register that set one threshold
     # keeps the shipped values for the other three instead of losing them to a partial block.
@@ -500,6 +604,10 @@ def load_register(path: str) -> dict:
             r.setdefault("provisionalScore", bool(legacy))
         r.setdefault("provisionalTitle", False)
         r.setdefault("provisionalScore", False)
+        # `None`, not `{}`. An empty dict reads as "a method record exists and is blank";
+        # `None` reads as NOT DECLARED, which is what every risk scored before v0.87.0 is
+        # (BL-92 A1). `resolve_method` distinguishes the two and so does every renderer.
+        r.setdefault("analysisMethod", None)
     return obj
 
 
@@ -1811,6 +1919,110 @@ def _cmd_self_test(_: list[str]) -> int:
         eq("...and ACCEPTS zero, which round-trips as 0 rather than vanishing",
            _load(_dr)["risks"][-1]["response"].get("cost"), 0)
 
+        # --- analysis method: the warrant behind the score (BL-92) ---------------
+        #
+        # The register stored scores with no record of HOW they were produced, so two
+        # registers scored by wholly different methods were byte-indistinguishable.
+        _mrid = _load(_dr)["risks"][-1]["id"]
+        eq("set-method is reachable from COMMANDS",
+           COMMANDS.get("set-method") is _cmd_set_method, True)
+        eq("method-recorded is classified exactly once, as NON-affirming",
+           (("method-recorded" in AGE_AFFIRMING), ("method-recorded" in NON_AGE_AFFIRMING)),
+           (False, True))
+        # A4 — the constant is the ONLY definition. A `type` outside it is refused, and the
+        # three values are NIST's rather than this file's invention.
+        eq("ANALYSIS_TYPES holds exactly the three NIST analysis types",
+           list(ANALYSIS_TYPES), ["qualitative", "semi-quantitative", "quantitative"])
+        _m = [_dr, _mrid, "--name", "OPEN FAIR", "--conformance", "full", "--why", "w"]
+        eq("a type outside ANALYSIS_TYPES is refused",
+           _rejects(_cmd_set_method, _m + ["--type", "monte-carlo-ish"]), (True, True))
+        eq("set-method refuses without --why",
+           _rejects(_cmd_set_method, [_dr, _mrid, "--name", "n", "--type", "qualitative",
+                                      "--conformance", "full"]), (True, True))
+        # A BARE FLAG is an ordinary typo on a command with five of them, and `parse_flags`
+        # yields True for one. The first version of check_method tracebacked on this.
+        eq("a bare --name flag refuses rather than raising AttributeError",
+           _rejects(_cmd_set_method, [_dr, _mrid, "--name", "--type", "qualitative",
+                                      "--conformance", "full", "--why", "w"]), (True, True))
+        eq("...and without --name — a type alone records a family, not an analysis",
+           _rejects(_cmd_set_method, [_dr, _mrid, "--type", "qualitative",
+                                      "--conformance", "full", "--why", "w"]), (True, True))
+        # A6 — THE WHOLE DESIGN IN ONE CHECK, and the one most likely to be implemented as
+        # load-time validation by reflex.
+        _before_m = open(_dr, "rb").read()
+        eq("conformance partial with no deviations is refused ON WRITE",
+           _rejects(_cmd_set_method, _m[:4] + ["--type", "quantitative", "--conformance",
+                                               "partial", "--why", "w"]), (True, True))
+        eq("...and the refusal leaves the register byte-identical",
+           open(_dr, "rb").read(), _before_m)
+        _why_m = _why_refused(_cmd_set_method, _m[:4] + ["--type", "quantitative",
+                                                         "--conformance", "partial",
+                                                         "--why", "w"])
+        eq("...and the refusal says to state the deviation rather than coin a new name",
+           ("FAIR-lite" in _why_m and "open-fair" in _why_m), True)
+        eq("a partial method WITH deviations is accepted",
+           _rejects(_cmd_set_method, _m + ["--type", "quantitative", "--conformance", "partial",
+                                           "--deviations", "no monetised loss magnitude"]),
+           (False, False))
+        _stored = _load(_dr)["risks"][-1]["analysisMethod"]
+        eq("the record carries name, type, conformance and deviations",
+           (_stored["name"], _stored["type"], _stored["conformance"]),
+           ("OPEN FAIR", "quantitative", "partial"))
+        eq("...and who recorded it and when, which is what makes it a disclosure",
+           bool(_stored.get("setBy") and _stored.get("asOf")), True)
+        # A7 — history, matching set-score's shape.
+        eq("set-method appends a method-recorded event with its rationale",
+           any(e["type"] == "method-recorded" and e.get("riskId") == _mrid
+               and e.get("rationale") for e in _load(_dr)["history"]), True)
+        # A6, the load half. A file already carrying the bad combination must still LOAD:
+        # refusing at load would make an existing register unopenable over a disclosure field.
+        with tempfile.TemporaryDirectory() as _md:
+            _mp = os.path.join(_md, "bad.rr")
+            _bad = _load(_dr)
+            _bad["risks"][0]["analysisMethod"] = {"name": "OPEN FAIR", "type": "quantitative",
+                                                  "conformance": "partial", "deviations": ""}
+            with open(_mp, "w", encoding="utf-8") as _fh:
+                json.dump(_bad, _fh)
+            eq("a register already carrying partial-with-no-deviations still LOADS",
+               load_register(_mp)["risks"][0]["analysisMethod"]["conformance"], "partial")
+            # A1 — absent normalises to None, not {}. `{}` would read as "declared and blank".
+            _plain = _load(_dr)
+            _plain["risks"][0].pop("analysisMethod", None)
+            with open(_mp, "w", encoding="utf-8") as _fh:
+                json.dump(_plain, _fh)
+            eq("a risk with no analysisMethod normalises to None, never {}",
+               load_register(_mp)["risks"][0]["analysisMethod"], None)
+            # A2 — merged per key: setting only the default keeps the shipped values.
+            _only = _load(_dr)
+            _only["settings"] = {"analysisMethodDefault": {"name": "workshop",
+                                                           "type": "qualitative",
+                                                           "conformance": "full",
+                                                           "deviations": ""}}
+            with open(_mp, "w", encoding="utf-8") as _fh:
+                json.dump(_only, _fh)
+            _ld = load_register(_mp)["settings"]
+            eq("a register setting only analysisMethodDefault keeps the shipped settings",
+               (_ld["matrixSize"], _ld["appetite"], _ld["currency"]), (5, "medium", ""))
+        # A3 — resolve_method, all three branches AND the both-directions case.
+        _dflt = {"name": "workshop", "type": "quantitative", "conformance": "full",
+                 "deviations": ""}
+        _own = {"name": "judgement", "type": "qualitative", "conformance": "full",
+                "deviations": ""}
+        eq("resolve_method: nothing declared anywhere is (None, 'none')",
+           resolve_method({}, {}), (None, "none"))
+        eq("resolve_method: the register default applies when the risk declares none",
+           resolve_method({}, {"analysisMethodDefault": _dflt}), (_dflt, "settings"))
+        eq("resolve_method: a risk's own record wins",
+           resolve_method({"analysisMethod": _own}, {"analysisMethodDefault": _dflt}),
+           (_own, "risk"))
+        # THE BOTH-DIRECTIONS CASE, and it is the load-bearing one: a register defaulting to
+        # quantitative must be able to say THIS ONE is qualitative because we have nothing to
+        # count. An override that could only raise the floor would quietly assert monetised
+        # analysis on a risk nobody costed.
+        eq("...including DOWNWARD, which is the half that matters",
+           resolve_method({"analysisMethod": _own},
+                          {"analysisMethodDefault": _dflt})[0]["type"], "qualitative")
+
         # --- set-response, the correction path (BL-105) --------------------------
         eq("set-response is reachable from COMMANDS",
            COMMANDS.get("set-response") is _cmd_set_response, True)
@@ -2244,6 +2456,11 @@ NON_AGE_AFFIRMING = frozenset({
     # history — it changes what the register reports — but it is a statement about the
     # policy, not about a risk.
     "escalation-policy-changed",
+    # Recording HOW a risk was analysed says nothing about whether the score is still current
+    # — it is a statement about the warrant, not a re-affirmation of the conclusion. A method
+    # recorded on a two-year-old score must not make that score read as freshly confirmed
+    # (BL-92 A7).
+    "method-recorded",
 })
 
 # Every type this file can write, plus every type references/schema.md documents.
@@ -2265,7 +2482,7 @@ KNOWN_EVENT_TYPES = frozenset({
     "register-created", "risk-added", "risk-updated", "score-changed", "response-changed",
     "status-changed", "risk-accepted", "acceptance-revalidated", "risk-confirmed",
     "risk-closed", "risk-reopened", "risk-deleted", "theme-changed", "settings-changed",
-    "snapshot-created", "import-merged", "escalation-policy-changed",
+    "snapshot-created", "import-merged", "escalation-policy-changed", "method-recorded",
 })
 
 
@@ -3437,6 +3654,58 @@ def _cmd_export_csv(args):
     return 0
 
 
+def _cmd_set_method(args):
+    """Record HOW a risk was analysed — the warrant behind the score (BL-92 A5, A6, A7).
+
+    Per risk, not per register, because a register commonly holds both: three risks somebody
+    modelled with loss distributions and thirty scored by judgement in a workshop. A
+    register-level field would have to describe the least rigorous of them or overstate the
+    rest, and `settings.analysisMethodDefault` exists for the ordinary case where one method
+    genuinely covers everything.
+
+    **A risk's own method outranks the default in BOTH directions** — see `resolve_method`.
+
+    Refuses through `check_method`, on WRITE only. A register already carrying `partial` with
+    no deviations loads, scores and renders unchanged; it refuses the next time anyone touches
+    the method. Nothing here is validated at load.
+    """
+    pos, opt = parse_flags(args, known={"name", "type", "conformance", "deviations", "why"})
+    if len(pos) < 2:
+        raise ValueError(
+            "usage: set-method <register.rr> <risk-id> --name 'OPEN FAIR' "
+            "--type qualitative|semi-quantitative|quantitative --conformance full|partial "
+            "[--deviations '...'] --why '...'")
+    path, rid = pos[0], pos[1]
+    if "why" not in opt:
+        raise ValueError(
+            "set-method: --why is required. Recording the method is a material change to what "
+            "the register claims about its own scores, and the rationale is the audit trail.")
+    method = {
+        "name": _s(opt.get("name", "")),
+        "type": _s(opt.get("type", "")),
+        "conformance": _s(opt.get("conformance", "")),
+        "deviations": _s(opt.get("deviations", "")),
+    }
+    # Validated BEFORE the file is opened for writing, so a refused set-method leaves the
+    # register byte-identical rather than half-applied.
+    check_method(method)
+    reg = load_register(path)
+    risk = _find(reg, rid)
+    method["setBy"] = reg["meta"].get("assessor") or "unknown"
+    method["asOf"] = _now()[:10]
+    before = risk.get("analysisMethod")
+    risk["analysisMethod"] = method
+    _append_event(reg, "method-recorded", riskId=rid, field="analysisMethod",
+                  frm=(before or {}).get("name") if isinstance(before, dict) else None,
+                  to=method["name"], rationale=opt["why"])
+    save_register(reg, path)
+    print(f"{rid}: analysis method recorded — {method['name']} "
+          f"({method['type']}, {method['conformance']} conformance)")
+    if method["conformance"] == "partial":
+        print(f"  deviations: {method['deviations']}")
+    return 0
+
+
 COMMANDS = {
     "score": _cmd_score, "import-gaps": _cmd_import_gaps,
     "import-findings": _cmd_import_findings, "self-test": _cmd_self_test,
@@ -3448,6 +3717,7 @@ COMMANDS = {
     "add-theme": _cmd_add_theme, "set-theme": _cmd_set_theme,
     "set-escalation": _cmd_set_escalation, "escalations": _cmd_escalations,
     "set-currency": _cmd_set_currency, "set-response": _cmd_set_response,
+    "set-method": _cmd_set_method,
 }
 
 
