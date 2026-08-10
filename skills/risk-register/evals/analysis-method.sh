@@ -15,7 +15,8 @@
 #      carries the naming rule, because the reader who reached for a coined "FAIR-lite" is
 #      exactly the reader about to hit it.
 #
-#   2. EXTERNAL — a method the catalogue marks `external` emits NO `method-prerequisite-unmet`
+#   2. EXTERNAL — a method the catalogue marks `external` is told nothing about its
+#      conformance, in EITHER direction: it emits no `method-prerequisite-unmet`
 #      under any input (BL-93 B3, D-4.2). Monte Carlo's real prerequisites are the analyst's
 #      input distributions; Bayesian's are their priors; event tree's are their branch
 #      probabilities. This toolkit cannot see any of them, and flagging their absence would
@@ -46,7 +47,7 @@ skill="$(cd "$here/.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=12
+EXPECTED_CHECKS=16
 checks=0
 fails=0
 ok()  { checks=$((checks + 1)); printf '  ok    %s\n' "$1"; }
@@ -84,8 +85,13 @@ def seed(name):
     return path
 
 # --- half 1: PARTIAL --------------------------------------------------------------
+#
+# ⚠️ The method here is CHECKABLE, and it has to be. This fixture used to say "OPEN FAIR",
+# which the catalogue marks `external` — so after BL-238 that exact command is ACCEPTED, and
+# leaving it would have turned a check that proved the refusal into one that proved nothing
+# while still printing green. The external case is asserted separately, by name, below.
 reg = seed("partial.rr")
-bad_write = ["set-method", reg, "R-001", "--name", "OPEN FAIR", "--type", "quantitative",
+bad_write = ["set-method", reg, "R-001", "--name", "SME estimation", "--type", "quantitative",
              "--conformance", "partial", "--why", "modelled"]
 before = open(reg, "rb").read()
 refused, msg = run(bad_write)
@@ -113,6 +119,54 @@ try:
     print("PARTIAL-LOADS ok")
 except Exception as exc:                                # noqa: BLE001 — any escape is a fail
     print("PARTIAL-LOADS a register carrying it no longer opens: %s" % exc)
+
+# --- BL-238: the write refusal stops at the SAME boundary the escalation already had ---
+#
+# This asserts a behaviour that was REMOVED, by name, rather than deleting the test that
+# covered it. A check that quietly stops existing is how 51 checks in this repo came to read a
+# crash as a pass; the fix for a deleted guarantee is an assertion that it is gone, not a gap
+# where it used to be.
+#
+# DECIDED, and recorded as a deliberate departure from the research: Monte Carlo, Bayesian,
+# event tree and Open FAIR are refused NOTHING about their conformance. A boundary with an
+# exception is a rule with a footnote.
+ext_reg = seed("external.rr")
+ext_write = ["set-method", ext_reg, "R-001", "--name", "OPEN FAIR", "--type", "quantitative",
+             "--conformance", "partial", "--why", "modelled"]
+refused, msg = run(ext_write)
+print("EXTERNAL-WRITE %s" % ("ok" if not refused else "an external method was still refused: %s"
+                             % msg.split(".")[0]))
+# ...and the record actually landed. "Not refused" and "written" are different claims, and a
+# no-op that raises nothing would satisfy the check above while storing nothing.
+_stored = (sr.load_register(ext_reg)["risks"][0].get("analysisMethod") or {})
+print("EXTERNAL-WRITE-STORED %s" % ("ok" if _stored.get("conformance") == "partial"
+                                    and _stored.get("deviations") == ""
+                                    else "the uncaveated record was not stored: %r" % _stored))
+# THE BOUNDARY IS SCOPED, NOT A BYPASS. `name`, `type` and `conformance` say WHICH analysis was
+# run and are still validated for an external method — it is only the follow-up question about
+# the level that stops. Without this, "external" would read as "unvalidated".
+_bad_type, _ = run(["set-method", ext_reg, "R-001", "--name", "OPEN FAIR", "--type", "vibes",
+                    "--conformance", "partial", "--why", "modelled"])
+_bad_conf, _ = run(["set-method", ext_reg, "R-001", "--name", "OPEN FAIR",
+                    "--type", "quantitative", "--conformance", "sort-of", "--why", "modelled"])
+print("EXTERNAL-STILL-BOUNDED %s" % ("ok" if _bad_type and _bad_conf
+                                     else "type=%s conformance=%s" % (_bad_type, _bad_conf)))
+# T2. The silence is ANNOUNCED at the point of use. Without this line somebody records an Open
+# FAIR analysis as partial, names no deviation, gets no complaint, and files a bug.
+# Called directly rather than through `run()` because the NOTE is on stdout, which `run()`
+# swallows — but wrapped, because an unguarded call here kills the whole probe and every
+# check below it prints nothing. That is the "a case stopped executing" failure this suite's
+# own EXPECTED_CHECKS guard exists for, and it showed up under mutation rather than in review.
+_buf = io.StringIO()
+try:
+    with contextlib.redirect_stdout(_buf), contextlib.redirect_stderr(io.StringIO()):
+        sr.COMMANDS["set-method"](ext_write[1:])
+    _said = _buf.getvalue()
+except ValueError as _exc:
+    _said = "REFUSED: %s" % _exc
+print("EXTERNAL-SAYS-SO %s" % ("ok" if "NOT CHECKED" in _said and "deviation" in _said
+                               else "set-method said nothing about the silence: %r"
+                                    % _said.strip()[-120:]))
 
 # --- half 2: EXTERNAL -------------------------------------------------------------
 def escalated(method, currency=""):
@@ -189,6 +243,10 @@ else
       "PARTIAL-WHY ok:...and the refusal names the flag, the reason and the naming rule" \
       "PARTIAL-ACCEPTS ok:the same claim WITH its caveat is accepted" \
       "PARTIAL-LOADS ok:a register already carrying the combination still LOADS" \
+      "EXTERNAL-WRITE ok:an external method is NOT refused partial with no deviations (BL-238)" \
+      "EXTERNAL-WRITE-STORED ok:...and the uncaveated record is actually stored, not dropped" \
+      "EXTERNAL-STILL-BOUNDED ok:...while its name, type and conformance are still validated" \
+      "EXTERNAL-SAYS-SO ok:...and set-method says the fields are recorded but not checked" \
       "EXTERNAL ok:an external method escalates nothing, both conditions true" \
       "EXTERNAL-LICENSED ok:...including a licensed third-party method" \
       "CHECKABLE ok:while a checkable method with the same two gaps fires twice" \

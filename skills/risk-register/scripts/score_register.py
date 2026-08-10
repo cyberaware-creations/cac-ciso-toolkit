@@ -425,7 +425,7 @@ def resolve_method(risk: dict, settings: dict):
     return None, "none"
 
 
-def check_method(method: dict) -> None:
+def check_method(method: dict, catalogue: dict = None) -> None:
     """Refuse a method record that cannot be read as a disclosure. WRITES ONLY.
 
     ⚠️ **Never called from `load_register`, and that is the design in one line.** A file already
@@ -433,6 +433,17 @@ def check_method(method: dict) -> None:
     next write that touches the method. Validating at load would make an existing register
     unopenable over a field whose entire purpose is honest disclosure — which is the opposite
     of what the field is for, and the same rule `set-escalation` and the date fields follow.
+
+    ⚠️ **An `external` method is refused nothing about its conformance** (BL-238). The boundary
+    is absolute: this tool says nothing about analysis it cannot see, with no exceptions. A
+    boundary with an exception is not a boundary — it is a rule with a footnote, and the
+    sentence a CISO repeats to a third party has to survive the repetition. "This tool says
+    nothing about analysis it cannot see" does; "…except when it does" does not.
+
+    `name`, `type` and `conformance` are still validated for every method, external included:
+    those say WHICH analysis was run and are the record itself. What is given up is that an
+    incomplete `deviations` goes unreported when the method is external, and that is accepted
+    rather than worked around.
     """
     # `parse_flags` yields True for a BARE flag — `--name` with no value — and True has no
     # `.strip()`. A bare flag is an ordinary typo on a command with five of them, so every
@@ -461,6 +472,12 @@ def check_method(method: dict) -> None:
         raise ValueError(
             f"set-method: --conformance must be one of {', '.join(CONFORMANCE_LEVELS)} "
             f"(got {conf!r}).")
+    # THE BOUNDARY. Placed after `conformance` is validated, so an external method is still
+    # held to naming a level this tool understands — it is the follow-up question about that
+    # level that stops here, not the level itself.
+    entry = catalogue_entry(name, catalogue)
+    if entry and entry.get("visibility") == "external":
+        return
     if conf == "partial" and not _field("deviations"):
         raise ValueError(
             "set-method: --conformance partial requires --deviations. Partial conformance with "
@@ -2111,17 +2128,32 @@ def _cmd_self_test(_: list[str]) -> int:
                                       "--conformance", "full", "--why", "w"]), (True, True))
         # A6 — THE WHOLE DESIGN IN ONE CHECK, and the one most likely to be implemented as
         # load-time validation by reflex.
+        #
+        # ⚠️ The method here is CHECKABLE. These three used `OPEN FAIR`, which the catalogue
+        # marks `external` — so after BL-238 that command is accepted, and leaving them would
+        # have turned three assertions about the refusal into three that assert nothing while
+        # still printing green.
+        _mchk = [_dr, _mrid, "--name", "SME estimation"]
         _before_m = open(_dr, "rb").read()
         eq("conformance partial with no deviations is refused ON WRITE",
-           _rejects(_cmd_set_method, _m[:4] + ["--type", "quantitative", "--conformance",
-                                               "partial", "--why", "w"]), (True, True))
+           _rejects(_cmd_set_method, _mchk + ["--type", "quantitative", "--conformance",
+                                              "partial", "--why", "w"]), (True, True))
         eq("...and the refusal leaves the register byte-identical",
            open(_dr, "rb").read(), _before_m)
-        _why_m = _why_refused(_cmd_set_method, _m[:4] + ["--type", "quantitative",
-                                                         "--conformance", "partial",
-                                                         "--why", "w"])
+        _why_m = _why_refused(_cmd_set_method, _mchk + ["--type", "quantitative",
+                                                        "--conformance", "partial",
+                                                        "--why", "w"])
         eq("...and the refusal says to state the deviation rather than coin a new name",
            ("FAIR-lite" in _why_m and "open-fair" in _why_m), True)
+        # BL-238 — the removed behaviour, asserted ABSENT by name rather than left as a gap.
+        # An EXTERNAL method is refused nothing about its conformance, at write or at read.
+        eq("...but an EXTERNAL method is NOT refused the same record (BL-238)",
+           _rejects(_cmd_set_method, _m[:4] + ["--type", "quantitative", "--conformance",
+                                               "partial", "--why", "w"]), (False, False))
+        # The boundary is SCOPED, not a bypass: what the record says it IS stays validated.
+        eq("...while its type is still validated, so external is not unvalidated",
+           _rejects(_cmd_set_method, _m[:4] + ["--type", "vibes", "--conformance",
+                                               "partial", "--why", "w"]), (True, True))
         eq("a partial method WITH deviations is accepted",
            _rejects(_cmd_set_method, _m + ["--type", "quantitative", "--conformance", "partial",
                                            "--deviations", "no monetised loss magnitude"]),
@@ -4036,10 +4068,19 @@ def _cmd_set_method(args):
     # never a refusal: `name` is free text on purpose, this tool holds no catalogue of every
     # method a CISO might legitimately use, and refusing an unfamiliar one would make it the
     # arbiter of that. It exits 0 and the record is written either way.
-    if catalogue_entry(method["name"]) is None:
+    _entry = catalogue_entry(method["name"])
+    if _entry is None:
         print(f"  note: {method['name']!r} is not in references/analysis-methods.json, so "
               f"nothing here can check its prerequisites or quote NIST on it. Recorded as "
               f"given — an unfamiliar method is not a wrong one.")
+    elif _entry.get("visibility") == "external":
+        # BL-238 T2. Said at the point of use, not only in the docs. Without it, somebody who
+        # records an OPEN FAIR analysis as `partial`, names no deviation and gets no complaint
+        # reads the silence as a bug and files one.
+        print(f"  note: {method['name']!r} runs where this register cannot see it, so "
+              f"`conformance` and `deviations` are RECORDED HERE BUT NOT CHECKED — nothing "
+              f"will tell you a deviation is missing, and no escalation is raised about one. "
+              f"The record is yours to keep honest.")
     return 0
 
 
