@@ -60,6 +60,7 @@ snapshots so the register can report change over time without any external store
   "reviewDate": "2026-09-30",
   "acceptance": null,
   "csfSubcategoryId": "PR.AT-01",
+  "references": ["ATT&CK T1566.001", "ID.RA-03"],
   "provisionalTitle": false,
   "provisionalScore": false,
   "notes": "Context, caveats, progress"
@@ -148,6 +149,7 @@ Confirmation age below); everything else leaves it exactly where it was.
 | `response-changed` | `set-response` | no |
 | `settings-changed` | `set-currency` | no |
 | `method-recorded` | `set-method` | no |
+| `references-set` | `set-refs`, `add --ref` | no |
 | `risk-closed`, `risk-reopened`, `risk-deleted` | *nothing writes them yet* | no |
 
 Only an assertion about a risk's **magnitude** or its **treatment decision** affirms age. A

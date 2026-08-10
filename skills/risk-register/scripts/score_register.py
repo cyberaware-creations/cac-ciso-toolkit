@@ -76,6 +76,10 @@ Mutations (each appends an append-only history event and writes a schema-valid f
                                          requires --deviations; the tool never renames
                                          somebody else's method to describe a reduced
                                          variant of it.
+  set-refs     <register.rr> <id> --ref 'ATT&CK T1566.001' ['ID.RA-03'] --why ...
+                                         Records WHERE the risk came from. Free text, plural,
+                                         no catalogue and no coverage claim. Replaces the
+                                         list; the previous value is kept in the event.
   set-escalation <register.rr> [--sustained N] [--dwell-days D] [--band-cross on|off]
                                          [--lapsed-acceptance on|off] --why ...
                                          Tune when this register escalates. Logged: a
@@ -698,6 +702,12 @@ def load_register(path: str) -> dict:
         # `None` reads as NOT DECLARED, which is what every risk scored before v0.87.0 is
         # (BL-92 A1). `resolve_method` distinguishes the two and so does every renderer.
         r.setdefault("analysisMethod", None)
+        # `[]`, not `None`. Unlike `analysisMethod`, there is no meaningful difference between
+        # "no references declared" and "declared as none" — a risk either cites where it came
+        # from or it does not, and nothing downstream asks which. An empty list also lets every
+        # consumer iterate without a None-guard, which is the whole reason the two keys are
+        # normalised differently (BL-117 T1).
+        r.setdefault("references", [])
     return obj
 
 
@@ -1394,6 +1404,54 @@ def _cmd_self_test(_: list[str]) -> int:
        (_again["added"], _again["updated"], len(_again["risks"])), (0, 1, 1))
     eq("and the provenance key survives the update",
        _again["risks"][0].get("sourceRef"), _finding["sourceRef"])
+    # --- BL-117 T5. `references` IS NEVER A MATCHING KEY, and this fails if it becomes one.
+    #
+    # The whole reason the field exists separately from `sourceRef` and `csfSubcategoryId`.
+    # Both of those ARE matching keys (:611 and :617), so a CISO hand-typing `ATT&CK
+    # T1566.001` into either would be typing into the dedupe chain: a later import carrying
+    # the same string would silently UPDATE that risk instead of adding a new one. Invisible,
+    # and it destroys an assessed score rather than erroring — the worst failure shape
+    # available here, which is why this is asserted rather than intended.
+    _refbase = [{"id": "R-800", "title": "Credential theft via a spoofed login page",
+                 "description": "If a user authenticates to a spoofed page, then...",
+                 "category": "", "references": ["ATT&CK T1566.001"]}]
+    _refcand = [{"id": "R-801", "title": "Something else entirely",
+                 "description": "If ... then ...", "category": "",
+                 "references": ["ATT&CK T1566.001"]}]
+    _refmerge = merge_import(_refbase, _refcand)
+    eq("a candidate sharing only `references` is ADDED, never merged onto the existing risk",
+       (_refmerge["added"], _refmerge["updated"], len(_refmerge["risks"])), (1, 0, 2))
+    # ...and the existing risk is untouched, which is the harm the check above prevents. A
+    # match would have overwritten `title` and `category` on an assessed risk.
+    eq("...and the risk it might have matched keeps its own wording",
+       _refmerge["risks"][0]["title"], "Credential theft via a spoofed login page")
+
+    # --- BL-117 T6. The repeated-flag drop, PINNED AS IT BEHAVES rather than worked around.
+    #
+    # BL-104 is Done and did NOT fix this: what it shipped is the unknown-flag rejection at
+    # :2864. `--ref A B` works; `--ref A --ref B` keeps only B, silently, because the second
+    # occurrence overwrites the first in the `opt` dict. No open item will change it.
+    #
+    # So this records the truth rather than the wish, and it is written to FAIL LOUDLY on the
+    # day somebody fixes the parser — at which point this check is the thing that tells them a
+    # decision about `set-refs` semantics has just been made for them, instead of the change
+    # landing unnoticed.
+    eq("a REPEATED --ref keeps only the last value (parser limit, not a feature)",
+       parse_flags(["x", "--ref", "A", "--ref", "B"], known={"ref"})[1], {"ref": "B"})
+    eq("...while the multi-value form, which is the documented one, keeps both",
+       _reflist(parse_flags(["x", "--ref", "A", "B"], known={"ref"})[1]["ref"]), ["A", "B"])
+    # `_s` is the trap next to it: it JOINS, so using it here would store one reference
+    # reading "A B" that matches neither. Asserted because the two helpers sit side by side
+    # and the wrong one is a plausible autocomplete.
+    eq("_reflist splits where _s would have joined",
+       (_reflist(["A", "B"]), _s(["A", "B"])), (["A", "B"], "A B"))
+    eq("a bare --ref clears rather than storing True", _reflist(True), [])
+    eq("blanks are dropped and exact repeats collapsed, order preserved",
+       _reflist(["T1566", " ", "T1078", "T1566"]), ["T1566", "T1078"])
+    # Free text really is free: no case folding, no format check, no prefix whitelist (D-3).
+    eq("a reference with a space, a registered mark and a made-up ID round-trips unchanged",
+       _reflist(["MITRE ATT&CK® T9999.999"]), ["MITRE ATT&CK® T9999.999"])
+
     # A human-authored title is never overwritten by a re-import.
     _authored = [dict(_first["risks"][0], title="Loss of the CRM through a provider gap",
                       provisionalTitle=False)]
@@ -2690,6 +2748,13 @@ NON_AGE_AFFIRMING = frozenset({
     # recorded on a two-year-old score must not make that score read as freshly confirmed
     # (BL-92 A7).
     "method-recorded",
+    # Same shape, one field along. Citing where a risk came from — a technique ID, a
+    # subcategory, a ticket — is a statement about its ORIGIN, not a re-reading of whether the
+    # score still holds. Somebody adding an ATT&CK reference to a risk last scored two years
+    # ago has documented provenance, not confirmed the risk, and a register that let this
+    # reset the confirmation clock would report the oldest risks as the freshest whenever
+    # anyone tidied up their references (BL-117 T4).
+    "references-set",
 })
 
 # Every type this file can write, plus every type references/schema.md documents.
@@ -2712,6 +2777,7 @@ KNOWN_EVENT_TYPES = frozenset({
     "status-changed", "risk-accepted", "acceptance-revalidated", "risk-confirmed",
     "risk-closed", "risk-reopened", "risk-deleted", "theme-changed", "settings-changed",
     "snapshot-created", "import-merged", "escalation-policy-changed", "method-recorded",
+    "references-set",
 })
 
 
@@ -2803,6 +2869,29 @@ def _now() -> str:
 def _s(v):
     """Coerce a possibly-multi-token flag value back to a string."""
     return " ".join(v) if isinstance(v, list) else v
+
+
+def _reflist(v):
+    """A `--ref` value as a LIST, whatever shape `parse_flags` handed back.
+
+    `--ref A` gives a string, `--ref A B` gives a list, a bare `--ref` gives True. The one
+    thing this must not do is what `_s()` does: `_s(["A", "B"])` is `"A B"`, which silently
+    turns two references into one string that matches neither of them. Two techniques are two
+    techniques (BL-117 T2).
+
+    Blanks are dropped and exact repeats collapsed, order preserved. That is the ONLY
+    normalisation applied, and it is deliberately not the kind D-3 rules out — no case folding,
+    no format check, no prefix whitelist. A duplicate is not a different reference, so keeping
+    it would only draw the same chip twice.
+    """
+    if v is True or v is None:
+        return []
+    out = []
+    for x in (v if isinstance(v, list) else [v]):
+        x = str(x).strip()
+        if x and x not in out:
+            out.append(x)
+    return out
 
 
 # Commands whose flags are not yet declared to `parse_flags`. **This list may only shrink.**
@@ -3122,14 +3211,14 @@ def _cmd_init(args):
 def _cmd_add(args):
     pos, opt = parse_flags(args, known={
         "title", "description", "desc", "il", "ii", "rl", "ri", "category", "owner", "theme",
-        "response", "response-desc", "cost", "review", "csf", "notes", "why"})
+        "response", "response-desc", "cost", "review", "csf", "notes", "ref", "why"})
     if not pos:
         raise ValueError("usage: add <register.rr> --title '...' "
                          "--description 'If <event>, then <consequence>' "
                          "--il L --ii I --rl L --ri I "
                          "[--category ..] [--owner ..] [--theme ..] [--response mitigate] "
                          "[--response-desc ..] [--cost 45000] [--review DATE] [--csf ID] "
-                         "[--notes ..] [--why ..]")
+                         "[--notes ..] [--ref 'ATT&CK T1566.001' ..] [--why ..]")
     path = pos[0]
     reg = load_register(path)
     size = reg["settings"]["matrixSize"]
@@ -3188,6 +3277,8 @@ def _cmd_add(args):
         risk["csfSubcategoryId"] = _s(opt["csf"])
     if "notes" in opt:
         risk["notes"] = _s(opt["notes"])
+    # `_reflist`, never `_s`. `--ref A B` is two references; `_s` would join them into one.
+    risk["references"] = _reflist(opt.get("ref"))
     if risk["theme"] and not any(t.get("id") == risk["theme"] for t in reg["themes"]):
         print(f"warning: theme {risk['theme']!r} is not defined in this register; "
               f"it will roll up as Unclassified. Define it with: add-theme", file=sys.stderr)
@@ -3952,6 +4043,60 @@ def _cmd_set_method(args):
     return 0
 
 
+def _cmd_set_refs(args):
+    """Record WHERE a risk came from — a technique ID, a subcategory, a ticket (BL-117 T3/T4).
+
+    A sibling of `set-method`, not a variant of it. `analysisMethod` records HOW a risk was
+    analysed; `references` records WHAT was looked at to find it. The board question this
+    answers is *what did we look at, and what did we not look at* — which is why the field is
+    plural, free text, and asserts nothing.
+
+    **Free text with no catalogue, and that is a decision rather than an omission.** Nothing is
+    validated, normalised or looked up: no ATT&CK matrix is bundled, no ID is checked to exist.
+    A technique ID that never existed is the author's problem; a technique ID that STOPS
+    existing when MITRE reorganises must not break a register somebody stored two years ago.
+
+    **It is never a matching key.** `merge_import` matches on `csfSubcategoryId` and
+    `sourceRef`, which is exactly why this field is separate from both: typing `ATT&CK
+    T1566.001` into either of those would let a later import silently UPDATE an assessed risk
+    instead of adding a new one — invisible, and destructive of a score somebody set. The
+    self-test asserts the match chain ignores `references` and fails if anyone adds it.
+
+    Replaces the list wholesale rather than offering add/remove. One command and one mental
+    model, and the previous value goes into the history event, so a full overwrite by typo is
+    recoverable from the register itself.
+    """
+    pos, opt = parse_flags(args, known={"ref", "why"})
+    if len(pos) < 2:
+        raise ValueError(
+            "usage: set-refs <register.rr> <risk-id> --ref 'ATT&CK T1566.001' ['ID.RA-03'] "
+            "--why '...'\n  --ref with no values clears the list. Free text: nothing is "
+            "validated against any catalogue.")
+    path, rid = pos[0], pos[1]
+    if "why" not in opt:
+        raise ValueError(
+            "set-refs: --why is required. What a risk cites as its origin is part of what the "
+            "register claims about its own coverage, and the rationale is the audit trail.")
+    refs = _reflist(opt.get("ref"))
+    # Nothing to validate — the field is free text by design — so the only refusals are the
+    # two above, and both happen before the store is opened. A refused `set-refs` therefore
+    # leaves the register byte-identical, the same property `set-method` has.
+    reg = load_register(path)
+    risk = _find(reg, rid)
+    before = list(risk.get("references") or [])
+    risk["references"] = refs
+    _append_event(reg, "references-set", riskId=rid, field="references",
+                  frm=before, to=refs, rationale=opt["why"])
+    save_register(reg, path)
+    print(f"{rid}: references {'cleared' if not refs else 'recorded — ' + ', '.join(refs)}")
+    if before and not refs:
+        print(f"  was: {', '.join(before)} (recoverable from the history event)")
+    # Deliberately silent about coverage. No count against ATT&CK, no percentage, no "techniques
+    # you have not considered" — every one of those would need the bundled matrix this field
+    # exists to avoid, and would be the tool asserting completeness it cannot know.
+    return 0
+
+
 # What `--context` accepts. Each token maps to a sentence NIST states in IR 8286A r1 s 2.3.1
 # and to nothing else — there is no token here whose caution this tool would have to invent.
 # `audience` was designed in and then dropped: NIST names "the form of output of most use to
@@ -4048,6 +4193,7 @@ COMMANDS = {
     "set-escalation": _cmd_set_escalation, "escalations": _cmd_escalations,
     "set-currency": _cmd_set_currency, "set-response": _cmd_set_response,
     "set-method": _cmd_set_method, "suggest-method": _cmd_suggest_method,
+    "set-refs": _cmd_set_refs,
 }
 
 
