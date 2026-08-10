@@ -3,6 +3,7 @@
  "overlayFrameworkId": "800-53-r5",
  "direction": "bidirectional",
  "mappingAuthority": "nist-developed",
+ "overlayRelease": "Release 5.2.0",
  "sourceExport": {
   "tool": "NIST CSF 2.0 Reference Export (xlsx)",
   "file": "csf-2.0.xlsx",
@@ -111,7 +112,7 @@
   },
   {
    "csfSubId": "DE.AE-06",
-   "controlId": "RA-3",
+   "controlId": "RA-4",
    "authority": "nist-developed"
   },
   {
@@ -922,6 +923,11 @@
   {
    "csfSubId": "GV.RM-03",
    "controlId": "RA-7",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "GV.RM-03",
+   "controlId": "SA-24",
    "authority": "nist-developed"
   },
   {
@@ -3106,6 +3112,11 @@
   },
   {
    "csfSubId": "PR.IR-03",
+   "controlId": "SA-24",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.IR-03",
    "controlId": "SA-8",
    "authority": "nist-developed"
   },
@@ -3300,6 +3311,11 @@
    "authority": "nist-developed"
   },
   {
+   "csfSubId": "PR.PS-04",
+   "controlId": "SA-15(13)",
+   "authority": "nist-developed"
+  },
+  {
    "csfSubId": "PR.PS-05",
    "controlId": "CM-7(02)",
    "authority": "nist-developed"
@@ -3336,7 +3352,17 @@
   },
   {
    "csfSubId": "PR.PS-06",
+   "controlId": "SA-15(13)",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.PS-06",
    "controlId": "SA-17",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "PR.PS-06",
+   "controlId": "SA-24",
    "authority": "nist-developed"
   },
   {
@@ -3467,6 +3493,11 @@
   {
    "csfSubId": "RS.AN-03",
    "controlId": "IR-4",
+   "authority": "nist-developed"
+  },
+  {
+   "csfSubId": "RS.AN-03",
+   "controlId": "SI-2(07)",
    "authority": "nist-developed"
   },
   {

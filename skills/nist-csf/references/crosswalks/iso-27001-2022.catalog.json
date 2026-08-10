@@ -2,6 +2,7 @@
  "frameworkId": "iso-27001-2022",
  "name": "ISO/IEC 27001:2022",
  "version": "2022",
+ "release": null,
  "license": "iso-copyright",
  "provenance": "Mapped control/clause IDs come from NIST's CSF 2.0 informative references (mixed/third-party authority); the rest of the Annex A numbering completes the set (see catalogueScope). Labels are CAC paraphrases \u2014 ISO/IEC text is copyright; bring your own copy.",
  "sourceExport": {
