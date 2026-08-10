@@ -1,0 +1,29 @@
+{
+  "guard": "skills/business-context/evals/criticality-shapes.sh",
+  "forbids": "a consumer that reads only one of the two legal criticality shapes",
+  "note": "BL-216 R-3 phase 3, Q-2 decided 2026-08-10. `criticality` is a bare string in every .biz written before v0.74.0 and a declared() record in every one written after; nothing converts and nothing is refused, so both shapes live on disk indefinitely. A field with two shapes reads as an inconsistency and the obvious tidy-up is to force one — which is exactly the breaking read this decision declined. The two mutations ARE those two tidy-ups, one per direction, because each is a plausible edit that no within-shape fixture would catch. Both plant into vendor-register; ai-register's copy is held to the same behaviour by CAC-TW-1, which runs both walks over both shapes.",
+  "mutations": [
+    {
+      "half": "bare",
+      "why": "the record shape forced — a reader that demands the new shape, silently refusing every store written before v0.74.0",
+      "defeats": [
+        "vendor-register derives a level from a pre-v0.74.0 bare string",
+        "both shapes derive the SAME level, in both engines"
+      ],
+      "file": "skills/vendor-register/scripts/vendor_register.py",
+      "find": "    raw = wf.get(\"criticality\")\n    if isinstance(raw, dict) and \"value\" in raw:",
+      "replace": "    raw = wf.get(\"criticality\")\n    if isinstance(raw, str) and raw.strip():\n        raise Refusal(\"criticality must be a declared record\")\n    if isinstance(raw, dict) and \"value\" in raw:"
+    },
+    {
+      "half": "record",
+      "why": "the bare shape forced — the record branch removed, so a declared() record falls through to the container refusal and every store written after v0.74.0 stops deriving a level",
+      "defeats": [
+        "vendor-register derives a level from a declared() record",
+        "both shapes derive the SAME level, in both engines"
+      ],
+      "file": "skills/vendor-register/scripts/vendor_register.py",
+      "find": "    if isinstance(raw, dict) and \"value\" in raw:\n        raw = raw.get(\"value\")",
+      "replace": "    if False:\n        raw = raw.get(\"value\")"
+    }
+  ]
+}

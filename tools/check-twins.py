@@ -225,11 +225,26 @@ TWINS = (
                 # declared, with nothing to declare
                 {"crownJewels": [{"system": "Order capture", "criticality": ""}]},
                 {"crownJewels": [{"system": "Order capture", "criticality": "   "}]},
-                # THE R-3 CASE. A crown jewel whose criticality is a record rather than a
-                # level — the shape R-3 introduces. `str(dict)` is truthy and non-empty, so
-                # the pre-0b code sails past its own guard and returns the repr AS the level.
+                # THE R-3 CASE, now LIVE rather than prospective. Since v0.74.0 a crown
+                # jewel's criticality may be a declared() record and both copies must read
+                # the value out of it. Before phase 0b `str(dict)` was truthy and non-empty,
+                # so the inline read sailed past its own guard and returned the repr AS the
+                # level; between 0b and phase 3 the guard refused the record outright. Both
+                # copies must be at the same one of those three behaviours — which is the
+                # thing this pair measures and no within-skill test can.
                 {"crownJewels": [{"system": "Order capture",
                                   "criticality": {"value": "high", "basis": "board said so"}}]},
+                {"crownJewels": [{"system": "Order capture",
+                                  "criticality": {"value": "high", "declaredBy": "CISO",
+                                                  "declaredOn": "2026-08-09",
+                                                  "basis": "board minute 2026-06-11"}}]},
+                # A record declaring nothing, and a record whose value is itself a container.
+                # The first is `untraced`; the second must still refuse, or the repr is back
+                # one level in from where 0b caught it.
+                {"crownJewels": [{"system": "Order capture",
+                                  "criticality": {"value": "", "basis": "not yet ranked"}}]},
+                {"crownJewels": [{"system": "Order capture",
+                                  "criticality": {"value": {"level": "high"}}}]},
                 {"crownJewels": [{"system": "Order capture", "criticality": ["high"]}]},
             )
         ],

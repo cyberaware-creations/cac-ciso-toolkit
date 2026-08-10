@@ -20,8 +20,8 @@
         "the sensitivity and its basis both reach the rendered page"
       ],
       "file": "skills/business-context/renderers/render_context.py",
-      "find": "                         C.esc(sens.get(\"basis\") or \"no basis recorded\")))",
-      "replace": "                         C.esc(\"\")))"
+      "find": "                      % (C.esc(sens), C.esc(sens_basis or \"no basis recorded\")))",
+      "replace": "                      % (C.esc(sens), C.esc(\"\")))"
     }
   ]
 }

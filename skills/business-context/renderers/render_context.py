@@ -52,6 +52,25 @@ def _revenue_line(rev, mode: str) -> str:
     return "%s %s (%s)" % (band, cur, fy)
 
 
+def _declared(field):
+    """`(value, basis)` from either a `declared()` record or a bare scalar.
+
+    Mirrors `business_context.value_of`: a dict carrying a `value` key is a declared record,
+    anything else is the value itself. A container that is NOT a declared record yields
+    `("", "")` rather than its repr — `esc()` would refuse it anyway (BL-209), and a crown
+    jewel written against a shape this renderer does not know is not something to guess at
+    on a page. The engine's `declared_criticality()` refuses the same input loudly; this is
+    a read surface, so it stays quiet and shows nothing rather than showing junk.
+    """
+    if isinstance(field, dict) and "value" in field:
+        value, basis = field.get("value"), field.get("basis")
+    else:
+        value, basis = field, ""
+    if isinstance(value, (dict, list, tuple, set)):
+        return "", ""
+    return str(value or "").strip(), str(basis or "").strip()
+
+
 def build(payload: dict, store: dict, mode: str, offline: bool) -> str:
     meta = store.get("meta") or {}
     ctx = store.get("context") or {}
@@ -66,21 +85,29 @@ def build(payload: dict, store: dict, mode: str, offline: bool) -> str:
     # decays into ceremony. They stay separate because they answer different questions: what
     # stops when this stops, against what it holds.
     #
-    # `sensitivity` is a declared() record and `criticality` is still a bare string, so the
-    # two are read differently here. That asymmetry is deliberate and temporary — see
-    # add_crown_jewel — and reading them the same way would mean guessing at one of them.
+    # `criticality` HAS TWO SHAPES ON DISK and both are read here. Stores written before
+    # v0.74.0 hold a bare string; ones written after hold a declared() record carrying its
+    # own basis. That is a decision (BL-216 Q-2) — no bump, no converter, no store refused —
+    # and this page is one of the two read surfaces that make it affordable. Rendering only
+    # the record shape would blank criticality on every store written to date; rendering only
+    # the string would print a dict repr, which is BL-209 exactly.
+    #
+    # `sensitivity` has only ever been a record — it was introduced as one in v0.68.2 and has
+    # no legacy shape behind it. That is why it is read one way and criticality two.
     jewels = ""
     for cj in (ctx.get("crownJewels") or []):
         marks = ""
-        crit = cj.get("criticality")
-        if isinstance(crit, str) and crit.strip():
-            marks += '<div class="mark">Criticality: %s</div>' % C.esc(crit.strip())
-        sens = cj.get("sensitivity")
-        if isinstance(sens, dict) and str(sens.get("value") or "").strip():
+        crit, crit_basis = _declared(cj.get("criticality"))
+        if crit:
+            marks += ('<div class="mark">Criticality: %s%s</div>'
+                      % (C.esc(crit),
+                         ('<span class="basis"> — %s</span>' % C.esc(crit_basis))
+                         if crit_basis else ""))
+        sens, sens_basis = _declared(cj.get("sensitivity"))
+        if sens:
             marks += ('<div class="mark">Sensitivity: %s'
                       '<span class="basis"> — %s</span></div>'
-                      % (C.esc(sens.get("value")),
-                         C.esc(sens.get("basis") or "no basis recorded")))
+                      % (C.esc(sens), C.esc(sens_basis or "no basis recorded")))
         jewels += ('<div class="jewel"><span class="sys">%s</span> — %s'
                    '<div class="stake">At stake: %s</div>%s</div>'
                    % (C.esc(cj.get("system")), C.esc(cj.get("enables")),
