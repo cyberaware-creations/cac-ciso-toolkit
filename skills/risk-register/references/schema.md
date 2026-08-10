@@ -391,6 +391,7 @@ audit is noise, and noise is how escalation gets ignored by the second quarter.
 | `sustained-drift` | residual exposure worsened across N consecutive snapshots without crossing a band | `medium` |
 | `appetite-dwell` | continuously over appetite for more than `appetiteDwellDays`, from the earliest snapshot in which it was already over | `high` |
 | `acceptance-lapsed` | `acceptance.expiryDate` has been reached or passed | `high` |
+| `method-prerequisite-unmet` | a declared analysis method whose prerequisites the register can see are unmet | `medium` |
 
 - **`band-crossed` suppresses `sustained-drift`** on the same risk. If the band crossed, that
   is the escalation; drift toward it is the same story told twice.
@@ -405,6 +406,22 @@ audit is noise, and noise is how escalation gets ignored by the second quarter.
   comparison — a first run escalates almost nothing by construction.
 - `acceptance-lapsed` uses **reached or passed**, matching `renderers/_common.py::_overdue`,
   so this and the dashboards' `acceptanceExpired` flag can never disagree by a day.
+- **`method-prerequisite-unmet` is `medium`, and deliberately not `high`.** `acceptance-lapsed`
+  and `appetite-dwell` are `high` because somebody is currently relying on something that
+  expired. An undocumented deviation is wrong on the page, not wrong in the world.
+- **It checks exactly two things**, both arithmetic over facts the file already holds:
+  `type: quantitative` while `settings.currency` is empty, and `conformance: partial` with an
+  empty `deviations`. It should stay two until a third is as mechanical as these.
+- ⚠️ **A method the catalogue marks `external` emits nothing, under any input.** Monte Carlo's
+  real prerequisites are the analyst's input distributions, Bayesian's are their priors, event
+  tree's are their branch probabilities, and Open FAIR's are computed in their own model. This
+  toolkit can see none of them, and flagging their absence would assert a fact about work done
+  outside it — the same restraint as `untraced` being a value rather than a gap.
+  `references/analysis-methods.json` carries the `checkable`/`external` mark per method, and
+  `evals/analysis-method.sh` proves the boundary holds in both directions.
+- **The escalation needs no storage.** `escalations()` is derived, stateless and never written,
+  so a prerequisite gap is computed on read and clears the moment it is fixed. Nothing records
+  that it fired.
 
 ### The record
 

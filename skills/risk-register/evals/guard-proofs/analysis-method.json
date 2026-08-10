@@ -1,0 +1,30 @@
+{
+  "guard": "skills/risk-register/evals/analysis-method.sh",
+  "forbids": "recording partial conformance to a method with no deviation stated; escalating a prerequisite of a method whose prerequisites this toolkit cannot see",
+  "note": "Enrolled with the guard in v0.88.0 (BL-93 B7), covering BL-92's A6 as well as this item's B3. The two halves fail in opposite directions — half 1 stops the register claiming more than it can support, half 2 stops it reporting on work it cannot observe — which is why one mutation each is not enough on its own to prove the suite.",
+  "mutations": [
+    {
+      "half": "partial",
+      "why": "Drop the deviations requirement, which is the single most plausible 'simplify the validation' edit in the file: the check reads like an over-strict extra condition on a field that is already optional, and removing it makes a refusal go away rather than making a test go red. It is BL-92 A6 — the whole design in one check — and nothing else in the suite notices its absence.",
+      "defeats": [
+        "partial conformance with no deviation is refused on write",
+        "...and the register is byte-identical afterwards",
+        "...and the refusal names the flag, the reason and the naming rule"
+      ],
+      "file": "skills/risk-register/scripts/score_register.py",
+      "find": "    if conf == \"partial\" and not _field(\"deviations\"):",
+      "replace": "    if False:"
+    },
+    {
+      "half": "external",
+      "why": "Remove the external-method boundary, which is the mutation this item most expects to see attempted in earnest. The plan says so outright: the pressure to 'just flag it anyway' will be real, because an escalation looks like value and the suppression is a single early return that reads like dead code. Deleting it makes Monte Carlo, Bayesian, event tree and Open FAIR all escalate on prerequisites nobody here can observe.",
+      "defeats": [
+        "an external method escalates nothing, both conditions true",
+        "...including a licensed third-party method"
+      ],
+      "file": "skills/risk-register/scripts/score_register.py",
+      "find": "    if entry and entry.get(\"visibility\") == \"external\":\n        return []",
+      "replace": "    if False:\n        return []"
+    }
+  ]
+}

@@ -248,8 +248,15 @@ def register_table(ctx: C.Context) -> str:
 
 
 def register_note(ctx: C.Context) -> str:
-    """The two things a board notices by their absence."""
+    """The two things a board notices by their absence, plus the method caveat.
+
+    The mixed-method sentence is empty for a single-type register and for an all-undeclared
+    one, so it is appended unconditionally and appears only when there is something to say.
+    """
     bits = []
+    mix = ctx.method_mix_sentence()
+    if mix:
+        bits.append(mix)
     if not ctx.attention["overAppetite"]:
         bits.append(f'No live risk sits above the {C.BAND_LABEL[ctx.appetite].lower()} appetite '
                     f'at this review point.')

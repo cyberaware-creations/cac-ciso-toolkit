@@ -110,7 +110,12 @@ def heat_block(ctx: C.Context) -> str:
                f'single point either side of a threshold lands in a different colour, and the '
                f'difference between those two risks is far smaller than the picture implies. '
                f'The band order ranks severity — it is not the order the work should be done '
-               f'in.</p>')
+               f'in.</p>'
+            # The mixed-method caveat sits WITH the heat map and not on the cover, because
+            # the graphic is where two risks get compared against each other. A caveat on a
+            # different page is a caveat that does not reach the moment it is about.
+            + (f'<p class="note">{C.esc(ctx.method_mix_sentence())}</p>'
+               if ctx.method_mix_sentence() else ''))
     return (f'<div class="gfxrow"><div class="gfxcol">{C.gfx(svg)}{note}</div>'
             f'<div class="gfxcol">{caption}{C.gfx_legend()}</div></div>')
 

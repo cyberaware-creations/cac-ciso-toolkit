@@ -249,6 +249,11 @@
       "forbids": "a vendored requirement spine that no longer matches the nist-csf artifacts"
     },
     {
+      "path": "skills/risk-register/evals/analysis-method.sh",
+      "role": "guard",
+      "forbids": "a method record that claims partial conformance without stating the deviation; an escalation raised on a prerequisite this toolkit cannot observe"
+    },
+    {
       "path": "skills/risk-register/evals/board-safety.sh",
       "role": "guard",
       "forbids": "raw framework wording reaching a board renderer before a human has translated it; confidence vocabulary in any shipped source but render_dashboard"
