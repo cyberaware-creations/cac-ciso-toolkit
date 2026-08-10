@@ -40,7 +40,8 @@
       "usedFor": [
         "references/regulatory-receipts.md"
       ],
-      "reviewIntervalDays": 365
+      "reviewIntervalDays": 180,
+      "intervalBecause": "Half the house default, because this block moves and the rest of the repo's gated rows do not. Three of its nine decisions are LIVE litigation - Brewer is interlocutory with the case continuing after the appeal was refused, Giuliano's motion was largely denied so it proceeds, and Marchner is three months old. The 2026-08-10 sweep proved the rate empirically: LACERS v. Sanford distinguished In re TransUnion on 16 Jan. 2026, roughly three months after the previous check, and a 365-day interval would have let that boundary sit unnoticed on a block that goes in front of boards. 180 days is two sweeps a year, which matches the observed movement. It is NOT a substitute for the one paid citator pass, which is separately authorised and still outstanding."
     },
     {
       "id": "dora-rts-2024-1774",
