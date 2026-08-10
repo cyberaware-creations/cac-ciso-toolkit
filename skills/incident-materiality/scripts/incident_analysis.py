@@ -1028,7 +1028,29 @@ def dora_clocks(inc: dict, now_iso: str) -> list:
                                 "a date as midnight to invent a deadline."))
     else:
         deadline, anchor, kind, note = min(bounds, key=lambda b: parse_ts(b[0]))
-        if len(bounds) == 1:
+        # ⚠️ TEST THE FACT, NOT A PROXY FOR IT. This read `len(bounds) == 1`, and one bound
+        # happens for two entirely different reasons that the count cannot tell apart:
+        #
+        #   a data gap        — only one anchor was ever recorded. The suffix is TRUE.
+        #   a legal exclusion — both were recorded and Art. 5(2) dropped the awareness bound
+        #                       (`if aware and not late_classification`, above). It is FALSE.
+        #
+        # v0.49.0 added the second and never told the suffix about it, so the engine printed
+        # `classification came more than 24h after awareness` and `the other anchor is not
+        # recorded` IN ONE SENTENCE, having been given both anchors. The arithmetic was right
+        # and the audit record was false — and in a skill whose whole premise is that it
+        # records reasoning rather than emitting verdicts, the note IS the deliverable
+        # (BL-176).
+        #
+        # Second instance of this shape in the codebase: a fixed tail appended to a variable
+        # message without checking whether it still holds in a newly added case. The first was
+        # the exceptions double-negative (BL-120). Both are correct in the case they were
+        # written for, which is why neither is visible in a diff.
+        #
+        # Suppressed rather than reworded in the Art. 5(2) case: the clause immediately before
+        # it already says the awareness cap no longer binds, so the sentence is complete
+        # without a replacement.
+        if not aware or not classified:
             note += " (the other anchor is not recorded, so this bound is used alone)"
         rows.append(finish("initial", anchor, kind, deadline, note))
 
@@ -1650,6 +1672,31 @@ def _cmd_self_test(_args):
            "NOT overdue — the lapsed awareness cap must not backdate the deadline")
         eq(init["hoursRemaining"], 3.0, "three hours remain under 5(2)")
         ok("Art. 5(2)" in init["note"], "and the note cites the provision that governed")
+        # BL-176. The arithmetic above was right for ten releases while THIS SENTENCE was
+        # false: the note said `classification came more than 24h after awareness` and `the
+        # other anchor is not recorded` at once, having been handed both. In a skill whose
+        # premise is that it records reasoning rather than emitting a verdict, the note IS the
+        # deliverable — and it is what counsel or a supervisor reads closely.
+        #
+        # Asserted in BOTH directions, per the house convention: a one-sided check would pass
+        # an engine that stopped explaining anything at all.
+        ok("not recorded" not in init["note"],
+           "...and does NOT claim an anchor is missing — both were given")
+        # And the genuinely-missing case must keep the sentence, because there it is true.
+        # A fix that deletes a true explanation is not a fix.
+        # A SEPARATE incident, because `set_anchor` merges rather than clears: passing only
+        # `classified` on I-002 would leave its awareness anchor in place and test nothing.
+        _gap = new_store("Gap Co", "t")
+        open_incident(_gap, "Classification with no awareness anchor", "2026-07-08",
+                      regimes=["dora"], actor="t")
+        set_anchor(_gap, "I-001", classified="2026-07-08T09:00:00+00:00", actor="t")
+        _one = [c for c in analyze(_gap, "2026-07-08",
+                                   "2026-07-08T10:00:00+00:00")["incidents"][0]["clocks"]
+                if c["window"] == "initial"][0]
+        ok("not recorded" in _one["note"],
+           "a classification-only incident still says the other anchor is missing")
+        ok("Art. 5(2)" not in _one["note"],
+           "...and does not cite a carve-out that never applied — there was nothing to carve")
         # Restore the prompt-classification anchors the rest of this block builds on.
         set_anchor(store, "I-002", aware="2026-07-06T06:00:00+00:00",
                    classified="2026-07-06T09:00:00+00:00", actor="t")
