@@ -94,6 +94,16 @@
       "why": "NIST's own cyberframework site files 1.1 under a 'CSF 1.1 Archive' and presents 2.0 as current. Listed as `superseded` rather than `withdrawn` because CSF is not in the CSRC publication catalogue and carries no withdrawal record — 'archived' is NIST's word, and the distinction is kept rather than upgraded.",
       "mustFlag": "assessed against CSF 1.1",
       "mustNotFlag": "assessed against CSF 2.0"
+    },
+    {
+      "id": "sp-800-63b-pre-r4",
+      "label": "SP 800-63B and SP 800-63B-3 (Digital Identity Guidelines: Authentication and Lifecycle Management)",
+      "pattern": "SP\\s*800-63B(?!\\s*(?:-|–|—|r|Rev\\.?\\s*)\\s*4)",
+      "status": "withdrawn",
+      "supersededBy": "SP 800-63B-4, Digital Identity Guidelines: Authentication and Authenticator Management — Final, 31 July 2025",
+      "why": "Withdrawn 2025-08-01 and the sharpest case on this list: the toolkit cited it for a year while BOTH safety mechanisms stayed green — sources.json had no row and this file had no entry, so neither was broken and both were blind the same way (BL-224). The retitle matters as much as the revision: Authentication and Lifecycle Management became Authentication and Authenticator Management. And Rev 4 MOVED THE VOLUME BOUNDARIES, so a claim that lived in 800-63B in 2017 may now sit in 800-63A or the base 800-63 — which is why this entry names the withdrawal and does not license a mechanical repoint to -4.",
+      "mustFlag": "Follow NIST SP 800-63B for password guidance.",
+      "mustNotFlag": "NIST SP 800-63B-4"
     }
   ],
   "notYetVerified": {
