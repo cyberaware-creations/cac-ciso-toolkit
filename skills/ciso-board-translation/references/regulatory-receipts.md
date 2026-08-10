@@ -44,6 +44,19 @@ oversight, not to be perfect.
   was "routinely apprised" of cyber risk via enterprise risk reporting →
   dismissed. Note the posture: dismissal was under Rule 23.1 for failure to
   plead demand futility, not a merits holding that the oversight was adequate.
+- *United Food & Commercial Workers Union v. Zuckerberg*, 262 A.3d 1034 (Del.
+  2021) — **the demand-futility test the receipts above already rest on.** The
+  Sorenson dismissal was under Rule 23.1, and *Zuckerberg* is the universal
+  three-part test that court applied. Carried explicitly because a receipt that
+  turns on a pleading standard and does not name it invites the reader to think
+  the case was decided on the merits.
+- *Marchand v. Barnhill*, 212 A.3d 805 (Del. 2019) — the **"mission critical"**
+  line: a board that had no committee, no protocol and no reporting process for
+  the single risk essential to the company's survival faced a viable claim.
+  Cite it for what a prong-one failure actually looks like, never as authority
+  that cybersecurity is mission critical for any particular company — that is a
+  fact about a business, and *Marchand* was about food safety at an ice-cream
+  manufacturer.
 - *Construction Industry Laborers v. Bingle* (SolarWinds derivative, Del. Ch.
   6 Sep. 2022; **affirmed**, Del. Supr. No. 411, 2022, 17 May 2023) — the
   Chancery court called SolarWinds' reporting system **"subpar"**, and dismissed
@@ -69,6 +82,58 @@ oversight, not to be perfect.
   reporting system → motion to dismiss **substantially** denied → $237.5M
   settlement. The absence of a system, not the presence of risk, is what
   created liability.
+
+### Two 2025 decisions that put a floor under *Bingle*
+
+> ⚠️ **Provenance, stated because it differs from the rest of this section.**
+> The four decisions in this block come from Reference Watch dossier **RW-001**
+> (2026-08-08) and were **not independently corroborated** in the pass that
+> added them — unlike the *Sorenson* and *Bingle* dates above, which two separate
+> source paths agreed on. `sources.json` records that distinction rather than
+> flattening it. Pull the primary text before quoting any of them in a room.
+
+- *Giuliano v. Grenfell-Gardner* (Teligent), C.A. No. 2021-0452-KSJM (Del. Ch.,
+  2 Sep. 2025) (McCormick, C.) — motion to dismiss **largely denied on prong
+  one**. A board must put in place a reasonable **board-level** monitoring and
+  reporting system, and *"a board's reporting practice that allows management to
+  elect to report (or not) on central compliance risks fails Caremark's baseline
+  requirement."*
+
+  **This is the authority the *Bingle* disclaimer above was written without.**
+  That bullet says do not cite *Bingle* for the proposition that a minimal
+  system is sufficient — a caution the file had to state on its own. There is
+  now a decision holding that a system can be insufficient, and *management
+  electing what reaches the board* is the specific failure it names.
+- *Brewer v. Turner* (Regions Financial), C.A. No. 2023-1284-KSJM (Del. Ch.,
+  29 Sep. 2025) — the **information-systems** theory was rejected and the
+  **red-flags** theory sustained, on a whistleblower complaint that had been
+  discussed in board minutes. Interlocutory appeal refused (Del. Supr. No. 444,
+  2025, 15 Dec. 2025).
+
+**⚠️ THE COROLLARY, AND IT CUTS BOTH WAYS.** Documented board-level process is
+what earns prong-one protection — and it is simultaneously **the discoverable
+record that can establish prong-two knowledge.** *Brewer* is that in one case: the
+minutes that show the board had a system are the minutes that show the board saw
+the complaint.
+
+That is not an argument for recording less. It is the reason this file keeps
+saying **board-level decision records, not a sprawling internal confessional** —
+and the reason a recorded decision must be a *decision*, with a rationale, rather
+than a note that something was mentioned. A minute saying the board was told is
+prong-two evidence with no prong-one benefit.
+
+**And the negative finding, which is the more useful one in a room.** There has
+been **no Delaware oversight decision squarely about cybersecurity since the
+*Bingle* affirmance of 17 May 2023.** *Bingle* remains the only one. Vendor posts
+asserting that Delaware has recently *"expanded expectations for board oversight
+of cybersecurity"* could not be corroborated to any case. If somebody in the room
+cites recent Delaware cyber authority, ask which case.
+
+Two decisions reinforce the line without being about cyber: *In re TransUnion*
+(Del. Ch., 1 Oct. 2024) cites both *Sorenson* and *Bingle* approvingly, and
+*Marchner v. Riley* (Del. Ch., 30 Mar. 2026) restates *Bingle* directly and holds
+that red flags must signal **legal violations**, not business risk — which is the
+same material condition the *Bingle* bullet already carries.
 
 **Translation implication.** An answer that names the exposure and forces a
 *recorded* board decision manufactures the documented, decision-ready oversight
@@ -309,6 +374,11 @@ checked. Nothing here is a substitute for counsel reading the current text.
 | The modern standard | *Stone v. Ritter*, 911 A.2d 362 (Del. 2006) (No. 93, 2006, 6 Nov. 2006) | Delaware Supreme Court; Atlantic Reporter 2d |
 | Marriott | *Firemen's Retirement System of St. Louis v. Sorenson*, C.A. No. 2019-0965-LWW (Del. Ch. 5 Oct. 2021) (Will, V.C.) | Delaware Court of Chancery opinions |
 | SolarWinds derivative | *Construction Industry Laborers Pension Fund v. Bingle*, C.A. No. 2021-0940-SG (Del. Ch. 6 Sep. 2022) (Glasscock, V.C.); Final Order and Judgment 13 Oct. 2022; *aff'd by order*, No. 411, 2022 (Del. 17 May 2023) — an order on the Chancery court's reasoning, **not a signed opinion** | Del. Ch.; Delaware Supreme Court |
+| Demand futility | *United Food & Commercial Workers Union v. Zuckerberg*, **262 A.3d 1034 (Del. 2021)** — the universal three-part test *Sorenson* applied | Delaware Supreme Court; Atlantic Reporter 3d |
+| "Mission critical" | *Marchand v. Barnhill*, **212 A.3d 805 (Del. 2019)** | Delaware Supreme Court; Atlantic Reporter 3d |
+| Prong one, 2025 | *Giuliano v. Grenfell-Gardner*, C.A. No. 2021-0452-KSJM (Del. Ch. 2 Sep. 2025) (McCormick, C.) — **RW-001 dossier, not independently corroborated** | Delaware Court of Chancery |
+| Red flags, 2025 | *Brewer v. Turner*, C.A. No. 2023-1284-KSJM (Del. Ch. 29 Sep. 2025); interlocutory appeal refused, No. 444, 2025 (Del. 15 Dec. 2025) — **RW-001 dossier, not independently corroborated** | Delaware Court of Chancery; Delaware Supreme Court |
+| Reinforcing | *In re TransUnion* (Del. Ch. 1 Oct. 2024); *Marchner v. Riley* (Del. Ch. 30 Mar. 2026) — **RW-001 dossier, not independently corroborated** | Delaware Court of Chancery |
 | Boeing | *In re The Boeing Company Derivative Litigation*, C.A. No. 2019-0907-MTZ (Del. Ch. 7 Sep. 2021) | Delaware Court of Chancery |
 | DORA ICT risk-management RTS | Commission Delegated Regulation **(EU) 2024/1774**, Art. 3, point (d)(iii)–(iv); OJ 25.6.2024, in force 15 Jul. 2024 | EUR-Lex, CELEX 32024R1774 |
 | DORA incident-reporting RTS | Commission Delegated Regulation **(EU) 2025/301**, Art. 5 — the initial / intermediate / final time limits, made under DORA Art. 19(4); OJ 20.2.2025 | EUR-Lex, CELEX 32025R0301 |
