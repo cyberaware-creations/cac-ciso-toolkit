@@ -21,6 +21,38 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.75.1 — 2026-08-10
+
+**The *Bingle* affirmance is an order, not an opinion — and the manifest now says which paths
+checked these dates.** BL-142, closed on its remaining half.
+
+The two Delaware dates this item was raised for were corrected in v0.54.0, and the item's brief
+described a repo nine releases old. Three things it named were **not** done, and RW-001's
+findings F6/F7/F10 make all three checkable.
+
+- **The affirmance is a Supreme Court ORDER adopting the Chancery court's reasoning, not a
+  signed opinion with independent analysis.** The receipt said only *"affirmed"* — not wrong,
+  and not enough: an order and an opinion carry different weight, and counsel hears the
+  difference. It now says so, quotes the order's own words, and names the **Final Order and
+  Judgment of 13 October 2022** that the affirmance also affirms. Citing only the memorandum
+  opinion was incomplete on the affirmance's own terms.
+- **A material condition of the *Bingle* holding was missing:** the claim failed partly because
+  plaintiffs did not allege violations of specific laws or regulations. A case where such
+  violations *were* pleaded is not this case, and a receipt that omits that invites the wrong
+  comparison.
+- **Gerding is attributed to the *then*-Director.** He left the post in December 2024 (SEC PR
+  2024-200); Jim Moloney has held it since October 2025 (PR 2025-115). The statement is still
+  published and the quote is still accurate — the title is what went stale.
+
+**And the manifest row stops overclaiming.** `checkedBy: "claude-code"` is defined as
+*machine-verified against the primary source*. Two independent paths reached these dates — the
+RW-001 dossier's primary-source pass, and authoritative secondary reporting — and **neither
+opened a slip opinion**. The row now says exactly that, alongside the citator gap it already
+recorded. *Do not claim more than was done*, applied to the field that was doing the claiming.
+
+*Cite* Basic *for materiality only* was already carried in `materiality-factors.md`, and
+`regulatory-receipts.md` does not cite *Basic* at all — checked, not assumed.
+
 ## v0.75.0 — 2026-08-10
 
 **The SEC posture sentences now carry the dossier's own words, in all five places, plus the

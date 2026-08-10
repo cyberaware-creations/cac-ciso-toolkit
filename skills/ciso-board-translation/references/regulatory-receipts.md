@@ -45,11 +45,26 @@ oversight, not to be perfect.
   dismissed. Note the posture: dismissal was under Rule 23.1 for failure to
   plead demand futility, not a merits holding that the oversight was adequate.
 - *Construction Industry Laborers v. Bingle* (SolarWinds derivative, Del. Ch.
-  2022; **affirmed**, Del. Supr. No. 411, 2022, 17 May 2023) — the Chancery
-  court called SolarWinds' reporting system **"subpar"**, and dismissed anyway:
-  a subpar system is not an "utter failure to attempt to assure" that a system
-  exists, so it is not bad faith. Cite it for *inadequacy alone is not
+  6 Sep. 2022; **affirmed**, Del. Supr. No. 411, 2022, 17 May 2023) — the
+  Chancery court called SolarWinds' reporting system **"subpar"**, and dismissed
+  anyway: a subpar system is not an "utter failure to attempt to assure" that a
+  system exists, so it is not bad faith. Cite it for *inadequacy alone is not
   liability* — **not** for the proposition that a minimal system is sufficient.
+
+  ⚠️ **The affirmance is an ORDER, not a signed opinion.** The Delaware Supreme
+  Court affirmed on the Court of Chancery's reasoning; it did not write
+  independent analysis of its own. **Do not describe it as a Supreme Court
+  opinion endorsing the reasoning** — the endorsement is real but it is
+  procedural in form, and counsel will hear the difference. The order affirms
+  *"for the reasons assigned by the Court of Chancery in its Memorandum Opinion
+  dated September 6, 2022, and its Final Order and Judgment dated October 13,
+  2022"* — **both**, so citing only the memorandum opinion is incomplete on the
+  affirmance's own terms.
+
+  And a limit the receipt has to carry: the claim failed **partly because
+  plaintiffs did not allege violations of specific laws or regulations**. That
+  is a material condition of the holding, not a footnote — a case where such
+  violations *were* pleaded is not this case.
 - Contrast *In re Boeing* (2021, aircraft safety) — *no* documented board
   reporting system → motion to dismiss **substantially** denied → $237.5M
   settlement. The absence of a system, not the presence of risk, is what
@@ -136,7 +151,10 @@ research.
   or not at all: Erik Gerding, Director of Corporation Finance, 14 December
   2023 — *"The Commission is not seeking to prescribe particular cybersecurity
   defenses, practices, technologies, risk management, governance, or strategy."*
-  (sec.gov, "Cybersecurity Disclosure"). The looser paraphrase "not mandating
+  (sec.gov, "Cybersecurity Disclosure"). **Attribute it to the then-Director**:
+  Gerding left the post in December 2024 (SEC PR 2024-200) and Jim Moloney has
+  held it since October 2025 (PR 2025-115). The statement remains published and
+  the quote remains accurate; the title does not. The looser paraphrase "not mandating
   any particular cybersecurity practices" is **not** a quotation from the
   adopting release; do not present it as one.
 - **Item 1.05 (8-K)** governs disclosure of **material** cybersecurity
@@ -290,14 +308,14 @@ checked. Nothing here is a substitute for counsel reading the current text.
 | Caremark | *In re Caremark Int'l Inc. Derivative Litig.*, 698 A.2d 959 (Del. Ch. 1996) (C.A. No. 13670, Allen, Ch., 25 Sep. 1996) | Delaware Court of Chancery; Atlantic Reporter 2d |
 | The modern standard | *Stone v. Ritter*, 911 A.2d 362 (Del. 2006) (No. 93, 2006, 6 Nov. 2006) | Delaware Supreme Court; Atlantic Reporter 2d |
 | Marriott | *Firemen's Retirement System of St. Louis v. Sorenson*, C.A. No. 2019-0965-LWW (Del. Ch. 5 Oct. 2021) (Will, V.C.) | Delaware Court of Chancery opinions |
-| SolarWinds derivative | *Construction Industry Laborers Pension Fund v. Bingle*, C.A. No. 2021-0940-SG (Del. Ch. 6 Sep. 2022) (Glasscock, V.C.), *aff'd*, No. 411, 2022 (Del. 17 May 2023) | Del. Ch.; Delaware Supreme Court |
+| SolarWinds derivative | *Construction Industry Laborers Pension Fund v. Bingle*, C.A. No. 2021-0940-SG (Del. Ch. 6 Sep. 2022) (Glasscock, V.C.); Final Order and Judgment 13 Oct. 2022; *aff'd by order*, No. 411, 2022 (Del. 17 May 2023) — an order on the Chancery court's reasoning, **not a signed opinion** | Del. Ch.; Delaware Supreme Court |
 | Boeing | *In re The Boeing Company Derivative Litigation*, C.A. No. 2019-0907-MTZ (Del. Ch. 7 Sep. 2021) | Delaware Court of Chancery |
 | DORA ICT risk-management RTS | Commission Delegated Regulation **(EU) 2024/1774**, Art. 3, point (d)(iii)–(iv); OJ 25.6.2024, in force 15 Jul. 2024 | EUR-Lex, CELEX 32024R1774 |
 | DORA incident-reporting RTS | Commission Delegated Regulation **(EU) 2025/301**, Art. 5 — the initial / intermediate / final time limits, made under DORA Art. 19(4); OJ 20.2.2025 | EUR-Lex, CELEX 32025R0301 |
 | DORA Level 1 | Regulation **(EU) 2022/2554**, applicable from 17 Jan. 2025 (Art. 64) | EUR-Lex, CELEX 32022R2554 |
 | SEC cyber disclosure rule | Release Nos. **33-11216; 34-97989**, File No. S7-09-22, **88 FR 51896** (4 Aug. 2023); effective 5 Sep. 2023 | Federal Register; SEC final rules |
 | Item 106 / Item 1.05 | **17 C.F.R. § 229.106**; Form 8-K **Item 1.05** (§ 249.308) | eCFR, Title 17; adopted text at 88 FR **51942** (Item 106) and **51945** (Item 1.05 and its Instructions) |
-| Gerding statement | Erik Gerding, Dir. of Corporation Finance, "Cybersecurity Disclosure," 14 Dec. 2023 | SEC statements |
+| Gerding statement | Erik Gerding, **then** Dir. of Corporation Finance, "Cybersecurity Disclosure," 14 Dec. 2023 (he left the post Dec. 2024; Jim Moloney since Oct. 2025) | SEC statements |
 | NYDFS | **23 NYCRR Part 500**, §§ 500.9, 500.12, 500.15, 500.17, as amended by the **Second Amendment** (effective 1 Nov. 2023; all transitional periods expired) | NY Dept. of Financial Services; Second Amendment text at dfs.ny.gov |
 | NIS2 | Directive **(EU) 2022/2555**, Art. 20 | EUR-Lex, CELEX 32022L2555 |
 
