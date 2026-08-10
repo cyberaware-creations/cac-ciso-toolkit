@@ -104,6 +104,11 @@
       "reason": "Behavioural suite over the real CLI. Asserts what the engine DOES, not a defect it forbids."
     },
     {
+      "path": "skills/business-context/evals/criticality-shapes.sh",
+      "role": "guard",
+      "forbids": "a consumer that reads only one of the two legal criticality shapes"
+    },
+    {
       "path": "skills/business-context/evals/no-derived-materiality.sh",
       "role": "guard",
       "forbids": "a percent-of-revenue materiality threshold"

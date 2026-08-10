@@ -403,6 +403,7 @@ prove only that the fixture still works.
 | `requirement-drift.sh` | `policy-register` | a vendored requirement spine that no longer matches the nist-csf artifacts | regeneration |
 | `one-fact-per-flag.sh` | `business-context` | a profile flag that states two facts, or a battery gated on a flag that does not name its regime | static · mapping |
 | `sensitivity-basis.sh` | `business-context` | a declared sensitivity with no basis, and a basis the read surface drops | refused · visible |
+| `criticality-shapes.sh` | `business-context` | a consumer that reads only one of the two legal criticality shapes | bare · record |
 | `scope-withheld.sh` | `incident-materiality` | a statutory deadline computed for a perimeter nobody declared, or withheld without saying so | no-manufactured-date · no-silent-withholding |
 | `nydfs-exemptions.sh` | `exceptions-register` | a stated NYDFS obligation with no §500.19 exemption beside it, or a qualification threshold printed without its determination caveat | stated · not-computed |
 | `two-directional-limits.sh` | `incident-materiality` | a regulatory limit that scopes only outward, or DORA Art. 16 named beside reporting without what it actually disapplies | inward-stated · no-borrowed-limit |

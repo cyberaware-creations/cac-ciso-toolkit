@@ -38,6 +38,15 @@ echo "criticality: $($PY -V 2>&1)"
 
 # A REAL payload from the shipped .biz, not a fixture written to agree with the engine. If the
 # crown-jewel shape and the walk ever drift apart, this is where it shows.
+#
+# `example-org.biz` carries `criticality` as a BARE STRING — the pre-v0.74.0 shape — and it
+# stays that way ON PURPOSE. Since BL-216 R-3 phase 3 the writer emits a `declared()` record and
+# both shapes are legal permanently: no bump, no converter, no refusal. That makes this file the
+# suite's only end-to-end exercise of a store written before the change, which is exactly the
+# estate the decision exists to protect. Converting it would mean hand-editing a store, against
+# the house rule, to delete the legacy half's only real-file coverage. The record half is held
+# by `business-context/evals/criticality-shapes.sh`, whose fixture comes straight out of
+# `add_crown_jewel`, and by CAC-TW-1 across both engines.
 "$PY" "$B/scripts/business_context.py" export "$B/examples/example-org.biz" \
    --out "$work/ctx.json" >/dev/null 2>&1
 if "$PY" -c '

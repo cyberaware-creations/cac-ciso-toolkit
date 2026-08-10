@@ -118,6 +118,7 @@ bc = importlib.util.module_from_spec(spec); spec.loader.exec_module(bc)
 s = bc.new_store("Fixture Ltd", "Tester")
 bc.add_crown_jewel(s, "HR file", "payroll", "a reportable breach", by="DPO",
                    criticality="high",
+                   criticality_basis="FY26 business impact analysis",
                    sensitivity="Special category, UK GDPR Art. 9",
                    sensitivity_basis="DPO record-of-processing review 2026-07-01")
 bc.save(sys.argv[2], s)
