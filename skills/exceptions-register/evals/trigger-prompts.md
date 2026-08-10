@@ -136,8 +136,9 @@ being invoked.
 
 It gave three tests that separate a control from a sentence — what must an attacker now defeat,
 does anything fail closed, what evidence would show it operated — and then a fourth point the
-reference did not make: **the reminder is aimed at an objective NIST SP 800-63B abandoned**,
-in favour of length, breached-password screening and no forced rotation. So the measure is not
+reference did not make: **the reminder is aimed at an objective NIST SP 800-63B, withdrawn
+2025-08-01 and superseded by SP 800-63B-4, abandoned** in favour of length, breached-password
+screening and no forced rotation. So the measure is not
 merely weak; it is pointed at the wrong target.
 
 Folded into `references/exceptions.md`, along with the four real compensating controls the run

@@ -51,13 +51,14 @@
       "label": "NIST SP 800-63B-4",
       "publisher": "NIST",
       "instrument": "NIST SP 800-63B-4, Digital Identity Guidelines: Authentication and Authenticator Management",
-      "version": "Final, 31 July 2025; supersedes the 2 March 2020 edition",
+      "version": "Final, 31 July 2025. THE PREDECESSOR EDITION WAS WITHDRAWN 2025-08-01 and is watched in tools/do-not-cite.json as sp-800-63b-pre-r4. The two citations below still name the bare volume with the withdrawal stated beside them and are NOT yet repointed: Revision 4 moved the volume boundaries, so which volume the password guidance now lives in has to be read before it is named (BL-224 T3)",
       "checkedOn": "2026-08-09",
       "checkedBy": "claude-code",
       "gated": true,
       "reviewIntervalDays": 365,
       "usedFor": [
-        "references/exceptions.md"
+        "references/exceptions.md",
+        "evals/trigger-prompts.md"
       ]
     }
   ]

@@ -21,6 +21,36 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.79.1 — 2026-08-10
+
+**The toolkit stops citing a publication NIST withdrew a year ago.** BL-224 T2 and T6 — the two
+tasks that need no interpretation. T1 and T3–T7 need SP 800-63B-4 read against the surrounding
+prose and are deliberately not here.
+
+SP 800-63B was **withdrawn 2025-08-01**, superseded by SP 800-63B-4. The toolkit cited it for a
+year and **both safety mechanisms stayed green**: `do-not-cite.json` had no entry and
+`sources.json` had no row, so neither was broken and both were blind the same way. That is the
+finding, and it is why the fix is the two mechanisms rather than the two strings.
+
+- **`sp-800-63b-pre-r4` is now watched** in `do-not-cite.json` — nine entries. Its `mustFlag` /
+  `mustNotFlag` fixtures execute on every run: a bare `SP 800-63B` **fails**, `SP 800-63B-4`
+  does not over-match. Verified end to end against a probe tree, including the case the BL-201
+  binding rule exists for — a withdrawal marker in a *different sentence* does not launder the
+  citation.
+- **The `sp-800-63b` row's `usedFor` now names both files**, not one. `evals/trigger-prompts.md`
+  carried the second citation and the manifest could not see it.
+- **Both citations state the withdrawal beside them** — the same line, the same clause, which is
+  what CAC-RW-1.9.1 requires.
+
+⚠️ **Neither citation is repointed to `-4`, deliberately.** Revision 4 moved the volume
+boundaries, so a claim that lived in 800-63B in 2017 may now sit in 800-63A or the base 800-63.
+Repointing without reading is a new error dressed as a fix, and both files now say so in the
+product rather than only on the backlog item. The retitle is recorded in the registry entry too:
+*Authentication and Lifecycle Management* became *Authentication and Authenticator Management*.
+
+`check-sources` 343 files, **9** withdrawn publications watched, none cited as current; self-test
+102 checks.
+
 ## v0.79.0 — 2026-08-10
 
 **One vendored CPRT export, pinned by hash, checked on every run.** BL-75.
