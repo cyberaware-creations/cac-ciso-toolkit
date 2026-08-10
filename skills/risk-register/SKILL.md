@@ -150,6 +150,9 @@ Wording and rating are where you add value over a template:
   risk* — what a treatment is aiming at — and this register does not record one. If somebody
   arrives from the source expecting `residual` to be an aspiration, it is not.
 
+- **Record WHERE a risk came from, if you want to.** `set-refs` stores a plural list of free-text references — an ATT&CK technique ID, a CSF subcategory, an internal ticket. NIST IR 8286r1 §3.2.2 names MITRE ATT&CK™ as a threat-modelling technique that *"provide[s] a knowledge base of adversarial tactics"*, and a CISO who enumerates threats that way produces risks the register could not previously attribute. It answers a board question — *what did we look at to find these?* — and it deliberately answers no more than that. **Nothing is validated against any catalogue and nothing claims coverage**: no matrix is bundled, no percentage is computed, no "techniques you have not considered" is reported. All three would need the matrix this field exists to avoid.
+  ⚠️ Put references **here**, not in `sourceRef` or `csfSubcategoryId`. Both of those are `merge_import` matching keys, so a hand-typed technique ID in either would let a later import silently *update* an assessed risk instead of adding a new one.
+
 - **Record HOW you analysed it, not just what you concluded.** `set-method` stores the
   method's name, one of NIST's three analysis **types**, whether you followed it in **full or
   in part**, and — when in part — **in what respect**. NIST ties defensibility to the method:
@@ -273,6 +276,7 @@ python3 scripts/score_register.py set-method <reg.rr> <id> --name 'OPEN FAIR' \
     --type quantitative --conformance partial \
     --deviations 'no monetised loss magnitude' --why '...'
 python3 scripts/score_register.py suggest-method [--context data-scarce,cost-constrained]
+python3 scripts/score_register.py set-refs <reg.rr> <id> --ref 'ATT&CK T1566.001' 'ID.RA-03' --why '...'
 python3 scripts/score_register.py set-score <reg.rr> <id> --residual L I --why '...'
 python3 scripts/score_register.py accept <reg.rr> <id> --approver '...' --justification '...' \
     --revalidate 2027-01-31 --expiry 2027-07-31 --why '...'

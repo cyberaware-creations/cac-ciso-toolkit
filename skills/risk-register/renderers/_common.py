@@ -1033,6 +1033,13 @@ class Context:
         # worse — which is exactly the confusion the method record exists to prevent, arriving
         # through the renderer instead of the store (BL-92).
         "method-recorded",
+        # Provenance, not a movement. `set-refs` records WHAT was looked at to find the risk —
+        # a technique ID, a subcategory, a ticket — and captioning "residual Medium → High"
+        # with "we cited ATT&CK T1566.001" would offer the origin of the risk as the reason
+        # its score got worse. Same reasoning as `method-recorded` directly above, one field
+        # along: how it was analysed and where it came from are both warrants, and neither is
+        # an explanation of a change (BL-117 T4).
+        "references-set",
     })
 
     def _rationales_since_baseline(self) -> dict[str, str]:
