@@ -104,7 +104,11 @@ Keyed by class id. **Derived from attributes; there is no command to select an e
     "controls": [
       { "control": "…", "evidence": "…", "on": "YYYY-MM-DD", "by": "Head of Security" }
     ],
-    "noLongerDerived": true   // only when the class stopped deriving and carries controls
+    "references": [
+      { "ref": "ATLAS AML.CS0011", "note": "…", "on": "YYYY-MM-DD", "by": "Head of Security" }
+    ],
+    "noLongerDerived": true   // set when the class stopped deriving and carries controls
+                              // OR references — either is a record worth keeping
   }
 }
 ```
@@ -112,6 +116,17 @@ Keyed by class id. **Derived from attributes; there is no command to select an e
 **There is no `mitigated`, `resolved`, `closed` or `accepted` key here, and there never will
 be.** See `nistaml-exposure.md` §4. Two states are computed from this block —
 `no-controls-recorded` and `controls-recorded` — and there is no third.
+
+**`references[]` is written by `record-reference` and read by nothing that computes anything.**
+It cites published work — a MITRE ATLAS technique (`AML.T####`) or case study (`AML.CS####`), a
+paper, an advisory — against a class this deployment is *already* derived-exposed to. It is
+free text: the ATLAS corpus is not bundled, not fetched and not validated.
+
+⚠️ **A reference is not a control.** `exposure_state` reads `controls` and nothing else, so a
+citation never moves a deployment to `controls-recorded` — reading about an attack is not
+defending against one. Both directions of that are guarded by
+`evals/exposure-references.sh`, along with the two ways a recompute could silently destroy
+one.
 
 ### `evidence[]` — `EV-001`
 

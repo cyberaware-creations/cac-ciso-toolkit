@@ -203,6 +203,9 @@ python3 scripts/ai_register.py assess acme.air --deployment D-001 --by CISO --co
 python3 scripts/ai_register.py record-control acme.air --deployment D-001 \
     --class NISTAML.02 --control "untrusted-content filter" \
     --evidence "config export NW-CFG-118" --on 2026-03-30 --by "Head of Security"
+python3 scripts/ai_register.py record-reference acme.air --deployment D-001 \
+    --class NISTAML.04 --ref "ATLAS AML.CS0011" \
+    --note "VirusTotal poisoning, cited by NIST AI 100-2 E2025 s 2.3.5" --by CISO
 python3 scripts/ai_register.py record-requirement acme.air --deployment D-001 \
     --requirement adversarial-testing.red-team --evidence EV-001 --by CISO
 python3 scripts/ai_register.py declare acme.air --deployment D-001 \
