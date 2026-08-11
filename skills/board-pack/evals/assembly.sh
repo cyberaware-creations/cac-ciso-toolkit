@@ -22,7 +22,7 @@ skill="$(cd "$here/.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=91
+EXPECTED_CHECKS=92
 checks=0
 fails=0
 ok()  { checks=$((checks + 1)); printf '  ok    %s\n' "$1"; }
@@ -1309,10 +1309,33 @@ fi
   --pptx "$work/dm_board.pptx" --deck-mode board) >/dev/null 2>&1
 core="$("$PY" "$here/_deckhas.py" "$work/dm_board.pptx" --core)"
 full_n="$("$PY" "$here/_deckfit.py" "$work/dm_full.pptx" --slides)"
-if [ "${core:-0}" -ge 8 ] && [ "${core:-0}" -le 18 ]; then
-  ok "board mode puts $core slides before the appendix, inside the 12-18 a board sitting reads"
+# BL-251. ⚠️ THE BAND IS ASSERTED ON THE CURATED EXEMPLAR, NOT ON THIS FIXTURE, and that is
+# the substance of the fix rather than a detail of it. `pack.manifest.json` is deliberately
+# pathological — fourteen board asks — so asserting "this is a board-length deck" about it
+# claimed something the file was built NOT to be. Once an exemplar existed (BL-123, D-10) the
+# claim belonged there. The fixture's deck is still exercised below for the move-not-drop
+# rule, which is what it is actually for.
+#
+# ⚠️ AND THE BAND ITSELF WAS TWO DIFFERENT NUMBERS. The test read 8-18 while the sentence it
+# printed said "12-18", so a 9-slide core passed while announcing it was inside 12-18 — a
+# green tick over a false statement, which is worse than a red one. Decided by the maintainer
+# 2026-08-11: 12-18, the band the message already claimed. The test now enforces what it says.
+(cd "$skill/renderers" && "$PY" render_pack.py --in "$CJ" --html "$work/cur.html" \
+  --pptx "$work/cur_board.pptx" --deck-mode board) >/dev/null 2>&1
+cur_core="$("$PY" "$here/_deckhas.py" "$work/cur_board.pptx" --core)"
+if [ "${cur_core:-0}" -ge 12 ] && [ "${cur_core:-0}" -le 18 ]; then
+  ok "the exemplar's board core is $cur_core slides, inside the 12-18 a board sitting reads"
 else
-  bad "board mode produces a board-length core" "core=$core (wanted 8-18), full=$full_n"
+  bad "the exemplar produces a board-length core" \
+      "curated core=$cur_core (wanted 12-18)"
+fi
+# The fixture is still expected to RENDER a board core — it just is not the thing whose length
+# is held to the editorial standard. Without this, breaking board mode on the fixture would
+# now go unnoticed here.
+if [ "${core:-0}" -gt 0 ]; then
+  ok "...and the fixture still renders a board core ($core slides), it is just not the standard"
+else
+  bad "the fixture still renders a board core" "core=$core, full=$full_n"
 fi
 if [ "${core:-0}" -lt "${full_n:-0}" ]; then
   ok "...which is shorter than the full deck's $full_n"
