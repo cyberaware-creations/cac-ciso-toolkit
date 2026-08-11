@@ -41,7 +41,9 @@
         "references/regulatory-receipts.md"
       ],
       "reviewIntervalDays": 180,
-      "intervalBecause": "Half the house default, because this block moves and the rest of the repo's gated rows do not. Three of its nine decisions are LIVE litigation - Brewer is interlocutory with the case continuing after the appeal was refused, Giuliano's motion was largely denied so it proceeds, and Marchner is three months old. The 2026-08-10 sweep proved the rate empirically: LACERS v. Sanford distinguished In re TransUnion on 16 Jan. 2026, roughly three months after the previous check, and a 365-day interval would have let that boundary sit unnoticed on a block that goes in front of boards. 180 days is two sweeps a year, which matches the observed movement. It is NOT a substitute for the one paid citator pass, which is separately authorised and still outstanding."
+      "intervalBecause": "Half the house default, because this block moves and the rest of the repo's gated rows do not. Three of its nine decisions are LIVE litigation - Brewer is interlocutory with the case continuing after the appeal was refused, Giuliano's motion was largely denied so it proceeds, and Marchner is three months old. The 2026-08-10 sweep proved the rate empirically: LACERS v. Sanford distinguished In re TransUnion on 16 Jan. 2026, roughly three months after the previous check, and a 365-day interval would have let that boundary sit unnoticed on a block that goes in front of boards. 180 days is two sweeps a year, which matches the observed movement. It is NOT a substitute for the one paid citator pass, which is separately authorised and still outstanding.",
+      "reviewedBy": "Darren Galleyne",
+      "reviewedOn": "2026-08-11"
     },
     {
       "id": "dora-rts-2024-1774",
@@ -56,7 +58,9 @@
       "usedFor": [
         "references/regulatory-receipts.md",
         "references/metric-archetypes.md"
-      ]
+      ],
+      "reviewedBy": "Darren Galleyne",
+      "reviewedOn": "2026-08-11"
     },
     {
       "id": "dora-l1",
@@ -71,7 +75,9 @@
       "usedFor": [
         "references/regulatory-receipts.md",
         "references/metric-archetypes.md"
-      ]
+      ],
+      "reviewedBy": "Darren Galleyne",
+      "reviewedOn": "2026-08-11"
     },
     {
       "id": "sec-cyber-rule",
@@ -86,7 +92,9 @@
       "usedFor": [
         "references/regulatory-receipts.md"
       ],
-      "intervalBecause": "A disclosure clock, where the harm from a missed amendment is a LATE FILING and is asymmetric — nobody is penalised for reading the rule too often. The operative text of these instruments is comparatively stable; the staff interpretation around them is not, and it is the interpretation that moves a deadline. 365 days would let a changed clock sit unnoticed for up to a year on the one artifact whose value is being on time. Halved to 180 on 2026-08-09."
+      "intervalBecause": "A disclosure clock, where the harm from a missed amendment is a LATE FILING and is asymmetric — nobody is penalised for reading the rule too often. The operative text of these instruments is comparatively stable; the staff interpretation around them is not, and it is the interpretation that moves a deadline. 365 days would let a changed clock sit unnoticed for up to a year on the one artifact whose value is being on time. Halved to 180 on 2026-08-09.",
+      "reviewedBy": "Darren Galleyne",
+      "reviewedOn": "2026-08-11"
     },
     {
       "id": "nydfs-part-500",
@@ -102,7 +110,9 @@
         "references/regulatory-receipts.md",
         "references/metric-archetypes.md"
       ],
-      "intervalBecause": "s 500.19 read in full against the DFS official adoption text on 2026-08-09 (rf_fs_2amend23NYCRR500_text_20231101.pdf), cross-read against the DFS consolidated copy, which agrees word for word and carries its own notice that it is not an official version. The limb-to-section mapping is what three shipped receipts now depend on, and s 500.19(a) already lost s 500.12 once by amendment - so a change here silently makes a customer-facing receipt wrong rather than merely stale."
+      "intervalBecause": "s 500.19 read in full against the DFS official adoption text on 2026-08-09 (rf_fs_2amend23NYCRR500_text_20231101.pdf), cross-read against the DFS consolidated copy, which agrees word for word and carries its own notice that it is not an official version. The limb-to-section mapping is what three shipped receipts now depend on, and s 500.19(a) already lost s 500.12 once by amendment - so a change here silently makes a customer-facing receipt wrong rather than merely stale.",
+      "reviewedBy": "Darren Galleyne",
+      "reviewedOn": "2026-08-11"
     },
     {
       "id": "nis2",
@@ -116,7 +126,9 @@
       "reviewIntervalDays": 365,
       "usedFor": [
         "references/regulatory-receipts.md"
-      ]
+      ],
+      "reviewedBy": "Darren Galleyne",
+      "reviewedOn": "2026-08-11"
     },
     {
       "id": "gerding-statement",
@@ -162,7 +174,9 @@
         "ir-8286r1",
         "ir-8286ar1",
         "ir-8286cr1"
-      ]
+      ],
+      "reviewedBy": "Darren Galleyne",
+      "reviewedOn": "2026-08-11"
     },
     {
       "id": "ir-8286-bd-upd1",
@@ -180,7 +194,9 @@
       "reviewIntervalDays": 365,
       "usedFor": [
         "references/positive-risk.md"
-      ]
+      ],
+      "reviewedBy": "Darren Galleyne",
+      "reviewedOn": "2026-08-11"
     },
     {
       "id": "sec-item-106",
@@ -195,7 +211,9 @@
       "usedFor": [
         "references/regulatory-receipts.md"
       ],
-      "intervalBecause": "A disclosure clock, where the harm from a missed amendment is a LATE FILING and is asymmetric — nobody is penalised for reading the rule too often. The operative text of these instruments is comparatively stable; the staff interpretation around them is not, and it is the interpretation that moves a deadline. 365 days would let a changed clock sit unnoticed for up to a year on the one artifact whose value is being on time. Halved to 180 on 2026-08-09."
+      "intervalBecause": "A disclosure clock, where the harm from a missed amendment is a LATE FILING and is asymmetric — nobody is penalised for reading the rule too often. The operative text of these instruments is comparatively stable; the staff interpretation around them is not, and it is the interpretation that moves a deadline. 365 days would let a changed clock sit unnoticed for up to a year on the one artifact whose value is being on time. Halved to 180 on 2026-08-09.",
+      "reviewedBy": "Darren Galleyne",
+      "reviewedOn": "2026-08-11"
     },
     {
       "id": "sec-cyber-rescission-petition",
@@ -210,7 +228,9 @@
       "intervalBecause": "the claim carried in the product is that the Commission HAS NOT ACTED. That is a negative about a live docket, and the day it stops being true every sentence citing it becomes wrong. 365 days is a year of being wrong; the disclosure-clock rows moved to 180 for the weaker version of the same argument",
       "usedFor": [
         "references/regulatory-receipts.md"
-      ]
+      ],
+      "reviewedBy": "Darren Galleyne",
+      "reviewedOn": "2026-08-11"
     },
     {
       "id": "solarwinds-dismissal",
@@ -224,7 +244,9 @@
       "reviewIntervalDays": 365,
       "usedFor": [
         "references/regulatory-receipts.md"
-      ]
+      ],
+      "reviewedBy": "Darren Galleyne",
+      "reviewedOn": "2026-08-11"
     },
     {
       "id": "ic3-annual-report",
@@ -239,7 +261,9 @@
       "reviewIntervalDays": 365,
       "usedFor": [
         "references/metric-archetypes.md"
-      ]
+      ],
+      "reviewedBy": "Darren Galleyne",
+      "reviewedOn": "2026-08-11"
     }
   ]
 }

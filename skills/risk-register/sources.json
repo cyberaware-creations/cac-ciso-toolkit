@@ -33,7 +33,9 @@
         "references/analysis-methods.json",
         "references/schema.md",
         "scripts/score_register.py"
-      ]
+      ],
+      "reviewedBy": "Darren Galleyne",
+      "reviewedOn": "2026-08-11"
     },
     {
       "id": "csf-2-0",
@@ -63,7 +65,9 @@
         "references/schema.md",
         "references/history-and-review.md"
       ],
-      "renderedAs": "DORA RTS (EU) 2024/1774 Art. 3(d)"
+      "renderedAs": "DORA RTS (EU) 2024/1774 Art. 3(d)",
+      "reviewedBy": "Darren Galleyne",
+      "reviewedOn": "2026-08-11"
     },
     {
       "id": "nydfs-part-500",
@@ -80,7 +84,9 @@
         "references/schema.md",
         "references/history-and-review.md"
       ],
-      "renderedAs": "NYDFS 23 NYCRR 500"
+      "renderedAs": "NYDFS 23 NYCRR 500",
+      "reviewedBy": "Darren Galleyne",
+      "reviewedOn": "2026-08-11"
     },
     {
       "id": "ir-8286b-upd1",
