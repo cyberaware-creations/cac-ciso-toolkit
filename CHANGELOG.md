@@ -21,6 +21,60 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.118.0 — 2026-08-11
+
+**BL-94 C2 — there is no doc-versus-code divergence. All three statements are true, and the
+table row was read without its column headers.**
+
+### The premise, and why it does not hold
+
+C2 was specified as *"two documents imply a granularity the code does not have"*:
+`csfa_compat.py:15` says migration produces *"per-Subcategory targets"*, `profile_analysis.py:5`
+says *"per-Subcategory Current/Target ratings"*, while `scale-and-scoring.md:71` tabulates
+`Targets | per-Subcategory | per-Function (presets + overrides)`.
+
+**That row has two columns, and its header is one line above it:**
+
+```
+| | Native (`profile_analysis.py`) | Web tool (`csfa_compat.py`) |
+```
+
+So it says the **native** model's targets are per-Subcategory and the **web tool's** are
+per-Function. Quoted without the header it reads as one contradictory claim about one thing.
+
+### Established from the code, then proved by running it
+
+`csfa_compat.py convert` **expands** the tool's Function-level target across every Subcategory in
+that Function. Run against the shipped `examples/acme-manufacturing.csfa`, whose targets are
+`{default: 3, byFunction: {GV: 4, PR: 4}}`:
+
+> **104 of 106 assessment rows carry their own `target`** — 4 across all 31 GV and 21 PR rows,
+> 3 across ID, DE, RS and RC. The two without one are the `not-applicable` Subcategories.
+
+So all three statements are true simultaneously: the tool's model **is** per-Function, migration
+**does** produce per-Subcategory targets, and the native engine **does** track them.
+
+**Nothing was wrong, so nothing was corrected.** What shipped is the fact that reconciles the two
+columns — that migration expands one into the other — added under the table, because a reader
+already misread the row once and the reconciling fact was nowhere on the page.
+
+### Also checked, and also not a divergence
+
+`SKILL.md:7` states a flat *"0-3 achievement scale"* while a migrated Profile adopts **0–4**. That
+looked like the same shape of defect and is not: `scale-and-scoring.md` carries a whole section on
+the web-tool 0–4 scale, and `SKILL.md` itself distinguishes the two at `:229`, `:277` and `:336`.
+Line 7 is the summary describing the native default.
+
+### C1, unblocked by half — recorded so it is not re-done
+
+**`SKILL.md:7` already says *"deterministic gap analysis"*.** C1's naming half exists; only the
+NIST framing and the citation are missing.
+
+⛔ **C1 stays blocked and no section number was written.** It wants IR 8286A r1 §2.2.2.4 cited and
+the PDF is not in the tree.
+
+---
+
 ## v0.117.0 — 2026-08-11
 
 **BL-54 — R-1 and R-4 have a cluster. One of BL-54's three blockers clears; the other two
