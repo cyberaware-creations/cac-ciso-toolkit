@@ -21,6 +21,52 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.112.0 — 2026-08-11
+
+**The counter-signature count is no longer zero. the maintainer countersigned all 36 gated
+rows on 2026-08-11.**
+
+Two releases ago this said *"the machinery ships; the values stay at zero until a person signs."*
+A person signed.
+
+**36 of 55 rows now carry a named human.** The remaining 19 are ungated — they are watched but
+they do not time a release, so they are where a signature buys least. The manifest reports the
+split rather than rounding it up:
+
+```
+55 source(s): 2 unverified, 17 claude-code, 36 countersigned
+```
+
+**Why the gated rows and not all 55.** `gated: true` means the release gate times that row's age
+and blocks a release when it goes stale. Those are the rows where an endorsement does work — it
+is the difference between a clock nobody set and a clock somebody agreed to. Signing the other
+19 would have been true but idle.
+
+⚠️ **What these 36 signatures assert, in full, because the temptation to read more into them is
+the whole risk:**
+
+> *"I read the machine's reading and accept it."*
+
+**Not a second read of the instrument.** The reviewer checked that the claim, the locator and the
+version are consistent with **what was recorded** — `checkedBy: claude-code` still stands beside
+every one of them, unchanged, saying a machine opened the publisher's page. And it is **one named
+person's review**: not a firm's sign-off, not an independent audit, not counsel's opinion. That
+sentence now prints on every run, because the T5 limit line only appears once the count is
+non-zero — it has never been visible before this release.
+
+**36 rows, fewer distinct instruments.** `dora-rts-2024-1774`, `nydfs-part-500`, `sec-cyber-rule`,
+`sec-item-106`, `dora-l1`, `nis2`, `sp-800-53r5`, `ir-8286-series`, `solarwinds-dismissal` and
+`sec-cyber-rescission-petition` each appear in more than one skill. **Each row was signed
+separately and that is correct** — a row is a claim about how *that skill* uses that instrument,
+and the same regulation can be read soundly for one skill and loosely for another.
+
+**Nothing about the gate changed.** The two `unverified` rows are still ungated and still
+unsigned; the T4 refusal that would have caught an attempt to sign one into a gated state is
+untouched and still tested both directions. `--release-gate` passes: every gated source is inside
+its interval.
+
+---
+
 ## v0.111.0 — 2026-08-11
 
 **Five dates written as 2026-08-12 were wrong by one day. Corrected — and recorded here rather

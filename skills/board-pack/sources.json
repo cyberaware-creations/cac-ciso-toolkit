@@ -27,7 +27,9 @@
       "reviewIntervalDays": 365,
       "usedFor": [
         "renderers/render_pack.py"
-      ]
+      ],
+      "reviewedBy": "the maintainer",
+      "reviewedOn": "2026-08-11"
     }
   ]
 }
