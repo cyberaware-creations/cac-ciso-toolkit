@@ -14,9 +14,7 @@
       "reviewIntervalDays": 365,
       "usedFor": [
         "references/exceptions.md"
-      ],
-      "reviewedBy": "the maintainer",
-      "reviewedOn": "2026-08-11"
+      ]
     },
     {
       "id": "nydfs-part-500",
@@ -32,9 +30,7 @@
         "references/exceptions.md",
         "SKILL.md"
       ],
-      "intervalBecause": "s 500.19 read in full against the DFS official adoption text on 2026-08-09 (rf_fs_2amend23NYCRR500_text_20231101.pdf), cross-read against the DFS consolidated copy, which agrees word for word and carries its own notice that it is not an official version. The limb-to-section mapping is what three shipped receipts now depend on, and s 500.19(a) already lost s 500.12 once by amendment - so a change here silently makes a customer-facing receipt wrong rather than merely stale.",
-      "reviewedBy": "the maintainer",
-      "reviewedOn": "2026-08-11"
+      "intervalBecause": "s 500.19 read in full against the DFS official adoption text on 2026-08-09 (rf_fs_2amend23NYCRR500_text_20231101.pdf), cross-read against the DFS consolidated copy, which agrees word for word and carries its own notice that it is not an official version. The limb-to-section mapping is what three shipped receipts now depend on, and s 500.19(a) already lost s 500.12 once by amendment - so a change here silently makes a customer-facing receipt wrong rather than merely stale."
     },
     {
       "id": "iso-27001",
@@ -49,9 +45,7 @@
         "references/exceptions.md"
       ],
       "whyUnverified": "This row asserts what ISO/IEC 27001:2022 Cl. 6.1.3 and 8.3 REQUIRE - a claim about the standard's text, not just its numbering. ISO text is paywalled, iso.org's Online Browsing Platform returns HTTP 403 here, and the maintainer confirmed on 2026-08-08 that this project holds no ISO licence, so the requirement wording here is not checked against the standard. THERE IS A ROUTE OUT AND IT IS YOURS, NOT OURS: if your organisation holds a licence, you can supply your copy and verify this citation in your own deployment. ⚠️ 'Do not re-attempt from the web' still stands and governs CAC's attempts - it is what stops this being re-litigated every grooming pass, and it is not a statement about what a licensed reader can do. Two ways to close it: read a licensed copy, or narrow the claim in references/exceptions.md to the clause numbering alone, which the nist-csf crosswalk already verifies via NIST's own reference export.",
-      "url": "https://www.iso.org/standard/88435.html",
-      "reviewedBy": "the maintainer",
-      "reviewedOn": "2026-08-11"
+      "url": "https://www.iso.org/standard/88435.html"
     },
     {
       "id": "sp-800-63b",
@@ -67,9 +61,7 @@
         "references/exceptions.md",
         "evals/trigger-prompts.md"
       ],
-      "intervalBecause": "Half the house default, on the same asymmetry that halved the SEC and DORA rows: reading the guidance too often costs nothing, and missing an amendment ships a password rule that is no longer NIST's. What makes this row different from an ordinary NIST citation is that THE FAMILY HAS ALREADY MOVED UNDER THIS TOOLKIT ONCE. Rev 4 renumbered 63B wholly and relocated neighbouring subjects across volumes - binding at enrolment to 63A-4, subscriber accounts to 63A-4 and 63C-4, assurance-level selection to base 63-4 s 3 - and retired the term 'memorized secret'. BL-224 repointed this row only because all three limbs of the one claim CAC makes from this family happened to stay inside 63B; a boundary move is therefore a demonstrated behaviour of this publication rather than a hypothetical, and the section cite at s 3.1.1.2 is what makes the next one visible instead of silent. ⚠️ THIS IS A RECOMMENDATION, NOT A RULING - the maintainer, 2026-08-11: 'We can ship with recommended or default review timeline values, but the CISO should be able to override them locally. It's up to them to decide how they run their program.' The number CAC ships is the one CAC would defend; a deployment that reviews on a different cadence is not out of compliance with anything. The local-override MECHANISM is deliberately NOT built here - it belongs to BL-242, which already establishes that a deployment can hold and act on what CAC's shipped manifest cannot, and a third separate override path would be the mistake.",
-      "reviewedBy": "the maintainer",
-      "reviewedOn": "2026-08-11"
+      "intervalBecause": "Half the house default, on the same asymmetry that halved the SEC and DORA rows: reading the guidance too often costs nothing, and missing an amendment ships a password rule that is no longer NIST's. What makes this row different from an ordinary NIST citation is that THE FAMILY HAS ALREADY MOVED UNDER THIS TOOLKIT ONCE. Rev 4 renumbered 63B wholly and relocated neighbouring subjects across volumes - binding at enrolment to 63A-4, subscriber accounts to 63A-4 and 63C-4, assurance-level selection to base 63-4 s 3 - and retired the term 'memorized secret'. BL-224 repointed this row only because all three limbs of the one claim CAC makes from this family happened to stay inside 63B; a boundary move is therefore a demonstrated behaviour of this publication rather than a hypothetical, and the section cite at s 3.1.1.2 is what makes the next one visible instead of silent. ⚠️ THIS IS A RECOMMENDATION, NOT A RULING - the maintainer, 2026-08-11: 'We can ship with recommended or default review timeline values, but the CISO should be able to override them locally. It's up to them to decide how they run their program.' The number CAC ships is the one CAC would defend; a deployment that reviews on a different cadence is not out of compliance with anything. The local-override MECHANISM is deliberately NOT built here - it belongs to BL-242, which already establishes that a deployment can hold and act on what CAC's shipped manifest cannot, and a third separate override path would be the mistake."
     },
     {
       "id": "delaware-caremark-cases",
@@ -84,9 +76,7 @@
       "intervalBecause": "Half the house default, matching ciso-board-translation's row on the same case for the same reason and deliberately not drifting from it. Brewer is LIVE LITIGATION - interlocutory appeal refused, so the case continues below - and the sweep that produced this row measured the rate directly: LACERS v. Sanford distinguished In re TransUnion roughly three months after the previous check. A 365-day interval would let a development on a case quoted in a caveat sold to CISOs sit unnoticed for up to a year. 180 days is two sweeps a year, which matches the observed movement, and it is NOT a substitute for the paid citator pass at BL-232.",
       "usedFor": [
         "references/exceptions.md"
-      ],
-      "reviewedBy": "the maintainer",
-      "reviewedOn": "2026-08-11"
+      ]
     },
     {
       "id": "dgcl-220",
@@ -102,9 +92,7 @@
       "intervalBecause": "Half the house default, matching the delaware-caremark-cases row beside it rather than drifting from it. SB 21 rewrote this section in March 2025 and the litigation around SB 21 is live - Rutledge was decided 27 Feb. 2026, four months before this reading. A section rewritten within the last eighteen months, quoted in a caveat sold to CISOs, is exactly the row where a year-long interval would let an amendment sit unnoticed.",
       "usedFor": [
         "references/exceptions.md"
-      ],
-      "reviewedBy": "the maintainer",
-      "reviewedOn": "2026-08-11"
+      ]
     }
   ]
 }
