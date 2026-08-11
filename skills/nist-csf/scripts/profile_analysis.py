@@ -21,6 +21,14 @@ Design anchors:
 Read-only:
   validate     [--core PATH]                       Assert the bundled Core is intact (6/22/106).
   analyze      <store.csfp> [--today D] [--top N] [--queue-top N] [--out F]   Emit the complete derived JSON.
+  posture      <store.csfp> [--risk F.rr] [--policy F.pol] [--metrics F.mtr]
+               [--context P] [--json] [--out F]
+                                    The program posture report: every CSF outcome banded
+                                    by WHAT IS RECORDED about it — well-evidenced,
+                                    thinly evidenced, declared critical, no record, plus
+                                    unknown for a store that could not be read. It answers
+                                    "can you show your work?" and never "is your work any
+                                    good?". No score, no percentage, no ranking.
                [--context PAYLOAD] [--ai-signal SIGNAL]   `--ai-signal` is optional evidence
                for the Cyber AI Profile scoping question, from `ai_register.py export-signal`.
                Counts only; the question is still asked, and still answered here.
@@ -70,6 +78,7 @@ import io
 import json
 import os
 import re
+import subprocess
 import sys
 import tempfile
 from datetime import datetime, timezone
@@ -889,6 +898,267 @@ def intake_by_subject(intake: list[dict]) -> dict:
     for sid in out:
         out[sid].sort(key=lambda r: (r.get("sourceDate") or "", r.get("id") or ""))
     return out
+
+
+def declared_criticality(jewel: dict) -> str:
+    """The level a crown jewel declares, or `""` when it declares none.
+
+    THE THIRD COPY IN THE SUITE — `vendor_register.py` and `ai_register.py` hold the others.
+    Shape reused, module never imported (CAC-AP-1 s 2.6), and `check-twins.py` compares all
+    copies by EXECUTING them over both shapes rather than by diffing their text.
+
+    TWO SHAPES ARE LEGAL AND BOTH ARE READ, permanently (BL-216 Q-2):
+
+        "criticality": "high"                                # written before v0.74.0
+        "criticality": {"value": "high", "declaredBy": ...}  # written after
+
+    `business-context` did not bump `SCHEMA_VERSION` and does not convert, so both persist on
+    disk indefinitely. **Do not "fix" this by forcing one shape** — dropping either branch
+    refuses somebody's existing store, and a product arguing *your records persist and stay
+    defensible* does not do that. A container that is not a declared record still refuses,
+    because `str({...})` is truthy and would put a Python repr where a governance decision
+    belongs.
+    """
+    raw = jewel.get("criticality")
+    if isinstance(raw, dict) and "value" in raw:
+        raw = raw.get("value")
+    if isinstance(raw, (dict, list, tuple, set)):
+        raise ValueError(
+            "crown jewel %r declares a criticality that is a %s, not a level: %.120r"
+            % (jewel.get("name") or jewel.get("system") or "(unnamed)", type(raw).__name__, raw))
+    return "" if raw is None else str(raw).strip()
+
+
+# --- Program posture (BL-222) -------------------------------------------------
+#
+# ⚠️ THIS REPORT ANSWERS "CAN YOU SHOW YOUR WORK?" AND NEVER "IS YOUR WORK ANY GOOD?"
+#
+# Those are different questions and only the first is answerable from records. A policy
+# forbidding authentication is a terrible control and a perfectly valid record: a document
+# exists, a named person approved it on a date, and it is mapped to a requirement. This report
+# says the record exists. Judging whether the control is sound is the CISO's job, their
+# auditor's and their board's — it is not the tool's. That is `record and refuse, never judge`
+# reaching the reporting layer.
+#
+# THE BANDS ARE NAMED FOR THE RECORD, NOT THE POSTURE (OQ4, decided 2026-08-11). `strong` and
+# `weak` were rejected: a board reading "GV.PO — strong" hears "policy is fine", which is
+# exactly what the caveat exists to prevent. Under these names the misreading has to be worked
+# at.
+BAND_WELL = "well-evidenced"
+BAND_THIN = "thinly evidenced"
+BAND_CRITICAL = "declared critical"
+BAND_NONE = "no record"
+BAND_UNKNOWN = "unknown"
+POSTURE_BANDS = (BAND_WELL, BAND_THIN, BAND_CRITICAL, BAND_NONE, BAND_UNKNOWN)
+
+POSTURE_BAND_MEANS = {
+    BAND_WELL: ("A record exists, is current, and carries who decided it and on what basis. "
+                "It is not a finding that the control is adequate."),
+    BAND_THIN: ("A record exists but is thin, stale, unowned or unattributed. It is not a "
+                "finding that the control is weak."),
+    BAND_CRITICAL: ("Somebody DECLARED this area load-bearing, and the declaration is named "
+                    "below. It is not a computed risk level."),
+    BAND_NONE: ("No record bearing on this outcome exists anywhere this report can read. It "
+                "is not a finding that the area is failing, or that nobody is doing it."),
+    BAND_UNKNOWN: ("A store that would hold records here could not be read, so nothing is "
+                   "known either way. A different fact from a clean register, and reported "
+                   "before anything that looks like a result."),
+}
+
+# D-7, adapted from the sentence `policy_register` already ships about a single policy. The
+# word "addressed" appears in NO band name, so the caveat names the bands it actually governs
+# rather than a state this report does not have.
+POSTURE_CAVEAT = (
+    "This report measures whether a defensible RECORD exists — not whether the thing recorded "
+    "is any good. `well-evidenced` means a record exists, is current, and is attributed. It is "
+    "not evidence that the control is adequate, sound, or effective, and this report has no "
+    "way to determine whether it is. A policy nobody follows maps exactly as well as one "
+    "everybody does.")
+
+
+def load_outcome_owners(path: str = None) -> dict:
+    here = os.path.dirname(os.path.abspath(__file__))
+    path = path or os.path.join(here, "..", "references", "outcome-owners.json")
+    with open(path, encoding="utf-8") as fh:
+        return json.load(fh)
+
+
+def expand_outcome_owners(core: dict, owners: dict) -> dict:
+    """Every Subcategory in the shipped Core, resolved to its owning skills.
+
+    The map is authored at CATEGORY grain with per-Subcategory overrides — 106 hand-typed rows
+    are 106 chances to mistype one, and nobody reviews a wall of repetition. The compression
+    cannot hide a gap because this expansion runs against the CORE rather than against the map,
+    so an outcome the map forgot resolves to nothing and the anti-vacuity check sees it.
+    """
+    out = {}
+    cats, subs = owners.get("categories") or {}, owners.get("subcategories") or {}
+    unowned = (owners.get("unowned") or {}).get("outcomes") or {}
+    for fn in core.get("hierarchy") or []:
+        for cat in fn.get("categories") or []:
+            for sub in cat.get("subcategories") or []:
+                sid = sub["id"]
+                if sid in unowned:
+                    out[sid] = {"owners": [], "means": unowned[sid].get("because", ""),
+                                "grain": "unowned"}
+                elif sid in subs:
+                    out[sid] = dict(subs[sid], grain="subcategory")
+                elif cat["id"] in cats:
+                    out[sid] = dict(cats[cat["id"]], grain="category")
+    return out
+
+
+# The stores this report reads, and the CSF link each one actually carries. ⚠️ Only these three
+# carry a Subcategory reference at all — the rest of the suite records real work with no CSF
+# linkage, and inventing one here would be this report guessing. Where a skill owns an outcome
+# but cannot link to it, that is said on the outcome rather than papered over.
+POSTURE_SOURCES = {
+    "risk-register": {"script": "score_register.py", "argv": ["score", "{store}", "--json"],
+                      "link": "csfSubcategoryId"},
+    "policy-register": {"script": "policy_register.py", "argv": ["analyze", "{store}", "--json"],
+                        "link": "mappedTo"},
+    "metrics-register": {"script": "metrics_analysis.py", "argv": ["analyze", "{store}", "--json"],
+                         "link": "csfSubcategoryIds"},
+}
+
+
+def read_posture_source(skill: str, store_path: str, skills_root: str = "",
+                        timeout: int = 120) -> dict:
+    """Run one store's analyze and take its payload. Never fatal.
+
+    Copied in shape AND in wording from `attention_surface.read_producer`, deliberately. A
+    store that cannot be read is REPORTED, not skipped: an outcome whose only owner is an
+    unreadable store is `unknown`, never `no record`, and the two must not look the same.
+    """
+    spec = POSTURE_SOURCES[skill]
+    root = skills_root or os.path.dirname(os.path.dirname(
+        os.path.dirname(os.path.abspath(__file__))))
+    script = os.path.join(root, skill, "scripts", spec["script"])
+    result = {"skill": skill, "store": store_path, "ok": False, "reason": "", "payload": None}
+    if not os.path.exists(script):
+        result["reason"] = "no engine at %s — the skill is not installed here" % script
+        return result
+    if not os.path.exists(store_path):
+        result["reason"] = ("no store at %s. The source is declared and the file is not there, "
+                            "which is a different fact from a clean register." % store_path)
+        return result
+    argv = [sys.executable, script] + [a.replace("{store}", store_path) for a in spec["argv"]]
+    try:
+        proc = subprocess.run(argv, capture_output=True, text=True, timeout=timeout)
+    except (OSError, subprocess.SubprocessError) as exc:
+        result["reason"] = "could not run %s: %s" % (spec["script"], exc)
+        return result
+    if proc.returncode != 0:
+        tail = (proc.stderr or proc.stdout or "").strip().splitlines()
+        result["reason"] = ("%s exited %d: %s" % (spec["script"], proc.returncode,
+                                                  tail[-1] if tail else "no output"))
+        return result
+    try:
+        result["payload"] = json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        result["reason"] = "%s did not emit JSON" % spec["script"]
+        return result
+    result["ok"] = True
+    return result
+
+
+def _linked_records(sources: dict) -> dict:
+    """`{subcategoryId: [record summaries]}` from whichever stores were readable."""
+    hits = {}
+
+    def add(sid, skill, what, attributed, stale):
+        if not sid:
+            return
+        hits.setdefault(str(sid).strip(), []).append(
+            {"skill": skill, "what": what, "attributed": bool(attributed),
+             "stale": bool(stale)})
+
+    rr = sources.get("risk-register") or {}
+    for r in ((rr.get("payload") or {}).get("risks") or []) if rr.get("ok") else []:
+        add(r.get("csfSubcategoryId"), "risk-register",
+            "risk %s" % r.get("id"),
+            not r.get("provisionalScore") and bool(r.get("owner")),
+            bool(r.get("reviewOverdue")))
+    pr = sources.get("policy-register") or {}
+    for pol in ((pr.get("payload") or {}).get("policies") or []) if pr.get("ok") else []:
+        for req in pol.get("mappedTo") or []:
+            add(req, "policy-register", "policy %s" % pol.get("id"),
+                bool((pol.get("approval") or {}).get("by")),
+                (pol.get("review") or {}).get("state") == "overdue")
+    mr = sources.get("metrics-register") or {}
+    for m in ((mr.get("payload") or {}).get("metrics") or []) if mr.get("ok") else []:
+        for sid in m.get("csfSubcategoryIds") or []:
+            add(sid, "metrics-register", "metric %s" % m.get("id"),
+                bool(m.get("owner")), bool(m.get("stale")))
+    return hits
+
+
+def declared_critical_outcomes(context: dict) -> dict:
+    """Outcomes a NAMED PERSON declared load-bearing — never anything this report inferred.
+
+    ⚠️ `settings.appetite` is deliberately NOT an input. It is a bare enum set once at `init`
+    with no declarer and no date, and D-5 says critical is declared, never inferred. An
+    over-appetite risk is reported BESIDE a placement and never as its basis.
+    """
+    out = {}
+    for jewel in (context or {}).get("crownJewels") or []:
+        crit = declared_criticality(jewel)
+        for sid in jewel.get("csfSubcategoryIds") or []:
+            out.setdefault(sid, []).append({
+                "basis": "crown jewel %r declared %s" % (jewel.get("name", "?"), crit or "?"),
+                "declaredBy": (jewel.get("criticality") or {}).get("declaredBy", "")
+                if isinstance(jewel.get("criticality"), dict) else "",
+                "declaredOn": (jewel.get("criticality") or {}).get("declaredOn", "")
+                if isinstance(jewel.get("criticality"), dict) else ""})
+    return out
+
+
+def posture(core: dict, evidence: dict, owners_map: dict, sources: dict,
+            context: dict = None) -> dict:
+    """Band every CSF outcome by what is RECORDED about it. No score, no percentage, no rank.
+
+    The bands are exclusive and ordered by what the reader most needs to know first: an
+    unreadable store beats everything, because nothing else said about that outcome is load
+    bearing while a source is missing.
+    """
+    linked = _linked_records(sources)
+    critical = declared_critical_outcomes(context or {})
+    unread = {k: v for k, v in sources.items() if not v.get("ok")}
+    states = (evidence or {}).get("states") or {}
+    rows = []
+    for sid, own in sorted(owners_map.items()):
+        recs = linked.get(sid) or []
+        owning_unread = sorted({s for s in own.get("owners") or [] if s in unread})
+        if recs:
+            band = (BAND_WELL if all(r["attributed"] and not r["stale"] for r in recs)
+                    else BAND_THIN)
+        elif owning_unread:
+            band = BAND_UNKNOWN
+        else:
+            band = BAND_NONE
+        # A Profile rating is itself a record about the outcome, so an outcome nobody linked a
+        # register record to is not automatically `no record`.
+        if band == BAND_NONE and states.get(sid) == "confirmed":
+            band = BAND_THIN
+        row = {"subcategoryId": sid, "band": band, "owners": own.get("owners") or [],
+               "ownership": own.get("means", ""), "records": recs,
+               "unreadOwners": owning_unread}
+        if sid in critical:
+            # `declared critical` does not REPLACE the evidence band — an area can be declared
+            # load-bearing AND well-evidenced, and collapsing the two would lose the half the
+            # CISO asked for. It is carried beside, with its declaration named.
+            row["declaredCritical"] = critical[sid]
+        rows.append(row)
+    return {
+        "bands": list(POSTURE_BANDS),
+        "bandMeans": dict(POSTURE_BAND_MEANS),
+        "caveat": POSTURE_CAVEAT,
+        "notRead": [{"skill": k, "store": v.get("store"), "reason": v.get("reason")}
+                    for k, v in sorted(unread.items())],
+        "outcomes": rows,
+        "counts": {b: sum(1 for r in rows if r["band"] == b) for b in POSTURE_BANDS},
+        "declaredCritical": sum(1 for r in rows if r.get("declaredCritical")),
+    }
 
 
 def derive_evidence(assessments: list[dict], intake: list[dict], index: dict, core: dict,
@@ -3337,6 +3607,112 @@ def applicability_for(payload: dict, overlay_cfg: dict, ai_signal: dict = None) 
     }
 
 
+def _cmd_posture(args):
+    """The program posture report — can you show your work?
+
+    Reads the Profile plus whichever sibling stores were pointed at, and bands every CSF
+    outcome by WHAT IS RECORDED about it. No score, no percentage, no ranking, no composite:
+    those would all be this report answering a question it cannot answer.
+    """
+    pos, opt = parse_flags(args)
+    path = _require_store(pos, "usage: posture <store.csfp> [--risk F.rr] [--policy F.pol] "
+                               "[--metrics F.mtr] [--context PAYLOAD] [--json] [--out F]")
+    core = load_core()
+    index = index_subcategories(core)
+    store = load_store(path)
+    owners_map = expand_outcome_owners(core, load_outcome_owners())
+    settings = store.get("profile", {}).get("settings", {})
+    ev = derive_evidence(store.get("assessments") or [], store.get("intake") or [], index, core,
+                         _s(opt["today"]) if "today" in opt else _today(),
+                         settings.get("reporting", {}).get("scopeThresholdPct", 0),
+                         settings.get("reporting", {}).get("evidenceAgeDays", 365))
+    sources = {}
+    for skill, flag in (("risk-register", "risk"), ("policy-register", "policy"),
+                        ("metrics-register", "metrics")):
+        if flag in opt:
+            sources[skill] = read_posture_source(skill, _s(opt[flag]))
+    context = {}
+    if "context" in opt:
+        with open(_s(opt["context"]), encoding="utf-8") as fh:
+            context = json.load(fh)
+    report = posture(core, ev, owners_map, sources, context)
+    if "json" in opt:
+        text = json.dumps(report, indent=2, ensure_ascii=False) + "\n"
+    else:
+        text = render_posture_text(report)
+    out = _s(opt.get("out")) if opt.get("out") not in (None, True) else None
+    if out:
+        with open(out, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        print("Wrote %s" % out, file=sys.stderr)
+    else:
+        sys.stdout.write(text)
+    return 0
+
+
+def render_posture_text(report: dict) -> str:
+    """The report as text. THE CAVEAT IS A BLOCK ABOVE THE RESULTS, never a footnote.
+
+    `policy-register`'s renderer states the placement rule this follows: "a caveat block on the
+    page, not a footnote … a reader who does not see it has not been told the thing that most
+    affects how they should read everything below."
+
+    And the NOT READ block comes before ANYTHING that looks like a result, for the same reason
+    `attention-surface` puts it there: a reader who sees bands first has already formed a view
+    by the time they learn a store was missing.
+    """
+    L = ["PROGRAM POSTURE — what is on the record", "=" * 46, ""]
+    # D-7. Worded to name the bands this report ACTUALLY has: "addressed" appears in no band
+    # name, so a caveat about "addressed" would describe a state that does not exist here.
+    L += ["WHAT THIS REPORT DOES NOT SAY", "-" * 30]
+    L += ["  " + line for line in _wrap_plain(report["caveat"], 88)]
+    L += [""]
+    if report["notRead"]:
+        L += ["NOT READ — %d store(s)" % len(report["notRead"]), "-" * 30]
+        for nr in report["notRead"]:
+            L += ["  %s: %s" % (nr["skill"], nr["reason"])]
+        L += ["  Outcomes owned only by these read `unknown`, never `no record`. Nothing below "
+              "is a finding about them.", ""]
+    L += ["BANDS", "-" * 30]
+    for band in report["bands"]:
+        L += ["  %-18s %3d   %s" % (band, report["counts"][band],
+                                    _wrap_plain(report["bandMeans"][band], 60)[0])]
+        for cont in _wrap_plain(report["bandMeans"][band], 60)[1:]:
+            L += ["  %-18s %3s   %s" % ("", "", cont)]
+    L += [""]
+    if report["declaredCritical"]:
+        L += ["DECLARED CRITICAL — %d outcome(s), each naming its declaration"
+              % report["declaredCritical"], "-" * 30]
+        for row in report["outcomes"]:
+            for d in row.get("declaredCritical") or []:
+                who = d.get("declaredBy") or "nobody named"
+                L += ["  %-11s %s (declared by %s)" % (row["subcategoryId"], d["basis"], who)]
+        L += [""]
+    L += ["BY OUTCOME", "-" * 30]
+    for row in report["outcomes"]:
+        owners = ", ".join(row["owners"]) or "no owner in this suite"
+        L += ["  %-11s %-18s %s" % (row["subcategoryId"], row["band"], owners)]
+        for rec in row["records"]:
+            L += ["  %-11s   from %s: %s%s%s" % ("", rec["skill"], rec["what"],
+                                                 "" if rec["attributed"] else " [unattributed]",
+                                                 " [stale]" if rec["stale"] else "")]
+    L += ["", "A partial program is the ordinary state. This is a map of what is written down, "
+              "not a scolding.", ""]
+    return "\n".join(L)
+
+
+def _wrap_plain(text: str, width: int) -> list:
+    words, lines, cur = str(text).split(), [], ""
+    for w in words:
+        if cur and len(cur) + 1 + len(w) > width:
+            lines.append(cur); cur = w
+        else:
+            cur = (cur + " " + w).strip()
+    if cur:
+        lines.append(cur)
+    return lines or [""]
+
+
 def _cmd_analyze(args):
     pos, opt = parse_flags(args)
     path = _require_store(pos, "usage: analyze <store.csfp> [--today YYYY-MM-DD] [--top N] "
@@ -5766,7 +6142,7 @@ def _cmd_self_test(_args):
 
 
 COMMANDS = {
-    "validate": _cmd_validate, "self-test": _cmd_self_test,
+    "validate": _cmd_validate, "self-test": _cmd_self_test, "posture": _cmd_posture,
     "init": _cmd_init, "set": _cmd_set, "set-tier": _cmd_set_tier,
     "quickstart-target": _cmd_quickstart_target,
     "snapshot": _cmd_snapshot, "diff": _cmd_diff, "action": _cmd_action,

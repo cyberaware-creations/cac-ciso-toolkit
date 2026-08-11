@@ -506,3 +506,41 @@ ink, muted, background, patina, and the steps derived from them — moves.
 Every generated deliverable carries the footer **"A Cyber Aware Creation · Not affiliated with
 NIST"**. This skill renders NIST-derived content; that line is what keeps a coverage report from
 reading as a NIST-endorsed assessment.
+
+## The program posture report
+
+`posture` answers one question — **can you show your work?** — and never *is your work any
+good?* Those are different questions and only the first is answerable from records.
+
+A policy forbidding authentication is a terrible control and a perfectly valid record: a
+document exists, a named person approved it on a date, and it is mapped to a requirement. This
+report says the record exists. **Judging whether the control is sound is the CISO's job, their
+auditor's and their board's — it is not the tool's.**
+
+Every CSF outcome lands in one band, and the bands are named for the **record**, not the
+posture:
+
+| band | means |
+|---|---|
+| `well-evidenced` | a record exists, is current, and is attributed |
+| `thinly evidenced` | a record exists but is thin, stale, unowned or unattributed |
+| `declared critical` | somebody **declared** this area load-bearing, and the declaration is named |
+| `no record` | nothing bearing on it exists anywhere this report can read |
+| `unknown` | a store that would hold records here **could not be read** |
+
+`unknown` is separate from `no record` on purpose, and the NOT READ block prints **before**
+anything that looks like a result — a reader who meets bands first has formed a view before
+learning a store was missing.
+
+**Critical is declared, never inferred.** `settings.appetite` is deliberately not an input: it
+is a bare enum set once at `init` with no declarer and no date, so an over-appetite risk is
+reported *beside* a placement and never as its basis.
+
+**A partial program is the ordinary state.** A CISO with three registers and ninety outcomes
+carrying no record is not misconfigured, and the report reads as a map rather than a scolding.
+
+⚠️ **The limit ships on the artifact**, as a block above the bands rather than a footnote —
+`well-evidenced` means a record exists, is current and is attributed; it is not evidence that
+the control is adequate, sound or effective, and this report has no way to determine whether it
+is.
+
