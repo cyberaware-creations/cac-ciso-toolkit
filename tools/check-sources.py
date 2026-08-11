@@ -34,7 +34,9 @@ Exit 0 when clean, 1 otherwise.
 
 Usage: tools/check-sources.py [--self-test] [--release-gate]
 """
+import contextlib
 import datetime
+import io
 import json
 import os
 import re
@@ -45,7 +47,7 @@ REQUIRED = ("id", "label", "publisher", "instrument", "version",
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 # The house cadence. A row that keeps it says nothing; a row that leaves it must.
 DEFAULT_INTERVAL_DAYS = 365
-USAGE = "usage: tools/check-sources.py [--self-test] [--release-gate]"
+USAGE = "usage: tools/check-sources.py [--self-test] [--release-gate] [--report]"
 
 
 def _today():
@@ -137,8 +139,25 @@ def check_shape(skill, doc, today):
         # release gate would then be measuring the age of a check that never happened.
         if row.get("checkedBy") == "unverified":
             if row.get("gated") is True:
+                # RW-1.12 T4 (BL-228). ⛔ A COUNTER-SIGNATURE DOES NOT OPEN THIS GATE, and the
+                # message says so when one is present, because that is precisely the moment
+                # somebody will assume it should have. A counter-signature is a person
+                # accepting the RECORDED READING; it does not open the instrument. For a
+                # permanently unreadable source -- paywalled, withdrawn -- the check still has
+                # not happened, so the gate would still be timing nothing.
+                #
+                # ⚠️ BL-242's LOCAL VERIFICATION IS A DIFFERENT THING AND DOES CLEAR THIS
+                # (Darren, 2026-08-11): there a licensed deployment holds the actual text and
+                # the wording is checked against it, so a check HAS happened. Keep the two
+                # apart. If they ever converge, this widens into "any row can claim to be
+                # gated", which is the failure this refusal exists to stop.
+                extra = ""
+                if str(row.get("reviewedBy") or "").strip():
+                    extra = (" -- and the `reviewedBy` counter-signature does NOT change this: "
+                             "accepting a recorded reading is not opening the instrument")
                 problems.append("%s: `checkedBy` is unverified, so `gated` cannot be true -- the "
-                                "gate would be timing a check that never happened" % where)
+                                "gate would be timing a check that never happened%s"
+                                % (where, extra))
             # An unverified row must say WHY. Without this the value degrades into a shrug, and
             # the next maintainer cannot tell "nobody got to it" from "the source is paywalled
             # and no amount of trying will change that". Both remaining rows in this repo are
@@ -783,6 +802,82 @@ def check_do_not_cite(root="."):
     return True
 
 
+# RW-1.12, second half (BL-228). The three states a row can be in, and the GAP BETWEEN THEM
+# is the point -- a manifest that reported only "checked" would flatten a machine reading, a
+# machine reading a person has endorsed, and a citation nobody has opened into one word.
+#
+# ⚠️ THE MIDDLE STATE IS THE ONE THAT INVITES OVERCLAIMING, so its meaning is written here
+# once and quoted everywhere rather than paraphrased at each surface. A counter-signature
+# says "I read the machine's reading and accept it". It is NOT a read of the primary source:
+# the reviewer checked that the claim, the locator and the version are consistent with what
+# was recorded, and did not independently open the instrument. Without that sentence a
+# reader -- or Darren in two years -- takes a counter-signature for a read, and this is the
+# field where the temptation to overclaim is largest.
+STATES = (
+    ("unverified",
+     "no primary source has been opened; the row says why in `whyUnverified`"),
+    ("claude-code",
+     "machine-verified against the primary source, and NOT human-reviewed"),
+    ("countersigned",
+     "a named person read the machine's recorded reading and accepted it -- "
+     "NOT a read of the primary source"),
+)
+
+# A solo founder's counter-signature is ONE PERSON'S REVIEW. Naming what it is not is the
+# whole value of printing it: an unqualified "countersigned" beside a regulatory citation
+# reads, to an auditor or a buyer, like something that was bought and was not.
+COUNTERSIGNATURE_LIMIT = (
+    "A counter-signature is one named person's review of what was recorded. It is NOT a "
+    "firm's sign-off, NOT an independent audit, and NOT counsel's opinion — and it is not a "
+    "second reading of the instrument."
+)
+
+
+def source_state(row):
+    """Which of the three states this row is in. Order matters: `unverified` outranks a
+    counter-signature, because endorsing a reading that was never made is still not a read.
+    See the T4 refusal in check_shape -- countersigning does NOT open the gate."""
+    if row.get("checkedBy") == "unverified":
+        return "unverified"
+    if str(row.get("reviewedBy") or "").strip():
+        return "countersigned"
+    return "claude-code"
+
+
+def report_states(root="."):
+    """RW-1.12 T3. Every source and the state it is in, so the gap between the three is
+    visible per row rather than only as three totals at the bottom of a check."""
+    skills = skill_dirs(root)
+    if not skills:
+        print("ERROR: no skills found; the layout moved and this reported nothing.")
+        return False
+    print("Source states (CAC-RW-1.12). %s\n" % COUNTERSIGNATURE_LIMIT)
+    for name, meaning in STATES:
+        print("  %-14s %s" % (name, meaning))
+    print()
+    totals, rows = {n: 0 for n, _ in STATES}, 0
+    for skill in skills:
+        doc, err = load(root, skill)
+        if err:
+            print("ERROR: %s: %s" % (skill, err))
+            return False
+        if not doc["sources"]:
+            continue
+        print("%s" % skill)
+        for r in doc["sources"]:
+            if not isinstance(r, dict):
+                continue
+            st = source_state(r)
+            totals[st] += 1
+            rows += 1
+            who = str(r.get("reviewedBy") or "").strip()
+            sig = "  ← %s, %s" % (who, r.get("reviewedOn")) if who else ""
+            print("  %-14s %-34s %s%s" % (st, r.get("id"), r.get("label"), sig))
+        print()
+    print("%d source(s): %s" % (rows, ", ".join("%d %s" % (totals[n], n) for n, _ in STATES)))
+    return True
+
+
 def check_sources(root="."):
     skills = skill_dirs(root)
     if not skills:
@@ -817,8 +912,12 @@ def check_sources(root="."):
     # RW-1.12. Printed every run, like the unverified count and for the same reason: the
     # number of rows a PERSON has endorsed is the one this standard would rather not have to
     # guess at. Zero is an honest answer and prints as one.
-    print("         %d of %d countersigned by a person (reviewedBy); the rest record only "
-          "who read the source." % (countersigned, rows))
+    print("         %d of %d countersigned by a person (reviewedBy) — a review of the recorded "
+          "reading, NOT a second read of the source." % (countersigned, rows))
+    if countersigned:
+        print("         %s" % COUNTERSIGNATURE_LIMIT)
+    print("         Run --report for the state of every source (%s)."
+          % ", ".join(n for n, _ in STATES))
     if unverified:
         print("         %d of %d not yet verified against a primary source "
               "(checkedBy: unverified) — none of them gated." % (unverified, rows))
@@ -1031,6 +1130,49 @@ def _self_test():
         ok(check_sources(tree(tmp, "csok", [row(reviewedBy="D Galleyne",
                                                 reviewedOn="2026-01-01")])) is True,
            "RW-1.12: a dated human counter-signature passes, beside `checkedBy`")
+        # ⛔ T4 (BL-228), the case this item could most easily have got wrong. A
+        # counter-signature must NOT buy a row the gate. Asserted in BOTH directions so the
+        # test cannot pass by the row being broken for some other reason.
+        ok(check_sources(tree(tmp, "csnogate",
+                              [row(checkedBy="unverified", whyUnverified="paywalled",
+                                   reviewedBy="D Galleyne", reviewedOn="2026-01-01",
+                                   gated=True, reviewIntervalDays=365)])) is False,
+           "T4: an unverified row a PERSON countersigned still cannot be gated -- accepting a "
+           "recorded reading is not opening the instrument, so the check still never happened")
+        ok(check_sources(tree(tmp, "csnogateok",
+                              [row(checkedBy="unverified", whyUnverified="paywalled",
+                                   reviewedBy="D Galleyne", reviewedOn="2026-01-01",
+                                   gated=False)])) is True,
+           "T4, the other direction: that same row is perfectly valid UNGATED -- the "
+           "counter-signature is refused the gate, not refused")
+        # ...and the refusal has to SAY why the signature did not help, or the next person to
+        # hit it adds the signature again assuming they mistyped something.
+        _t4 = io.StringIO()
+        with contextlib.redirect_stdout(_t4):
+            check_sources(tree(tmp, "csnogatemsg",
+                               [row(checkedBy="unverified", whyUnverified="paywalled",
+                                    reviewedBy="D Galleyne", reviewedOn="2026-01-01",
+                                    gated=True, reviewIntervalDays=365)]))
+        ok("counter-signature does NOT change this" in _t4.getvalue(),
+           "T4: the refusal names the counter-signature rather than repeating the generic "
+           "unverified message, which would read as the signature not having registered")
+        # T3 -- the three states, derived rather than stored, and each row in exactly one.
+        ok(source_state(row()) == "claude-code"
+           and source_state(row(reviewedBy="D Galleyne",
+                                reviewedOn="2026-01-01")) == "countersigned"
+           and source_state(row(checkedBy="unverified",
+                                whyUnverified="paywalled")) == "unverified",
+           "T3: the three states are distinguishable, and `claude-code` is the unendorsed one")
+        # ⚠️ Precedence, and it is the load-bearing half: a countersigned UNVERIFIED row reports
+        # `unverified`, not `countersigned`. Endorsing a reading nobody made is still not a read,
+        # and reporting it as countersigned would launder the very row this standard exists for.
+        ok(source_state(row(checkedBy="unverified", whyUnverified="paywalled",
+                            reviewedBy="D Galleyne",
+                            reviewedOn="2026-01-01")) == "unverified",
+           "T3: `unverified` outranks a counter-signature -- endorsing a reading that was "
+           "never made does not promote the row")
+        ok(report_states(tree(tmp, "rpt", [row()])) is True,
+           "T3: --report renders without asserting, so it can be read on a failing tree")
         ok(check_sources(tree(tmp, "ivbare", [row(gated=True,
                                                   reviewIntervalDays=180)])) is False,
            "RW-1.13: an interval off the house default with no `intervalBecause` fails")
@@ -1366,7 +1508,7 @@ def _self_test():
     # it. A deleted case would have shown up as a smaller number in a line nobody diffs, and
     # "0 failed" reads identically whether 99 checks ran or nine did. The number only has to
     # move when cases are deliberately removed, and then somebody has to say why here.
-    _FLOOR = 102
+    _FLOOR = 108
     if len(checks) < _FLOOR:
         print("FAILED: only %d checks ran, expected at least %d — cases have been removed. "
               "Lower the floor deliberately or put them back." % (len(checks), _FLOOR))
@@ -1379,9 +1521,13 @@ def main(argv):
         return 0 if _self_test() else 1
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     for arg in argv:
-        if arg not in ("--release-gate",):
+        if arg not in ("--release-gate", "--report"):
             print("ERROR: unknown argument %r.\n       %s" % (arg, USAGE))
             return 1
+    # RW-1.12 T3. A report, not a check: it asserts nothing and exits on what it could read,
+    # so a reader can ask "what state is this source in?" without running a gate.
+    if "--report" in argv:
+        return 0 if report_states(root) else 1
     passed = check_sources(root)
     passed = check_do_not_cite(root) and passed
     if "--release-gate" in argv:
