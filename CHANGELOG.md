@@ -21,6 +21,83 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.110.0 — 2026-08-12
+
+**BL-228 — the counter-signature. The machinery ships; the values stay at zero until a person
+signs.**
+
+**Half of this item was already built.** `reviewedBy` / `reviewedOn` validation has been in
+`check-sources.py` since RW-1.12 landed — a name is required, a machine countersigning its own
+reading is refused, an undated endorsement is refused, an orphan date is refused, and all four
+have self-tests. **What was missing was the meaning, the surface, and the boundary.**
+
+### What a counter-signature asserts
+
+> **"I read the machine's reading and accept it."**
+
+⚠️ **And the sentence that stops it overclaiming: this is NOT a read of the primary source.** The
+reviewer checked that the claim, the locator and the version are consistent with **what was
+recorded**; they did not independently open the instrument. Without that, a reader — or the maintainer
+in two years — takes a counter-signature for a read. It lives once, in `STATES`, and is quoted
+at every surface rather than paraphrased at each.
+
+### Three states, derived rather than stored
+
+| state | meaning |
+|---|---|
+| `unverified` | no primary source opened; the row says why |
+| `claude-code` | machine-verified against the primary source, **not** human-reviewed |
+| `countersigned` | a named person read the recorded reading and accepted it |
+
+**No third `checkedBy` value was introduced.** Storing `countersigned` there would erase the
+record of the machine's read — exactly the false provenance RW-1.12 refused when it declined to
+replace `claude-code` with a person's name. `checkedBy` still says who *read*, `reviewedBy` who
+*accepted*, and the state is derived from both.
+
+⚠️ **`unverified` outranks a counter-signature.** A countersigned unverified row reports
+`unverified`, because endorsing a reading nobody made is still not a read — otherwise the state
+would launder the very rows this standard exists for.
+
+**New: `check-sources.py --report`** prints every source with its state, per skill. It asserts
+nothing and exits on what it could read, so it can be run against a failing tree.
+
+### ⛔ A counter-signature does not clear `gated`
+
+The refusal at `check-sources.py:138` already held, because it keys on `checkedBy` and a
+signature does not change it. **What was missing was the explanation** — the message now names
+the signature when one is present, so the next person to hit it does not add it again assuming
+they mistyped something. Both directions are asserted: the row fails **gated**, and the same row
+**passes ungated**. The signature is refused the gate, not refused.
+
+**BL-242's local verification is a different thing and does clear it** (the maintainer, 2026-08-11) —
+there the licensed text is present and the wording is checked against it, so a check *has*
+happened. Kept apart deliberately; if they converge this widens into *"any row can claim to be
+gated"*.
+
+### The limit that ships on the artifact
+
+> A counter-signature is **one named person's review** of what was recorded. **Not** a firm's
+> sign-off, **not** an independent audit, **not** counsel's opinion.
+
+A solo founder's signature is one person's review, and an unqualified *"countersigned"* beside a
+regulatory citation reads to an auditor or a buyer like something that was bought and was not.
+
+### The count disagreed with itself across three surfaces — and one of them was simply stale
+
+`sources-schema.md` said *"zero of **45**"*, the item title said **51**, CHANGELOG entries said
+**52**, and the live tree holds **55**.
+
+**Which was right: the CHANGELOG numbers, each on the day it was written.** Only the schema line
+was wrong, because it was typed once and prose does not get recomputed. **So the denominator is
+no longer restated there at all** — the tool prints it every run, and `--report` prints it per
+row. A hardcoded total in a document is precisely the drift CAC-RW-1 exists to catch, one level
+up.
+
+**Checks:** self-test 102 → **108 checks, 0 failed**, floor raised to 108 to hold the gain. Live
+tree reports **55 sources: 2 unverified, 53 claude-code, 0 countersigned**.
+
+---
+
 ## v0.109.0 — 2026-08-12
 
 **`sp-800-63b` moves to a 180-day review interval, and the reason is on the row.**

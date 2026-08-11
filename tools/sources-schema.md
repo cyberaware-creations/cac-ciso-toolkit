@@ -296,8 +296,68 @@ not misreport who. Dropping the field for a human-only signature would lose the 
 real check.
 
 A machine may not countersign its own reading; a counter-signature needs a date, because an
-endorsement that cannot age is the one thing this manifest does not measure. **The count prints
-every run, and it is currently zero of 45** — an honest number, and the point of printing it.
+endorsement that cannot age is the one thing this manifest does not measure.
+
+**The count prints every run, and it is currently zero.** An honest number, and the point of
+printing it.
+
+> ⚠️ **This sentence used to end "zero of 45", and the 45 was wrong.** It was typed once and
+> never moved: the item title said **51**, CHANGELOG entries said **52**, and the live tree on
+> 2026-08-12 held **55**. Nothing was lying — **the CHANGELOG numbers were each correct on the
+> day they were written**, and only this line was stale, because prose does not get recomputed.
+> **So the denominator is no longer restated here.** `check-sources.py` prints it every run and
+> `--report` prints it per row; a hardcoded total in a document is precisely the drift this
+> standard exists to catch, one level up.
+
+#### What a counter-signature asserts — decided 2026-08-11 (BL-228)
+
+> **"I read the machine's reading and accept it."**
+
+Not a re-verification of the primary text, not bare accountability. The middle claim, and it
+gets its own state so it is confused with neither neighbour:
+
+| state | meaning |
+|---|---|
+| `unverified` | no primary source has been opened; the row says why in `whyUnverified` |
+| `claude-code` | machine-verified against the primary source, and **not** human-reviewed |
+| `countersigned` | a named person read the machine's recorded reading and accepted it |
+
+⚠️ **`countersigned` is NOT a read of the primary source.** The reviewer checked that the claim,
+the locator and the version are consistent with **what was recorded**; they did not
+independently open the instrument. That sentence is load-bearing — without it a reader, or
+the maintainer in two years, takes a counter-signature for a read. This is the field where the
+temptation to overclaim is largest, so the wording lives once in `STATES` in `check-sources.py`
+and is quoted at every surface rather than paraphrased at each one.
+
+**The state is DERIVED, not stored.** `checkedBy` still records who *read* and `reviewedBy` who
+*accepted* — RW-1.12's first half stands, and no third `checkedBy` value was introduced, because
+that would erase the record of the machine's read exactly as replacing it with a person's name
+would have. `unverified` outranks a counter-signature: a countersigned unverified row reports
+`unverified`, because endorsing a reading nobody made is still not a read.
+
+#### ⛔ A counter-signature does NOT clear `gated`
+
+`gated: true` on a `checkedBy: unverified` row is refused because the gate would time a check
+that never happened — and **a counter-signature does not open the instrument**, so for a
+permanently unreadable source the check still has not happened. The refusal names the
+signature explicitly when one is present, so nobody concludes they mistyped it.
+
+**BL-242's local verification is a different thing and does clear it** (the maintainer, 2026-08-11):
+there a licensed deployment holds the actual text and the wording is checked against it, so a
+check *has* happened. **Keep the two apart.** If they converge, this widens into *"any row can
+claim to be gated"*, which is the failure the refusal exists to stop.
+
+#### The limit that ships on the artifact
+
+> A counter-signature is **one named person's review** of what was recorded. It is **not** a
+> firm's sign-off, **not** an independent audit, and **not** counsel's opinion.
+
+A solo founder's signature is one person's review, and an unqualified *"countersigned"* beside a
+regulatory citation reads to an auditor or a buyer like something that was bought and was not.
+Printed by `check-sources.py` whenever the count is non-zero, and always by `--report`.
+
+**Not in scope here: signing the rows.** The machinery ships; the values stay at zero until a
+person sits down and signs.
 
 ### RW-1.13 365 is the house default; a deviation must say why
 
