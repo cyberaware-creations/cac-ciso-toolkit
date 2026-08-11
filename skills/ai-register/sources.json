@@ -15,9 +15,7 @@
       "usedFor": [
         "references/nistaml-exposure.md",
         "scripts/ai_register.py"
-      ],
-      "reviewedBy": "Darren Galleyne",
-      "reviewedOn": "2026-08-11"
+      ]
     },
     {
       "id": "csf-2-0",
@@ -30,9 +28,7 @@
       "gated": false,
       "usedFor": [
         "SKILL.md"
-      ],
-      "reviewedBy": "Darren Galleyne",
-      "reviewedOn": "2026-08-11"
+      ]
     }
   ]
 }

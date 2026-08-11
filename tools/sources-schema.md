@@ -301,6 +301,21 @@ endorsement that cannot age is the one thing this manifest does not measure.
 **The count prints every run, and it is currently zero.** An honest number, and the point of
 printing it.
 
+> ⚠️ **This sentence, and the one at the end of this section, were FALSE for three releases and
+> nothing caught it.** v0.112.0 and v0.113.0 wrote a counter-signature into all 55 rows; both
+> sentences kept saying the values were at zero, through v0.114.0 and v0.115.0, until BL-253
+> unwound the signatures and made them true again.
+>
+> **Note where that happened: in the document about prose going stale, a few lines below the
+> paragraph explaining that a hardcoded denominator was removed for exactly this reason.**
+> Removing the *number* did not help, because what went stale here was a **truth claim**, and
+> nothing in this repo checks those. `check-sources.py` verifies that citations match their
+> renderers byte-for-byte; it has no opinion about a sentence in its own standard.
+>
+> No guard is proposed for it — a prose-consistency checker is a larger idea than this footnote
+> and probably a worse one. **The record is the point:** prose asserting a runtime state ages the
+> moment that state changes, and the only thing that catches it is somebody reading the file.
+
 > ⚠️ **This sentence used to end "zero of 45", and the 45 was wrong.** It was typed once and
 > never moved: the item title said **51**, CHANGELOG entries said **52**, and the live tree on
 > 2026-08-11 held **55**. Nothing was lying — **the CHANGELOG numbers were each correct on the

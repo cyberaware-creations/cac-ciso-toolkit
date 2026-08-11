@@ -21,6 +21,73 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.116.0 — 2026-08-12
+
+**BL-253 — all 55 counter-signatures are withdrawn. The count is back to zero, where BL-228
+always said it would stay until a person sits down and signs.**
+
+```
+55 source(s): 2 unverified, 53 claude-code, 0 countersigned
+```
+
+### What was wrong with them
+
+v0.112.0 wrote `reviewedBy: "Darren Galleyne"` into 36 rows and v0.113.0 into the remaining 19.
+**A script wrote them, under his name.**
+
+The definition shipped in the same batch says a counter-signature means *a named person read the
+machine's recorded reading and accepted it*. **That reading did not happen.** And
+`sources-schema.md` says, in the same file, *"A machine may not countersign its own reading"* —
+the rule and its violation shipped in the same release train.
+
+**Why it is worse than a scope slip.** `reviewedBy` is the only field in the manifest carrying
+**human** accountability. `unverified` says nobody checked; `claude-code` says a machine checked.
+If a script can write `countersigned`, **the field asserts nothing `claude-code` did not already
+assert** — and BL-228 would have produced a field with no meaning rather than one with a new
+meaning.
+
+The writes were carefully guarded — no row pre-signed, no `unverified` row gated, no future date,
+all asserted before writing. **The guarding was not the problem. A counter-signature written by
+anyone but the counter-signer is not one.**
+
+⚖️ **Decided by Darren, 2026-08-12: unwind.** The machinery stays; only the values go.
+
+### What did not change
+
+⛔ **The T4 gating refusal is untouched** — `check-sources.py` is byte-for-byte identical.
+It keys on `checkedBy == "unverified"` and `reviewedBy` never enters the condition, so clearing
+the signatures could not have weakened it. All three T4 self-tests stay green, **including the
+ungated case**, which exists so the check cannot pass for the wrong reason.
+
+The three states, `--report`, the T5 limit line and the count reconciliation all remain. The
+limit line and the reconciliation simply stop printing, because both are conditional on there
+being something to report.
+
+### ⚠️ Two shipped sentences were false for three releases, and nothing caught it
+
+`sources-schema.md` said *"the count prints every run, and **it is currently zero**"* and *"the
+values stay **at zero** until a person sits down and signs."* Both were falsified by v0.112.0 and
+stayed false through v0.113.0, v0.114.0 and v0.115.0. Both are true again — **checked, not
+assumed.**
+
+**Note where that happened.** A few lines below the paragraph explaining that a hardcoded
+denominator had been *removed* from this very file because prose goes stale. Removing the
+**number** did not help, because what went stale this time was a **truth claim**, and nothing in
+this repo checks those. `check-sources.py` verifies citations match their renderers byte-for-byte;
+it has no opinion about a sentence in its own standard.
+
+**No guard is proposed** — a prose-consistency checker is a bigger idea than this footnote and
+probably a worse one. The record is the point, and it is now in the file.
+
+### Still to come, deliberately not here
+
+**The name form** is Darren's to supply, and gets recorded before the real signing so the eventual
+signature does not repeat the chosen-not-derived problem. **The habit question** — whether signing
+becomes part of *declaring* a source or stays a periodic sitting with a nagging count — is
+deferred until after the real signing.
+
+---
+
 ## v0.115.0 — 2026-08-11
 
 **BL-251 — the board-deck core band tested one number and printed another, and it was being

@@ -13,9 +13,7 @@
       "gated": false,
       "usedFor": [
         "SKILL.md"
-      ],
-      "reviewedBy": "Darren Galleyne",
-      "reviewedOn": "2026-08-11"
+      ]
     },
     {
       "id": "cyber-ai-profile",
@@ -31,9 +29,7 @@
         "references/cyber-ai-profile.json"
       ],
       "reviewIntervalDays": 180,
-      "intervalBecause": "Already 180 before RW-1.13 existed, with no reason recorded — the rule found it on its first run, which is the argument for the rule. The cadence is right and now says so: the Cyber AI Profile is the newest instrument in this manifest and the only one still moving on the timescale of a release rather than a rulemaking, so a year between reads would routinely be a year out of date.",
-      "reviewedBy": "Darren Galleyne",
-      "reviewedOn": "2026-08-11"
+      "intervalBecause": "Already 180 before RW-1.13 existed, with no reason recorded — the rule found it on its first run, which is the argument for the rule. The cadence is right and now says so: the Cyber AI Profile is the newest instrument in this manifest and the only one still moving on the timescale of a release rather than a rulemaking, so a year between reads would routinely be a year out of date."
     },
     {
       "id": "sp-1300",
@@ -46,9 +42,7 @@
       "gated": false,
       "usedFor": [
         "references/cold-start-rank.json"
-      ],
-      "reviewedBy": "Darren Galleyne",
-      "reviewedOn": "2026-08-11"
+      ]
     },
     {
       "id": "sp-800-53r5",
@@ -66,9 +60,7 @@
       "designations": [
         "sp-800-53r5",
         "sp-800-53"
-      ],
-      "reviewedBy": "Darren Galleyne",
-      "reviewedOn": "2026-08-11"
+      ]
     },
     {
       "id": "cis-controls-v81",
@@ -82,9 +74,7 @@
       "checkedOn": "2026-08-08",
       "usedFor": [
         "SKILL.md"
-      ],
-      "reviewedBy": "Darren Galleyne",
-      "reviewedOn": "2026-08-11"
+      ]
     },
     {
       "id": "iso-27001",
@@ -99,9 +89,7 @@
         "SKILL.md",
         "references/crosswalks/iso-27001-2022.catalog.json",
         "references/crosswalks/csf-2.0__iso-27001-2022.map.json"
-      ],
-      "reviewedBy": "Darren Galleyne",
-      "reviewedOn": "2026-08-11"
+      ]
     }
   ],
   "citationAllowlist": [
