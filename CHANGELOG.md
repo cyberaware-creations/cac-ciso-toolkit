@@ -21,6 +21,55 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.115.0 — 2026-08-11
+
+**BL-251 — the board-deck core band tested one number and printed another, and it was being
+asserted about the wrong specimen.**
+
+### Two defects, and the second is the substantial one
+
+**The band disagreed with itself.** `assembly.sh` tested `core >= 8 && core <= 18` while the
+sentence it printed on success read *"inside the **12-18** a board sitting reads"*. A 9-slide
+core passed while announcing it was inside 12–18 — **a green tick over a false statement**, which
+is worse than a red one.
+
+**And it was asserted on the fixture.** `pack.manifest.json` is deliberately pathological —
+fourteen board asks — so claiming *"this is a board-length deck"* about it asserted something the
+file is built **not** to be. Once v0.114.0 gave the repo an exemplar, that claim belonged there.
+
+### What changed
+
+⚖️ **Decided by Darren, 2026-08-11: the band is 12–18**, the one the message already claimed, and
+**the assertion moves to `pack.curated.manifest.json`.**
+
+- The exemplar's board core is **16** — inside 12–18, and it passes.
+- The fixture still renders a board core (**18**) and is still checked for that, so breaking board
+  mode on it would not now go unnoticed. It is simply no longer the thing held to an editorial
+  standard it was designed to violate.
+
+### ⚠️ The measurement that came out of this, which re-scopes BL-166
+
+**BL-123 did not unblock BL-166.** That item wants one slide per board decision plus a recap, and
+its own page assumed cutting the specimen to five asks would make it fit. Measured:
+
+| specimen | board asks | core today | under BL-166 |
+|---|---|---|---|
+| fixture | 14 | 18 | ~30 |
+| **exemplar** | **5** | **16** | **~21** |
+
+**The exemplar still overshoots.** Board asks render five to a slide today
+(`render_pack.py:893`), so one-per-decision on five asks is +4 slides, +1 for the recap — **+5
+against 2 slides of headroom.**
+
+**BL-166 must find three slides elsewhere rather than the band moving for it** — Darren's call,
+taken with the arithmetic in front of him. The named candidates, now on that item: the
+undrawn-charts placeholder, the *"Third parties — positive risk"* split, and the provenance page.
+None is free, and the provenance one touches this toolkit's honesty discipline directly.
+
+**Checks:** `assembly.sh` 91 → **92 checks**, all passing; all seven board-pack suites green.
+
+---
+
 ## v0.114.0 — 2026-08-11
 
 **BL-123 — the board-pack specimen now models the five-ask convention, because two specimens
