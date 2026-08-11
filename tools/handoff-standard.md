@@ -83,9 +83,30 @@ conflating them is what produced both failures.
 - **The Cowork container cannot reach `api.notion.com` directly** (`CONNECT tunnel failed, 403`), so
   a document has to pass through the attachment API's inline `content` parameter.
 - **That parameter caps at 200 KiB.** Fine for a research document. **Useless for a PDF.**
-- ⛔ **The IR 8286A r1 PDF cannot come across this way**, which is why **BL-94 C1** and **BL-54 T4's
-  remaining scenarios** stay blocked and why neither may have its section numbers written. A
-  citation whose source cannot be opened is the thing CAC-RW-1 exists to prevent.
+- **The IR 8286A r1 PDF cannot come across this way** — it is 3.1 MB against a 200 KiB cap.
+
+> ⚠️ **CORRECTION, same day, v0.121.0 — the sentence that used to follow that bullet was wrong.**
+>
+> It read: *"…which is why BL-94 C1 and BL-54 T4's remaining scenarios stay blocked."* **The first
+> clause is true and the inference is not.** Those items never needed this transport. **IR 8286A r1
+> is a public NIST publication**, free of charge at
+> `https://nvlpubs.nist.gov/nistpubs/ir/2025/NIST.IR.8286Ar1.pdf` (DOI `10.6028/NIST.IR.8286Ar1`) —
+> fetchable directly and readable page by page. Verified by fetching it and reading page 1:
+> *NIST Interagency Report NIST IR 8286Ar1 — Identifying and Estimating Cybersecurity Risk for
+> Enterprise Risk Management.*
+>
+> **The error was reasoning from the transport's limit to the items' status** without checking
+> whether those items needed the transport at all. Both had been recorded as PDF-blocked for weeks,
+> and this standard restated that as settled instead of testing it — which is precisely the failure
+> **CAC-RW-1.14** names: *a correction is a claim and gets checked like one.* Filed as **BL-255**.
+>
+> ⛔ **This does not license writing §2.2.2.4 from memory.** It means the section can now be *read*,
+> which is the only thing that was ever missing. Whoever picks up BL-94 C1 opens the document.
+
+**The general point survives the correction, and is worth keeping separate from it:** a source that
+is *published* needs no hand-off at all. This standard is about documents that exist only where
+somebody wrote them. **Check which kind you have before treating a hand-off as the blocker** — the
+cheapest unblocking move is often discovering the document was never private.
 
 ---
 
