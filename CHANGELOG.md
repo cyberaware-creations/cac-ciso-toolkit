@@ -21,6 +21,49 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.101.0 — 2026-08-10
+
+**`references` joins `export-csv`, newline-separated inside the quoted cell.** BL-117's last
+task. **21 → 22 columns**, appended rather than inserted, so a consumer reading by position
+survives.
+
+### This sets a house convention, it does not follow one
+
+Every other column in that export is scalar — `csfSubcategoryId` is singular — so this is the
+**first multi-value column**, and whatever it does becomes what the next one does. Said in
+`schema.md`, in `SKILL.md`, in `--help` and at the top of `_cmd_export_csv`, because a
+convention nobody can find is not one.
+
+**Not a comma, semicolon or pipe.** `references` is deliberately free text, so any printable
+separator can occur *inside* a value and split it wrongly on re-import. A newline cannot: the
+writer quotes the cell and every conforming reader returns the newline as part of the field. It
+is also the most readable form for the auditor this export serves — Excel stacks it as lines in
+one cell.
+
+### The round-trip mattered more than the separator, and it was checked rather than assumed
+
+`merge_import` matches on `csfSubcategoryId` and `sourceRef`, so a register CSV that comes back
+in can silently **update an assessed risk** — the exact trap `references` exists to avoid. **A
+cell that re-split differently on the way in would be worse than a refusal and worse than never
+exporting the column.**
+
+Confirmed on the way through: **nothing in this repo parses this file back** — `parse_gaps_csv`
+requires a wholly different header set (`subcategory_id`, `function_id`, …). The exposure is
+external, so the guarantee is asserted rather than assumed. `risk-references.sh` round-trips
+through a **stock `csv.reader`** on a value carrying a comma, a semicolon, a pipe *and* embedded
+double quotes, and requires the identical list back — not merely one of the same length.
+
+### The check that proves the choice instead of asserting it
+
+A fourth check confirms comma, semicolon and pipe would **all** have split that same value
+wrongly. If it ever reports agreement, somebody has moved to a separator that can occur inside a
+value — which is the whole reason the newline was chosen.
+
+`risk-references.sh` **11 → 15**. A risk with no references exports an empty cell, never `[]` or
+`None`.
+
+**BL-117 is now complete: T1–T8.**
+
 ## v0.100.0 — 2026-08-10
 
 **The discoverability caveat now carries the corollary, and `exceptions-register` declares case

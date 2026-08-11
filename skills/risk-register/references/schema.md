@@ -74,6 +74,27 @@ snapshots so the register can report change over time without any external store
   nobody has assessed; only `set-score` clears it. They were one `provisional` field in an earlier
   build — a register still carrying it is migrated to both on load. Full behaviour:
   `references/csf-import.md`.
+- `references` — plural free text: where the risk came from. Never a `merge_import` matching
+  key, unlike `sourceRef` and `csfSubcategoryId` — that separation is the whole reason the field
+  exists, and the engine self-test fails if it is ever added to the match chain.
+
+  **`export-csv` carries it as the 22nd and last column, newline-separated inside the quoted
+  cell** — and that is the **house convention for any multi-value column in that export**, set by
+  this field because there was not one. Every other column is scalar, `csfSubcategoryId`
+  included; a later multi-value column uses this form.
+
+  Not a comma, semicolon or pipe: the field is free text, so any printable separator can occur
+  *inside* a value and split it wrongly on the way back in. A newline cannot, and every
+  conforming reader returns it as part of the field. It also reads best for the auditor this
+  export serves — Excel stacks it as lines in one cell.
+
+  ⚠️ **The round-trip is the real constraint, more than the separator.** `merge_import` matches
+  on `csfSubcategoryId` and `sourceRef`, so a register CSV that comes back in can silently
+  *update* an assessed risk. Nothing in this repo parses this file back — `parse_gaps_csv`
+  requires a wholly different header set — but somebody else's script will. `evals/risk-references.sh`
+  asserts the round-trip through a stock `csv.reader` on a value containing a comma, a semicolon,
+  a pipe **and** embedded quotes, and separately asserts that each rejected separator *would*
+  have split it wrongly. The choice is demonstrated, not claimed.
 - `acceptance` — populated when a risk is accepted (see Structured acceptance); otherwise `null`.
 - `priority` — optional manual board-ranking (NISTIR 8286r1 Table 1, `Priority`). It is *not* used by scoring —
   banding is always derived from exposure — so it never affects the heat map or over-appetite flags;
