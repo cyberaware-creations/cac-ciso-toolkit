@@ -405,6 +405,7 @@ prove only that the fixture still works.
 | `decisions-render.sh` | `nist-csf` | a decision rendered as a raw Python dict repr instead of its text | render |
 | `decisions-render.sh` | `risk-register` | a decision rendered as a raw Python dict repr instead of its text | render |
 | `dora-conditional.sh` | `incident-materiality` | a DORA window date disagreeing with the clock it is conditional on, and — the harder half — a date emitted when nothing anchors one, including as an empty string in an otherwise well-formed sentence | conditional-present · no-date-without-anchor |
+| `intake-proposes-only.sh` | `policy-register` | an intake that changes anything before a person assesses — a state, a count, a rendered page or a record — and one that puts a document in force without a human | proposes-only · draft-not-in-force |
 | `analysis-method.sh` | `risk-register` | a method record claiming partial conformance without stating the deviation; an escalation raised on a prerequisite this toolkit cannot observe; and — in the other direction — an EXTERNAL method being told anything at all about its conformance, at write or at read | partial · external · external-write |
 | `event-statement.sh` | `risk-register` | a scored risk with no event statement — a topic given a likelihood and an impact | add · rescore |
 | `decisions-render.sh` | `vendor-register` | a decision rendered as a raw Python dict repr instead of its text | render |

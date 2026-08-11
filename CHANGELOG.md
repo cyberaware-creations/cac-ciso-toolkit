@@ -21,6 +21,86 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.104.0 — 2026-08-11
+
+**A CISO with a shelf of policies now has somewhere to put them** — and the shape of the answer
+is forced by a property of the product that is worth stating before the feature.
+
+### The engine cannot open a document, and it must not learn how
+
+**The agent extracts. The engine ingests structured JSON. The human declares.**
+
+Verified repo-wide before designing anything: no `pypdf`, `PyPDF2`, `pdfplumber`, `pdfminer`,
+`fitz`, `python-docx`, no OCR, no `pandoc`, no `pdftotext`, no `subprocess` in any shipped
+script, no `urllib`/`requests`/`http.client` in any engine. Every engine is **stdlib-only and
+offline**, and that is a stated property, not an accident.
+
+So extraction happens outside — an agent, or the `pdf`/`docx` skills — and the result arrives as
+a `CAC-PI-1` payload. **A parser in the engine would break the offline guarantee for every user
+to save one step for the user who happened to have a PDF.** The docs say so, so the next person
+does not try.
+
+And we ingest **assertions about a document with a citation into it, never its text** — the
+stated non-goal holds.
+
+### Ingesting a hundred documents changes nothing
+
+`ingest` writes **proposals**. No policy record, no requirement state, no count, no rendered
+page. The acceptance test is borrowed verbatim from `vendor-register`: *"the reading layer
+changed NOTHING… If proposing ever moves the count, something is wrong."*
+
+`assess --by NAME` is the **only** act that creates a record — *derivation and reading both
+propose; only a person confirms* — and `--reject` requires `--why`, because a rejection with no
+reason is indistinguishable from an oversight. Rejected proposals are **retained** and excluded
+from the working view. Confirming goes through `add_policy`, so it faces every refusal a
+hand-entered record faces: **an intake is not a side door.**
+
+Every proposal carries a **citation**, and so does every proposed mapping — the document-level
+one says which document, the mapping-level one says where in it the aim is evidenced. A filename
+is not a citation, and the refusal says so.
+
+### ⚠️ T5, decided: intake creates DRAFTS, and only drafts
+
+A batch creating a v3.0 record without superseding v2.0 would put **two approved documents in
+force for the same requirements** with nothing recording which governs — the exact state
+`approve` already refuses. Intake cannot reach it: a confirmed proposal becomes a **draft**, and
+a draft is not in force. Approving and superseding stay human acts, in that order.
+
+The property is **structural rather than checked** — there is no rule to get wrong, because the
+state that would breach it is never written. The registered `draft-not-in-force` mutation
+confirms straight to `approved` precisely to show the structure is load-bearing.
+
+Six fields are **refused by name** in a payload — `state`, `approval`, `approvedBy`,
+`supersededOn`, `supersededBy`, `supersedes` — each naming the act that does it instead.
+
+### The boundary the source document actively pushes against
+
+Policy documents say *"this policy addresses access control"* in those words, and
+`REQUIREMENT_STATES` has no state meaning covered, met, satisfied or compliant. The fixture
+payload carries that exact language on purpose, and the guard asserts no coverage vocabulary
+reaches the read model. **`no-coverage-claim.sh` and `no-coverage-percentage.sh` were green at
+every step.**
+
+### The guard, and the field that would have made it useless
+
+`intake-proposes-only.sh` — 18 checks, two halves, **43 guards / 84 halves / 124 proved.**
+
+⚠️ **One field is excluded from the byte-comparison, and it had to be found by running it.**
+`analyze` stamps `generatedAt` with wall-clock time, so a naive compare of two runs differs
+*always*, for a reason that has nothing to do with the register. Written that way, the most
+valuable check in the item would have been red on day one, "fixed" by loosening it, and would
+have stopped guarding anything. Excluded **by name**; everything else compared exactly.
+
+Two GP-1.9 corrections on the way: a `bad`-branch label that did not match its `ok`-branch name,
+and a check reading `policies[0]` — only the confirmed record while nothing else creates
+records, which is exactly what the *other* half's mutation breaks. It now selects the record by
+its provenance rather than by position.
+
+### Noted, not settled
+
+`policy-register` still does not adopt CAC-AP-1. Intake does not settle it and adds no
+`--context` flag.
+
 ## v0.103.0 — 2026-08-11
 
 **A CISO with thirty risks in a spreadsheet no longer has to retype them.** `import-csv` is the
