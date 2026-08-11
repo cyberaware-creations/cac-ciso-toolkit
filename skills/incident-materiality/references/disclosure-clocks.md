@@ -295,11 +295,34 @@ The conditional clause is **load-bearing and lives in the emitted text**, not on
 `evals/scope-withheld.sh` asserts the date is the one the declared path would compute **to the
 day**, and separately that no escalation ever states the window closes without its clause.
 
-**It is `sec-1.05` only.** DORA windows run in clock hours from anchors that may themselves be
-missing, and whether they should carry the same conditional is an open question rather than an
-oversight — filed, not guessed. A declared-false profile gets no conditional either: it already
-has a real clock and a reported conflict, and a conditional beside them would put two dates on
-one incident.
+**DORA carries it too, and NOT as a copy** (BL-237, decided). `sec-1.05` works because its
+anchor — the materiality determination — exists by the time the question arises. DORA stacks
+**two** unknowns: scope may be undeclared *and* the anchor absent, because its windows run in
+clock hours from `awareAt` or `classifiedAt` and neither may ever have been recorded. So there
+are two paths:
+
+- **Anchor present.** Identical in shape to `sec-1.05`: *"If `dora` applies, the initial report
+  window closes at DATETIME — a conditional, not a finding that it applies."*
+- **Anchor absent.** **No date. No placeholder. No empty string dressed as a value.** The
+  message names the missing anchor instead: *"neither `awareAt` nor `classifiedAt` is recorded,
+  and DORA counts clock hours from one of them. No date is asserted and none is invented."*
+
+The second message is the **more useful of the two.** It names something the reader can go and
+supply, and it is true whether or not DORA applies — so it needs no scope hypothesis at all.
+*"If DORA applies, the window closes ???"* would be worse than silence: it looks like a
+computation and is none.
+
+⚠️ **That second path is the one a careless implementation gets wrong, and it fails in the
+direction that looks like success.** An empty-or-`None` date still renders — the sentence is
+there, the field is there, it simply has nothing in it — so a check written as *"a date is
+present"* goes green on a lie. `evals/dora-conditional.sh` therefore asserts the **absence** of
+the conditional clause and the absence of anything datetime-shaped, and its registered mutation
+emits an empty-but-present date to prove those checks bite.
+
+**A declared-false profile gets no conditional** on either regime: it already has a real clock
+and a reported conflict, and a conditional beside them would put two dates on one incident.
+
+**NYDFS is not a regime in this engine** and does not become one by implication.
 
 ## Not legal advice
 
