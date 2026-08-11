@@ -74,11 +74,31 @@ WINDOWS = {"sec-1.05": ("8-K",), "dora": ("initial", "intermediate", "final")}
 WINDOW_PRECISION = {"sec-1.05:8-K": "date", "dora:initial": "ts",
                     "dora:intermediate": "ts", "dora:final": "ts"}
 
-SEC_BUSINESS_DAYS = 4
-DORA_INITIAL_FROM_CLASSIFIED_H = 4
-DORA_INITIAL_FROM_AWARE_H = 24
-DORA_INTERMEDIATE_FROM_INITIAL_H = 72
-DORA_FINAL_FROM_INTERMEDIATE_MONTHS = 1
+# THE FIVE LAW-DERIVED CONSTANTS, each carrying the instrument it comes from (BL-46). These
+# five numbers ARE the filing deadlines this engine computes; until v0.107.0 they sat here as
+# bare integers with no citation on any line, which made every deadline downstream an assertion
+# rather than a derivation a reader could check.
+#
+# ⚠️ THE SEC LOCUS IS THE FORM, NOT THE REGULATION. Not 17 CFR 229.105 (Risk Factors), not
+# 229.106 (the annual Item 106 disclosure), and not the body of Item 1.05 — it is **Form 8-K,
+# General Instruction B.1** (the Form is prescribed at 17 CFR 249.308): "A report pursuant to
+# Item 1.05 is to be filed within four business days after the registrant determines that it
+# has experienced a material cybersecurity incident."
+#
+# ⭐ AND THE SAME INSTRUCTION VALIDATES THIS ENGINE'S ARITHMETIC. It continues: "If the event
+# occurs on a Saturday, Sunday or holiday… the four business day period shall begin to run on,
+# and include, the first business day thereafter." That is what makes `business_days_after`
+# treating the anchor as day zero CORRECT rather than coincidental — the worked table in
+# references/disclosure-clocks.md is now citable instead of asserted.
+SEC_BUSINESS_DAYS = 4                    # Form 8-K, General Instruction B.1
+
+# All four DORA windows are Article 5 of Commission Delegated Regulation (EU) 2025/301,
+# confirmed verbatim against the OJ text.
+DORA_INITIAL_FROM_CLASSIFIED_H = 4       # RTS 2025/301 Art. 5(1)(a)
+DORA_INITIAL_FROM_AWARE_H = 24           # RTS 2025/301 Art. 5(1)(a), and 5(2) for late
+                                         #   classification — see `dora_clocks`
+DORA_INTERMEDIATE_FROM_INITIAL_H = 72    # RTS 2025/301 Art. 5(1)(b)
+DORA_FINAL_FROM_INTERMEDIATE_MONTHS = 1  # RTS 2025/301 Art. 5(1)(c)
 
 BAND_NO_DETERMINATION = "no-determination"
 BAND_ASSESSING = "assessing"

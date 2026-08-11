@@ -68,7 +68,8 @@
       "gated": true,
       "reviewIntervalDays": 365,
       "usedFor": [
-        "references/regulatory-receipts.md"
+        "references/regulatory-receipts.md",
+        "references/metric-archetypes.md"
       ]
     },
     {
@@ -97,7 +98,8 @@
       "gated": true,
       "reviewIntervalDays": 180,
       "usedFor": [
-        "references/regulatory-receipts.md"
+        "references/regulatory-receipts.md",
+        "references/metric-archetypes.md"
       ],
       "intervalBecause": "s 500.19 read in full against the DFS official adoption text on 2026-08-09 (rf_fs_2amend23NYCRR500_text_20231101.pdf), cross-read against the DFS consolidated copy, which agrees word for word and carries its own notice that it is not an official version. The limb-to-section mapping is what three shipped receipts now depend on, and s 500.19(a) already lost s 500.12 once by amendment - so a change here silently makes a customer-facing receipt wrong rather than merely stale."
     },
@@ -220,6 +222,21 @@
       "reviewIntervalDays": 365,
       "usedFor": [
         "references/regulatory-receipts.md"
+      ]
+    },
+    {
+      "id": "ic3-annual-report",
+      "label": "FBI IC3 Internet Crime Report",
+      "publisher": "Federal Bureau of Investigation, Internet Crime Complaint Center",
+      "instrument": "2025 Internet Crime Report — BEC $3,046,598,558 across 24,768 complaints, second-costliest category behind investment fraud; 2025 totals 1,008,597 complaints and $20.877bn",
+      "version": "2025 edition. WHAT THIS SOURCE COUNTS, because the number is quoted to boards and the limit travels with it: IC3 reports REPORTED losses from complaints filed with IC3. It is not total economic loss and not an estimate of one - under-reporting is unmeasured, so the figure is a floor of a subset. ALSO: 'wire fraud' is NOT an IC3 category and BEC is. An earlier draft of the sentence this supports said 'BEC and wire fraud'; the report supports only the first, and wire fraud is a federal criminal offence (18 U.S.C. s 1343) rather than a line in this publication. The sentence is pinned to BEC and carries the year.",
+      "url": "https://www.ic3.gov/AnnualReport/Reports/2025_IC3Report.pdf",
+      "checkedOn": "2026-08-11",
+      "checkedBy": "claude-code",
+      "gated": true,
+      "reviewIntervalDays": 365,
+      "usedFor": [
+        "references/metric-archetypes.md"
       ]
     }
   ]

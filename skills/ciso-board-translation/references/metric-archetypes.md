@@ -48,9 +48,25 @@ on *who* clicked and whether they reported it.
 **The board ask.** Fund phishing-resistant MFA on high-value groups (finance,
 admins), or accept that a single click can land on a payment system.
 
-**Receipt angle.** BEC and wire fraud rank among the costliest cybercrime
-categories; human error here is predictable, therefore foreseeable, therefore
-governable — which is what makes it a board decision rather than an IT footnote.
+**Receipt angle.** **Business email compromise** is among the costliest cybercrime
+categories the FBI records: **$3,046,598,558 in reported losses across 24,768
+complaints in 2025**, second only to investment fraud (FBI IC3, *2025 Internet
+Crime Report*, against 2025 totals of 1,008,597 complaints and $20.877bn). Human
+error here is predictable, therefore foreseeable, therefore governable — which is
+what makes it a board decision rather than an IT footnote.
+
+> ⚠️ **Two limits, and both belong in the room with the number.**
+>
+> **IC3 counts REPORTED losses from complaints filed with IC3.** It is not total
+> economic loss and it is not an estimate of one — it is the sum of what people
+> who chose to report told the FBI. Under-reporting is unmeasured, so the figure
+> is a floor of a subset, not a measurement of the problem.
+>
+> **"Wire fraud" is NOT an IC3 category. BEC is.** An earlier version of this
+> sentence said *"BEC and wire fraud"*, and the citation supports only the first
+> — wire fraud is a federal criminal offence (18 U.S.C. § 1343), not a line in
+> this report. **Pin the sentence to BEC and give the year**, or half of it is
+> uncited. A board member who checks will find the BEC row and not the other.
 
 **Grade-A one-liner.** "Click rate is 4%, down from 6% — improving — but that's
 ~200 people, and finance approves payments without phishing-resistant MFA; fund
@@ -91,9 +107,17 @@ becomes your notification obligation and your liability.
 **The board ask.** Fund real oversight of the critical few vendors, or accept
 the concentration risk on the named vendor(s).
 
-**Receipt angle.** NYDFS third-party service-provider policy and DORA's ICT
-third-party pillar both target this; breach-notification liability runs to the
-data owner, not the vendor.
+**Receipt angle.** **NYDFS 23 NYCRR § 500.11**, *"Third-party service provider
+security policy"*, and **DORA (Reg. (EU) 2022/2554) Chapter V, Arts. 28–31** —
+28 general principles, 29 the strategy, 30 contractual arrangements, 31 key
+contractual provisions — both target this; breach-notification liability runs to
+the data owner, not the vendor.
+
+> ⚠️ **Cite Arts. 34+ only if the point is critical-provider designation.** That
+> is the oversight framework for providers the ESAs have designated critical, and
+> it is a **different claim** about a different population. Reaching for it here
+> would overstate what a third-party assessment-coverage metric measures, which is
+> the organisation's own diligence over its own arrangements.
 
 **Grade-A one-liner.** "We've assessed 90% of vendors — but that's self-attested
 paperwork, and one vendor holds the data whose breach would force *our*

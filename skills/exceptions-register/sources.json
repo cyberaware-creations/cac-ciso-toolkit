@@ -34,25 +34,26 @@
     },
     {
       "id": "iso-27001",
-      "label": "ISO/IEC 27001:2022",
+      "label": "ISO/IEC 27001:2022 + Amd 1:2024",
       "publisher": "ISO/IEC",
-      "instrument": "ISO/IEC 27001:2022, Cl. 6.1.3 / 8.3",
-      "version": "2022 edition",
-      "checkedOn": "2026-08-08",
+      "instrument": "ISO/IEC 27001:2022, Cl. 6.1.3 / 8.3; and ISO/IEC 27001:2022/Amd 1:2024, 'Information security, cybersecurity and privacy protection - Information security management systems - Requirements - Amendment 1: Climate action changes', published 23 February 2024, stage 60.60",
+      "version": "2022 edition plus Amendment 1:2024. THE AMENDMENT DESIGNATION, TITLE AND DATE ARE PRIMARY-VERIFIED from ISO's own catalogue entry (iso.org/standard/88435.html), 2026-08-11. WHAT THE AMENDMENT CHANGES IS NOT: ISO's text is licensed, this project holds no licence, and any clause-level description of it would be secondary-sourced from certification bodies. None is given here rather than given unmarked. ⚠️ ADDING THE DESIGNATION DOES NOT MAKE THIS ROW'S ASSERTION ANY MORE CHECKED: the row asserts what Cl. 6.1.3 and 8.3 REQUIRE, and a climate-scope amendment touches neither. checkedBy stays 'unverified' for exactly the reason it always did. Cited WITH the marker because a citation carrying a visible unverified flag is more defensible than one that quietly omits an amendment it knows exists (BL-162, the maintainer's decision 2026-08-11).",
+      "checkedOn": "2026-08-11",
       "checkedBy": "unverified",
       "gated": false,
       "usedFor": [
         "references/exceptions.md"
       ],
-      "whyUnverified": "This row asserts what ISO/IEC 27001:2022 Cl. 6.1.3 and 8.3 REQUIRE — a claim about the standard's text, not just its numbering. ISO text is paywalled, iso.org's Online Browsing Platform returns HTTP 403 here, and the maintainer confirmed on 2026-08-08 that this project holds no ISO licence. This is permanent, not pending: do not re-attempt from the web. Two ways to close it — read a licensed copy, or narrow the claim in references/exceptions.md to the clause numbering alone, which the nist-csf crosswalk already verifies via NIST's own reference export."
+      "whyUnverified": "This row asserts what ISO/IEC 27001:2022 Cl. 6.1.3 and 8.3 REQUIRE - a claim about the standard's text, not just its numbering. ISO text is paywalled, iso.org's Online Browsing Platform returns HTTP 403 here, and the maintainer confirmed on 2026-08-08 that this project holds no ISO licence, so the requirement wording here is not checked against the standard. THERE IS A ROUTE OUT AND IT IS YOURS, NOT OURS: if your organisation holds a licence, you can supply your copy and verify this citation in your own deployment. ⚠️ 'Do not re-attempt from the web' still stands and governs CAC's attempts - it is what stops this being re-litigated every grooming pass, and it is not a statement about what a licensed reader can do. Two ways to close it: read a licensed copy, or narrow the claim in references/exceptions.md to the clause numbering alone, which the nist-csf crosswalk already verifies via NIST's own reference export.",
+      "url": "https://www.iso.org/standard/88435.html"
     },
     {
       "id": "sp-800-63b",
       "label": "NIST SP 800-63B-4",
       "publisher": "NIST",
-      "instrument": "NIST SP 800-63B-4, Digital Identity Guidelines: Authentication and Authenticator Management",
-      "version": "Final, 31 July 2025. THE PREDECESSOR EDITION WAS WITHDRAWN 2025-08-01 and is watched in tools/do-not-cite.json as sp-800-63b-pre-r4. The two citations below still name the bare volume with the withdrawal stated beside them and are NOT yet repointed: Revision 4 moved the volume boundaries, so which volume the password guidance now lives in has to be read before it is named (BL-224 T3)",
-      "checkedOn": "2026-08-09",
+      "instrument": "NIST SP 800-63B-4, Digital Identity Guidelines: Authentication and Authenticator Management, s 3.1.1.2 (password verifier requirements)",
+      "version": "Final, 31 July 2025. The predecessor edition was withdrawn 2025-08-01 and is watched in tools/do-not-cite.json as sp-800-63b-pre-r4. REPOINTED 2026-08-11 (BL-224), and the 'not yet repointed / boundaries moved' caveat is RETIRED because the check it was waiting for has been done: this tree makes exactly ONE distinct claim from this family - that the guidance moved off user-chosen complexity in favour of length, screening against breached-password corpora, and no forced rotation - and all three limbs stayed in 63B. They are at s 3.1.1.2, which also raises the single-factor minimum to 15 characters (8 with a second factor). CITED AT SECTION LEVEL, deliberately: Rev 4 renumbered 63B wholly, so a bare-volume cite goes stale silently while a section cite makes the next revision's boundary move visible - which is this item's whole lesson. ⚠️ RECORDED FOR NEXT TIME, NOT ACTED ON: a naive 63B -> 63B-4 swap misfires on binding at enrolment (now 63A-4), subscriber accounts (63A-4; RP subscriber accounts 63C-4), assurance-level selection (base 63-4 s 3), usability (renamed 'Customer Experience Considerations'), ANY section number (63B was wholly renumbered), and the term 'memorized secret' (retired for 'password'). NONE of those is cited in this tree today, which is why the repoint was safe here and would not be elsewhere.",
+      "checkedOn": "2026-08-11",
       "checkedBy": "claude-code",
       "gated": true,
       "reviewIntervalDays": 365,
@@ -72,6 +73,22 @@
       "gated": true,
       "reviewIntervalDays": 180,
       "intervalBecause": "Half the house default, matching ciso-board-translation's row on the same case for the same reason and deliberately not drifting from it. Brewer is LIVE LITIGATION - interlocutory appeal refused, so the case continues below - and the sweep that produced this row measured the rate directly: LACERS v. Sanford distinguished In re TransUnion roughly three months after the previous check. A 365-day interval would let a development on a case quoted in a caveat sold to CISOs sit unnoticed for up to a year. 180 days is two sweeps a year, which matches the observed movement, and it is NOT a substitute for the paid citator pass at BL-232.",
+      "usedFor": [
+        "references/exceptions.md"
+      ]
+    },
+    {
+      "id": "dgcl-220",
+      "label": "DGCL § 220, as rewritten by SB 21 (2025)",
+      "publisher": "State of Delaware",
+      "instrument": "8 Del. C. § 220 (books and records), as amended by Senate Bill 21, 153rd General Assembly, signed 25 March 2025 — nine enumerated categories at § 220(a)(1)a.–i., including e. board and committee minutes and f. materials provided to the board; the three-limb cumulative test at § 220(g)",
+      "version": "Read 2026-08-11 from Delaware's official code site, delcode.delaware.gov. ⚠️ THIS ROW IS A STATUTE AND CITES NO CASE FOR IT, deliberately. An earlier draft of the passage it supports said Rutledge v. Dropbox (Del. No. 248, 2025, 27 Feb. 2026) UPHELD the s 220 amendments. It did not: the Court upheld SB 21 s 1 (DGCL s 144) and s 3 (retroactivity), and said in terms that 'the amendments to s 220 ... are not implicated by the questions the Court of Chancery certified to us'. The case name, number and date were all correct and only the holding was wrong, which is the hardest kind of citation error to catch because everything checkable checks out. The statute is in force on its own terms and needs no case. ALSO CORRECTED: s 220(g) is a THREE-LIMB CUMULATIVE test - (g)(1) the demand meets s 220(b), (g)(2) a showing of compelling need, (g)(3) a demonstration by clear and convincing evidence that the specific records are necessary and essential - and the clear-and-convincing standard attaches to 'necessary and essential', NOT to 'compelling need'. The page stated one limb. NO COMMERCIAL CITATOR HAS BEEN RUN on anything in this skill; see BL-232.",
+      "url": "https://delcode.delaware.gov/title8/c001/sc07/index.html",
+      "checkedOn": "2026-08-11",
+      "checkedBy": "claude-code",
+      "gated": true,
+      "reviewIntervalDays": 180,
+      "intervalBecause": "Half the house default, matching the delaware-caremark-cases row beside it rather than drifting from it. SB 21 rewrote this section in March 2025 and the litigation around SB 21 is live - Rutledge was decided 27 Feb. 2026, four months before this reading. A section rewritten within the last eighteen months, quoted in a caveat sold to CISOs, is exactly the row where a year-long interval would let an amendment sit unnoticed.",
       "usedFor": [
         "references/exceptions.md"
       ]
