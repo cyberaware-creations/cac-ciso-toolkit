@@ -72,6 +72,20 @@ questions.
 | Priority | `gap × priorityWeight × functionWeight` | `gap ≥ 3` critical · `== 2` high · else `GV\|PR` medium · else low |
 | Unassessed | excluded from the denominator; reported as a completeness count | excluded from the mean; counted against coverage |
 
+> **The Targets row is two models, not a contradiction — and migration reconciles them.**
+> `csfa_compat.py convert` **expands** the tool's Function-level target across every Subcategory
+> in that Function, so a converted Profile carries a per-Subcategory target like any other. On
+> `examples/acme-manufacturing.csfa`, whose targets are `{default: 3, byFunction: {GV: 4, PR: 4}}`,
+> that produces **104 rated Subcategories each holding their own `target`** — 4 across GV and PR,
+> 3 elsewhere — which is why `csfa_compat.py`'s own docstring says migration yields
+> *"per-Subcategory targets"* while this row says the tool's targets are per-Function. **Both are
+> true and they describe different sides of the conversion.**
+>
+> It is a gain in resolution rather than a reinterpretation: every Subcategory simply *starts* at
+> its Function's target and can then be tuned individually. Spelled out here because the row was
+> read as a doc-versus-code divergence (BL-94 C2) when it is not one — reading it without its
+> column headers makes it look like one claim about one thing.
+
 Two consequences of the native model worth knowing:
 
 - **Over-achievement earns no credit.** `min(current, target)` caps a Subcategory's contribution at
