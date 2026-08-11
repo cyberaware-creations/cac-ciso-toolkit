@@ -21,6 +21,62 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.119.0 — 2026-08-11
+
+**BL-254 — CAC-HO-1, how a document reaches this repo. And the fix the rule was supposed to
+bless does not work, which is now the most useful thing in it.**
+
+### The rule as briefed would have enshrined something false
+
+BL-254 was scoped as *"a brief may not say a file is attached without naming the surface"* — write
+it down, two paragraphs, done. The brief named the surface: **Notion file attachments on the citing
+item**, with BL-90's three documents and BL-227's dossier uploaded byte-exact and waiting.
+
+**All four are unreadable from here.** `notion-download-attachment` requires the attachment to
+**belong to the requesting integration**; the uploads were made by one integration and Code reads
+with another, in the same workspace. Code can read the page, the file block and the filename — not
+the bytes. Four routes tried, all dead: the attachment UUID (404 × 4), the file **block** id
+(returns the title and *"this page is blank"*), the UUID as a page id (404), and the tool's own
+documented fallback of a signed URL from the containing page — which returns internal `file://`
+refs, not HTTPS.
+
+So **naming the surface is necessary and not sufficient.** It was named precisely this time and
+still failed. The standard therefore carries a **surface × direction table**, measured rather than
+assumed, and the honest conclusion: the route that works today for a Code-bound document is a human
+step — download from Notion in a browser and save under `~/Documents`, or commit to a branch.
+
+⚠️ **And pasting into a Notion page body is a working transport for *content* and a broken one for
+*provenance*** — Markdown rendering reflows tables and blockquotes, and byte-exactness is the entire
+value of these documents.
+
+### What else the standard carries
+
+**HO-1.2** — a research document that shipped code cites lives in **`docs/research/`** *before* the
+citation is written (BL-227 T2, Darren's decision). Notion carries a document across; the repo is
+where it lives. **It does not relocate BL-90's three**, whose `docs/superpowers/` split comes from
+how the plan cites them.
+
+**HO-1.3** — the limits, so nobody rediscovers them: the Cowork container cannot reach
+`api.notion.com`, so documents pass through the attachment API's inline `content` parameter, which
+**caps at 200 KiB**. ⛔ The **IR 8286A r1 PDF cannot cross**, which is why **BL-94 C1** and **BL-54
+T4's remaining scenarios** stay blocked and why neither may have its section numbers written.
+
+### ⚠️ It has no guard, and the standard says so in its own words
+
+Every other standard here is enforced by a script. This one cannot be: **a guard would have to know
+what a citation points at outside the repo, which is exactly the information that goes missing.**
+`check-sources.py` C4 already catches a `usedFor` path that left the tree — that is the closest
+enforcement available, and it cannot see a document named in prose in a plan's header.
+
+Stated in the file rather than left as an apparent oversight, and **no tooling was built** — a
+script automating a twice-weekly exchange is a maintenance burden bought to avoid reading two
+paragraphs.
+
+⛔ **BL-90 and BL-227 T1/T3 remain blocked** and **nothing was reconstructed** — third refusal, and
+the rule holds: a reconstructed research document is a fabricated citation.
+
+---
+
 ## v0.118.0 — 2026-08-11
 
 **BL-94 C2 — there is no doc-versus-code divergence. All three statements are true, and the
