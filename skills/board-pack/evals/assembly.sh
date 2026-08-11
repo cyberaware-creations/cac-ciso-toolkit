@@ -22,7 +22,7 @@ skill="$(cd "$here/.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=86
+EXPECTED_CHECKS=91
 checks=0
 fails=0
 ok()  { checks=$((checks + 1)); printf '  ok    %s\n' "$1"; }
@@ -156,6 +156,56 @@ else
   bad "a pack with more board asks than a sitting can take says so" \
       "no warning, and this specimen carries $(q 'len([d for d in p["decisions"] if d["altitude"]=="board"])')"
 fi
+
+# --- THE CURATED SPECIMEN (BL-123, decision D-10 option A) --------------------
+# This file is deliberately pathological -- fourteen board asks -- and the check above passes
+# ONLY because it is. That is why cutting it to five would have INVERTED a passing guard
+# rather than adjusting it, and why the answer was a second manifest rather than an edit.
+#
+# `pack.curated.manifest.json` is the EXEMPLAR: same seven producers, five board asks, and it
+# is what SKILL.md walks a reader through. Asserted here so the pair cannot drift apart -- a
+# curated specimen nobody checks would quietly grow back, which is exactly how THIS one got
+# from ten board asks to fourteen with nobody steering.
+CUR="$skill/examples/pack.curated.manifest.json"
+CJ="$work/curated.json"
+cq() { "$PY" -c 'import json,sys
+p = json.load(open(sys.argv[1]))
+print(eval(sys.argv[2]))' "$CJ" "$1"; }
+if "$PY" "$A" assemble "$CUR" --out "$CJ" >/dev/null 2>"$work/c.err"; then
+  ok "the curated specimen assembles"
+else
+  bad "the curated specimen assembles" "$(tail -2 "$work/c.err")"
+fi
+# Derived from the module, not typed here: if BOARD_ASK_SITTING moves this moves with it, and
+# the specimen has to be re-curated rather than the check quietly re-baselined.
+sitting="$("$PY" -c 'import importlib.util,sys
+spec = importlib.util.spec_from_file_location("a", sys.argv[1])
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+print(m.BOARD_ASK_SITTING)' "$A")"
+cur_board="$(cq 'len([d for d in p["decisions"] if d["altitude"]=="board"])')"
+if [ "${cur_board:-99}" -le "${sitting:-5}" ]; then
+  ok "...and carries $cur_board board asks, inside the $sitting a sitting can take"
+else
+  bad "the curated specimen is inside the sitting budget" \
+      "it carries $cur_board board asks against a budget of $sitting"
+fi
+# The OTHER direction of the warning, and the reason this pair exists at all. A warning that
+# fires on every pack is a warning nobody reads.
+if cq 'any("pitched at the board" in w for w in p["provenance"]["warnings"])' | grep -q True; then
+  bad "the curated specimen is SILENT on the over-long warning" \
+      "it fired, so the exemplar is telling its reader its own agenda is too long"
+else
+  ok "...so the over-long warning is silent on it, while still firing on the fixture above"
+fi
+# Curated is not the same as thin: it must still demonstrate the whole product, or the
+# exemplar teaches a reader that a good pack is a short one.
+eq "...and it still carries all seven producers, so curation cut ASKS and not SECTIONS" "7" \
+   "$(cq 'len(p["sections"])')"
+# Curation RESOLVED the duplicate rather than deleting the record: A-002 appears exactly once.
+# Losing it entirely would be a worse specimen than carrying it twice -- the item is real and
+# its acceptance lapsed.
+eq "...and the A-002 item survives curation exactly once, resolved to one section" "1" \
+   "$(cq 'len([d for d in p["decisions"] if "A-002" in d["text"]])')"
 # The other direction. A warning that fires on every pack is a warning nobody reads, so a
 # curated agenda must be silent — which is also the check that would catch a threshold
 # accidentally set to zero.

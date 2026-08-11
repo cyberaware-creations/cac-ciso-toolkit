@@ -21,6 +21,82 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.114.0 — 2026-08-11
+
+**BL-123 — the board-pack specimen now models the five-ask convention, because two specimens
+ship instead of one file trying to be two things.**
+
+⚖️ **Decision D-10, answered by the maintainer: option A, two manifests.**
+
+### Why the obvious fix was the wrong one
+
+BL-123 asked for the shipped specimen to be cut from 14 board asks to 5. Attempting it found
+that **`evals/assembly.sh:153` requires the over-long warning to FIRE on that specimen** — the
+check *"a pack asking the board for more decisions than a sitting can take says so"* passes
+**only because the specimen is over-long**. Cutting it would not have adjusted a guard; it would
+have **inverted** one.
+
+The specimen had two jobs and they conflict. `assembly.sh:92-97` commits to the second in terms:
+*"A demo manifest is not only a demo: it is what the tests exercise, and it has to carry the
+whole product."* Seven suites build from it, plus `risk-register/responsive.sh`, and SKILL.md
+walked readers through it three times.
+
+### What ships now
+
+**`pack.curated.manifest.json` — the exemplar.** Seven producers, **five board asks**, and the
+manifest SKILL.md now walks through.
+
+**`pack.manifest.json` — the test fixture**, unchanged and now *labelled* as deliberately
+pathological: fourteen board asks, sections dating differently, two decisions naming the same
+record. Every warning the assembler emits has something here to fire on. **Zero churn in the
+seven suites that build from it.**
+
+### The curation rule, and the option that was refused
+
+> *A board ask stays only where a **date** or a **breached threshold** forces it this quarter.
+> Everything else the CISO speaks to.*
+
+⛔ **Asks were DROPPED, never re-pitched from `board` to `management` to get under the number.**
+`assemble_pack.py:485` names that failure — *"a board decision quietly filed as a management
+action is a decision nobody took"* — and it was the cheap way to hit five. It was refused on the
+record in D-10 and again here.
+
+**The five:** the cross-cutting through-line ask · posture **PR.DS-01** (fund, or accept for two
+more quarters) · risk **R-007** (Critical residual *over appetite*) · exceptions **X-001**
+(November expiry) · incident **A-002** (due for re-confirmation in April, not re-confirmed, and
+the exposure has now occurred).
+
+**Two cuts worth naming.** Both vendor board asks went because **the through-line already asks
+the question they are instances of** — asking the parent question and both children is how an
+agenda reaches fourteen. And both AI asks went despite the model-swap question being genuinely
+novel board material: nothing dates it to this quarter. **A five-ask agenda means real items
+wait**, and the specimen should show that rather than pretend otherwise.
+
+**A-002 survives exactly once.** Curation *resolved* the duplicate rather than deleting the
+record — it stays in `incident`, which carries the sharper version, and leaves `exceptions`.
+Losing it entirely would have been a worse specimen than carrying it twice.
+
+### The pair is checked so it cannot drift apart
+
+Five new assertions, and the sitting budget is **read from `BOARD_ASK_SITTING`** rather than
+typed into the test — so if the module's number moves, the specimen has to be re-curated instead
+of the check being quietly re-baselined. The fixture still fires the warning; the exemplar is
+silent; it still carries all seven producers, so **curation cut asks and not sections**.
+
+⚠️ **This matters because the fixture drifted unwatched.** `assembly.sh:148` still records *ten*
+board asks from an external retest; it reached fourteen one producer at a time, with nobody
+steering. The curated specimen is now checked against the module, so the same thing cannot
+happen to it silently.
+
+⚠️ **The exemplar is a curated agenda, not a warning-free pack** — it still reports that its
+sections carry different `asOf` dates, because they do. Assembling from stores refreshed at
+different times is ordinary, and the pack saying so is the product working.
+
+**Checks:** `assembly.sh` 86 → **91 checks**, all passing. All seven board-pack suites plus
+`risk-register/responsive.sh` green. CAC-GP-1 unchanged at 44 guards / 86 halves / 126 proved.
+
+---
+
 ## v0.113.0 — 2026-08-11
 
 **The remaining 19 rows signed. Every source in the product now carries a named human — and the

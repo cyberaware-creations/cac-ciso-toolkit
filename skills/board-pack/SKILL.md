@@ -180,18 +180,36 @@ inventing a common scale.
 A=scripts/assemble_pack.py
 
 # 1. Check the manifest and every section against the contract.
-python3 $A validate examples/pack.manifest.json
+python3 $A validate examples/pack.curated.manifest.json
 
 # 2. Get the material ciso-board-translation needs for the through-line.
-python3 $A compose-brief examples/pack.manifest.json --out brief.json
+python3 $A compose-brief examples/pack.curated.manifest.json --out brief.json
 #    Hand brief.json to the ciso-board-translation skill.
 #    Save what it returns as the manifest's throughLine sidecar.
 
 # 3. Assemble, then render both deliverables.
-python3 $A assemble examples/pack.manifest.json --out pack.json
+python3 $A assemble examples/pack.curated.manifest.json --out pack.json
 (cd renderers && python3 render_pack.py --in ../pack.json \
      --html ../board-pack.html --pptx ../board-pack.pptx)
 ```
+
+> **Two specimens ship, and they are not interchangeable.**
+>
+> - **`pack.curated.manifest.json`** — the **exemplar**, used above. Seven producers, **five
+>   board asks**, against the five a sitting can take. The curation rule is stated in the file:
+>   *a board ask stays only where a date or a breached threshold forces it this quarter.*
+> - **`pack.manifest.json`** — the **test fixture**, and deliberately pathological: **fourteen**
+>   board asks, sections dating differently, two decisions naming the same record. Every warning
+>   the assembler emits has something here to fire on, which is why every suite builds from it.
+>
+> **A specimen cannot be both.** Asking one file to be an exemplar *and* the thing every suite
+> exercises is what left a shipped demo carrying fourteen board asks against this toolkit's own
+> five-ask convention (BL-123, decision D-10).
+>
+> ⚠️ **The exemplar is a curated agenda, not a warning-free pack.** It still reports that its
+> sections carry different `asOf` dates, because they do — assembling from stores refreshed at
+> different times is ordinary, and the pack saying so is the product working rather than a flaw
+> in the specimen.
 
 The HTML carries `@page` rules — print it to PDF from any browser and it paginates A4 with a
 break between sections. The `.pptx` opens as an editable deck.
