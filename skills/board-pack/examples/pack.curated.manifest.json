@@ -1,0 +1,46 @@
+{
+  "manifestVersion": 1,
+  "_comment": "THE EXEMPLARY SPECIMEN — what a good pack looks like, and the one the SKILL.md walkthrough uses. Its sibling `pack.manifest.json` is the TEST FIXTURE and is deliberately pathological: fourteen board asks, two sections dating differently, two decisions naming the same record. Both ship on purpose, because a specimen cannot be both an exemplar and a fixture and the repo previously asked one file to be both (BL-123, decision D-10 option A). ——— THIS PACK CARRIES FIVE BOARD ASKS, against the five a sitting can take (BOARD_ASK_SITTING in assemble_pack.py), so the over-long warning is SILENT here and fires on the fixture. ——— THE CURATION RULE, applied identically to every section: a board ask stays only where a DATE or a BREACHED THRESHOLD forces it this quarter; everything else the CISO speaks to. Asks were DROPPED, never re-pitched from board to management to get under the number — assemble_pack.py:485 names that failure ('a board decision quietly filed as a management action is a decision nobody took') and hitting five that way would have been the dishonest option. ——— THE FIVE: the cross-cutting through-line ask; posture PR.DS-01 (fund, or accept for two more quarters); risk R-007 (Critical residual OVER APPETITE); exceptions X-001 (November expiry); incident A-002 (due for re-confirmation in April, not re-confirmed, and the exposure has now occurred). ——— `posture` and the through-line point at the PRODUCERS' OWN files unchanged, because they already carried a single board ask and needed no curation. Only the six sections that were cut have a copy under `curated/`, and each copy changes exactly one field — `decisions` — so every section stays consistent with the store it was rendered from.",
+  "client": "Northwind Manufacturing (fictional)",
+  "period": "Q3 2026 — SPECIMEN, not a real pack",
+  "asOf": "2026-07-31",
+  "audience": "board",
+  "throughLine": "pack.board.json",
+  "sections": [
+    {
+      "section": "posture",
+      "store": "../../nist-csf/examples/example-profile.csfp",
+      "translations": "../../nist-csf/references/example-translations.json"
+    },
+    {
+      "section": "risk",
+      "store": "../../risk-register/examples/example-register-v2.rr",
+      "translations": "curated/risk-translations.json"
+    },
+    {
+      "section": "metrics",
+      "store": "../../metrics-register/examples/example-metrics.mtr",
+      "translations": "curated/metrics-translations.json"
+    },
+    {
+      "section": "exceptions",
+      "store": "../../exceptions-register/examples/example.exc",
+      "translations": "curated/exceptions-translations.json"
+    },
+    {
+      "section": "incident",
+      "store": "../../incident-materiality/examples/example-incident.inc",
+      "translations": "curated/incident-translations.json"
+    },
+    {
+      "section": "vendor",
+      "store": "../../vendor-register/examples/example-vendors.vnd",
+      "translations": "curated/vendor-translations.json"
+    },
+    {
+      "section": "ai",
+      "store": "../../ai-register/examples/example-ai.air",
+      "translations": "curated/ai-translations.json"
+    }
+  ]
+}

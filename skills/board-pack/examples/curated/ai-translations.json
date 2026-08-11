@@ -1,0 +1,24 @@
+{
+  "section": "ai",
+  "contractVersion": 1,
+  "asOf": "2026-08-07",
+  "executiveSummary": "Five AI deployments run across four systems, and the two facts worth the board's time are both about change rather than about models. Contoso re-based the assistant that screens job applicants onto a different foundation model in June and left the product version number unchanged; every answer in our April assessment was about a different model, and nothing except this register noticed. Separately, a writing tool nobody approved is drafting customer-facing proposals — found in a CASB review in May, in this register the same day, and still in use. Neither is a failure of a control. Both are the same gap: things change under us faster than the cycle that looks at them.",
+  "deployments": {
+    "D-001": "Screens job applicants and produces the decision, on regulated personal data. It is the most assessed thing here — a red-team report, a signed no-training commitment, controls recorded against integrity and privacy — and the assessment was made against a base model the provider has since replaced. What we know about it is real and is now a quarter out of date.",
+    "D-002": "Drafts marketing copy on the same assistant. A person edits everything before it leaves, so it is the one deployment here where the low level is the whole story.",
+    "D-003": "Scores churn for the renewals desk, who work the list every morning. It has not been assessed since June last year, which is past the annual cadence for its level.",
+    "D-004": "Auto-remediates low-severity tickets without a person in the loop. It was assessed in March against two connected systems; it reaches three now, and the third is the change queue. What a deployment can reach is what bounds the damage, so it was assessed as a smaller thing than the one running today.",
+    "D-005": "Drafts customer-facing proposals on a tool nobody sanctioned, found in a CASB egress review in May. Nobody has declared what it supports, so its criticality is untraced rather than low — we cannot yet say what would be affected if it were wrong, and it is writing to customers."
+  },
+  "decisions": [
+    {
+      "text": "Have the owner of the shadow writing deployment declare what it supports, so the next review can place it rather than reporting it as untraced.",
+      "altitude": "management"
+    },
+    {
+      "text": "Re-assess the auto-remediation deployment against the three systems it now reaches, rather than the two it was assessed against.",
+      "altitude": "management"
+    }
+  ],
+  "_comment": "CURATED SPECIMEN (BL-123, decision D-10 option A). Copied from the producer's own example translations with ONE field changed: `decisions`. Everything else is the producer's, so the section stays consistent with the store it was rendered from. THE CURATION RULE, applied identically to every section: a board ask stays only where a DATE or a BREACHED THRESHOLD forces it this quarter. Everything else the CISO speaks to. Asks were DROPPED, never re-pitched from board to management to get under the number — assemble_pack.py:485 names that failure and it would be the dishonest way to hit five. ——— THIS SECTION: Both AI board asks dropped, and this is the cut that shows what the rule costs: the model-swap question is genuinely novel board material. Nothing dates it to this quarter, so it goes, and the CISO raises it live. A five-ask agenda means real items wait."
+}

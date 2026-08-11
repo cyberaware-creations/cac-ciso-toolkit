@@ -1,5 +1,6 @@
 {
   "manifestVersion": 1,
+  "_comment": "THE TEST FIXTURE, and deliberately pathological. Every board-pack suite plus risk-register/responsive.sh builds from this file, so it has to carry something for every warning the assembler emits: FOURTEEN board asks against the five a sitting can take, sections dating differently, and two decisions naming the same record (A-002). ⚠️ DO NOT 'FIX' THOSE. assembly.sh asserts the over-long warning FIRES here; curating this file down would invert a passing guard rather than adjust it. ——— FOR AN EXAMPLE OF WHAT A GOOD PACK LOOKS LIKE, SEE `pack.curated.manifest.json` — the exemplar, seven producers and five board asks, and the one SKILL.md walks a reader through. A specimen cannot be both an exemplar and a fixture; this repo asked one file to be both and shipped a demo with fourteen board asks (BL-123, decision D-10 option A). ——— IT ALSO DRIFTS UPWARD IF NOBODY WATCHES: assembly.sh:148 still records TEN board asks from an external retest, and it reached fourteen one producer at a time. The curated specimen is checked against BOARD_ASK_SITTING so the same thing cannot happen to it silently.",
   "client": "Northwind Manufacturing (fictional)",
   "period": "Q3 2026 — SPECIMEN, not a real pack",
   "asOf": "2026-07-31",
