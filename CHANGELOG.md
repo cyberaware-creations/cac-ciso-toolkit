@@ -21,6 +21,71 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.102.0 — 2026-08-10
+
+**Decided: DORA carries a conditional date too — but only where the anchor exists.** Where it
+does not, the escalation names the missing anchor instead of a date.
+
+### Why not a flat copy of `sec-1.05`
+
+`sec-1.05` works because its anchor — the materiality determination — **exists by the time the
+question arises**. DORA stacks two unknowns: scope may be undeclared *and* the anchor absent,
+because its windows run in clock hours from `awareAt` or `classifiedAt` and neither may ever
+have been recorded.
+
+**Path A — anchor present.** Identical in shape to `sec-1.05`:
+
+> If `dora` applies, the initial report window closes at 2026-07-07T09:00:00+00:00 — a
+> conditional, not a finding that it applies. Declare scope to activate the clock.
+
+**Path B — anchor absent. No date, no placeholder, no empty string dressed as a value:**
+
+> The DORA initial report window cannot be computed at all yet: neither `awareAt` nor
+> `classifiedAt` is recorded, and DORA counts clock hours from one of them. No date is asserted
+> and none is invented. Record the anchor with `set-anchor` — that is true whether or not DORA
+> applies.
+
+**Path B's message is the more useful of the two.** It names something the reader can go and
+supply, and it is true whether or not DORA applies, so it needs no scope hypothesis at all.
+*"If DORA applies, the window closes ???"* would be worse than silence — it looks like a
+computation and is none.
+
+### ⚠️ Half 2 is the one that fails in the direction that looks like success
+
+An empty-or-`None` date **still renders**: the sentence is there, the field is there, it simply
+has nothing in it. A check written as *"a date is present"* goes **green on a lie**.
+
+So the checks are written as the **absence** of the conditional clause and the absence of
+anything datetime-shaped — and the registered mutation emits an **empty-but-present** date to
+prove they bite. They do.
+
+### One implementation, two readers — again
+
+`dora_initial_bounds` is extracted so `dora_clocks` and the escalation read the **same**
+derivation, exactly as `sec_window_close` was for BL-207. The suite asserts the conditional
+carries the identical datetime the declared path computes, **to the second** — a conditional
+that disagreed with the clock it is conditional on would be worse than silence.
+
+### The canary stayed green throughout
+
+`scope-withheld.sh` is the regression canary for the `sec-1.05` path and holds at **21/21**
+across every step. It was checked after each change; if it had gone red, the change had reached
+somewhere it should not have. NYDFS is still not a regime in this engine and did not become one
+by implication.
+
+**42 guards / 82 halves / 121 proved.**
+
+### Ride-along — the cluster placement is confirmed
+
+`method-prerequisite-unmet` stays in `self-disagreement` (BL-93 B2). It sat there provisionally
+so v0.88.0 could ship; the **provisional marker is removed** and the note records what the
+confirmation does *not* widen: under v0.99.0 an `external` method emits that trigger under no
+input at all, so everything clustered there is analysis this toolkit can actually see.
+
+**BL-54's R-1 and R-4 were decided at the same time and are deliberately NOT here** — their
+triggers do not exist yet, and adding unhomed triggers in anticipation would break
+`clusters.sh` for a task that is still blocked.
+
 ## v0.101.0 — 2026-08-10
 
 **`references` joins `export-csv`, newline-separated inside the quoted cell.** BL-117's last

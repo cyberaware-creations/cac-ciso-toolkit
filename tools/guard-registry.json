@@ -169,6 +169,11 @@
       "reason": "Behavioural suite over the real CLI. Asserts what the engine DOES, not a defect it forbids."
     },
     {
+      "path": "skills/incident-materiality/evals/dora-conditional.sh",
+      "role": "guard",
+      "forbids": "a DORA window date that disagrees with the clock it is conditional on, and a date emitted when nothing anchors one — as a placeholder, an empty string, or a sentence with a blank where the datetime should be"
+    },
+    {
       "path": "skills/incident-materiality/evals/scope-withheld.sh",
       "role": "guard",
       "forbids": "a statutory deadline computed for a perimeter nobody declared, or withheld without saying so"
