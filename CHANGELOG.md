@@ -21,7 +21,73 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
-## v0.116.0 — 2026-08-12
+## v0.117.0 — 2026-08-11
+
+**BL-54 — R-1 and R-4 have a cluster. One of BL-54's three blockers clears; the other two
+stand.**
+
+⚖️ **Decision BL-93 B2 (the maintainer, 2026-08-10)** placed **R-1 (implicit acceptance)** and **R-4
+(residual above target)** in **`over-tolerance`**, which the register-alignment design had left
+open. `attention-surface/references/clusters.json` now carries both, `datasetVersion` **4 → 5**.
+
+### The meaning sentence did not survive the size change untouched
+
+`over-tolerance` went from two triggers to four, and its `meaning` had been written for two:
+*"Past a line the organisation itself drew, and still there."*
+
+It still scanned — but it did not carry **what makes an implicit acceptance different**. The
+other three were decided and left standing; this one was **never decided at all**. Now:
+
+> Past a line the organisation itself drew — an appetite band, a target, or an acceptance's own
+> expiry — and still there. Including where nobody decided to leave it there, which is what makes
+> an acceptance implicit.
+
+### ⚠️ These are the first mappings declared BEFORE their emitter exists
+
+Every other entry in this file arrived the other way round — `addedAfterDesign` records triggers
+found **already being emitted** with no home. **Neither `implicit-acceptance` nor
+`residual-above-target` is emitted by any producer today.**
+
+That is deliberate, so they land in the right cluster the day they ship rather than surfacing in
+`unclustered` first. But **nothing checks this direction**: `_triggerscan.py` asserts *emitted →
+mapped* and has no reverse, so a mapping for a trigger nobody emits **fails nothing and is
+invisible**. If R-1 or R-4 ships under a different id, these entries become dead weight silently.
+Recorded in the file under `declaredAheadOfEmitters`, with the instruction that whoever writes the
+emitters matches these ids or changes them here.
+
+### ⚠️ R-1's id was confirmed, not inferred
+
+`residual-above-target` was given. **R-1 appeared only as the description *"implicit
+acceptance"*** — no id anywhere in the tree, the docs, or the design. The kebab-case form is
+obvious, and guessing it was still the wrong move: a wrong id here dies silently for the reason
+above. **`implicit-acceptance` confirmed by the maintainer before it was written.**
+
+**Two small things the assertions caught**, both worth having: `datasetVersion` is a **string**
+(`"4"`, not `4`), and the pre-edit trigger list was asserted exactly rather than appended to.
+
+**Still blocking BL-54 T3 onward, unchanged:** the `score` vs `set-score` mapping, and T4's 8286A
+Table 6 scenarios (IR 8286A r1 is not in the tree — ship the one reachable exemplar and say so,
+do not reconstruct the rest).
+
+### ⛔ And v0.116.0's heading was dated wrong — one release after v0.111.0 fixed exactly that
+
+v0.111.0 corrected five dates written as 2026-08-12, recorded that the machine clock is
+authoritative, and explained why. **The very next release dated its own heading 2026-08-12
+anyway**, along with its *"Decided by the maintainer"* line — because the brief was again headed a day
+ahead, and the header was again taken over the clock. Both corrected here.
+
+**The lesson v0.111.0 drew was too narrow.** It treated the problem as five stale strings and
+fixed them. The actual problem is a **standing input** — briefs keep arriving headed a day ahead
+— and correcting the output does nothing about the next one. There is still no check:
+`check-sources.py` refuses a future `checkedOn`, which is why no `sources.json` has ever carried a
+wrong date, but **a changelog heading is prose, and prose is unguarded.**
+
+**Read the clock, not the brief header.** Recorded here rather than only in a commit message,
+because this is the second occurrence and the first record plainly did not carry.
+
+---
+
+## v0.116.0 — 2026-08-11
 
 **BL-253 — all 55 counter-signatures are withdrawn. The count is back to zero, where BL-228
 always said it would stay until a person sits down and signs.**
@@ -50,7 +116,7 @@ The writes were carefully guarded — no row pre-signed, no `unverified` row gat
 all asserted before writing. **The guarding was not the problem. A counter-signature written by
 anyone but the counter-signer is not one.**
 
-⚖️ **Decided by the maintainer, 2026-08-12: unwind.** The machinery stays; only the values go.
+⚖️ **Decided by the maintainer, 2026-08-11: unwind.** The machinery stays; only the values go.
 
 ### What did not change
 

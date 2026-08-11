@@ -1,7 +1,7 @@
 {
   "id": "attention-clusters",
-  "datasetVersion": "4",
-  "asOf": "2026-08-10",
+  "datasetVersion": "5",
+  "asOf": "2026-08-11",
   "note": "A CISO does not think 'show me vendor escalations'. They think 'what is overdue', 'what changed under me', 'what is unowned'. Triggers cluster across producers, and the clustering is DATA rather than logic: a new trigger lands in a cluster by declaration. An unmapped trigger surfaces in an explicit `unclustered` group and is never silently dropped — evals/clusters.sh asserts that every trigger the shipped producers can emit has a home here, and that an unknown one still appears.",
   "orderNote": "Clusters are presented in this order. It is a judgement about what a person should read first, written down as chosen: a clock that has run out is already late, whereas an uncontrolled exposure is a standing condition. It is NOT a ranking of the items inside them, and there is no number anywhere.",
   "clusters": [
@@ -73,10 +73,12 @@
     {
       "id": "over-tolerance",
       "title": "Over tolerance",
-      "meaning": "Past a line the organisation itself drew, and still there.",
+      "meaning": "Past a line the organisation itself drew — an appetite band, a target, or an acceptance's own expiry — and still there. Including where nobody decided to leave it there, which is what makes an acceptance implicit.",
       "triggers": [
         "appetite-dwell",
-        "acceptance-lapsed"
+        "acceptance-lapsed",
+        "implicit-acceptance",
+        "residual-above-target"
       ]
     }
   ],
@@ -89,6 +91,14 @@
       "review-overdue": "clocks-running-out — a policy review date the organisation set has passed. Beside revalidation-overdue and assessment-overdue, which are the same shape: an interval somebody chose, and nobody kept.",
       "superseded-only": "uncontrolled-exposure — every policy aimed at a requirement has been superseded and nothing approved replaced it. A standing condition rather than a deadline, which is this cluster's own definition. Its sibling `draft-only` is deliberately NOT here and not a trigger at all: the two share an end state — no approved document in force — and differ in whether the gap is VISIBLE. A draft shows as a draft; a requirement covered only by superseded documents looks populated. Deceptive escalates, visible does not.",
       "method-prerequisite-unmet": "self-disagreement — CONFIRMED 2026-08-10 (BL-93 B2). It sat here provisionally so v0.88.0 could ship; the decision is now made and the marker is gone. Both v1 checks are one record contradicting another about the same analysis: the method says `quantitative` while settings record no currency, or `conformance: partial` stands beside an empty `deviations`. The cluster's own meaning — \"which of them is wrong is a human's call\" — is exactly the state, since nothing here can tell whether to change the method or set the currency. Note what the confirmation does NOT widen: under BL-238 an `external` method emits this trigger under no input at all, so everything clustered here is an analysis this toolkit can actually see."
+    }
+  },
+  "declaredAheadOfEmitters": {
+    "note": "⚠️ THESE TWO ARE MAPPED BEFORE ANY PRODUCER EMITS THEM, which reverses how every other entry here arrived. `addedAfterDesign` records triggers found ALREADY BEING EMITTED with no home; these are placements decided in advance, so the triggers land in the right cluster the day they ship instead of appearing in `unclustered` first. NOTHING CHECKS THIS DIRECTION: _triggerscan.py asserts emitted -> mapped and has no reverse, so a mapping for a trigger nobody emits fails nothing and is invisible. If R-1 or R-4 ships under a DIFFERENT id these entries become dead weight silently — whoever writes the emitters must match these ids or change them here.",
+    "decidedBy": "BL-93 B2 — the maintainer, 2026-08-10. Placement was the first of BL-54's three blockers; the register-alignment design did not make the call.",
+    "triggers": {
+      "implicit-acceptance": "over-tolerance — R-1. A risk carried past the line with no acceptance recorded against it. ⚠️ THE ID WAS NOT WRITTEN DOWN ANYWHERE in the tree or the design, only the description 'implicit acceptance'; confirmed by the maintainer 2026-08-11 rather than inferred from it.",
+      "residual-above-target": "over-tolerance — R-4. Residual risk standing above the target set for it."
     }
   }
 }
