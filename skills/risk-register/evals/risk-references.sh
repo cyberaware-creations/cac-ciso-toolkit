@@ -30,7 +30,7 @@ skill="$(cd "$here/.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-EXPECTED_CHECKS=11
+EXPECTED_CHECKS=15
 checks=0
 fails=0
 ok()  { checks=$((checks + 1)); printf '  ok    %s\n' "$1"; }
@@ -162,6 +162,60 @@ eq "...and a risk without them renders NOTHING — no em-dash, no placeholder" "
 claims="$(grep -Eoi 'coverage of ATT&CK|ATT&CK coverage|techniques covered|% of techniques|have not considered|[0-9]+ of [0-9]+ techniques' \
   "$work/d.html" "$work/say.txt" 2>/dev/null | head -5 || true)"
 eq "nothing a reader is SHOWN claims coverage or completeness against ATT&CK" "" "$claims"
+
+# --- T8. THE EXPORT COLUMN, AND THE ROUND-TRIP THAT MATTERS MORE THAN THE SEPARATOR ----
+#
+# DECIDED: `references` joins export-csv, separated by a NEWLINE inside the quoted cell. That
+# is the house convention for a multi-value CSV column, set here because there was not one —
+# every other column in that export is scalar, `csfSubcategoryId` included.
+#
+# The risk is not readability, it is RE-IMPORT. `merge_import` matches on `csfSubcategoryId`
+# and `sourceRef`, so a register CSV that comes back in can silently UPDATE an assessed risk.
+# Nothing in this repo parses this file back — `parse_gaps_csv` requires a wholly different
+# header set — but somebody else's script will, and a cell that re-split DIFFERENTLY on the
+# way in is worse than a refusal and worse than never exporting the column.
+"$PY" "$S" set-refs "$work/r.rr" R-002 \
+  --ref 'ATT&CK T1566.001' 'ID.RA-03' 'ticket SEC-4471, "phishing wave"; pipe|semicolon inside' \
+  --why 'a value carrying every separator that was rejected' >/dev/null 2>&1
+"$PY" "$S" export-csv "$work/r.rr" --out "$work/r.csv" >/dev/null 2>&1
+
+csvout="$("$PY" - "$work/r.csv" "$work/r.rr" <<'PYX'
+import csv, json, sys
+rows = list(csv.DictReader(open(sys.argv[1], newline="", encoding="utf-8")))
+store = json.load(open(sys.argv[2], encoding="utf-8"))
+want = {r["id"]: (r.get("references") or []) for r in store["risks"]}
+cols = list(rows[0])
+# The round-trip, through a STOCK reader rather than anything this repo wrote. Split on the
+# newline and the result must be the IDENTICAL list — not merely one of the same length.
+trips = all([x for x in r["references"].split("\n") if x] == want[r["id"]] for r in rows)
+# A risk with none exports an EMPTY cell. Not "[]", not "None" — an auditor reading the column
+# should see nothing where nothing was recorded.
+empties = sorted({r["references"] for r in rows if not want[r["id"]]})
+print("%d %s %s %s" % (len(cols), cols[-1], trips, empties == [""]))
+PYX
+)"
+set -- $csvout
+eq "export-csv carries references as the last of 22 columns" "22 references" "$1 $2"
+eq "...and a stock csv.reader splits it back to the IDENTICAL list" "True" "$3"
+eq "...while a risk with none exports an empty cell, not '[]' or 'None'" "True" "$4"
+
+# THE CHECK THAT PROVES THE CHOICE rather than asserting it. The rejected separators are not
+# hypothetical — the fixture value above contains a comma, a semicolon AND a pipe. Splitting on
+# any of them yields a different list from what was stored, which is exactly the silent
+# corruption the newline avoids. If this ever reports agreement, somebody has moved to a
+# separator that can occur inside a value.
+wrongsplit="$("$PY" - "$work/r.csv" <<'PYX'
+import csv, sys
+row = next(r for r in csv.DictReader(open(sys.argv[1], newline="", encoding="utf-8"))
+           if r["id"] == "R-002")
+cell = row["references"]
+good = [x for x in cell.split("\n") if x]
+agree = [sep for sep in (",", ";", "|")
+         if [x.strip() for x in cell.split(sep) if x.strip()] == good]
+print(",".join(agree) or "none-agree")
+PYX
+)"
+eq "...and comma, semicolon and pipe would all have split it WRONGLY" "none-agree" "$wrongsplit"
 
 echo
 if [ "$checks" -ne "$EXPECTED_CHECKS" ]; then

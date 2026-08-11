@@ -294,6 +294,9 @@ python3 scripts/score_register.py set-theme <reg.rr> <id> third-party --why '...
 python3 scripts/score_register.py snapshot <reg.rr> --label 'Q3 2026 Board Review' --note '...'
 python3 scripts/score_register.py set-escalation <reg.rr> --dwell-days 90 --why '...'
 python3 scripts/score_register.py export-csv <reg.rr> --out register.csv
+# 22 columns. `references` is multi-value and holds a NEWLINE between entries inside the
+# quoted cell — the house form for a multi-value column here, because the field is free text
+# and any printable separator could occur inside a value.
 ```
 
 ### What the register raises on its own
