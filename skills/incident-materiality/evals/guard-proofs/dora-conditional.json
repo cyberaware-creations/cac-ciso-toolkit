@@ -1,0 +1,30 @@
+{
+  "guard": "skills/incident-materiality/evals/dora-conditional.sh",
+  "forbids": "a DORA window date that disagrees with the clock it is conditional on, and — the harder half — a date emitted when nothing anchors one, whether as a placeholder, an empty string, or a sentence with a blank where the datetime should be",
+  "note": "Registered with the feature (BL-237). DORA is NOT a flat copy of sec-1.05: sec-1.05's anchor, the materiality determination, exists by the time the question arises, while DORA stacks two unknowns — scope undeclared AND the anchor possibly never recorded. The two halves are the two paths, and the second is the one a careless implementation fails.",
+  "mutations": [
+    {
+      "half": "conditional-present",
+      "why": "The conditional framing tidied away WHOLESALE — both the 'if `dora` applies' opener and the 'a conditional, not a finding that it applies' disclaimer — leaving the date behind as a bare assertion. That is the edit somebody actually makes: the sentence is long, the hedge reads like boilerplate, and shortening it turns a conditional into a legal conclusion about whether DORA reaches this organisation, inferred from an assessor's tag. Everything else still looks right: the clock is withheld, the state is scope-not-declared, the escalation fires at high, and a date is present. A first version of this mutation stripped only the opener and left the disclaimer on its continuation line, which GP-1.9 correctly reported as defeating fewer checks than registered.",
+      "defeats": [
+        "...stated as a CONDITIONAL, naming the regime it is conditional on",
+        "...and saying in the same breath that it is not a finding that it applies"
+      ],
+      "file": "skills/incident-materiality/scripts/incident_analysis.py",
+      "find": "                        detail += (\" If `dora` applies, the initial report window closes at \"\n                                   \"{} — a conditional, not a finding that it applies. \"\n                                   \"Declare scope to activate the clock.\".format(dora_closes))",
+      "replace": "                        detail += (\" The initial report window closes at \"\n                                   \"{}. Declare scope to activate the \"\n                                   \"clock.\".format(dora_closes))"
+    },
+    {
+      "half": "no-date-without-anchor",
+      "why": "THE MUTATION AIMED AT THE FAILURE THAT LOOKS LIKE SUCCESS. It removes the guard on the anchor, so the conditional is emitted whether or not one exists — and where none does, `dora_initial_close` returns \"\" and the sentence ships as '...the initial report window closes at .' Nothing raises. Nothing is empty in a way a schema would notice. The escalation is present, the sentence is present, the field is present; it simply has no datetime in it. A check written as 'a date is present' goes GREEN on that, which is exactly why the checks this defeats are written as the absence of the clause and the absence of anything datetime-shaped rather than the presence of a value.",
+      "defeats": [
+        "with NO anchor, the conditional clause is wholly absent — not emitted empty",
+        "...and the missing anchors are NAMED, so the reader knows what to supply",
+        "...stated as true regardless of scope, so it needs no scope hypothesis"
+      ],
+      "file": "skills/incident-materiality/scripts/incident_analysis.py",
+      "find": "                    dora_closes = dora_initial_close(inc)\n                    if dora_closes:",
+      "replace": "                    dora_closes = dora_initial_close(inc)\n                    if True:"
+    }
+  ]
+}

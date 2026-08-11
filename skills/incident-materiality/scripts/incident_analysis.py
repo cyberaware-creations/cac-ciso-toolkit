@@ -988,6 +988,58 @@ def sec_window_close(inc: dict, holidays=()) -> str:
     return business_days_after(det["determinedAt"], SEC_BUSINESS_DAYS, holidays)
 
 
+def _dora_late_classification(anchors: dict) -> bool:
+    """Art. 5(2) of RTS 2025/301: classification later than 24h after awareness."""
+    aware, classified = anchors.get("awareAt"), anchors.get("classifiedAt")
+    return bool(aware and classified
+                and parse_ts(classified) > parse_ts(aware)
+                + timedelta(hours=DORA_INITIAL_FROM_AWARE_H))
+
+
+def dora_initial_bounds(inc: dict) -> list:
+    """Every bound on the DORA initial-report window, as `(deadline, anchor, kind, note)`.
+
+    **ONE implementation, two readers** — the same shape `sec_window_close` takes, and for the
+    same reason (BL-207). `dora_clocks` takes the earliest of these as a real deadline; the
+    `scope-undeclared` escalation takes the identical value as a CONDITIONAL date. Recomputing
+    it in the escalation is how an escalation ends up disagreeing with the worksheet beside it
+    about when a window closes.
+
+    **Returns `[]` when neither anchor is recorded, and that emptiness is load-bearing.** DORA
+    stacks two unknowns where `sec-1.05` has one: scope may be undeclared *and* the anchor
+    absent. With no bound there is nothing to make conditional, and *"if DORA applies, the
+    window closes ???"* is worse than silence — it looks like a computation and is not one
+    (BL-237).
+    """
+    anchors = inc.get("anchors") or {}
+    aware, classified = anchors.get("awareAt"), anchors.get("classifiedAt")
+    late_classification = _dora_late_classification(anchors)
+    bounds = []
+    if classified:
+        bounds.append((fmt_ts(parse_ts(classified)
+                              + timedelta(hours=DORA_INITIAL_FROM_CLASSIFIED_H)),
+                       classified, "classification",
+                       f"{DORA_INITIAL_FROM_CLASSIFIED_H} hours from classification as major"
+                       + (f"; classification came more than {DORA_INITIAL_FROM_AWARE_H}h after "
+                          "awareness, so Art. 5(2) of RTS 2025/301 governs and the awareness "
+                          "cap no longer binds" if late_classification else "")))
+    if aware and not late_classification:
+        bounds.append((fmt_ts(parse_ts(aware) + timedelta(hours=DORA_INITIAL_FROM_AWARE_H)),
+                       aware, "awareness",
+                       f"{DORA_INITIAL_FROM_AWARE_H} hours from becoming aware"))
+    return bounds
+
+
+def dora_initial_close(inc: dict) -> str:
+    """The datetime the DORA initial window closes, or "" when no anchor supports one.
+
+    "" and not None, so `if not closes:` is the only guard a caller needs — same contract as
+    `sec_window_close`.
+    """
+    bounds = dora_initial_bounds(inc)
+    return min(bounds, key=lambda b: parse_ts(b[0]))[0] if bounds else ""
+
+
 def dora_clocks(inc: dict, now_iso: str) -> list:
     """The three DORA windows, in clock hours.
 
@@ -1029,22 +1081,8 @@ def dora_clocks(inc: dict, now_iso: str) -> list:
     # was inside its window — a FALSE OVERDUE, the one direction this file argues a clock must
     # never fail in, because it pushes somebody into filing before they are ready.
     aware, classified = anchors.get("awareAt"), anchors.get("classifiedAt")
-    late_classification = bool(
-        aware and classified
-        and parse_ts(classified) > parse_ts(aware) + timedelta(hours=DORA_INITIAL_FROM_AWARE_H))
-    bounds = []
-    if classified:
-        bounds.append((fmt_ts(parse_ts(classified)
-                              + timedelta(hours=DORA_INITIAL_FROM_CLASSIFIED_H)),
-                       classified, "classification",
-                       f"{DORA_INITIAL_FROM_CLASSIFIED_H} hours from classification as major"
-                       + (f"; classification came more than {DORA_INITIAL_FROM_AWARE_H}h after "
-                          "awareness, so Art. 5(2) of RTS 2025/301 governs and the awareness "
-                          "cap no longer binds" if late_classification else "")))
-    if aware and not late_classification:
-        bounds.append((fmt_ts(parse_ts(aware) + timedelta(hours=DORA_INITIAL_FROM_AWARE_H)),
-                       aware, "awareness",
-                       f"{DORA_INITIAL_FROM_AWARE_H} hours from becoming aware"))
+    late_classification = _dora_late_classification(anchors)
+    bounds = dora_initial_bounds(inc)
     if not bounds:
         rows.append(_clock(regime, "initial", CLOCK_ANCHOR_MISSING,
                            filed=filings.get("dora:initial"),
@@ -1324,6 +1362,33 @@ def escalations(store: dict, today: str, now_iso: str, context: dict = None) -> 
                                    "window closes on {} — a conditional, not a finding that "
                                    "it applies. Declare scope to activate the "
                                    "clock.".format(closes))
+                # DORA, and it is NOT a flat copy of the line above (BL-237). `sec-1.05` works
+                # because its anchor — the materiality determination — exists by the time the
+                # question arises. DORA stacks TWO unknowns: scope may be undeclared AND the
+                # anchor absent, because its windows run in clock hours from anchors that may
+                # themselves never have been recorded.
+                #
+                # PATH A, anchor present: identical to `sec-1.05`. A conditional asserts
+                # nothing about whether the regime applies.
+                #
+                # PATH B, anchor absent: NO date. Not a placeholder, not an empty string
+                # dressed as a value. Name the anchor that is missing instead — which is the
+                # MORE USEFUL of the two messages, because it names something the reader can
+                # go and supply, and it is true whether or not DORA applies, so it needs no
+                # scope hypothesis at all. "If DORA applies, the window closes ???" would look
+                # like a computation and be none.
+                if any(c["regime"] == "dora" for c in unscoped):
+                    dora_closes = dora_initial_close(inc)
+                    if dora_closes:
+                        detail += (" If `dora` applies, the initial report window closes at "
+                                   "{} — a conditional, not a finding that it applies. "
+                                   "Declare scope to activate the clock.".format(dora_closes))
+                    else:
+                        detail += (" The DORA initial report window cannot be computed at all "
+                                   "yet: neither `awareAt` nor `classifiedAt` is recorded, and "
+                                   "DORA counts clock hours from one of them. No date is "
+                                   "asserted and none is invented. Record the anchor with "
+                                   "set-anchor — that is true whether or not DORA applies.")
                 out.append({
                     "subjectRef": iid, "subjectKind": "incident",
                     "trigger": "scope-undeclared", "severity": "high",
