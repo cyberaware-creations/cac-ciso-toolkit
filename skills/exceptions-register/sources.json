@@ -14,7 +14,9 @@
       "reviewIntervalDays": 365,
       "usedFor": [
         "references/exceptions.md"
-      ]
+      ],
+      "reviewedBy": "Darren Galleyne",
+      "reviewedOn": "2026-08-11"
     },
     {
       "id": "nydfs-part-500",
@@ -30,7 +32,9 @@
         "references/exceptions.md",
         "SKILL.md"
       ],
-      "intervalBecause": "s 500.19 read in full against the DFS official adoption text on 2026-08-09 (rf_fs_2amend23NYCRR500_text_20231101.pdf), cross-read against the DFS consolidated copy, which agrees word for word and carries its own notice that it is not an official version. The limb-to-section mapping is what three shipped receipts now depend on, and s 500.19(a) already lost s 500.12 once by amendment - so a change here silently makes a customer-facing receipt wrong rather than merely stale."
+      "intervalBecause": "s 500.19 read in full against the DFS official adoption text on 2026-08-09 (rf_fs_2amend23NYCRR500_text_20231101.pdf), cross-read against the DFS consolidated copy, which agrees word for word and carries its own notice that it is not an official version. The limb-to-section mapping is what three shipped receipts now depend on, and s 500.19(a) already lost s 500.12 once by amendment - so a change here silently makes a customer-facing receipt wrong rather than merely stale.",
+      "reviewedBy": "Darren Galleyne",
+      "reviewedOn": "2026-08-11"
     },
     {
       "id": "iso-27001",
@@ -61,7 +65,9 @@
         "references/exceptions.md",
         "evals/trigger-prompts.md"
       ],
-      "intervalBecause": "Half the house default, on the same asymmetry that halved the SEC and DORA rows: reading the guidance too often costs nothing, and missing an amendment ships a password rule that is no longer NIST's. What makes this row different from an ordinary NIST citation is that THE FAMILY HAS ALREADY MOVED UNDER THIS TOOLKIT ONCE. Rev 4 renumbered 63B wholly and relocated neighbouring subjects across volumes - binding at enrolment to 63A-4, subscriber accounts to 63A-4 and 63C-4, assurance-level selection to base 63-4 s 3 - and retired the term 'memorized secret'. BL-224 repointed this row only because all three limbs of the one claim CAC makes from this family happened to stay inside 63B; a boundary move is therefore a demonstrated behaviour of this publication rather than a hypothetical, and the section cite at s 3.1.1.2 is what makes the next one visible instead of silent. ⚠️ THIS IS A RECOMMENDATION, NOT A RULING - Darren, 2026-08-11: 'We can ship with recommended or default review timeline values, but the CISO should be able to override them locally. It's up to them to decide how they run their program.' The number CAC ships is the one CAC would defend; a deployment that reviews on a different cadence is not out of compliance with anything. The local-override MECHANISM is deliberately NOT built here - it belongs to BL-242, which already establishes that a deployment can hold and act on what CAC's shipped manifest cannot, and a third separate override path would be the mistake."
+      "intervalBecause": "Half the house default, on the same asymmetry that halved the SEC and DORA rows: reading the guidance too often costs nothing, and missing an amendment ships a password rule that is no longer NIST's. What makes this row different from an ordinary NIST citation is that THE FAMILY HAS ALREADY MOVED UNDER THIS TOOLKIT ONCE. Rev 4 renumbered 63B wholly and relocated neighbouring subjects across volumes - binding at enrolment to 63A-4, subscriber accounts to 63A-4 and 63C-4, assurance-level selection to base 63-4 s 3 - and retired the term 'memorized secret'. BL-224 repointed this row only because all three limbs of the one claim CAC makes from this family happened to stay inside 63B; a boundary move is therefore a demonstrated behaviour of this publication rather than a hypothetical, and the section cite at s 3.1.1.2 is what makes the next one visible instead of silent. ⚠️ THIS IS A RECOMMENDATION, NOT A RULING - Darren, 2026-08-11: 'We can ship with recommended or default review timeline values, but the CISO should be able to override them locally. It's up to them to decide how they run their program.' The number CAC ships is the one CAC would defend; a deployment that reviews on a different cadence is not out of compliance with anything. The local-override MECHANISM is deliberately NOT built here - it belongs to BL-242, which already establishes that a deployment can hold and act on what CAC's shipped manifest cannot, and a third separate override path would be the mistake.",
+      "reviewedBy": "Darren Galleyne",
+      "reviewedOn": "2026-08-11"
     },
     {
       "id": "delaware-caremark-cases",
@@ -76,7 +82,9 @@
       "intervalBecause": "Half the house default, matching ciso-board-translation's row on the same case for the same reason and deliberately not drifting from it. Brewer is LIVE LITIGATION - interlocutory appeal refused, so the case continues below - and the sweep that produced this row measured the rate directly: LACERS v. Sanford distinguished In re TransUnion roughly three months after the previous check. A 365-day interval would let a development on a case quoted in a caveat sold to CISOs sit unnoticed for up to a year. 180 days is two sweeps a year, which matches the observed movement, and it is NOT a substitute for the paid citator pass at BL-232.",
       "usedFor": [
         "references/exceptions.md"
-      ]
+      ],
+      "reviewedBy": "Darren Galleyne",
+      "reviewedOn": "2026-08-11"
     },
     {
       "id": "dgcl-220",
@@ -92,7 +100,9 @@
       "intervalBecause": "Half the house default, matching the delaware-caremark-cases row beside it rather than drifting from it. SB 21 rewrote this section in March 2025 and the litigation around SB 21 is live - Rutledge was decided 27 Feb. 2026, four months before this reading. A section rewritten within the last eighteen months, quoted in a caveat sold to CISOs, is exactly the row where a year-long interval would let an amendment sit unnoticed.",
       "usedFor": [
         "references/exceptions.md"
-      ]
+      ],
+      "reviewedBy": "Darren Galleyne",
+      "reviewedOn": "2026-08-11"
     }
   ]
 }

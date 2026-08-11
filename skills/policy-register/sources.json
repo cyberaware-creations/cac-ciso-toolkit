@@ -24,7 +24,9 @@
         "references/requirements.json",
         "scripts/policy_register.py"
       ],
-      "howChecked": "Read against the bundled CPRT export rather than from recall: skills/nist-csf/references/nist-csf-2.0-core.json, whose own provenance records csf-2.0.xlsx sha256 cc4ec545...f9b616. GV.PO-01 carries 5 implementation examples and GV.PO-02 carries 4; every example quoted in references/policy.md is verbatim from that file. The claim that the CSF Core itself maps GV.PO-01/-02 onto all twenty SP 800-53 '-1' controls was verified the same way, in the subcategories' informativeReferences (AC-01 through SR-01, listed for both Rev 5.1.1 and Rev 5.2.0). ID.IM-04's wording was read from the same file."
+      "howChecked": "Read against the bundled CPRT export rather than from recall: skills/nist-csf/references/nist-csf-2.0-core.json, whose own provenance records csf-2.0.xlsx sha256 cc4ec545...f9b616. GV.PO-01 carries 5 implementation examples and GV.PO-02 carries 4; every example quoted in references/policy.md is verbatim from that file. The claim that the CSF Core itself maps GV.PO-01/-02 onto all twenty SP 800-53 '-1' controls was verified the same way, in the subcategories' informativeReferences (AC-01 through SR-01, listed for both Rev 5.1.1 and Rev 5.2.0). ID.IM-04's wording was read from the same file.",
+      "reviewedBy": "Darren Galleyne",
+      "reviewedOn": "2026-08-11"
     },
     {
       "id": "sp-800-53r5",
@@ -45,7 +47,9 @@
         "sp-800-53r5",
         "sp-800-53"
       ],
-      "howChecked": "The twenty control ids and their family labels were not typed. They were generated from the bundled crosswalk skills/nist-csf/references/crosswalks/800-53-r5.catalog.json — 206 controls, exactly 20 matching ^[A-Z]{2}-1$ — and evals/requirement-drift.sh regenerates the vendored copy from that same file on every run and compares all 112 fields. Control titles are the crosswalk's verbatim public-domain labels; no control text is reproduced, and the crosswalk carries none (every `text` is null)."
+      "howChecked": "The twenty control ids and their family labels were not typed. They were generated from the bundled crosswalk skills/nist-csf/references/crosswalks/800-53-r5.catalog.json — 206 controls, exactly 20 matching ^[A-Z]{2}-1$ — and evals/requirement-drift.sh regenerates the vendored copy from that same file on every run and compares all 112 fields. Control titles are the crosswalk's verbatim public-domain labels; no control text is reproduced, and the crosswalk carries none (every `text` is null).",
+      "reviewedBy": "Darren Galleyne",
+      "reviewedOn": "2026-08-11"
     }
   ]
 }
