@@ -226,9 +226,39 @@ state rather than wreckage. An empty register analyses cleanly, reports twenty-t
 requirements as not declared, and raises nothing — **an absent register is not a fault, and
 this skill does not nag.**
 
+## Bringing existing documents in
+
+A CISO with a shelf of policies had nowhere to put them. `ingest` is that door — and the shape
+of it is forced by a property worth stating plainly:
+
+**The agent extracts. The engine ingests structured JSON. The human declares.**
+
+⚠️ **This engine cannot open a document, and it must not learn how.** Every engine here is
+stdlib-only and offline, and that is a property of the product rather than an accident. So
+extraction happens outside — an agent, or the `pdf`/`docx` skills — and the result arrives as a
+`CAC-PI-1` payload. A parser in here would break the offline guarantee for every user to save
+one step for the user who happened to have a PDF. Do not add one.
+
+**Ingesting a hundred documents changes nothing.** No policy record, no requirement state, no
+count, no rendered page. `ingest` writes **proposals**; `assess --by NAME` is the only act that
+creates a record, and it creates a **draft** — approving and superseding stay human acts, in
+that order, by somebody who has read both documents.
+
+**Every proposal carries a citation**, and so does every proposed mapping. A proposal with no
+citation is an opinion: the person who confirms it has to be able to open the same document and
+read the same words. A filename is not a citation.
+
+⚠️ **A proposed mapping is not a coverage claim, and the source document will say otherwise.**
+Policy documents say "this policy addresses access control" in those words. Confirming a mapping
+still says only that a document exists, a named person approved it on a date, and it is aimed at
+these requirements — never that a requirement is met. Full contract:
+`references/intake-contract.md`.
+
 ## What it deliberately does not do
 
-- **Store or render policy text.** This is not a document management system.
+- **Store or render policy text.** This is not a document management system. Intake ingests
+  assertions *about* a document with a citation into it, never the text.
+- **Read documents.** See above — extraction is the agent's job, deliberately and permanently.
 - **Track individual acknowledgements.** That is an HR or LMS system. The register records
   that acknowledgement is *required* and at what cadence — which is what GV.PO-01's
   implementation examples ask for.

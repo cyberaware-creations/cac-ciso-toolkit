@@ -234,6 +234,11 @@
       "forbids": "catastrophizing or false-confidence vocabulary in any shipped source file"
     },
     {
+      "path": "skills/policy-register/evals/intake-proposes-only.sh",
+      "role": "guard",
+      "forbids": "an intake that changes anything before a person assesses — a requirement state, a count, a rendered page or a policy record — and an intake that puts a document in force without a human approving it"
+    },
+    {
       "path": "skills/policy-register/evals/lifecycle.sh",
       "role": "not-a-guard",
       "reason": "Asserts what the register DOES through the real CLI — the R-3 refusal and its byte-identical store, R-5 not-declared wording, R-6 flagging without blocking, and BL-169 entry-anywhere and resumability. Behaviour, not a defect-cannot-occur property, so there is nothing to mutate: every check here fails by the feature breaking, not by a forbidden thing appearing."
