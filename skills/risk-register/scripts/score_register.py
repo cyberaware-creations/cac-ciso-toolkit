@@ -31,6 +31,12 @@ Subcommands:
   escalations  <register.rr> [--today YYYY-MM-DD] [--json]
                                          What this register currently escalates, and why.
                                          Exits 0 either way — it flags, it does not gate.
+  import-csv   <rows.csv> [--into r.rr] [--write] (--from-sibling | --from-operator
+               --operator 'Name')          Bring a CISO's own spreadsheet in without
+                                         retyping it. Required columns: title, description,
+                                         category, owner, response. Derived columns are
+                                         REFUSED BY NAME, not ignored. `export-csv` is not a
+                                         round-trip format — see references/csv-import.md.
   import-gaps  <gaps.csv> [--into r.rr] [--write]   Map a CSF gap CSV to candidate risks.
                                          Previews by default; --write applies the merge.
   import-findings <findings.json> [--into r.rr] [--write]   Map vendor-register or
@@ -298,6 +304,187 @@ def parse_gaps_csv(text: str) -> list[dict]:
     return [row for row in reader if any((v or "").strip() for v in row.values())]
 
 
+def _norm_header(name: str) -> str:
+    """A header cell reduced to letters and digits, lowercased.
+
+    So `Residual L`, `residual_l` and `residualL` are one column. Spreadsheets arrive from
+    Excel, Sheets and Numbers and none of them agree about spacing or case; refusing a file
+    over a space in a header would fail the exact user this feature exists for.
+    """
+    return "".join(ch for ch in str(name or "") if ch.isalnum()).lower()
+
+
+_IMPORT_ALIASES = {
+    "inherentlikelihood": "inherentL", "inherentimpact": "inherentI",
+    "residuallikelihood": "residualL", "residualimpact": "residualI",
+    "responsedesc": "responseDescription", "responsedescription": "responseDescription",
+    "csf": "csfSubcategoryId", "csfsubcategory": "csfSubcategoryId",
+    "csfsubcategoryid": "csfSubcategoryId", "review": "reviewDate",
+    "reviewdate": "reviewDate", "sourceref": "sourceRef", "ref": "references",
+    "reference": "references", "references": "references",
+}
+
+
+def import_csv_columns(fieldnames) -> dict:
+    """Map the file's headers onto canonical names, or refuse by NAME.
+
+    Refuses derived and engine-managed columns rather than ignoring them. A silently dropped
+    `residualBand` is a user believing they set something, and they will not find out until a
+    board asks why the register disagrees with their spreadsheet.
+    """
+    if not fieldnames:
+        raise ValueError("import-csv: the file has no header row.")
+    known = {_norm_header(c): c for c in
+             IMPORT_REQUIRED + IMPORT_SCORE_COLS + IMPORT_OPTIONAL}
+    known.update({k: v for k, v in _IMPORT_ALIASES.items()})
+    mapped, rejected, unknown = {}, [], []
+    for raw in fieldnames:
+        key = _norm_header(raw)
+        if key in IMPORT_DERIVED_COLS:
+            rejected.append("%s — %s. This register computes it; a file cannot assert it."
+                            % (raw, IMPORT_DERIVED_COLS[key]))
+        elif key in IMPORT_ENGINE_COLS:
+            rejected.append("%s — %s. Importing it would erase that record rather than earn it."
+                            % (raw, IMPORT_ENGINE_COLS[key]))
+        elif key in known:
+            mapped[raw] = known[key]
+        elif key:
+            unknown.append(raw)
+    if rejected:
+        raise ValueError(
+            "import-csv: the file carries column(s) this register DERIVES and will not accept "
+            "as input:\n  " + "\n  ".join(rejected)
+            + "\n  Remove them and import the inputs instead — inherentL, inherentI, "
+              "residualL, residualI. `export-csv` is NOT a round-trip format; see "
+              "references/csv-import.md.")
+    missing = [c for c in IMPORT_REQUIRED if c not in mapped.values()]
+    if missing:
+        raise ValueError(
+            "import-csv: missing required column(s): %s.\n  Every risk needs a title, a "
+            "description written as an event statement, a category, an owner and a response "
+            "type. `description` is required here for the same reason `add` requires it: a "
+            "one-word noun scored out of 25 is not a risk." % ", ".join(missing))
+    return {"mapped": mapped, "unknown": unknown}
+
+
+def import_csv_rows(text: str, from_operator: bool):
+    """(rows, columns). Parses and applies the PROVENANCE rule to the header set.
+
+    ⚠️ The provenance rule is about MACHINE provenance, and that is the whole distinction.
+    `import-findings` refuses any scoring key because "a scoring key reaching here means the
+    other register started scoring" — a second register forming an opinion is the thing that
+    bridge exists to prevent.
+
+    That reason does not reach an operator. A human bringing their own spreadsheet is this
+    register's OWNER, not a second register: they are not forming a competing opinion, they
+    are entering theirs for the first time. So `--from-sibling` refuses the score columns by
+    name on the sibling's behalf, and `--from-operator` accepts them attributed to a named
+    person (V1-2).
+    """
+    reader = csv.DictReader(io.StringIO(text))
+    cols = import_csv_columns(reader.fieldnames)
+    present_scores = [c for c in cols["mapped"].values() if c in IMPORT_SCORE_COLS]
+    if present_scores and not from_operator:
+        raise ValueError(
+            "import-csv: --from-sibling refuses the scoring column(s) %s.\n"
+            "  A scoring key arriving from another register means that register started "
+            "scoring, which is the one thing this bridge exists to prevent.\n"
+            "  If these numbers are YOUR OWN assessment rather than another tool's, that is a "
+            "different fact and a different flag: --from-operator --operator 'Your Name'."
+            % ", ".join(sorted(present_scores)))
+    rows = [r for r in reader if any(str(v or "").strip() for v in r.values())]
+    return rows, cols
+
+
+def import_row_to_risk(row: dict, cols: dict, risk_id: str, matrix: int,
+                       provenance=None) -> dict:
+    """One CSV row as a candidate risk, or raise. Validation is per ROW, never per file.
+
+    Copied in shape from `exceptions_register.import_acceptances`: one bad row is reported and
+    skipped, and the other nine still land. `exceptions-register/SKILL.md` states the rule this
+    follows — "an import is not a side door" — so every row faces the same refusals a
+    hand-entered risk faces. Description required means required here.
+    """
+    get = lambda name: str(row.get(  # noqa: E731
+        next((raw for raw, c in cols["mapped"].items() if c == name), ""), "") or "").strip()
+    risk = empty_risk(get("id") or risk_id)
+    for field in ("title", "description", "category", "owner"):
+        value = get(field)
+        if not value:
+            raise ValueError("%s is required and this row leaves it empty" % field)
+        risk[field] = value
+    rtype = get("response")
+    if rtype not in RESPONSES:
+        # `sorted`, because RESPONSES is a set and an unordered refusal message is a message
+        # that reads differently on two runs for no reason.
+        raise ValueError("response must be one of %s (got %r)"
+                         % (", ".join(sorted(RESPONSES)), rtype))
+    risk["response"] = {"type": rtype, "description": get("responseDescription")}
+    for pair, key in ((("inherentL", "inherentI"), "inherent"),
+                      (("residualL", "residualI"), "residual")):
+        lv, iv = get(pair[0]), get(pair[1])
+        if lv or iv:
+            if not (lv and iv):
+                raise ValueError("%s needs BOTH %s and %s — a likelihood with no impact is "
+                                 "half a score, and half a score is not one"
+                                 % (key, pair[0], pair[1]))
+            try:
+                l_i, i_i = int(lv), int(iv)
+            except ValueError:
+                raise ValueError("%s and %s must be whole numbers (got %r and %r)"
+                                 % (pair[0], pair[1], lv, iv))
+            if not (1 <= l_i <= matrix and 1 <= i_i <= matrix):
+                raise ValueError("%s %s x %s is outside this register's 1-%d matrix"
+                                 % (key, l_i, i_i, matrix))
+            risk[key] = {"likelihood": l_i, "impact": i_i}
+    # A row that brought no numbers is a risk nobody has scored yet, and it says so rather than
+    # reading as a genuine 1x1. That is the same flag `import-gaps` sets on a priority seed.
+    #
+    # ⚠️ THE SCORED CASE IS FILED, NOT SETTLED (BL-239, ⚖️ Open Decisions). Does an
+    # operator-imported score count as assessed? It is a real human assessment (so no,
+    # `provisionalScore` should be False) — but it was not made in this tool against THIS
+    # register's matrix (so yes, it should be True). Both answers cost something real:
+    #
+    #   True  — `confirm` refuses while `provisionalScore` is set ("nothing to re-affirm about
+    #           a number nobody has assessed"), so a CISO could not confirm the risks they just
+    #           imported without re-entering every number by hand through `set-score`. That is
+    #           the retyping this whole feature exists to remove.
+    #   False — the register stops distinguishing a score assessed here from one asserted in a
+    #           spreadsheet, which is a real distinction the provisional flag exists to keep.
+    #
+    # Shipping required a value. `False` is written because `True` is both unusable AND says
+    # something untrue — that nobody has assessed it, when a named human did and is recorded in
+    # `scoreProvenance`. That attribution is what makes `False` defensible rather than merely
+    # convenient, and it is why the provenance is stored rather than left in a history line.
+    # If the decision lands the other way this is a one-line change plus a migration note.
+    scored = any(get(c) for c in IMPORT_SCORE_COLS)
+    risk["provisionalScore"] = not scored
+    risk["provisionalTitle"] = False
+    for field in ("theme", "csfSubcategoryId", "notes", "sourceRef"):
+        if get(field):
+            risk[field] = get(field)
+    if get("status"):
+        if get("status") not in ("open", "closed"):
+            raise ValueError("status must be open or closed (got %r)" % get("status"))
+        risk["status"] = get("status")
+    if get("reviewDate"):
+        risk["reviewDate"] = _iso_date(get("reviewDate"), "reviewDate")
+    if get("cost"):
+        try:
+            risk["response"]["cost"] = float(get("cost"))
+        except ValueError:
+            raise ValueError("cost must be a number (got %r)" % get("cost"))
+    # THE NEWLINE CONVENTION, read back exactly as `export-csv` writes it (BL-117 T8). A stock
+    # `csv.reader` returns the embedded newline as part of the field, so splitting on it is the
+    # inverse of the join — and the only separator that is, because the field is free text and
+    # any printable one could occur inside a value.
+    if get("references"):
+        risk["references"] = _reflist([x for x in get("references").split("\n") if x.strip()])
+    if scored and provenance is not None:
+        risk["scoreProvenance"] = provenance
+    return risk
+
+
 # --- Analysis method (BL-92) --------------------------------------------------
 #
 # The register stored scores with no record of HOW they were produced. Two registers scored by
@@ -492,6 +679,68 @@ def check_method(method: dict, catalogue: dict = None) -> None:
             "`open-fair` at partial conformance with that deviation recorded, never a coined "
             "'FAIR-lite'. This tool does not rename somebody else's standard to describe a "
             "reduced variant of it.")
+
+
+# --- CSV intake (BL-239) ------------------------------------------------------------
+#
+# ⚠️ THIS IS AN IMPORT FORMAT. `export-csv` IS NOT A ROUND-TRIP FORMAT, and the obvious
+# approach — import what we export — does not work. Verified against the tree:
+#
+#   * FIVE exported columns are DERIVED by `score_register`, not stored: `inherentExposure`,
+#     `inherentBand`, `residualExposure`, `residualBand`, `overAppetite`. They are outputs.
+#     Accepting them as inputs lets a spreadsheet assert a band that disagrees with the matrix.
+#   * `description` is REQUIRED by `add` and is absent from the export entirely. So are
+#     `notes`, `acceptance` and `analysisMethod`.
+#   * `parse_gaps_csv` needs a wholly different eight-column header with zero overlap.
+#
+# ❗ A correction to the count this was planned with: the plan said "10 of the 22 columns are
+# derived". Ten export columns have no stored top-level key of that name, but only FIVE are
+# derived. The other five — `inherentL`, `inherentI`, `residualL`, `residualI`, `cost` — are
+# FLATTENINGS of stored nested objects (`inherent.likelihood`, `response.cost`), and they are
+# exactly the columns an importer needs. Conflating the two would have thrown away the score
+# columns this feature exists to accept.
+IMPORT_REQUIRED = ("title", "description", "category", "owner", "response")
+
+# Accepted only under `--from-operator`. A sibling register must never send these.
+IMPORT_SCORE_COLS = ("inherentL", "inherentI", "residualL", "residualI")
+
+IMPORT_OPTIONAL = ("id", "theme", "responseDescription", "cost", "reviewDate",
+                   "csfSubcategoryId", "notes", "references", "sourceRef", "status")
+
+# REFUSED BY NAME, never ignored. A silently dropped `residualBand` is a user believing they
+# set something. `provisionalTitle`/`provisionalScore` are stored but engine-managed: they mark
+# what this tool has not yet had a human confirm, and a spreadsheet clearing them would erase
+# that record rather than earn it.
+IMPORT_DERIVED_COLS = {
+    "inherentexposure": "computed from inherentL x inherentI by the matrix",
+    "inherentband": "computed from the exposure and the register's band thresholds",
+    "residualexposure": "computed from residualL x residualI by the matrix",
+    "residualband": "computed from the exposure and the register's band thresholds",
+    "overappetite": "computed from the residual band against settings.appetite",
+    "outofrange": "computed from the scores against settings.matrixSize",
+}
+IMPORT_ENGINE_COLS = {
+    "provisionaltitle": "cleared only by `set-text`, when a person rewords the title",
+    "provisionalscore": "cleared only by `set-score`, when a person assesses the numbers",
+}
+
+
+# The THIRD copy of this shape in the suite — `business_context.py` and `vendor_register.py`
+# hold the other two. The shape is reused; neither module is imported. Every shipped script
+# runs standalone, and CAC-AP-1 s 2.6 says the transport between skills is data, never an
+# import. A bare scalar is LEGAL ON READ and reported unattributed, never refused.
+def declared(value, by: str = "", on: str = "", basis: str = "") -> dict:
+    return {"value": value, "declaredBy": str(by or "").strip(),
+            "declaredOn": on or _now()[:10], "basis": str(basis or "").strip()}
+
+
+def is_attributed(rec) -> bool:
+    return isinstance(rec, dict) and bool(str(rec.get("declaredBy") or "").strip())
+
+
+def value_of(field):
+    """The value inside a wrapper, or a bare scalar unchanged."""
+    return field.get("value") if isinstance(field, dict) and "value" in field else field
 
 
 def empty_risk(risk_id: str) -> dict:
@@ -729,6 +978,9 @@ def load_register(path: str) -> dict:
         # consumer iterate without a None-guard, which is the whole reason the two keys are
         # normalised differently (BL-117 T1).
         r.setdefault("references", [])
+        # `None` and not `{}`: absent means the scores were not brought in from outside, which
+        # is the ordinary case and a different fact from "imported by nobody" (BL-239).
+        r.setdefault("scoreProvenance", None)
     return obj
 
 
@@ -1331,6 +1583,135 @@ def _cmd_import_findings(args: list[str]) -> int:
     return 0
 
 
+def _cmd_import_csv(args: list[str]) -> int:
+    """A CISO's own spreadsheet, brought in without retyping it (BL-239).
+
+    Preview by default and `--write` to commit, matching both existing importers — the
+    preview is the review step, and an import that wrote on sight would make the refusals
+    below findings-after-the-fact rather than a gate.
+    """
+    # DECLARES ITS FLAGS, unlike the two older importers. They hand-parse `args` and sit in
+    # `_FLAGS_UNDECLARED`, a list that may only shrink — so a new command joining them is not
+    # available, and would not be the right thing anyway: declaring buys typo rejection, and a
+    # mistyped `--from-oprator` on an import that accepts scores should not be silently read as
+    # a sibling import that refuses them.
+    #
+    # The file path comes FIRST. `parse_flags` gives a flag every following non-flag token, so
+    # `--into r.rr rows.csv` would read the path as a second value of `--into`; leading
+    # positionals have no such ambiguity.
+    pos, opt = parse_flags(args, known={"into", "write", "from-sibling", "from-operator",
+                                        "operator"})
+    into = _s(opt["into"]) if "into" in opt and opt["into"] is not True else None
+    # `opt.get("operator")` is None when absent and True for a bare `--operator`, and NEITHER
+    # is a name. A first version wrote `str(operator).strip()` against the None case, which is
+    # the string "None" — truthy — so `--from-operator` with no name sailed straight past its
+    # own refusal and imported scores attributed to nobody. Normalised here, once.
+    _op = opt.get("operator")
+    operator = "" if _op is None or _op is True else _s(_op).strip()
+    paths = pos
+    from_sibling, from_operator = "from-sibling" in opt, "from-operator" in opt
+    if not paths:
+        print("usage: score_register.py import-csv <rows.csv> [--into <register.rr>] [--write]\n"
+              "       (--from-sibling | --from-operator --operator 'Name')\n"
+              "  Previews by default and writes nothing. --write applies the merge.\n"
+              "  Required columns: title, description, category, owner, response.\n"
+              "  See references/csv-import.md — export-csv is NOT a round-trip format.",
+              file=sys.stderr)
+        return 2
+    # NEITHER FLAG REFUSES. There is no default, deliberately: the two provenances differ in
+    # whether a score may be accepted at all, so guessing one would guess the answer to the
+    # question the flag exists to ask.
+    if from_sibling == from_operator:
+        print("import-csv: say where this file came from — exactly one of --from-sibling or "
+              "--from-operator.\n"
+              "  --from-sibling   another tool's export. Scoring columns are REFUSED: a "
+              "sibling that scores is a second opinion this register will not import.\n"
+              "  --from-operator  your own spreadsheet. Scoring columns are accepted and "
+              "attributed to the person named in --operator.\n"
+              "  There is no default. Which one it is decides whether the numbers in the file "
+              "are usable, so it is not a question this tool can answer for you.",
+              file=sys.stderr)
+        return 2
+    if from_operator and not str(operator).strip():
+        print("import-csv: --from-operator requires --operator 'Name'. Scores arriving this "
+              "way are somebody's assessment, and an unattributed assessment is exactly what "
+              "this register refuses everywhere else.", file=sys.stderr)
+        return 2
+    do_write = "write" in opt
+    if do_write and not into:
+        print("import-csv: --write needs --into <register.rr> to write to.", file=sys.stderr)
+        return 2
+    with open(paths[0], encoding="utf-8-sig") as fh:
+        text = fh.read()
+    try:
+        rows, cols = import_csv_rows(text, from_operator)
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    existing_reg = load_register(into) if into else None
+    existing = existing_reg["risks"] if existing_reg else []
+    matrix = (existing_reg or {}).get("settings", {}).get("matrixSize", 5)
+    prov = declared("operator-csv", by=operator, basis="imported from %s"
+                    % os.path.basename(paths[0])) if from_operator else None
+    candidates, refused = [], []
+    for i, row in enumerate(rows, start=2):          # 2 = the first line after the header
+        try:
+            candidates.append(import_row_to_risk(
+                row, cols, "R-%03d" % (len(existing) + len(candidates) + 1), matrix, prov))
+        except ValueError as exc:
+            refused.append(("row %d" % i, str(exc).splitlines()[0]))
+    # THROUGH `merge_import`, never a second code path. Its own comment says `sourceRef` exists
+    # "so vendor findings merge through THIS function rather than through a second importer.
+    # Two merge paths would be two sets of rules about when a human-authored title may be
+    # overwritten, and only one of them would get the next fix." A third importer with its own
+    # matching would be that mistake, made again.
+    result = merge_import(existing, candidates)
+    if do_write and into:
+        reg = load_register(into)
+        reg["risks"] = result["risks"]
+        _append_event(reg, "import-merged",
+                      rationale="%d added, %d updated from %s (%s)"
+                                % (result["added"], result["updated"],
+                                   os.path.basename(paths[0]),
+                                   "operator: %s" % operator if from_operator
+                                   else "sibling export, no scores accepted"))
+        save_register(reg, into)
+        print("Wrote %s: %d added, %d updated" % (into, result["added"], result["updated"]),
+              file=sys.stderr)
+    else:
+        print("Preview only — nothing written. %d row(s) would be added, %d updated."
+              % (result["added"], result["updated"]), file=sys.stderr)
+        for r in candidates[:10]:
+            print("  %s  %s" % (r["id"], r["title"][:70]), file=sys.stderr)
+        if len(candidates) > 10:
+            print("  ... and %d more" % (len(candidates) - 10), file=sys.stderr)
+    if cols["unknown"]:
+        print("  ignored %d unrecognised column(s): %s"
+              % (len(cols["unknown"]), ", ".join(cols["unknown"])), file=sys.stderr)
+    # ROW-LEVEL, NOT BATCH ABORT. One bad row is reported and skipped; the other nine still
+    # land. Printed AFTER the count so a partial import is never mistaken for a clean one.
+    for where, why in refused:
+        print("  refused %s: %s" % (where, why), file=sys.stderr)
+    if refused:
+        print("  %d row(s) refused and NOT imported." % len(refused), file=sys.stderr)
+    # ⚠️ SAID PLAINLY, because the obvious assumption is wrong and it is wrong destructively.
+    # `merge_import` matches on `csfSubcategoryId` and `sourceRef` and on nothing else, so a
+    # row carrying neither has NO match key and is ADDED AGAIN on a re-run. A first draft of
+    # this command told the user the opposite — "the rows that landed will update rather than
+    # double" — which is true only for rows that happen to carry one of those two columns, and
+    # a CISO fixing two rows and re-running a thirty-row file would have got thirty duplicates
+    # on the strength of it. Verified by running it twice: 2 risks became 4.
+    keyless = sum(1 for c in candidates
+                  if not c.get("csfSubcategoryId") and not c.get("sourceRef"))
+    if keyless:
+        print("  ⚠️ %d of the imported row(s) carry neither csfSubcategoryId nor sourceRef, "
+              "which are the only columns this register matches on. RE-RUNNING THIS FILE WILL "
+              "ADD THEM AGAIN rather than update them. Give those rows a sourceRef — any "
+              "stable identifier from the spreadsheet they came from — if you expect to "
+              "re-import." % keyless, file=sys.stderr)
+    return 0
+
+
 def _cmd_import_gaps(args: list[str]) -> int:
     into = None
     if "--into" in args:
@@ -1425,6 +1806,108 @@ def _cmd_self_test(_: list[str]) -> int:
        (_again["added"], _again["updated"], len(_again["risks"])), (0, 1, 1))
     eq("and the provenance key survives the update",
        _again["risks"][0].get("sourceRef"), _finding["sourceRef"])
+    def _rejects_value(fn):
+        """True when `fn` raises ValueError. The row-level refusals are plain ValueErrors."""
+        try:
+            fn()
+            return False
+        except ValueError:
+            return True
+
+    # --- BL-239. CSV INTAKE, and the refusals proved beside the code that makes them.
+    #
+    # In the self-test rather than a new guard, following the precedent guard-registry.json
+    # sets for the `merge_import`/`references` assertion: the check lives where a change to
+    # the thing it guards is actually made.
+    _hdr = "title,description,category,owner,response"
+    _row = "T,If X then Y,PR,O,mitigate"
+
+    def _imp(text, operator=False):
+        try:
+            return import_csv_rows(text, operator)[1], ""
+        except ValueError as exc:
+            return None, str(exc)
+
+    # THE DERIVED COLUMNS ARE REFUSED BY NAME, not ignored. Each is named in the message,
+    # because a user who cannot see WHICH column was rejected deletes the wrong one.
+    for _bad in ("residualBand", "overAppetite", "inherentExposure", "provisionalScore"):
+        _cols, _why = _imp("%s,%s\nx,y,z,w,mitigate,v" % (_hdr, _bad))
+        eq(f"a {_bad} column is refused by name, never silently dropped",
+           (_cols is None, _bad in _why), (True, True))
+    # ...and the refusal points at the inputs to use instead, or it is only half a refusal.
+    _, _why = _imp("%s,residualBand\nx,y,z,w,mitigate,v" % _hdr)
+    eq("...and names the input columns to use instead", "residualL" in _why, True)
+    # A MISSING REQUIRED COLUMN refuses the file, since no row in it could be valid.
+    _cols, _why = _imp("title,category,owner,response\nT,PR,O,mitigate")
+    eq("a file with no description column is refused, naming it",
+       (_cols is None, "description" in _why), (True, True))
+
+    # PROVENANCE. The sibling refusal is the SAME rule `import-findings` states, applied to a
+    # header set rather than a payload — and the operator flag is the case that rule was never
+    # about: a human's own spreadsheet is this register's owner, not a second register.
+    _scored = "%s,inherentL,inherentI\n%s,3,4" % (_hdr, _row)
+    _cols, _why = _imp(_scored, operator=False)
+    eq("--from-sibling refuses score columns, naming them",
+       (_cols is None, "inherentL" in _why and "inherentI" in _why), (True, True))
+    eq("...and points at the flag that would accept them", "--from-operator" in _why, True)
+    _cols, _why = _imp(_scored, operator=True)
+    eq("--from-operator accepts the identical file", _cols is not None, True)
+    # ...and a file with NO scores is fine from either provenance. A guard that refused
+    # everything from a sibling would pass the check above while breaking the feature.
+    eq("a sibling file carrying no scores is accepted",
+       _imp("%s\n%s" % (_hdr, _row), operator=False)[0] is not None, True)
+
+    # HEADER NORMALISATION. Spreadsheets arrive from Excel, Sheets and Numbers and none of
+    # them agree about spacing or case; refusing over a space would fail the exact user this
+    # feature exists for.
+    eq("headers are matched case- and space-insensitively",
+       _imp("Title, Description ,CATEGORY,Owner,Response\n%s" % _row)[0] is not None, True)
+
+    # ROW-LEVEL REFUSAL, NOT BATCH ABORT — the rule exceptions-register states as "an import
+    # is not a side door". One bad row is reported and skipped; the others still land.
+    _good = {"title": "T", "description": "If X then Y", "category": "PR", "owner": "O",
+             "response": "mitigate"}
+    _cols2 = import_csv_columns(list(_good))
+    eq("a valid row becomes a candidate risk",
+       import_row_to_risk(_good, _cols2, "R-001", 5)["title"], "T")
+    eq("...and a row with no description is refused, not defaulted",
+       _rejects_value(lambda: import_row_to_risk(dict(_good, description=""), _cols2,
+                                                 "R-001", 5)), True)
+    eq("...and a row whose response is not a known type is refused",
+       _rejects_value(lambda: import_row_to_risk(dict(_good, response="ignore"), _cols2,
+                                                 "R-001", 5)), True)
+    # HALF A SCORE IS NOT A SCORE. A likelihood with no impact would otherwise silently keep
+    # empty_risk's 1, which reads as "assessed as trivial" rather than "not assessed".
+    _cols3 = import_csv_columns(list(_good) + ["inherentL"])
+    eq("a likelihood with no impact is refused rather than half-applied",
+       _rejects_value(lambda: import_row_to_risk(dict(_good, inherentL="3"), _cols3,
+                                                 "R-001", 5)), True)
+    _cols4 = import_csv_columns(list(_good) + ["inherentL", "inherentI"])
+    eq("...and a score outside the register's matrix is refused",
+       _rejects_value(lambda: import_row_to_risk(dict(_good, inherentL="9", inherentI="1"),
+                                                 _cols4, "R-001", 5)), True)
+    # A row that brought NO numbers is flagged provisional rather than reading as a real 1x1.
+    eq("an unscored row is marked provisionalScore, not scored 1x1",
+       import_row_to_risk(_good, _cols2, "R-001", 5)["provisionalScore"], True)
+    eq("...and a scored row is not", import_row_to_risk(
+        dict(_good, inherentL="3", inherentI="4"), _cols4, "R-001", 5)["provisionalScore"],
+        False)
+
+    # T2. THE NEWLINE CONVENTION READS BACK. Same value `risk-references.sh` round-trips: a
+    # comma, a semicolon, a pipe and embedded quotes, none of which may split it.
+    _cols5 = import_csv_columns(list(_good) + ["references"])
+    _multi = 'ATT&CK T1566.001\nticket SEC-4471, "phishing wave"; pipe|semi'
+    eq("a multi-value references cell splits on the newline and nothing else",
+       import_row_to_risk(dict(_good, references=_multi), _cols5, "R-001", 5)["references"],
+       ["ATT&CK T1566.001", 'ticket SEC-4471, "phishing wave"; pipe|semi'])
+
+    # THE THIRD `declared()` COPY. Shape reused, module never imported (CAC-AP-1 s 2.6).
+    eq("declared() carries the four-field provenance shape",
+       sorted(declared("v", by="N", basis="b")), ["basis", "declaredBy", "declaredOn", "value"])
+    eq("...and a bare scalar reads back unchanged, never refused", value_of("plain"), "plain")
+    eq("...and an unattributed wrapper is reported as such rather than refused",
+       (is_attributed(declared("v")), is_attributed(declared("v", by="N"))), (False, True))
+
     # --- BL-117 T5. `references` IS NEVER A MATCHING KEY, and this fails if it becomes one.
     #
     # The whole reason the field exists separately from `sourceRef` and `csfSubcategoryId`.
@@ -4251,7 +4734,7 @@ def _cmd_suggest_method(args):
 
 
 COMMANDS = {
-    "score": _cmd_score, "import-gaps": _cmd_import_gaps,
+    "score": _cmd_score, "import-gaps": _cmd_import_gaps, "import-csv": _cmd_import_csv,
     "import-findings": _cmd_import_findings, "self-test": _cmd_self_test,
     "init": _cmd_init, "set-text": _cmd_set_text,
     "add": _cmd_add, "set-score": _cmd_set_score, "accept": _cmd_accept,
