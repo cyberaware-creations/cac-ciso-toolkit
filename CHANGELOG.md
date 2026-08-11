@@ -21,6 +21,74 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.103.0 — 2026-08-11
+
+**A CISO with thirty risks in a spreadsheet no longer has to retype them.** `import-csv` is the
+first half of *"meet the CISO where they are"* — and where most of them are is a spreadsheet.
+
+### ⚠️ `export-csv` is not a round-trip format, and the docs say so where you look for symmetry
+
+Five exported columns are **derived**, not stored — `inherentExposure`, `inherentBand`,
+`residualExposure`, `residualBand`, `overAppetite`. They are outputs of the matrix. Accepting
+them as inputs would let a spreadsheet assert a band that disagrees with the matrix that
+produced it.
+
+They are **refused by name**, never ignored: a silently dropped `residualBand` is a user
+believing they set something, and not finding out until a board asks why the register disagrees
+with their spreadsheet. `provisionalTitle`/`provisionalScore` are refused too — stored, but
+engine-managed, and a spreadsheet clearing them would erase that record rather than earn it.
+
+❗ **A correction to the plan's count.** It said "10 of the 22 columns are derived". Ten have no
+stored top-level key of that name, but only **five** are derived; the other five —
+`inherentL`, `inherentI`, `residualL`, `residualI`, `cost` — are *flattenings* of stored nested
+objects, and are exactly the columns an importer needs. Conflating the two would have thrown
+away the score columns the feature exists to accept.
+
+### Provenance decides whether the scores survive
+
+**Exactly one of `--from-sibling` or `--from-operator` — there is no default.** The two answers
+differ in whether the numbers are usable at all, so guessing one would guess the answer to the
+question the flag exists to ask.
+
+The distinction is about **machine** provenance. `import-findings` refuses scoring keys because
+*"a scoring key reaching here means the other register started scoring."* That reason does not
+reach an operator: **a human bringing their own spreadsheet is this register's owner, not a
+second register.** `--from-operator` requires `--operator 'Name'`, and the attribution is stored
+on each scored risk as `scoreProvenance` — the third copy of the `{value, declaredBy,
+declaredOn, basis}` shape, reused and never imported (CAC-AP-1 §2.6).
+
+### Two defects found by running it, not by reading it
+
+**`--from-operator` with no name sailed straight past its own refusal.** `_s(None)` returns
+`None`, and `str(None)` is `"None"` — truthy. Scores would have imported attributed to nobody.
+
+**The command told the user the opposite of what it does.** A first draft said *"the rows that
+landed will update rather than double"* on a re-run. `merge_import` matches on
+`csfSubcategoryId` and `sourceRef` **and nothing else**, so rows carrying neither are added
+again — verified by running it twice: 2 risks became 4. The command now **counts those rows and
+warns by name**, because the natural assumption is wrong destructively: fixing two rows and
+re-running a thirty-row file would otherwise leave sixty risks.
+
+### The rest
+
+Row-level refusal, not batch abort — one bad row is reported by row number and skipped, the
+other twenty-nine land. Merged through **`merge_import`**, not a second matching path. Preview
+by default; `--write` commits. Headers matched case- and space-insensitively, because Excel,
+Sheets and Numbers do not agree about spacing and refusing over that would fail the exact user
+this is for. `references` reads back on the newline convention, round-tripped against the same
+comma/semicolon/pipe/quotes value `risk-references.sh` uses.
+
+Engine self-test **286 → 308**, with the refusals asserted beside `merge_import` rather than in
+a new guard — the precedent `guard-registry.json` already sets.
+
+### ⛔ Filed, not settled: does an operator-imported score count as assessed?
+
+Shipping required a value, so `provisionalScore` is `False` for a scored row — but the question
+is genuinely open and is in ⚖️ Open Decisions. `True` would make `confirm` refuse every imported
+risk until each number was re-entered by hand, which is the retyping this feature removes, *and*
+would state something untrue: that nobody assessed it, when a named human did. `False` is
+defensible **because** the attribution is stored, not merely because it is convenient.
+
 ## v0.102.0 — 2026-08-10
 
 **Decided: DORA carries a conditional date too — but only where the anchor exists.** Where it
