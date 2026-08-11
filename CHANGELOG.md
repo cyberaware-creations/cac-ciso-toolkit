@@ -21,6 +21,76 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.108.0 — 2026-08-11
+
+**BL-64 closed out: the three Receipt angles the previous sweep deliberately left alone. Two are
+now sourced to primary instruments. Three insurance assertions could not be, and are marked on
+the page instead of being carried quietly.**
+
+### Angle #6, framework maturity — sourced, and the sharper claim was the one worth making
+
+The line said *"NIST CSF is designed to be risk-prioritized, not maxed uniformly."* True, and
+weaker than the fact available: **NIST publishes no CSF maturity score at all.** A board hearing
+*"our CSF maturity is 3.2 out of 5"* is hearing the organisation's own scale attributed to the
+framework. CSF 2.0's **Tiers** run 1–4 and characterise the *rigour* of risk governance and risk
+management — per **CSWP 29 §3.2** they *complement* a risk-management methodology rather than
+replace it, and progression is encouraged **only** where risks or mandates are greater, or where
+a cost-benefit analysis shows a feasible and cost-effective reduction of negative risk.
+
+⚠️ **Provenance, stated because it is not a fresh read of NIST's paper.** §3.2 was verified
+against **this repo's own vendored Core** — `skills/nist-csf/references/nist-csf-2.0-core.json`,
+key `tiers.guardrail`, carrying the CPRT export `csf-2.0.xlsx` at sha256 `cc4ec545…f9b616`. That
+is a second-hand read of a first-party artifact, and if the vendored Core were ever wrong about
+§3.2 this row would be wrong with it. Recorded in the `csf-2-0` source row, not left implicit.
+
+**The cross-check is the point.** `nist-csf` already enforces the same reading as a shipped
+guardrail — Tiers *"must never be rendered, averaged, or trended"* as a maturity score — so
+archetype #6 and the `nist-csf` skill now say the same thing, and a change to either should be
+checked against the other.
+
+### Angle #7, backup/recovery — DORA pinned to articles, and what those articles do NOT say
+
+*"Operational-resilience regimes increasingly require tested recovery (DORA; financial-sector
+BC/DR)"* named no locator. Now: **Commission Delegated Regulation (EU) 2024/1774** — **Art.
+8(2)(b)(i)** puts *"backup and restore requirements of ICT systems"* into the ICT operations
+policy, and **Art. 25** (*Testing of the ICT business continuity plans*) requires testing that
+contains *"the testing of switchover from primary ICT infrastructure to the redundant capacity,
+backups and redundant facilities"* (**Art. 25(2)(c)**).
+
+⚠️ **Art. 25 is a business-continuity testing duty that must COVER backups — not a standalone
+"test your restores" mandate, and it sets no cadence.** No provision isolates periodic
+backup-restore testing. The quarterly drill in this archetype's board ask is **CAC's
+recommendation**, and now says so rather than borrowing DORA's authority for a number DORA does
+not state.
+
+⛔ **DORA Level 1 (Reg. (EU) 2022/2554) still has no article-level locator here.** EUR-Lex
+truncated it again — the same failure BL-46 recorded for Arts. 19/20 — so rather than pin
+article numbers that could not be opened, the receipt rests on the RTS, which rendered in full.
+
+### Three insurance assertions: struck from the receipt lines, filed as BL-244
+
+None of these is a receipt, and all three were being offered as ones:
+
+- *"MFA is a common cyber-insurance precondition"* (#5) — **market practice.** Carrier- and
+  year-specific, no instrument.
+- *"insurers now probe immutability and restore testing directly"* (#7) — **market practice.**
+  Same.
+- *"a privileged-access gap can void a claim"* (#5) — **a claim about insurance contract law**,
+  not a fact about MFA. Whether a gap voids cover turns on the policy wording, on what was
+  warranted or represented at placement, on jurisdiction, and on whether the term is a condition
+  precedent or a warranty. **Not sourced, not guessed at, not quietly softened** — filed, per the
+  standing rule on legal-exposure calls.
+
+Neither board ask depended on them. *"Accept the privileged-access gap on the record"* stands on
+**§500.12** and on the trap alone, and #5's receipt now carries the §500.12 reading that was
+already in `regulatory-receipts.md`: the compensating-control route needs written CISO approval,
+reviewed annually, and exists **only** *"if the covered entity has a CISO"*.
+
+**Checks:** 44 guards / 86 halves / 126 proved; CAC-RW-1 clean at 55 declared sources; CAC-CD-1,
+CAC-TW-1 and the four manifests green. No code changed, so no guard was added.
+
+---
+
 ## v0.107.0 — 2026-08-11
 
 **Five citation items from a human reading queue, each swept against primary instruments before

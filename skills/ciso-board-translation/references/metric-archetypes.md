@@ -135,8 +135,26 @@ non-human identities are often unprotected entirely.
 **The board ask.** Move crown-jewel accounts to phishing-resistant MFA (FIDO2 /
 hardware keys), or accept the privileged-access gap on the record.
 
-**Receipt angle.** NYDFS §500.12 sets an MFA baseline, and MFA is a common cyber-
-insurance precondition — a privileged-access gap can void a claim.
+**Receipt angle.** **NYDFS §500.12** sets an MFA baseline for covered entities,
+and the escape route is narrow *and* conditional: written CISO approval of
+*"reasonably equivalent or more secure compensating controls"*, reviewed at least
+annually — and only *"if the covered entity has a CISO"*, so an entity without one
+has no such route at all. (See `regulatory-receipts.md` for the full reading,
+including the opposite structure at §500.17(b)(2).)
+
+> ⛔ **The insurance half of this angle is DELIBERATELY UNSOURCED — BL-244.**
+> Two assertions used to sit on this line and neither is a receipt:
+>
+> - *"MFA is a common cyber-insurance precondition"* — **market practice.**
+>   Widely reported, carrier- and year-specific, no instrument behind it.
+> - *"a privileged-access gap can void a claim"* — **a claim about insurance
+>   contract law**, not a fact about MFA. Whether a gap voids cover turns on the
+>   policy wording, on what was warranted or represented at placement, on the
+>   jurisdiction, and on whether the term is a condition precedent or a warranty.
+>
+> **Do not put either to a board as a legal position.** The board ask above does
+> not need them: *"accept the privileged-access gap on the record"* stands on
+> §500.12 and on the trap alone.
 
 **Grade-A one-liner.** "MFA covers 95% — but the missing 5% is admins and
 service accounts, and our push MFA is phishable anyway; move privileged accounts
@@ -152,9 +170,20 @@ precisely the thing that buries the material gap.
 **The board ask.** Fund the *specific weak function* up one level — not a
 uniform push to 5 everywhere, which wastes money.
 
-**Receipt angle.** NIST CSF is designed to be risk-prioritized, not maxed
-uniformly; after an incident the question is whether the board governed the
-*material* gap — which the average obscures.
+**Receipt angle.** **NIST publishes no CSF maturity score, so a "3.2 out of 5" is
+the organisation's own scale — not the framework's.** CSF 2.0's **Tiers** run 1–4
+and characterise the *rigour* of an organisation's cybersecurity risk governance
+and risk management; they are not a scale to be averaged or trended, and this
+suite's own `nist-csf` skill refuses to render them as one. Per **NIST CSWP 29
+§3.2**, Tiers *complement* a risk-management methodology rather than replace it,
+and progression to a higher Tier is encouraged **only** when risks or mandates are
+greater, or when a cost-benefit analysis indicates a feasible and cost-effective
+reduction of negative risk.
+
+So "get everything to 5" is not what the framework asks for. A board funding a
+uniform push is funding something NIST does not recommend, while the *material*
+gap stays buried in the average — and after an incident, the question is whether
+the board governed **that** gap.
 
 **Grade-A one-liner.** "Our CSF maturity is 3.2, up from 2.9 — but that average
 hides Recover at 1.5 behind a strong Protect; fund Recover up one level, or
@@ -171,9 +200,26 @@ RTO/RPO figures are usually *assumed*, not measured.
 **The board ask.** Fund isolated/immutable recovery plus quarterly restore
 drills, or accept an unknown recovery time on the record.
 
-**Receipt angle.** Operational-resilience regimes increasingly require *tested*
-recovery (DORA; financial-sector BC/DR), and insurers now probe immutability and
-restore testing directly.
+**Receipt angle.** Operational-resilience regimes require recovery to be
+*tested*, not merely planned. Under DORA's ICT risk-management RTS — **Commission
+Delegated Regulation (EU) 2024/1774** — **Art. 8(2)(b)(i)** puts *"backup and
+restore requirements of ICT systems"* into the ICT operations policy, and
+**Art. 25** (*Testing of the ICT business continuity plans*) requires testing that
+contains *"the testing of switchover from primary ICT infrastructure to the
+redundant capacity, backups and redundant facilities"* and that verifies critical
+or important functions can be operated for a sufficient period and normal
+functioning restored (**Art. 25(2)(c)**).
+
+> ⚠️ **Read Art. 25 for what it is: a business-continuity testing duty that must
+> COVER backups — not a standalone "test your restores" mandate.** No provision
+> isolates periodic backup-restore testing; the obligation sits inside the BCP
+> testing cycle. Telling a board *"DORA requires quarterly restore drills"* states
+> a cadence the instrument does not set — the quarterly drill in the board ask
+> above is **this toolkit's recommendation**, not a regulatory minimum.
+>
+> ⛔ *"Insurers now probe immutability and restore testing directly"* also sat on
+> this line and is **market practice, not a receipt** — no instrument, and
+> carrier- and year-specific. Filed as **BL-244**.
 
 **Grade-A one-liner.** "Backups succeed on 99% of systems — but we've never run a
 full restore, so real recovery time is unknown and our backups aren't immutable;
