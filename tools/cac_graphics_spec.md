@@ -23,7 +23,7 @@ Use it to compare any alternative implementation and identify gaps or divergence
 ```python
 # Four variants per RAG band:
 #   fill  — saturated; for bars, dots, strokes where the mark IS the status
-#   text  — dark, accessible (WCAG AA); chip labels and value labels on tint
+#   text  — dark, accessible (WCAG 2.2 AA); chip labels and value labels on tint
 #   tint  — pale; chip/badge backgrounds; never on data marks
 #   mid   — desaturated zone band; replaces opacity compositing in bullet zones
 _RAG = {
@@ -55,7 +55,7 @@ _FONT_BODY     = "'Manrope',system-ui,sans-serif"          # labels, prose
 ### Chip rendering rule
 
 Chips use **`tint` background + `fill` dot + `text` label**. Never a saturated fill with white text.
-Rationale: amber and yellow fills fail WCAG AA at any text size. The tint+dot pattern passes for all four bands without exception.
+Rationale: amber and yellow fills fail WCAG 2.2 AA at any text size. The tint+dot pattern passes for all four bands without exception.
 
 ### The governing colour rule
 

@@ -34,15 +34,18 @@ Three tests that separate a control from a sentence:
    was sent. It is not evidence that a single password got stronger.
 
 The reminder example fails a fourth way worth naming, because it is easy to miss: it is aimed
-at an objective the standard abandoned. **NIST SP 800-63B** — that edition withdrawn by NIST on
-2025-08-01 and superseded by SP 800-63B-4 — moved off user-chosen complexity years ago in
-favour of length, screening against breached-password corpora, and no forced rotation.
-Exhorting users toward "strong" passwords asks them to do the thing the guidance
-stopped asking for — so the measure is not merely weak, it is pointed at the wrong target.
+at an objective the standard abandoned. **NIST SP 800-63B-4 §3.1.1.2** moved off user-chosen
+complexity in favour of length, screening against breached-password corpora, and no forced
+rotation. It also raises the minimum to **15 characters for single-factor** authentication
+(8 where a second factor is used). Exhorting users toward "strong" passwords asks them to do
+the thing the guidance stopped asking for — so the measure is not merely weak, it is pointed at
+the wrong target.
 
-*The withdrawal is stated; the citation is deliberately not yet repointed. Revision 4 moved the
-volume boundaries, so which volume this particular guidance now lives in has to be read before
-it is named — repointing without checking is a new error dressed as a fix (BL-224 T3).*
+*Cited at SECTION level, not to the bare volume, and that is the lesson of this repoint rather
+than a formatting preference. Revision 4 renumbered 800-63B wholly and moved several subjects
+into other volumes; a bare-volume citation would have gone stale silently, where a section cite
+makes the next revision's boundary move **visible**. All three limbs of the claim above were
+confirmed to have stayed in 63B-4 §3.1.1.2 before the pointer was changed.*
 
 What a real compensating control for unenforced MFA looks like: MFA at a layer that *can* be
 enforced (VPN, SSO front end, jump host); breached-credential screening at set-time and
@@ -187,6 +190,43 @@ red-flags theory that **survived**, and demand was excused as futile. One produc
 is a permanent, queryable record of decisions somebody made. *Brewer* is the case where that
 exact artifact does both jobs at once, and a CISO being sold the inventory should hear it in the
 same breath as the *Caremark* argument for keeping it — not later, from opposing counsel.
+
+### And the statute is what makes the record reachable
+
+*Brewer*'s §220 production was not an accident of that case. **DGCL § 220** — rewritten by
+**Senate Bill 21, signed 25 March 2025** — now enumerates **nine** categories of "books and
+records" a stockholder may demand, at **§ 220(a)(1)a.–i.** Two of them are exactly the artifact
+this register produces:
+
+- **e.** — minutes of the board and of its committees
+- **f.** — materials provided to the board
+
+So the board-level record remains **reachable by a stockholder**, which is the fact this caveat
+needs. It is not a novel risk created by keeping a register; it is the ordinary position of
+board-level governance records, and it is why *"governance-level, not forensic"* is the rule
+above rather than a style preference.
+
+> ⚠️ **§ 220(g) is a three-limb CUMULATIVE test, and it is easy to state as one.** A stockholder
+> seeking records *beyond* the enumerated categories must satisfy **all three**:
+>
+> 1. **(g)(1)** — the demand meets § 220(b);
+> 2. **(g)(2)** — a showing of a **compelling need** for the specific records; and
+> 3. **(g)(3)** — a demonstration **by clear and convincing evidence** that those specific
+>    records are **necessary and essential** to the stated purpose.
+>
+> Note where the standard attaches: **clear-and-convincing qualifies "necessary and essential",
+> not "compelling need"**. Collapsing the three into "you need a compelling need, proved clearly
+> and convincingly" states a different — and easier — test than the statute.
+
+> ❌ ***Rutledge* did NOT uphold § 220, and an earlier draft of this passage said it did.**
+> *Rutledge v. Dropbox* (Del. No. 248, 2025, 27 Feb. 2026) upheld **SB 21 § 1 (DGCL § 144)** and
+> **§ 3 (retroactivity)**. On § 220 the Court was explicit: *"The amendments to § 220 … are **not
+> implicated** by the questions the Court of Chancery certified to us."*
+>
+> The case name, number and date were all correct; **what was wrong was what it held** — the
+> most dangerous shape for a citation error, because everything checkable checks out. Narrowed
+> to what the Court actually decided, and the § 220 amendments are cited to **the statute
+> itself**, which needs no case to be in force.
 
 It is **still an argument for keeping the record.** It is an argument against keeping it
 carelessly, which is what the rules below are for.

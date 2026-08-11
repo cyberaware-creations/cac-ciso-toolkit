@@ -21,6 +21,127 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.107.0 — 2026-08-11
+
+**Five citation items from a human reading queue, each swept against primary instruments before
+it reached the tree.**
+
+### BL-64 — two Receipt angles sourced, and the limits shipped with them
+
+**Angle #2, phishing/BEC.** FBI IC3 *2025 Internet Crime Report*: **$3,046,598,558 across 24,768
+BEC complaints**, second-costliest category behind investment fraud.
+
+⚠️ **Two limits, in a file that had zero "limit" or "caveat" strings across 157 lines** — in the
+layer whose whole discipline is honest limits:
+
+- **IC3 counts REPORTED losses from complaints filed with IC3.** Not total economic loss and not
+  an estimate of one — a floor of a subset, with under-reporting unmeasured.
+- ***"Wire fraud" is not an IC3 category. BEC is.*** The old sentence said *"BEC and wire fraud"*
+  and the citation supports only the first; wire fraud is a federal criminal offence
+  (18 U.S.C. § 1343), not a line in this report. Pinned to BEC, with the year.
+
+**Angle #4, third party.** **NYDFS 23 NYCRR § 500.11** and **DORA Chapter V, Arts. 28–31** —
+`500.11` returned zero repo-wide before this. **Arts. 34+ deliberately not cited**: that is
+critical-provider designation, a different claim about a different population.
+
+**And `metric-archetypes.md` was in no `usedFor` array anywhere**, so `check-sources.py` could
+not see any of it. Three rows now cover it — the new `ic3-annual-report` plus NYDFS and DORA —
+so the new citations are watched from birth rather than unwatched.
+
+⛔ Angles #6, #7 and the insurance clause were **not** in today's sweep and remain unsourced.
+Not guessed at.
+
+### BL-46 — the five law-derived constants now carry their instruments
+
+They sat as bare integers with **no citation on any line**, which made every deadline downstream
+an assertion rather than a derivation.
+
+**Three defects fixed:**
+
+1. **The SEC locus was wrong.** Not §229.105 (Risk Factors), not §229.106 (the annual item), not
+   the body of Item 1.05 — **Form 8-K, General Instruction B.1** (Form prescribed at 17 CFR
+   249.308).
+2. **The DORA empowerment was misstated.** Art. 19(4) is the reporting obligation; **Article 20,
+   third subparagraph** is the RTS mandate that sets the *time limits*. Both matter, and the
+   19(4) label is now **marked as resting on the RTS's own cross-reference**, not a direct read —
+   EUR-Lex truncates DORA Arts. 19/20.
+3. **Article 5 has six paragraphs; the file described five.** **5(6)** lets a competent authority
+   disapply the 5(4) relief for a *"significant or … systemic"* entity. Changes no computed
+   number, but the Limits section was incomplete about the instrument it summarises.
+
+⭐ **And the same Instruction validates the engine's arithmetic.** *"If the event occurs on a
+Saturday, Sunday or holiday… the four business day period shall begin to run on, and include,
+the first business day thereafter."* That makes `business_days_after` treating the anchor as day
+zero **correct rather than coincidental** — the worked table is now citable instead of asserted.
+
+**Three new deviations stated, not modelled**, each erring **early**, which is the safe
+direction: Reg. 1182/71 not applied to the one-month window (≤ ~1 day early — **do not "fix"
+`add_months`**); the Item 1.05 **amendment** window not computed; an **updated** intermediate
+report not moving the final window.
+
+`88 FR 51942 / 51945` is now **marked unverified** rather than reading as checked — the release
+PDF truncates before the amendatory text. `88 FR 51896`, 4 Aug. 2023, effective 5 Sep. 2023 **is**
+corroborated.
+
+**CAC-RW-1 caught two things on the way**: the new `17 CFR 249.308` locus was undeclared, and
+naming §229.105 *as the wrong answer* reads to the checker as a citation. The first is now on the
+row; the second is allowlisted **with the argument**, because "not this one" is only useful if it
+says which one.
+
+### BL-224 — the SP 800-63 repoint, and why it was safe here
+
+`SP 800-63B-4 §3.1.1.2`. **Section level, not the bare volume** — that is the item's lesson, not
+a formatting preference: Rev 4 renumbered 63B wholly, so a bare-volume cite goes stale
+**silently** where a section cite makes the next boundary move **visible**.
+
+The repoint was safe because this tree makes exactly **one** distinct claim from the family and
+all three limbs stayed in 63B. Rev 4's 15-character single-factor minimum is added; the *"not yet
+repointed / boundaries moved"* caveats are **retired**.
+
+**Recorded, not acted on:** a naive `63B → 63B-4` swap misfires on enrolment binding (63A-4),
+subscriber accounts (63A-4 / 63C-4), assurance-level selection (base 63-4 §3), usability
+(renamed), any section number, and *"memorized secret"* (retired for *"password"*). None is cited
+here — which is exactly why the repoint was safe **here** and would not be elsewhere.
+
+⚠️ The `reviewIntervalDays: 365` question is **flagged, not changed** — filed as an Open Decision.
+
+### BL-144 — DGCL § 220, and a citation error of the hardest kind
+
+**SB 21, signed 25 March 2025**, rewrote § 220: **nine** enumerated categories at
+§ 220(a)(1)a.–i., including **e.** board and committee minutes and **f.** materials provided to
+the board. The board-level record remains reachable by a stockholder, which is what the caveat
+needs.
+
+❌ ***Rutledge* did not uphold § 220.** It upheld **SB 21 § 1 (DGCL § 144)** and **§ 3
+(retroactivity)**, and said so: *"The amendments to § 220 … are not implicated by the questions
+the Court of Chancery certified to us."* **The case name, number and date were all correct and
+only the holding was wrong** — the hardest citation error to catch, because everything checkable
+checks out. The § 220 amendments are cited to **the statute**, which needs no case to be in force.
+
+⚠️ **§ 220(g) is a three-limb cumulative test and the page stated one.** And the
+clear-and-convincing standard attaches to ***necessary and essential***, not to *compelling
+need* — collapsing them states an easier test than the statute.
+
+### BL-162 — WCAG 2.2 declared, and the ISO amendment cited with its marker intact
+
+**Part 1.** Three surfaces disagreed (one said 2.1, the rest said bare "WCAG AA"). All now
+declare **WCAG 2.2** (W3C Rec., 12 Dec. 2024). **No computed value changes** — 4.5:1 and 3:1 are
+identical across 2.0/2.1/2.2, and WCAG 2.0 Erratum 1 retroactively aligned the luminance
+threshold (0.03928 → 0.04045). Declared for auditability. All 10 vendored copies re-synced.
+
+**Part 2.** **`ISO/IEC 27001:2022/Amd 1:2024`** — *"Climate action changes"*, 23 Feb. 2024, stage
+60.60 — added, and `checkedBy` **stays `unverified`**.
+
+The designation, title and date are primary-verified from ISO's catalogue. **What the amendment
+changes is not**, and no clause-level description is given rather than given unmarked. ⚠️ **Adding
+the designation does not make the row's assertion any more checked**: the row asserts what
+Cl. 6.1.3 / 8.3 *require*, and a climate-scope amendment touches neither. The row says so.
+
+**The marker now names the route out** — *"if your organisation holds a licence, you can supply
+your copy and verify this citation in your own deployment"* — while ***"do not re-attempt from
+the web"* stands unchanged**, because it governs CAC's attempts and is what stops this being
+re-litigated every grooming pass.
+
 ## v0.106.0 — 2026-08-11
 
 **Two count-and-condition defects in prose a reader meets first.**

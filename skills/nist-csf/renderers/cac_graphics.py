@@ -115,7 +115,10 @@ def _svg_size(svg):
 
 
 def _relative_luminance(hex_colour):
-    """WCAG relative luminance for a #rrggbb string."""
+    """WCAG relative luminance for a #rrggbb string.
+
+    WCAG 2.2 (W3C Recommendation, 12 Dec. 2024). The choice of version is COSMETIC and that is why it is safe to declare: 4.5:1 and 3:1 are identical across 2.0, 2.1 and 2.2, and the relative-luminance formula now agrees across all three — WCAG 2.0 Erratum 1 retroactively moved the linearisation threshold 0.03928 -> 0.04045. No computed value in this repo changes. Declared for auditability (BL-162).
+    """
     c = hex_colour.lstrip("#")
     out = []
     for i in (0, 2, 4):
@@ -388,7 +391,12 @@ class BrandError(ValueError):
 
 
 def contrast(a, b):
-    """WCAG contrast ratio between two #rrggbb colours."""
+    """WCAG contrast ratio between two #rrggbb colours.
+
+    Thresholds are WCAG 2.2 AA: 4.5:1 for normal text, 3:1 for large text and for
+    non-text contrast. See `relative_luminance` for why the version declaration is
+    safe rather than a behaviour change.
+    """
     la, lb = _relative_luminance(a), _relative_luminance(b)
     hi, lo = max(la, lb), min(la, lb)
     return (hi + 0.05) / (lo + 0.05)

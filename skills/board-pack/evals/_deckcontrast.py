@@ -32,7 +32,9 @@ import re
 import sys
 import zipfile
 
-# WCAG 2.1: large text is >= 18pt, or >= 14pt when bold. Everything else owes 4.5:1.
+# WCAG 2.2 AA: large text is >= 18pt, or >= 14pt when bold. Everything else owes 4.5:1.
+# Declared 2.2 for auditability (BL-162) — the thresholds and the luminance formula are
+# identical across 2.0/2.1/2.2, so nothing computed here moves.
 LARGE_PT = 18.0
 LARGE_PT_BOLD = 14.0
 FLOOR_NORMAL = 4.5
