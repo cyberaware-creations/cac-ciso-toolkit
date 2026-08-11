@@ -21,7 +21,40 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
-## v0.110.0 — 2026-08-12
+## v0.111.0 — 2026-08-11
+
+**Five dates written as 2026-08-12 were wrong by one day. Corrected — and recorded here rather
+than changed silently, because a date moving in a shipped file with nothing behind it is exactly
+what someone diffing this later would have to guess at.**
+
+The overnight brief was headed **2026-08-12**; the machine clock was **2026-08-11 09:34 PDT**. The
+brief's header was taken as authoritative and it should not have been. Confirmed with Darren, who
+called it: the clock is right.
+
+**What was wrong, and what was not.** Nothing in any `sources.json` was invalid and no check ever
+failed — every `checkedOn` was already ≤ 2026-08-11, which is why `check-sources.py` stayed green
+throughout. ⚠️ **The error was entirely in prose**, which is the half no validator reads:
+
+- the `v0.109.0` and `v0.110.0` headings below
+- the attribution line *"Darren, 2026-08-12"* in the v0.109.0 entry
+- the same attribution inside `sp-800-63b`'s `intervalBecause` — **the only shipped-content
+  instance, and the one that mattered**: a quote attributed to a day that had not happened yet
+- the drift note in `sources-schema.md`, which cited *"the live tree on 2026-08-12"* — a line
+  whose whole subject is a number going stale in prose
+
+**How it surfaced, which is the part worth keeping.** Not by review. **The counter-signature
+machinery from v0.110.0 caught it.** A demonstration of the `reviewedBy` refusal used
+`reviewedOn: 2026-08-12` for an otherwise-valid human signature, and the checker rejected it as
+**in the future**. The date validation written for counter-signatures found a date error in the
+release that shipped it, one command after it landed.
+
+⚠️ **The v0.109.0 and v0.110.0 commit messages still say 2026-08-12 and were left alone.** They
+are merged and tagged; rewriting them would move two tags off the trees this file points at, to
+fix a date this entry now explains. The record is better served by the note than by the rewrite.
+
+---
+
+## v0.110.0 — 2026-08-11
 
 **BL-228 — the counter-signature. The machinery ships; the values stay at zero until a person
 signs.**
@@ -98,7 +131,7 @@ tree reports **55 sources: 2 unverified, 53 claude-code, 0 countersigned**.
 
 ---
 
-## v0.109.0 — 2026-08-12
+## v0.109.0 — 2026-08-11
 
 **`sp-800-63b` moves to a 180-day review interval, and the reason is on the row.**
 
@@ -106,7 +139,7 @@ This was flagged rather than changed last time, and the reasoning for flagging i
 **CAC-RW-1.13 requires a stated reason for a deviation, and a machine-supplied reason would
 satisfy the schema while defeating the rule.** So it waited for a human answer, and got one.
 
-**Darren, 2026-08-12 — and it is general, not about this row:**
+**Darren, 2026-08-11 — and it is general, not about this row:**
 
 > *"We can ship with recommended or default review timeline values, but the CISO should be able
 > to override them locally. It's up to them to decide how they run their program."*

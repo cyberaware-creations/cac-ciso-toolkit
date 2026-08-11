@@ -303,7 +303,7 @@ printing it.
 
 > ⚠️ **This sentence used to end "zero of 45", and the 45 was wrong.** It was typed once and
 > never moved: the item title said **51**, CHANGELOG entries said **52**, and the live tree on
-> 2026-08-12 held **55**. Nothing was lying — **the CHANGELOG numbers were each correct on the
+> 2026-08-11 held **55**. Nothing was lying — **the CHANGELOG numbers were each correct on the
 > day they were written**, and only this line was stale, because prose does not get recomputed.
 > **So the denominator is no longer restated here.** `check-sources.py` prints it every run and
 > `--report` prints it per row; a hardcoded total in a document is precisely the drift this
