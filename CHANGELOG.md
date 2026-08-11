@@ -21,6 +21,42 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.106.0 — 2026-08-11
+
+**Two count-and-condition defects in prose a reader meets first.**
+
+### BL-241 — the manifest said "Eleven skills" and twelve ship
+
+Wrong for **36 releases**, in the first sentence of the first thing a reader sees. `README.md`
+said twelve; `ls skills/` returns twelve.
+
+❗ **T2's answer: the count only.** All twelve skills *are* named in the enumeration, and "Nine
+own data" is correct (nine owning + `attention-surface`, `ciso-board-translation`, `board-pack`).
+So this was one wrong word, not a missing paragraph.
+
+**T3 — the guard fits in the check that already walks these blobs.** `check_skill_coverage` was
+written after the manifests advertised three skills while seven shipped; it asserts every skill
+is *named*, and now also that the spelled-out count *matches*. Same failure shape, one clause
+earlier in the same sentence. Proven by restoring "Eleven" and watching it refuse.
+
+### BL-189 — §500.17 stated a conditional requirement unconditionally
+
+Two signatures **is** correct. What was wrong is that *"and the CISO"* was stated flatly, where
+23 NYCRR §500.17(b)(2) substitutes **"the senior officer responsible for the cybersecurity
+program"** when there is no CISO.
+
+⚠️ **The strongest argument for the fix sat six lines above it.** The receipt already handles
+§500.12(b) correctly — *"Conditional: 'if the covered entity has a CISO' — an entity without one
+has no such route."* **§500.17(b)(2) has the opposite structure**: no CISO does not remove the
+obligation, it substitutes the signatory. An entity told it needs a signature it cannot get
+would read the receipt as blocking when the regulation supplies the way through — the more
+damaging direction for a receipt to be wrong in, and the reason both structures are now stated
+side by side.
+
+The line anchors on the item were stale by ~230 lines; the receipt is at `:394-400`. **The
+v0.63.0 entry below carries the same unconditional wording** at what is now line 3567. It is
+left as written — a shipped changelog is a record of what was said — and corrected here.
+
 ## v0.105.0 — 2026-08-11
 
 **The program posture report.** `nist-csf posture` bands every CSF outcome by **what is
