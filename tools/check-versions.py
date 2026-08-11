@@ -340,6 +340,11 @@ def check_maker_name(root="."):
     return True
 
 
+# Spelled out, because that is how the descriptions say it and a digit would not match.
+_NUMBER_WORDS = {"Nine": 9, "Ten": 10, "Eleven": 11, "Twelve": 12, "Thirteen": 13,
+                 "Fourteen": 14, "Fifteen": 15, "Sixteen": 16}
+
+
 def check_skill_coverage(root="."):
     """Every shipped skill must be named in the user-facing description of every manifest.
 
@@ -386,6 +391,15 @@ def check_skill_coverage(root="."):
         if absent:
             problems.append("{}:{} never names {}".format(
                 rel, ".".join(str(k) for k in path), ", ".join(absent)))
+        # ...AND THE COUNT IN THE PROSE, which drifted for 36 releases while every skill was
+        # correctly named (BL-241). The enumeration was complete and the first word of the
+        # first sentence a reader meets said "Eleven". Nothing structural was wrong, which is
+        # exactly why nothing caught it — the same shape as the defect this function already
+        # guards, one clause earlier in the same sentence.
+        said = re.search(r"\b(%s)\s+NIST-aligned skills" % "|".join(_NUMBER_WORDS), node)
+        if said and _NUMBER_WORDS[said.group(1)] != len(skills):
+            problems.append("{}:{} says {!r} NIST-aligned skills; {} ship".format(
+                rel, ".".join(str(k) for k in path), said.group(1), len(skills)))
     if problems:
         print("ERROR: shipped skills missing from a user-facing description:")
         for p in problems:

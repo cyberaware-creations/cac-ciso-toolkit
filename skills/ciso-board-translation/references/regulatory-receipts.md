@@ -394,9 +394,25 @@ this?" has an answer here, and the answer is nobody.
 - **§500.17(b)** — annually, for the prior calendar year, either a certification
   of material compliance or a **written acknowledgment** of non-compliance
   identifying the sections, describing nature and extent, and giving a
-  **remediation timeline** (or confirming remediation is complete). **Signed by
-  the highest-ranking executive *and* the CISO** — two signatures, not one. The
-  **five-year** retention attaches to the *supporting* records, schedules and
+  **remediation timeline** (or confirming remediation is complete). **Two
+  signatures, not one** — but *which* two is conditional, and the receipt used to
+  state it unconditionally:
+
+  > *"…shall be signed by the covered entity's highest-ranking executive and its
+  > CISO. **If the covered entity does not have a CISO**, the certification or
+  > acknowledgment shall be signed by the highest-ranking executive **and by the
+  > senior officer responsible for the cybersecurity program** of the covered
+  > entity."*
+
+  ⚠️ **§500.17(b)(2) has the OPPOSITE structure to §500.12(b) six lines above.**
+  There, *"if the covered entity has a CISO"* is a gate — an entity without one
+  has no such route. Here, having no CISO does not remove the obligation, it
+  **substitutes** the senior officer responsible for the programme. An entity
+  told it needs a signature it cannot get would read this receipt as blocking
+  when the regulation supplies the way through, which is the more damaging
+  direction for a receipt to be wrong in.
+
+  The **five-year** retention attaches to the *supporting* records, schedules and
   data, not merely to the acknowledgment.
 
 All Second Amendment transitional periods have expired: §500.17 at 30 days,
