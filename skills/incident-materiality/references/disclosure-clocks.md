@@ -68,8 +68,37 @@ python3 scripts/incident_analysis.py init incidents.inc --client "Acme" \
     --holiday 2026-07-03 --holiday 2026-09-07 --holiday 2026-11-26
 ```
 
+### Documented disclosure-clock deviations, stated rather than modelled
+
+Three places where this engine knowingly does less than the instrument. Each is stated because
+a deviation a reader cannot see is indistinguishable from a bug, and each **errs early**, which
+is the safe direction for a filing deadline.
+
+- **Regulation No 1182/71 is not applied to the one-month window.** DORA's final-report window
+  is *"one month"*, and EU time-limit computation has its own day-exclusion and end-of-day
+  rules. `add_months` does plain calendar arithmetic instead. The effect is **at most about one
+  day early**, and a DORA-scoped entity should confirm the exact date with counsel.
+  ⚠️ **Do not "fix" `add_months` to model 1182/71.** Early is the safe direction, and a
+  half-modelled EU computation rule would be less predictable than an honestly stated one.
+- **The Item 1.05 amendment window is not computed.** Form 8-K General Instruction 2 sets a
+  **second** four-business-day clock, running from when information unavailable at the original
+  filing becomes available. `WINDOWS["sec-1.05"]` is unchanged and models the original filing
+  only. Modelling the amendment is filed as its own item.
+- **An updated intermediate report does not move the final window.** Art. 5(1)(c) anchors the
+  final report on *"the latest updated intermediate report"*, and `dora_clocks` has no
+  representation of an update — it anchors on the intermediate report as filed. Where an update
+  exists the computed date is **early**, which is again the safe direction.
+
 ### Limits on the SEC clock
 
+- ⭐ **The day-zero convention is the Form's, not this engine's.** Form 8-K General Instruction
+  B.1 provides that where the triggering event falls on a Saturday, Sunday or holiday, *"the
+  four business day period shall begin to run on, and include, the first business day
+  thereafter."* That is why `business_days_after` treats the anchor as day zero and counts
+  forward — the worked table above is **citable, not merely asserted**.
+- **The four-business-day period comes from Form 8-K, General Instruction B.1** — the Form is
+  prescribed at **17 CFR 249.308**. Not §229.105 (Risk Factors), not §229.106 (the annual item),
+  and not the body of Item 1.05. Earlier drafts of this file named the wrong locus.
 - **The engine computes a date, not a time.** Under Rule 13(a)(2) of Regulation S-T
   (**17 CFR 232.13(a)(2)**) a filing transmitted after 5:30 p.m. Eastern is deemed filed the next
   business day. Treat the computed deadline as the last day, not the last moment, and file with
@@ -166,8 +195,18 @@ windows the engine implements:
 
 All three are **Article 5 of Commission Delegated Regulation (EU) 2025/301** — the RTS on the
 content and time limits for the initial notification and the intermediate and final reports,
-made under Article 19(4) of DORA. Cite that instrument for the windows, not RTS 2024/1774, which
-is the ICT risk-management RTS and sets no reporting deadline.
+made under DORA. Cite that instrument for the windows, not RTS 2024/1774, which is the ICT
+risk-management RTS and sets no reporting deadline.
+
+⚠️ **Two DORA articles are in play and they do different jobs.** **Article 19(4)** is the
+reporting obligation; **Article 20** is the RTS mandate, and it is Article 20 that empowers the
+Commission to set the *time limits*. The RTS's own citation line reads *"Article 20, third
+subparagraph thereof"*. An earlier version of this file named 19(4) alone as the empowerment,
+which is the wrong one for a deadline.
+
+> **The 19(4) label here rests on the RTS's own in-text cross-reference, not on a direct read of
+> DORA Arts. 19/20** — EUR-Lex truncates those articles in the HTML rendering this project can
+> open. Marked rather than presented as verified.
 
 ### Why these anchors are timestamps
 
@@ -213,7 +252,12 @@ not silently produce a phantom intermediate deadline.
   hours — and then only until **noon of the next working day**. Article 5(5) withdraws it
   entirely for the initial notification and the intermediate report by **credit institutions,
   central counterparties, operators of trading venues, and entities identified as essential or
-  important under Article 3 of NIS2 (Directive (EU) 2022/2555)**. The engine computes the raw
+  important under Article 3 of NIS2 (Directive (EU) 2022/2555)**. ⚠️ **Article 5 has SIX
+  paragraphs and this file described five.** **Article 5(6)** lets a competent authority
+  disapply the 5(4) relief for an entity that is *"significant or ha[s] a systemic character"* —
+  which changes no number this engine computes, because it never applies 5(4) in the first
+  place, but a Limits section that stopped at 5(5) was incomplete about the instrument it
+  summarises. The engine computes the raw
   hour deadline for everyone. That is **earlier** than any relieved deadline — the safe
   direction — but it is not the letter of the rule and should not be quoted as such.
 - **A deadline you cannot meet still has to be told to the regulator.** Article 5(3) requires an

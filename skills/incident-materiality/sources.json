@@ -41,7 +41,7 @@
       "label": "DORA incident-reporting RTS",
       "publisher": "European Commission",
       "instrument": "Commission Delegated Regulation (EU) 2025/301, Art. 5",
-      "version": "OJ 20.2.2025; made under DORA Art. 19(4)",
+      "version": "OJ 20.2.2025; made under DORA Art. 19(4) VERSIONED 2026-08-11 (BL-46): all four Art. 5 windows confirmed VERBATIM against the OJ text - 5(1)(a) four hours from classification and 24 from awareness, 5(2) the late-classification carve-out, 5(1)(b) 72 hours, 5(1)(c) one month. ⚠️ TWO CORRECTIONS: the empowerment for the TIME LIMITS is Article 20, third subparagraph (the RTS's own citation line), not Article 19(4) which is the reporting obligation - both are relevant and they do different jobs, and the 19(4) label rests on the RTS's in-text cross-reference rather than a direct read, because EUR-Lex truncates DORA Arts. 19/20. And Article 5 has SIX paragraphs, not five: 5(6) lets a competent authority disapply the 5(4) relief for an entity that is significant or has a systemic character. It changes no computed number - the engine never applies 5(4) - but the Limits section was incomplete.",
       "checkedOn": "2026-08-08",
       "checkedBy": "claude-code",
       "gated": true,
@@ -56,14 +56,15 @@
       "id": "sec-item-106",
       "label": "SEC Item 106 of Regulation S-K",
       "publisher": "US Securities and Exchange Commission",
-      "instrument": "17 C.F.R. s 229.106; Form 8-K Item 1.05 (s 249.308)",
-      "version": "adopted text at 88 FR 51942 and 51945",
+      "instrument": "17 C.F.R. s 229.106; Form 8-K Item 1.05, prescribed at 17 CFR 249.308, General Instruction B.1 (the four-business-day window and the day-zero convention) and General Instruction 2 (the amendment window)",
+      "version": "adopted text at 88 FR 51942 and 51945 - ⚠️ THOSE TWO PINCITES ARE UNVERIFIED and are deliberately left marked. The Federal Register release PDF this project can open truncates before the amendatory text, so the page numbers could not be confirmed against the pages themselves. What IS corroborated: 88 FR 51896, 4 Aug. 2023, effective 5 Sep. 2023. Do not quietly drop the marker to tidy the row - an unmarked pincite reads as checked. VERSIONED 2026-08-11 (BL-46): the four-business-day window comes from FORM 8-K, GENERAL INSTRUCTION B.1 (the Form is prescribed at 17 CFR 249.308) - NOT s 229.105 (Risk Factors), NOT s 229.106 (the annual item), and not the body of Item 1.05. The same Instruction also supplies the day-zero convention this engine implements: where the event falls on a Saturday, Sunday or holiday the period 'shall begin to run on, and include, the first business day thereafter'. Instruction 2 sets a SECOND four-business-day amendment clock, which this engine does not compute and states as a deviation.",
       "checkedOn": "2026-08-08",
       "checkedBy": "claude-code",
       "gated": true,
       "reviewIntervalDays": 180,
       "usedFor": [
-        "references/materiality-factors.md"
+        "references/materiality-factors.md",
+        "references/disclosure-clocks.md"
       ],
       "intervalBecause": "A disclosure clock, where the harm from a missed amendment is a LATE FILING and is asymmetric — nobody is penalised for reading the rule too often. The operative text of these instruments is comparatively stable; the staff interpretation around them is not, and it is the interpretation that moves a deadline. 365 days would let a changed clock sit unnoticed for up to a year on the one artifact whose value is being on time. Halved to 180 on 2026-08-09."
     },
@@ -167,6 +168,12 @@
       "usedFor": [
         "references/disclosure-clocks.md"
       ]
+    }
+  ],
+  "citationAllowlist": [
+    {
+      "designation": "cfr-17-229.105",
+      "reason": "Named ONLY to say it is the WRONG locus for the four-business-day window, in the comment that versions the constant (BL-46). Regulation S-K s 229.105 is Risk Factors; the window comes from Form 8-K General Instruction B.1, which the row for sec-item-106 declares. This engine relies on nothing s 229.105 says. Naming the wrong section is the point of the sentence - somebody previously cited it, and 'not this one' is only useful if it says which one - so the number stays and this allowlist carries the argument rather than the citation check being loosened. Permanent, not pending."
     }
   ]
 }
