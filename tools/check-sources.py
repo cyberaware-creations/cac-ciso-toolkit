@@ -883,7 +883,7 @@ def check_sources(root="."):
     if not skills:
         print("ERROR: no skills found; the layout moved and this checked nothing.")
         return False
-    problems, rows, unverified, countersigned = [], 0, 0, 0
+    problems, rows, unverified, countersigned, signed_unverified = [], 0, 0, 0, 0
     for skill in skills:
         doc, err = load(root, skill)
         if err:
@@ -894,6 +894,16 @@ def check_sources(root="."):
                           if isinstance(r, dict) and r.get("checkedBy") == "unverified")
         countersigned += sum(1 for r in doc["sources"]
                              if isinstance(r, dict) and str(r.get("reviewedBy") or "").strip())
+        # The OVERLAP, tracked because without it two surfaces of this tool print different
+        # numbers for the same subject. `countersigned` counts the FIELD; `--report` counts
+        # the STATE, and `unverified` outranks a counter-signature there. A row that is both
+        # is therefore in the first number and not the second, and a reader comparing them
+        # would be looking at exactly the "the count disagrees with itself" defect this
+        # standard was extended to catch. Neither number is wrong; the overlap has to print.
+        signed_unverified += sum(1 for r in doc["sources"]
+                                 if isinstance(r, dict)
+                                 and r.get("checkedBy") == "unverified"
+                                 and str(r.get("reviewedBy") or "").strip())
         problems.extend(check_shape(skill, doc, _today()))
         problems.extend(check_used_for(root, skill, doc))
         problems.extend(check_rendered(root, skill, doc))
@@ -916,6 +926,15 @@ def check_sources(root="."):
           "reading, NOT a second read of the source." % (countersigned, rows))
     if countersigned:
         print("         %s" % COUNTERSIGNATURE_LIMIT)
+    if signed_unverified:
+        # Reconciles this line with `--report`, which would otherwise show a smaller
+        # countersigned figure with no explanation of where the difference went.
+        print("         %d of those %d sit on `unverified` rows and still report as "
+              "`unverified` — a person accepted the RECORD, including its stated reason for "
+              "being unread. Endorsing a reading nobody made does not promote the row, so "
+              "--report shows %d countersigned, not %d."
+              % (signed_unverified, countersigned,
+                 countersigned - signed_unverified, countersigned))
     print("         Run --report for the state of every source (%s)."
           % ", ".join(n for n, _ in STATES))
     if unverified:
@@ -1173,6 +1192,29 @@ def _self_test():
            "never made does not promote the row")
         ok(report_states(tree(tmp, "rpt", [row()])) is True,
            "T3: --report renders without asserting, so it can be read on a failing tree")
+        # The two surfaces count DIFFERENT things -- the summary counts the FIELD, --report
+        # counts the STATE -- so a signed unverified row is in one and not the other. That is
+        # correct and it is also exactly how "the count disagrees with itself" starts, so the
+        # overlap must print. Asserted on the numbers, not on prose, so a reworded line still
+        # has to reconcile.
+        _rec = io.StringIO()
+        with contextlib.redirect_stdout(_rec):
+            check_sources(tree(tmp, "recon",
+                               [row(id="a", checkedBy="unverified", whyUnverified="paywalled",
+                                    reviewedBy="D Galleyne", reviewedOn="2026-01-01"),
+                                row(id="b", reviewedBy="D Galleyne",
+                                    reviewedOn="2026-01-01")]))
+        _out = _rec.getvalue()
+        ok("2 of 2 countersigned" in _out and "--report shows 1 countersigned, not 2" in _out,
+           "T3: when a counter-signature sits on an unverified row, the summary reconciles "
+           "itself with --report rather than leaving two different numbers on one subject")
+        _quiet = io.StringIO()
+        with contextlib.redirect_stdout(_quiet):
+            check_sources(tree(tmp, "noover", [row(reviewedBy="D Galleyne",
+                                                   reviewedOn="2026-01-01")]))
+        ok("--report shows" not in _quiet.getvalue(),
+           "...and stays silent when there is no overlap, so the line means something when "
+           "it does appear")
         ok(check_sources(tree(tmp, "ivbare", [row(gated=True,
                                                   reviewIntervalDays=180)])) is False,
            "RW-1.13: an interval off the house default with no `intervalBecause` fails")
@@ -1508,7 +1550,7 @@ def _self_test():
     # it. A deleted case would have shown up as a smaller number in a line nobody diffs, and
     # "0 failed" reads identically whether 99 checks ran or nine did. The number only has to
     # move when cases are deliberately removed, and then somebody has to say why here.
-    _FLOOR = 108
+    _FLOOR = 110
     if len(checks) < _FLOOR:
         print("FAILED: only %d checks ran, expected at least %d — cases have been removed. "
               "Lower the floor deliberately or put them back." % (len(checks), _FLOOR))

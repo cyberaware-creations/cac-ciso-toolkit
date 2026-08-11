@@ -13,7 +13,9 @@
       "gated": false,
       "usedFor": [
         "references/regulatory-receipts.md"
-      ]
+      ],
+      "reviewedBy": "Darren Galleyne",
+      "reviewedOn": "2026-08-11"
     },
     {
       "id": "materiality-standard",
@@ -26,7 +28,9 @@
       "gated": false,
       "usedFor": [
         "references/regulatory-receipts.md"
-      ]
+      ],
+      "reviewedBy": "Darren Galleyne",
+      "reviewedOn": "2026-08-11"
     },
     {
       "id": "delaware-cyber-cases",
@@ -141,7 +145,9 @@
       "gated": false,
       "usedFor": [
         "references/regulatory-receipts.md"
-      ]
+      ],
+      "reviewedBy": "Darren Galleyne",
+      "reviewedOn": "2026-08-11"
     },
     {
       "id": "csf-2-0",
@@ -155,7 +161,9 @@
       "usedFor": [
         "references/positive-risk.md",
         "references/metric-archetypes.md"
-      ]
+      ],
+      "reviewedBy": "Darren Galleyne",
+      "reviewedOn": "2026-08-11"
     },
     {
       "id": "ir-8286-series",
