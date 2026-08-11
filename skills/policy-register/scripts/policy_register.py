@@ -52,6 +52,16 @@ Standard library only. Subcommands:
   approve       <store.pol> --id P-001 --by 'Name' --on YYYY-MM-DD [--next-review YYYY-MM-DD]
   revise        <store.pol> --id P-001 --version '2.0' --why '..'
   review        <store.pol> --id P-001 --on YYYY-MM-DD --next YYYY-MM-DD --why '..'
+  ingest        <store.pol> <payload.json|-> [--actor NAME]
+                                         Record PROPOSALS from an extraction. Changes nothing
+                                         else — no record, no state, no count. The engine does
+                                         not open documents; the agent extracts and this
+                                         ingests JSON. See references/intake-contract.md.
+  proposals     <store.pol>              Open proposals awaiting a human assessment.
+  assess        <store.pol> --id PR-001 --by NAME [--reject --why '..']
+                                         The ONLY act that turns a proposal into a record, and
+                                         it creates a DRAFT. Approving and superseding stay
+                                         human acts.
   supersede     <store.pol> --id P-001 --on YYYY-MM-DD --why '..' [--by-policy P-004]
   map           <store.pol> --id P-001 --requirement AC-1 [--requirement ..]
   unmap         <store.pol> --id P-001 --requirement AC-1 --why '..'
@@ -198,6 +208,15 @@ def now_ts() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
 
+def utc_today() -> str:
+    """Today, UTC, as `YYYY-MM-DD`. The date half of `now_ts`, named so it reads as a date.
+
+    Added with intake (BL-240): `assess` stamps when a person confirmed a proposal, and every
+    other date in this file is a canonical `YYYY-MM-DD` string rather than a timestamp.
+    """
+    return now_ts()[:10]
+
+
 # --- The vendored requirement spine -------------------------------------------
 
 def requirements_path() -> str:
@@ -240,6 +259,7 @@ def new_store(org: str, owner: str = "", scope_note: str = "",
         "settings": {"reviewIntervalDays": int(review_interval_days),
                      "dueWindowDays": int(due_window_days)},
         "policies": [],
+        "proposals": [],
         "history": [],
         "createdAt": ts,
         "updatedAt": ts,
@@ -278,6 +298,11 @@ def load_store(path: str) -> dict:
                       ("settings", dict)):
         if not isinstance(store.get(key), kind):
             raise Refusal("%s is missing or malformed %r" % (path, key))
+    # Backfilled rather than required (BL-240). A register written before intake existed opens
+    # unchanged and needs no migration — the same tolerance the loader already extends to a
+    # record the write path would refuse.
+    if not isinstance(store.get("proposals"), list):
+        store["proposals"] = []
     return store
 
 
@@ -389,6 +414,219 @@ def add_policy(store: dict, title: str, owner: str, kind: str = KIND_POLICY,
     if mapped:
         map_requirements(store, rec["id"], mapped, actor=actor)
     return rec
+
+
+# --- Document intake (BL-240) -------------------------------------------------
+#
+# THE ENGINE CANNOT OPEN A DOCUMENT, AND IT MUST NOT LEARN HOW.
+#
+# Verified repo-wide before this was written: no `pypdf`, `PyPDF2`, `pdfplumber`, `pdfminer`,
+# `fitz`, `python-docx`, no OCR, no `pandoc`, no `pdftotext`, no `subprocess` in any shipped
+# script, and no `urllib`, `requests` or `http.client` in any engine. Every engine is
+# stdlib-only and offline, and `SKILL.md` states that as a PROPERTY of the product rather than
+# an accident of what nobody has needed yet.
+#
+# So the architecture is forced, and it is the right one anyway:
+#
+#     THE AGENT EXTRACTS.  THE ENGINE INGESTS STRUCTURED JSON.  THE HUMAN DECLARES.
+#
+# Extraction happens outside — an agent, or the `pdf`/`docx` skills on the machine — and the
+# result reaches this file as JSON. Putting a parser in here would break the offline property
+# for every user, to save one step for the user who happened to have a PDF.
+#
+# ⚠️ AND WE INGEST ASSERTIONS ABOUT A DOCUMENT, NEVER ITS TEXT. `SKILL.md`'s stated non-goal is
+# "store or render policy text. This is not a document management system." A citation is what
+# makes a proposal reviewable: somebody can go and read the same words. The words themselves
+# stay in the document.
+INTAKE_CONTRACT = "CAC-PI-1"
+PROPOSAL_ID_RE = re.compile(r"^PR-\d{3,}$")
+
+PROPOSAL_OPEN = "open"
+PROPOSAL_CONFIRMED = "confirmed"
+PROPOSAL_REJECTED = "rejected"
+
+# Refused BY NAME in an intake payload. Each is a way of asking the import to do the one thing
+# it must never do — put a document in force without a person (T5).
+INTAKE_FORBIDDEN = {
+    "state": "a proposal has no state to set; `assess` creates a DRAFT and a human approves it",
+    "approval": "approval is an act with a named person and a date — `approve`, never an import",
+    "approvedby": "see `approval`",
+    "supersededon": "supersession is an act — `supersede`, never an import",
+    "supersededby": "see `supersededOn`",
+    "supersedes": ("an import may not resolve a supersession chain. Ingest creates DRAFTS; a "
+                   "human runs `approve` and then `supersede`, in that order, having read both "
+                   "documents"),
+}
+
+
+def next_proposal_id(store: dict) -> str:
+    used = [int(r["id"].split("-")[1]) for r in store.get("proposals") or []
+            if PROPOSAL_ID_RE.match(r.get("id", ""))]
+    return "PR-%03d" % ((max(used) + 1) if used else 1)
+
+
+def _citation(value, what: str) -> str:
+    """A citation specific enough that somebody can go and read the same words.
+
+    Refused when absent, because `vendor_register.propose` states the rule this follows: "A
+    proposal with no citation is an opinion. The person who confirms it has to be able to go
+    and read the same thing."
+    """
+    text = str(value or "").strip()
+    if not text:
+        raise Refusal(
+            "%s has no citation. A proposal with no citation is an opinion — the person who "
+            "confirms it has to be able to open the same document and read the same words.\n"
+            "  Give a page, a section or a heading. A filename alone is not a citation: it "
+            "says which document, not where in it." % what)
+    return text
+
+
+def ingest(store: dict, payload: dict, actor: str = "") -> dict:
+    """Record PROPOSALS from an extraction. Writes nothing else, ever (BL-240 T2).
+
+    ⚠️ THE COUNT MUST NOT MOVE. Ingesting a hundred documents leaves every requirement state,
+    every count and every rendered page byte-identical. Borrowed verbatim from
+    `vendor-register/SKILL.md`: "the reading layer changed NOTHING… If proposing ever moves the
+    count, something is wrong."
+
+    ⚠️ AND AN EXTRACTION NEVER MAKES A COVERAGE CLAIM. A source document will say "this policy
+    addresses access control" in those words, and that sentence is the single most likely place
+    in this product to breach the rule `REQUIREMENT_STATES` exists to hold: every state
+    describes the DOCUMENTS, never the requirement, and there is no state meaning covered, met,
+    satisfied or compliant. A mapping proposed here is a PROPOSED AIM — this document is aimed
+    at that requirement — and confirming it still says only that a document exists and is
+    aimed there.
+    """
+    if not isinstance(payload, dict):
+        raise Refusal("the intake payload must be a JSON object, got %s"
+                      % type(payload).__name__)
+    got = str(payload.get("contractVersion") or "").strip()
+    if got != INTAKE_CONTRACT:
+        raise Refusal(
+            "intake payload declares contractVersion %r; this engine reads %r.\n"
+            "  Refused rather than read leniently: the contract says which fields mean what, "
+            "and guessing across versions is how a citation ends up attached to the wrong "
+            "requirement. See references/intake-contract.md."
+            % (got or "nothing", INTAKE_CONTRACT))
+    docs = payload.get("documents")
+    if not isinstance(docs, list) or not docs:
+        raise Refusal("intake payload carries no `documents` array")
+    # VALIDATED IN FULL BEFORE ANYTHING IS APPENDED. `Refusal` fires before the store is opened
+    # for writing, so a refused ingest leaves the file byte-identical — and a payload of a
+    # hundred documents with one bad citation must not half-land.
+    staged = []
+    for i, doc in enumerate(docs):
+        where = "document %d" % (i + 1)
+        if not isinstance(doc, dict):
+            raise Refusal("%s is not an object" % where)
+        bad = sorted({k for k in doc if k.lower() in INTAKE_FORBIDDEN})
+        if bad:
+            raise Refusal(
+                "%s carries field(s) an intake may not set: %s.\n  %s"
+                % (where, ", ".join(bad),
+                   "\n  ".join("%s — %s" % (b, INTAKE_FORBIDDEN[b.lower()]) for b in bad)))
+        title = str(doc.get("title") or "").strip()
+        owner = str(doc.get("owner") or "").strip()
+        if not title or not owner:
+            raise Refusal("%s needs both a title and an owner" % where)
+        cite = _citation(doc.get("citation"), "%s (%s)" % (where, title))
+        mapped = []
+        for j, m in enumerate(doc.get("mappedTo") or []):
+            if not isinstance(m, dict):
+                raise Refusal("%s mapping %d is not an object" % (where, j + 1))
+            req = str(m.get("requirement") or "").strip()
+            if not req:
+                raise Refusal("%s mapping %d names no requirement" % (where, j + 1))
+            # EVERY MAPPING CARRIES ITS OWN CITATION. The document-level one says which
+            # document; this one says where in it the aim is evidenced, and they are different
+            # questions. A confirmed mapping with no page is a claim nobody can check.
+            mapped.append({"requirement": req,
+                           "citation": _citation(m.get("citation"),
+                                                 "%s mapping %d (%s)" % (where, j + 1, req))})
+        staged.append({
+            "title": title, "owner": owner,
+            "version": str(doc.get("version") or "1.0").strip(),
+            "citation": cite, "note": str(doc.get("note") or "").strip(),
+            "mappedTo": mapped,
+        })
+    out = []
+    for st in staged:
+        rec = dict(st, id=next_proposal_id(store), status=PROPOSAL_OPEN,
+                   proposedAt=now_ts(), proposedBy=str(actor or "").strip(),
+                   assessedBy="", assessedOn="", why="", policyId=None)
+        store["proposals"].append(rec)
+        out.append(rec)
+        append_history(store, "proposal-recorded", rec["id"], actor,
+                       detail={"title": rec["title"], "citation": rec["citation"]})
+    return {"proposed": [r["id"] for r in out]}
+
+
+def open_proposals(store: dict) -> list:
+    """The working view. Rejected proposals are RETAINED and excluded from it.
+
+    Kept because "we looked at this and said no" is a different fact from "nobody looked", and
+    the second is what deleting it would leave behind.
+    """
+    return [p for p in store.get("proposals") or [] if p.get("status") == PROPOSAL_OPEN]
+
+
+def assess_proposal(store: dict, prid: str, by: str, reject: bool = False, why: str = "",
+                    actor: str = "") -> dict:
+    """The ONLY act that turns a proposal into a policy record (BL-240 T3).
+
+    `vendor_register.assess` states the rule: "Derivation and reading both propose; only a
+    person confirms." So `--by` is required, and `--reject` requires `--why` — a rejection with
+    no reason is indistinguishable from an oversight to the next reader.
+
+    ⚠️ CONFIRMING GOES THROUGH `add_policy`, deliberately, so it faces every refusal a
+    hand-entered record faces: `REQUIRED_ADD` still applies, `kind` must still be `policy`, and
+    `plan`/`playbook` are still refused. An intake is not a side door.
+
+    ⚠️ AND IT CREATES A DRAFT (T5). Not approved, not in force. A batch import creating a v3.0
+    record without superseding v2.0 would put two approved documents in force for the same
+    requirements with nothing recording which governs — the exact state `approve` already
+    refuses. Drafts cannot reach that state at all, so the property is structural rather than
+    checked: a human runs `approve`, and then `supersede`, having read both documents.
+    """
+    if not str(by or "").strip():
+        raise Refusal(
+            "assess needs --by NAME. Derivation and reading both propose; only a person "
+            "confirms, and an unattributed confirmation is the thing this register exists to "
+            "make unavailable.")
+    rec = next((p for p in store.get("proposals") or [] if p.get("id") == prid), None)
+    if rec is None:
+        raise Refusal("no such proposal: %s" % prid)
+    if rec.get("status") != PROPOSAL_OPEN:
+        raise Refusal("%s was already %s on %s by %s"
+                      % (prid, rec.get("status"), rec.get("assessedOn") or "an unrecorded date",
+                         rec.get("assessedBy") or "an unrecorded person"))
+    if reject:
+        if not str(why or "").strip():
+            raise Refusal(
+                "rejecting %s needs --why. A rejection with no reason is indistinguishable "
+                "from an oversight to the next person who reads this register." % prid)
+        rec.update({"status": PROPOSAL_REJECTED, "assessedBy": by.strip(),
+                    "assessedOn": utc_today(), "why": why.strip()})
+        append_history(store, "proposal-rejected", prid, actor, why=why.strip())
+        return {"proposal": prid, "status": PROPOSAL_REJECTED, "policyId": None}
+    policy = add_policy(store, rec["title"], rec["owner"], kind=KIND_POLICY,
+                        version=rec["version"], note=rec.get("note", ""), actor=actor)
+    # T4. `viaProposal` on the RECORD, so an auditor asking "where did this row come from"
+    # gets a document and a page rather than the word "an import".
+    policy["viaProposal"] = {"proposalId": prid, "citation": rec["citation"],
+                             "confirmedBy": by.strip(), "confirmedOn": utc_today()}
+    if rec.get("mappedTo"):
+        map_requirements(store, policy["id"],
+                         [m["requirement"] for m in rec["mappedTo"]], actor=actor)
+        policy["viaProposal"]["mappingCitations"] = {
+            m["requirement"]: m["citation"] for m in rec["mappedTo"]}
+    rec.update({"status": PROPOSAL_CONFIRMED, "assessedBy": by.strip(),
+                "assessedOn": utc_today(), "why": str(why or "").strip(),
+                "policyId": policy["id"]})
+    append_history(store, "proposal-confirmed", prid, actor,
+                   detail={"policyId": policy["id"], "citation": rec["citation"]})
+    return {"proposal": prid, "status": PROPOSAL_CONFIRMED, "policyId": policy["id"]}
 
 
 def approve(store: dict, pid: str, by: str, on: str, next_review: str = "",
@@ -1247,6 +1485,68 @@ def _cmd_supersede(args):
     return 0
 
 
+def _cmd_ingest(args):
+    store = load_store(args.store)
+    # `-` reads stdin, because extraction happens in the agent and piping a payload straight in
+    # is the whole point. A path is equally fine.
+    if args.payload == "-":
+        raw = sys.stdin.read()
+    else:
+        try:
+            with open(args.payload, encoding="utf-8") as fh:
+                raw = fh.read()
+        except FileNotFoundError:
+            raise Refusal("no such payload: %s" % args.payload)
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise Refusal("the intake payload is not valid JSON (line %d, column %d): %s"
+                      % (exc.lineno, exc.colno, exc.msg))
+    result = ingest(store, payload, actor=args.actor)
+    save_store(args.store, store)
+    print("%d proposal(s) recorded: %s" % (len(result["proposed"]),
+                                           ", ".join(result["proposed"])))
+    # Said every time. This is the sentence the whole design protects, and a user who reads
+    # "12 proposals recorded" without it will reasonably assume something changed.
+    print("  NOTHING ELSE CHANGED. No policy record, no requirement state, no count. A "
+          "proposal is a reading; `assess --by NAME` is the only act that creates a record.")
+    return 0
+
+
+def _cmd_proposals(args):
+    store = load_store(args.store)
+    rows = open_proposals(store)
+    if not rows:
+        print("No open proposals.")
+        return 0
+    print("%d open proposal(s):" % len(rows))
+    for r in rows:
+        print("  %s  %s" % (r["id"], r["title"]))
+        print("        cited at: %s" % r["citation"])
+        for m in r.get("mappedTo") or []:
+            print("        proposes an aim at %s — %s" % (m["requirement"], m["citation"]))
+    print("  Each is a PROPOSED aim, not a coverage claim. Confirming one records that a "
+          "document exists and is aimed there — never that a requirement is met.")
+    return 0
+
+
+def _cmd_assess(args):
+    store = load_store(args.store)
+    result = assess_proposal(store, args.id, args.by, reject=args.reject,
+                             why=args.why, actor=args.actor)
+    save_store(args.store, store)
+    if result["status"] == PROPOSAL_REJECTED:
+        print("%s rejected by %s. The proposal is RETAINED and excluded from the working "
+              "view — \"we looked and said no\" is a different fact from \"nobody looked\"."
+              % (args.id, args.by))
+    else:
+        print("%s confirmed by %s — created %s as a DRAFT."
+              % (args.id, args.by, result["policyId"]))
+        print("  A draft is not in force. Run `approve` when a named person has approved it, "
+              "and `supersede` on whatever it replaces — an import may not do either.")
+    return 0
+
+
 def _cmd_map(args):
     store = load_store(args.store)
     rec = map_requirements(store, args.id, args.requirement or (), actor=args.actor or "")
@@ -1346,6 +1646,9 @@ COMMANDS = {
     "revise": _cmd_revise,
     "review": _cmd_review,
     "supersede": _cmd_supersede,
+    "ingest": _cmd_ingest,
+    "proposals": _cmd_proposals,
+    "assess": _cmd_assess,
     "map": _cmd_map,
     "unmap": _cmd_unmap,
     "requirements": _cmd_requirements,
@@ -1418,6 +1721,25 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--why", default="")
     sp.add_argument("--by-policy", default="", help="the record that replaces it, if any")
     sp.add_argument("--actor", default="")
+
+    sp = sub.add_parser("ingest", help="record proposals from an extraction; changes nothing else")
+    sp.add_argument("store")
+    sp.add_argument("payload", help="a CAC-PI-1 JSON payload, or - for stdin")
+    sp.add_argument("--actor", default="")
+    sp.set_defaults(fn=_cmd_ingest)
+
+    sp = sub.add_parser("proposals", help="open proposals awaiting a human assessment")
+    sp.add_argument("store")
+    sp.set_defaults(fn=_cmd_proposals)
+
+    sp = sub.add_parser("assess", help="confirm or reject a proposal — the only act that creates a record")
+    sp.add_argument("store")
+    sp.add_argument("--id", required=True)
+    sp.add_argument("--by", default="", help="required: who confirmed it")
+    sp.add_argument("--reject", action="store_true")
+    sp.add_argument("--why", default="", help="required when rejecting")
+    sp.add_argument("--actor", default="")
+    sp.set_defaults(fn=_cmd_assess)
 
     sp = sub.add_parser("map", help="record what a policy is aimed at")
     store_arg(sp)

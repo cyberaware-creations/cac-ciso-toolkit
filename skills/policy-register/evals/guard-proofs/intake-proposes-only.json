@@ -1,0 +1,28 @@
+{
+  "guard": "skills/policy-register/evals/intake-proposes-only.sh",
+  "forbids": "an intake that changes anything before a person assesses — a requirement state, a count, a rendered page or a policy record — and an intake that puts a document in force without a human approving it",
+  "note": "Registered with the feature (BL-240). The property is borrowed verbatim from vendor-register/SKILL.md: 'the reading layer changed NOTHING… If proposing ever moves the count, something is wrong.' The two halves are the two ways an intake breaks it: by writing a record on sight, or by writing one that is already in force.",
+  "mutations": [
+    {
+      "half": "proposes-only",
+      "why": "`ingest` creates the policy record directly instead of a proposal — the single most likely 'improvement' anyone makes to this code, because it looks like removing a pointless extra step for a user who has just handed the tool a hundred documents. It is not a pointless step: it is the entire boundary between a reading and a record. Under this mutation the read model MOVES, requirement rows appear, and a CISO who ingested a shelf of policies to see what was in them has silently populated their register with rows nobody assessed.",
+      "defeats": [
+        "ingesting documents leaves the WHOLE read model byte-identical",
+        "...and no policy record was created"
+      ],
+      "file": "skills/policy-register/scripts/policy_register.py",
+      "find": "        rec = dict(st, id=next_proposal_id(store), status=PROPOSAL_OPEN,",
+      "replace": "        add_policy(store, st[\"title\"], st[\"owner\"], version=st[\"version\"])\n        rec = dict(st, id=next_proposal_id(store), status=PROPOSAL_OPEN,"
+    },
+    {
+      "half": "draft-not-in-force",
+      "why": "THE SUPERSESSION PROPERTY, and it is structural rather than checked — which is exactly why a mutation is needed to show the structure is load-bearing. `assess` confirms straight to `approved` instead of leaving a draft. Nothing raises, the record looks complete, and the citation is still attached. What is gone is the guarantee: a batch confirming a v3.0 document would put it in force alongside the v2.0 it replaces, for the same requirements, with nothing recording which governs — the exact state `approve` already refuses when a human reaches it, arriving through the one door that does not go past that refusal.",
+      "defeats": [
+        "a confirmed proposal creates a DRAFT, never an approved record"
+      ],
+      "file": "skills/policy-register/scripts/policy_register.py",
+      "find": "    policy[\"viaProposal\"] = {\"proposalId\": prid, \"citation\": rec[\"citation\"],",
+      "replace": "    policy[\"state\"] = STATE_APPROVED\n    policy[\"viaProposal\"] = {\"proposalId\": prid, \"citation\": rec[\"citation\"],"
+    }
+  ]
+}
