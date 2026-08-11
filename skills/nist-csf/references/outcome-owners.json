@@ -1,0 +1,123 @@
+{
+  "datasetVersion": "outcome-owners-2026-08-11",
+  "note": "Which skill in this suite WOULD hold a record for a CSF 2.0 outcome. Routing, never advice: naming the skill that records an outcome says nothing about what a CISO should do about it. Written at CATEGORY grain with per-Subcategory overrides, because 106 hand-typed rows are 106 chances to mistype one and nobody reviews a wall of repetition — the eval expands this against the shipped Core and asserts all 106 resolve, so the compression cannot hide a gap. An outcome with no owner is a FIRST-CLASS VALUE (`owners: []` with a `because`), never an omission.",
+  "authoredBy": "claude-code",
+  "authoredOn": "2026-08-11",
+  "meansOfOwnership": "An owner is a skill whose store would carry a defensible record bearing on this outcome — a document, a rating, an assessment, a contract, a measurement. It is not a claim that the skill covers the outcome, and not a claim that a record there satisfies it.",
+  "categories": {
+    "GV.OC": {
+      "owners": ["business-context"],
+      "means": "Organisational context — revenue base, crown jewels, segments, obligations — is what business-context records verbatim with a declarer."
+    },
+    "GV.RM": {
+      "owners": ["risk-register", "business-context"],
+      "means": "The risk management strategy: risk-register holds the appetite band and the risks scored against it; business-context holds the board's own words the band was derived from."
+    },
+    "GV.RR": {
+      "owners": ["business-context", "policy-register"],
+      "means": "Roles and authorities are declared in the org profile and assigned in approved policy; no register in this suite tracks individual role assignment."
+    },
+    "GV.PO": {
+      "owners": ["policy-register"],
+      "means": "Policy establishment and review is exactly what policy-register records: a document, an approver, a date, a review interval."
+    },
+    "GV.OV": {
+      "owners": ["nist-csf", "risk-register"],
+      "means": "Oversight of the strategy is evidenced by the Profile's own review history and by the risk register's confirmation record."
+    },
+    "GV.SC": {
+      "owners": ["vendor-register"],
+      "means": "Supply chain risk management is vendor-register's whole subject — arrangements, criticality, contractual security terms."
+    },
+    "ID.AM": {
+      "owners": ["business-context", "ai-register"],
+      "means": "Asset management: crown jewels are the business-critical half in business-context; ai-register inventories AI systems and deployments as assets of their own."
+    },
+    "ID.RA": {
+      "owners": ["risk-register", "ai-register"],
+      "means": "Risk assessment is the risk register's subject; ai-register carries the adversarial-ML exposure half."
+    },
+    "ID.IM": {
+      "owners": ["nist-csf", "metrics-register"],
+      "means": "Improvement is evidenced by the Profile's action plan and by metrics trending over time."
+    },
+    "PR.AA": {
+      "owners": ["policy-register"],
+      "means": "Identity and access outcomes are recorded here as policy — this suite holds no identity system and reads no directory."
+    },
+    "PR.AT": {
+      "owners": ["policy-register", "metrics-register"],
+      "means": "Awareness and training: the policy that requires it, and the metric that measures whether it happened."
+    },
+    "PR.DS": {
+      "owners": ["policy-register", "business-context"],
+      "means": "Data security is recorded as policy, against the data classes business-context declares on the crown jewels."
+    },
+    "PR.PS": {
+      "owners": ["policy-register", "metrics-register"],
+      "means": "Platform security: the standard in policy, the patching and configuration evidence in metrics."
+    },
+    "PR.IR": {
+      "owners": ["policy-register", "metrics-register"],
+      "means": "Resilience of the technology infrastructure: the design standard in policy, the tested-restore evidence in metrics."
+    },
+    "DE.CM": {
+      "owners": ["metrics-register"],
+      "means": "Continuous monitoring is measured, not documented — detection coverage and speed are metrics."
+    },
+    "DE.AE": {
+      "owners": ["incident-materiality", "metrics-register"],
+      "means": "Adverse event analysis: the per-incident record and its determination, plus the metrics that describe analysis speed."
+    },
+    "RS.MA": {
+      "owners": ["incident-materiality", "policy-register"],
+      "means": "Incident management: the incident records themselves, and the response plan that governs them."
+    },
+    "RS.AN": {
+      "owners": ["incident-materiality"],
+      "means": "Incident analysis is recorded per incident, with the reasoning and the person who reasoned it."
+    },
+    "RS.CO": {
+      "owners": ["incident-materiality", "ciso-board-translation"],
+      "means": "Response reporting and communication: the regulatory clocks and filings, and the board-facing language."
+    },
+    "RS.MI": {
+      "owners": ["incident-materiality"],
+      "means": "Mitigation of a live incident is recorded on the incident."
+    },
+    "RC.RP": {
+      "owners": ["policy-register", "metrics-register"],
+      "means": "Recovery plan execution: the plan as an approved document, and the tested-restore evidence."
+    },
+    "RC.CO": {
+      "owners": ["ciso-board-translation", "incident-materiality"],
+      "means": "Recovery communication: the language for internal and external audiences, and the disclosure record."
+    }
+  },
+  "subcategories": {
+    "GV.OC-03": {
+      "owners": ["business-context", "policy-register", "exceptions-register"],
+      "means": "Legal, regulatory and contractual requirements are DECLARED in the applicability profile, recorded as policy, and departed from only through a recorded exception. Overridden from GV.OC because the exception path is the one an auditor asks about first."
+    },
+    "GV.RM-06": {
+      "owners": ["risk-register", "exceptions-register"],
+      "means": "A standardised method for prioritising risk, and the recorded acceptances where the organisation knowingly departed from it."
+    },
+    "GV.SC-05": {
+      "owners": ["vendor-register", "policy-register"],
+      "means": "Requirements to address supply chain risk are established in POLICY and then carried into arrangements — both halves have a home and both are needed."
+    },
+    "ID.RA-06": {
+      "owners": ["risk-register", "exceptions-register"],
+      "means": "Risk responses are chosen and tracked in the register; an accepted response with an approver and an expiry belongs in exceptions-register."
+    },
+    "PR.AA-05": {
+      "owners": ["policy-register", "exceptions-register"],
+      "means": "Access permissions and authorisations — least privilege and separation of duties — are the classic subject of a recorded, time-bound exception."
+    }
+  },
+  "unowned": {
+    "means": "No store in this suite would hold a defensible record bearing on this outcome. That is a FACT ABOUT THE SUITE, not about the organisation: the outcome may be well handled in a system this toolkit does not read. Reported as `no owner in this suite`, never as a gap.",
+    "outcomes": {}
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "guard": "skills/nist-csf/evals/posture-no-score.sh",
+  "forbids": "a posture report that scores the program rather than reporting what is recorded, and an outcome map that silently drops outcomes it forgot to classify",
+  "note": "Registered with the feature (BL-222 T6). The framing is the maintainer's: the report answers 'can you show your work?' and never 'is your work any good?'. A policy forbidding authentication is a terrible control and a perfectly valid record, and this is the page most likely to be read as a verdict because it is the page that aggregates.",
+  "mutations": [
+    {
+      "half": "no-score",
+      "why": "A completeness ratio added to the counts block — the single most likely 'improvement' to this report, because a board asks 'how are we doing?' and a number looks like the answer. It is not: it would be a maturity score for a program this report has no way to assess, computed from how much the CISO happened to have written down. Nothing else about the report changes under this mutation, which is exactly why the check walks the payload RECURSIVELY for any float rather than eyeballing the top level.",
+      "defeats": [
+        "no float appears ANYWHERE in the posture payload, at any depth"
+      ],
+      "file": "skills/nist-csf/scripts/profile_analysis.py",
+      "find": "        \"counts\": {b: sum(1 for r in rows if r[\"band\"] == b) for b in POSTURE_BANDS},",
+      "replace": "        \"counts\": {b: sum(1 for r in rows if r[\"band\"] == b) for b in POSTURE_BANDS},\n        \"completeness\": round(sum(1 for r in rows if r[\"band\"] == BAND_WELL) / max(len(rows), 1), 2),"
+    },
+    {
+      "half": "all-mapped",
+      "why": "One category dropped from the expansion — and at CATEGORY grain that silently removes every outcome beneath it, which is the specific risk the compressed map takes on. Under this mutation the report still renders, still bands everything it knows about, and simply never mentions the missing outcomes: the failure is an ABSENCE, and an absence is invisible unless something counts. This is why the expected set is derived from the shipped Core and joined to CORE_EXPECTED rather than compared against a hand-kept list, which would have been mutated in step with the map. Note it does NOT defeat the `means` check: that counts entries PRESENT BUT BLANK, and a dropped category removes its entries entirely rather than blanking them. The two checks catch different failures — a forgotten category and a lazily-filled one — which is why both are worth having and only one is registered here.",
+      "defeats": [
+        "every Subcategory in the shipped Core resolves to an owner or is explicitly unowned"
+      ],
+      "file": "skills/nist-csf/scripts/profile_analysis.py",
+      "find": "                elif cat[\"id\"] in cats:",
+      "replace": "                elif cat[\"id\"] in cats and cat[\"id\"] != \"GV.SC\":"
+    }
+  ]
+}

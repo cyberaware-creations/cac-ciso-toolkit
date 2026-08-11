@@ -43,8 +43,8 @@ only=("$@")
 
 # Anti-vacuity, matching the house convention. A proof run that silently exercised nothing is
 # the thing this file exists to prevent, so the counts are asserted rather than printed.
-EXPECTED_GUARDS=43
-EXPECTED_HALVES=84
+EXPECTED_GUARDS=44
+EXPECTED_HALVES=86
 
 # GP-1.11 — a RATCHET, not an equality. `EXPECTED_GUARDS` and `EXPECTED_HALVES` are exact
 # because a guard appearing or vanishing is always worth a human look. This one is a floor:
