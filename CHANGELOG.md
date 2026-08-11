@@ -21,6 +21,39 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.109.0 — 2026-08-12
+
+**`sp-800-63b` moves to a 180-day review interval, and the reason is on the row.**
+
+This was flagged rather than changed last time, and the reasoning for flagging it was right:
+**CAC-RW-1.13 requires a stated reason for a deviation, and a machine-supplied reason would
+satisfy the schema while defeating the rule.** So it waited for a human answer, and got one.
+
+**Darren, 2026-08-12 — and it is general, not about this row:**
+
+> *"We can ship with recommended or default review timeline values, but the CISO should be able
+> to override them locally. It's up to them to decide how they run their program."*
+
+**So a shipped interval is a recommendation, not a ruling.** The number CAC ships is the one CAC
+would defend; a deployment reviewing on a different cadence is not out of compliance with
+anything, and the row now says that in terms.
+
+**Why 180 here specifically.** The same asymmetry that halved the SEC and DORA rows — reading
+the guidance too often costs nothing, missing an amendment ships a password rule that is no
+longer NIST's. What makes this row different from an ordinary NIST citation is that **the family
+has already moved under this toolkit once**: Rev 4 renumbered 63B wholly and relocated
+neighbouring subjects across volumes (binding at enrolment → 63A-4, subscriber accounts → 63A-4
+and 63C-4, assurance-level selection → base 63-4 §3), and retired *"memorized secret"*. BL-224
+repointed this row only because all three limbs of the one claim CAC makes happened to stay
+inside 63B. A boundary move is a **demonstrated behaviour** of this publication, not a
+hypothetical.
+
+⛔ **The local-override mechanism was deliberately NOT built.** It belongs to **BL-242**, which
+already establishes that a deployment can hold and act on what CAC's shipped manifest cannot. A
+third separate override path would be the mistake.
+
+---
+
 ## v0.108.0 — 2026-08-11
 
 **BL-64 closed out: the three Receipt angles the previous sweep deliberately left alone. Two are
