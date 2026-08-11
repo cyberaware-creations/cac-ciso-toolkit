@@ -21,6 +21,54 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.121.0 — 2026-08-11
+
+**A sentence shipped two releases ago was wrong, and correcting it unblocks two items that have
+been recorded as blocked for weeks. Filed as BL-255.**
+
+### What v0.119.0 said
+
+CAC-HO-1's HO-1.3 read: *"The IR 8286A r1 PDF cannot come across this way, **which is why** BL-94 C1
+and BL-54 T4's remaining scenarios stay blocked and why neither may have its section numbers
+written."*
+
+**The first clause is true — 3.1 MB against a 200 KiB cap. The inference is not.** Those items never
+needed that transport.
+
+### IR 8286A r1 is a public NIST publication
+
+Free of charge at `https://nvlpubs.nist.gov/nistpubs/ir/2025/NIST.IR.8286Ar1.pdf`, DOI
+`10.6028/NIST.IR.8286Ar1`. **Verified rather than assumed:** fetched (3.1 MB, saved to disk) and
+page 1 read — *NIST Interagency Report NIST IR 8286Ar1 — Identifying and Estimating Cybersecurity
+Risk for Enterprise Risk Management*, Quinn, Ivy, Barrett, Feldman, Witte, Gardner. It renders page
+by page.
+
+**The repo already knew this pattern.** `tools/README.md` fetches `NIST.CSWP.29.pdf` from a stable
+NIST URL rather than vendoring it, on the stated grounds that *"NIST publications are US Government
+works and are not subject to copyright."* The same reasoning covers this document.
+
+### ⚠️ The mistake, named plainly
+
+**Reasoning from the transport's limit to the items' status, without checking whether they needed
+the transport.** Both had been recorded as PDF-blocked for weeks; v0.119.0 restated that as settled
+instead of testing it — inside a standard whose own subject is documents that cannot be reached.
+
+That is exactly what **CAC-RW-1.14** names: *a correction is a claim and gets checked like one.*
+The check took one fetch and one page read, and it was made because the batch's closing step is to
+ask what was found that has no `Ref` yet.
+
+⛔ **This does not license writing §2.2.2.4 from memory.** It means the section can be **read**,
+which is the only thing that was ever missing. Whoever picks up BL-94 C1 or BL-54 T4 opens the
+document, and CAC-RW-1 applies as normal.
+
+### The general point, kept separate from the correction
+
+**A source that is *published* needs no hand-off at all.** CAC-HO-1 is about documents that exist
+only where somebody wrote them. **Check which kind you have before treating a hand-off as the
+blocker** — the cheapest unblocking move is often discovering the document was never private.
+
+---
+
 ## v0.120.0 — 2026-08-11
 
 **`EXPECTED_PROVED` raised from 124 to 126 — the gain is now held.**
