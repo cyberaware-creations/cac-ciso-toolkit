@@ -56,7 +56,7 @@ EXPECTED_HALVES=86
 # need one. Sorting the 273 into those two piles is real work and is filed separately; what
 # this line does is stop the ratio sliding backwards while nobody is looking, which is exactly
 # how it reached 14% without anyone deciding to.
-EXPECTED_PROVED=124
+EXPECTED_PROVED=126
 
 guards_seen=0
 halves_seen=0

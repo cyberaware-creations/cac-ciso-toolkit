@@ -21,6 +21,26 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.120.0 — 2026-08-11
+
+**`EXPECTED_PROVED` raised from 124 to 126 — the gain is now held.**
+
+`prove-guards.sh` has been printing *"proved checks rose to 126 — raise `EXPECTED_PROVED` to hold
+the gain"* for several releases. It was advice, and nothing enforced it: the floor sat at 124 while
+the live number sat at 126, so **two proved checks could have been lost without anything going
+red.** The floor now equals the live number and the nag no longer prints.
+
+⛔ **`EXPECTED_GUARDS` (44) and `EXPECTED_HALVES` (86) were not touched.** They are exact
+equalities, not floors, and this release adds no guard — they move only as part of a change that
+actually adds one.
+
+The comment above the line already explains why the ratio matters and why it is a floor rather
+than a target: sorting the remaining checks into *needs a mutation* and *only proves the fixture
+still works* is real work, filed separately. **This line's whole job is to stop the ratio sliding
+backwards while nobody is looking, which is exactly how it once reached 14%.**
+
+---
+
 ## v0.119.0 — 2026-08-11
 
 **BL-254 — CAC-HO-1, how a document reaches this repo. And the fix the rule was supposed to
