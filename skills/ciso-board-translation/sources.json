@@ -47,14 +47,15 @@
       "id": "dora-rts-2024-1774",
       "label": "DORA ICT risk-management RTS",
       "publisher": "European Commission",
-      "instrument": "Commission Delegated Regulation (EU) 2024/1774, Art. 3, point (d)(iii)-(iv)",
-      "version": "OJ 25.6.2024; in force 15 Jul. 2024",
-      "checkedOn": "2026-08-08",
+      "instrument": "Commission Delegated Regulation (EU) 2024/1774 of 13 March 2024 — Art. 3, point (d)(iii)-(iv); Art. 8(2)(b)(i) (backup and restore requirements of ICT systems, in the ICT operations policy); Art. 25 'Testing of the ICT business continuity plans', incl. Art. 25(2)(c)",
+      "version": "OJ 25.6.2024; in force 15 Jul. 2024. Arts. 8 and 25 read 2026-08-11 from the EUR-Lex HTML for metric-archetypes.md archetype #7. ⚠️ WHAT ART. 25 DOES NOT SAY, recorded because the page turns on it: there is NO provision isolating periodic backup-restore testing. Art. 25 is a BUSINESS-CONTINUITY testing duty whose scope must COVER backups — 25(2)(c) requires the testing to contain 'the testing of switchover from primary ICT infrastructure to the redundant capacity, backups and redundant facilities'. It sets no drill cadence. Any quarterly-restore-drill figure in CAC is CAC's recommendation and is labelled as such on the page.",
+      "checkedOn": "2026-08-11",
       "checkedBy": "claude-code",
       "gated": true,
       "reviewIntervalDays": 365,
       "usedFor": [
-        "references/regulatory-receipts.md"
+        "references/regulatory-receipts.md",
+        "references/metric-archetypes.md"
       ]
     },
     {
@@ -134,13 +135,14 @@
       "id": "csf-2-0",
       "label": "NIST Cybersecurity Framework 2.0",
       "publisher": "NIST",
-      "instrument": "NIST CSWP 29",
-      "version": "CSF 2.0, 26 Feb. 2024",
-      "checkedOn": "2026-08-08",
+      "instrument": "NIST CSWP 29 — The NIST Cybersecurity Framework (CSF) 2.0, Sec. 3.2 (Tiers)",
+      "version": "CSF 2.0, 26 Feb. 2024. ⚠️ PROVENANCE OF THE Sec. 3.2 READING, stated because it is NOT a fresh read of NIST's paper: the Sec. 3.2 proposition used by metric-archetypes.md archetype #6 was verified on 2026-08-11 against THIS REPO'S OWN vendored Core — skills/nist-csf/references/nist-csf-2.0-core.json, key tiers.guardrail — which quotes CSWP 29 Sec. 3.2 and carries the NIST CPRT export csf-2.0.xlsx at sha256 cc4ec545881141711dacf056e4c806057325b441081f704d9aa32c4eeaf9b616. That is a second-hand read of a first-party artifact, and the distinction matters: if the vendored Core were ever wrong about Sec. 3.2, this row would be wrong with it. The propositions relied on are that Tiers COMPLEMENT rather than replace a risk management methodology, and that progression to higher Tiers is encouraged only when risks or mandates are greater or a cost-benefit analysis indicates a feasible and cost-effective reduction of negative risk. NOTE THE CROSS-CHECK: nist-csf already enforces the same reading as a shipped guardrail (Tiers 'must never be rendered, averaged, or trended' as a maturity score), so archetype #6 and the nist-csf skill now say the same thing, and a change to one should be checked against the other.",
+      "checkedOn": "2026-08-11",
       "checkedBy": "claude-code",
       "gated": false,
       "usedFor": [
-        "references/positive-risk.md"
+        "references/positive-risk.md",
+        "references/metric-archetypes.md"
       ]
     },
     {
