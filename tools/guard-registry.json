@@ -219,6 +219,11 @@
       "forbids": "a decision rendered as a raw Python dict repr instead of its text"
     },
     {
+      "path": "skills/nist-csf/evals/posture-no-score.sh",
+      "role": "guard",
+      "forbids": "a posture report that scores the program rather than reporting what is recorded, and an outcome map that silently drops outcomes it forgot to classify"
+    },
+    {
       "path": "skills/nist-csf/evals/run-conversations.sh",
       "role": "not-a-guard",
       "reason": "Harness or runner, not an assertion suite. Takes an output directory and shells out."

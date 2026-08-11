@@ -21,6 +21,75 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.105.0 — 2026-08-11
+
+**The program posture report.** `nist-csf posture` bands every CSF outcome by **what is
+recorded** about it — the 1.0-sized version of *"guide to a full program"*.
+
+### It answers "can you show your work?" and never "is your work any good?"
+
+Those are different questions and only the first is answerable from records. **A policy
+forbidding authentication is a terrible control and a perfectly valid record**: a document
+exists, a named person approved it on a date, and it is mapped. This report says the record
+exists. Judging whether the control is sound is the CISO's job, their auditor's and their
+board's — `record and refuse, never judge` reaching the reporting layer.
+
+### The bands are named for the record, not the posture
+
+`well-evidenced` · `thinly evidenced` · `declared critical` · `no record` — plus **`unknown`**,
+a fifth and separate state for a store that could not be read.
+
+⚠️ **The word "addressed" appears in no band name, so the caveat names the bands the report
+actually has** rather than a state it does not. The limit ships as a block **above** the bands,
+not a footnote: `well-evidenced` means a record exists, is current and is attributed; it is not
+evidence the control is adequate, and this report has no way to determine whether it is.
+
+**The longer names were checked in the render before being baked into constants**, per the
+decision note — nothing truncates.
+
+### Where it lives, decided by the code
+
+`nist-csf`, not `attention-surface`. That skill is disqualified by its own boundary — *"computes
+no status, assigns no severity"* — and **a band is a computed status**. `nist-csf` is qualified
+by what looked like a disqualification: it emits no escalations because *"a gap against a Target
+is a distance, not a clock"*, and **this report is a distance.**
+
+### Critical is declared, never inferred
+
+`settings.appetite` is **deliberately not an input**: it is a bare enum set once at `init` with
+no declarer and no date, so it cannot place an outcome in `declared critical`. Crown jewels are
+read through a third copy of `declared_criticality()` — both legal shapes, module never
+imported, and `check-twins` compares the copies by executing them.
+
+### Unknown is not no-record, and it is proved by position
+
+The unread discipline is copied **verbatim** from `attention_surface.read_producer`, including
+*"a different fact from a clean register"*. The NOT READ block prints **before** anything that
+looks like a result, and the guard asserts that **ordering**, not merely its presence.
+
+### The map is authored at category grain, and the guard is what makes that safe
+
+`outcome-owners.json` — 22 categories with per-outcome overrides, because 106 hand-typed rows
+are 106 chances to mistype one and nobody reviews a wall of repetition. The expansion runs
+against the **shipped Core**, so an outcome the map forgot resolves to nothing and the check
+sees it. Joined to `CORE_EXPECTED`, never re-counted.
+
+The `all-mapped` mutation drops one category — which at that grain silently removes every
+outcome beneath it. The failure is an **absence**, invisible unless something counts.
+
+**44 guards / 86 halves / 126 proved.**
+
+### CAC-CD-1 caught the command before CI did
+
+`posture` was reachable and undocumented — `--help` prints the module docstring, so a user at
+the terminal could not discover it. Exactly the defect that check exists for, three releases
+after it was written to catch it.
+
+### Not in scope
+
+**OQ3, the board pack.** `board-pack` already has a `posture` section fed by `nist-csf`, so
+adding it is a small change and a large exposure. Ship the report, look at it, then decide.
+
 ## v0.104.0 — 2026-08-11
 
 **A CISO with a shelf of policies now has somewhere to put them** — and the shape of the answer
