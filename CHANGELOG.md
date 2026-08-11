@@ -21,6 +21,53 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.113.0 — 2026-08-11
+
+**The remaining 19 rows signed. Every source in the product now carries a named human — and the
+two rows where that means something different say so.**
+
+```
+55 of 55 countersigned by a person (reviewedBy)
+55 source(s): 2 unverified, 0 claude-code, 53 countersigned
+```
+
+### ⚠️ Two numbers on one subject, and the fix is disclosure rather than a smaller number
+
+**Signing the last 19 broke the arithmetic between two surfaces of the same tool.** The summary
+counts the **field**; `--report` counts the **state**, and `unverified` outranks a
+counter-signature there. So two rows are in the first number and not the second, and a reader
+comparing 55 against 53 would be looking at **exactly the "count disagrees with itself" defect
+this standard was extended to catch three releases ago.**
+
+Neither number is wrong. **The overlap has to print**, so it does:
+
+> *2 of those 55 sit on `unverified` rows and still report as `unverified` — a person accepted
+> the RECORD, including its stated reason for being unread. Endorsing a reading nobody made does
+> not promote the row, so `--report` shows 53 countersigned, not 55.*
+
+The line is **silent when there is no overlap**, so it means something when it appears. Both
+directions are self-tested, and the assertion is on the **numbers**, not the prose — a reworded
+line still has to reconcile.
+
+### What signing an `unverified` row actually asserts
+
+`exceptions-register/iso-27001` and `risk-register/ir-8286b-upd1` are the two: one needs a
+licensed copy iso.org will not serve, the other is not vendored here. **Countersigning them is
+not an endorsement of a reading — there is no reading.** It is acceptance of the record *and its
+stated reason for being unread*, which is a real thing to accept and a different thing from the
+other 53.
+
+⛔ **Neither became gated, and neither can.** The T4 refusal is untouched. The signing script
+asserted the invariant independently before writing, rather than trusting the checker to catch it
+afterwards.
+
+**`claude-code` is now zero as a state** — every row has a human beside the machine. `checkedBy`
+itself is unchanged on all 55 and still records that a machine opened the page.
+
+**Checks:** self-test 108 → **110 checks, 0 failed**, floor raised to 110. `--release-gate` clean.
+
+---
+
 ## v0.112.0 — 2026-08-11
 
 **The counter-signature count is no longer zero. the maintainer countersigned all 36 gated

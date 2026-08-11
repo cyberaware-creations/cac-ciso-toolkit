@@ -15,7 +15,9 @@
         "scripts/score_register.py",
         "references/schema.md",
         "SKILL.md"
-      ]
+      ],
+      "reviewedBy": "the maintainer",
+      "reviewedOn": "2026-08-11"
     },
     {
       "id": "ir-8286-series",
@@ -48,7 +50,9 @@
       "gated": false,
       "usedFor": [
         "SKILL.md"
-      ]
+      ],
+      "reviewedBy": "the maintainer",
+      "reviewedOn": "2026-08-11"
     },
     {
       "id": "dora-rts-2024-1774",
@@ -102,7 +106,9 @@
       "usedFor": [
         "references/dashboards.md",
         "renderers/render_board.py"
-      ]
+      ],
+      "reviewedBy": "the maintainer",
+      "reviewedOn": "2026-08-11"
     }
   ]
 }

@@ -87,7 +87,9 @@
       "gated": false,
       "usedFor": [
         "references/disclosure-clocks.md"
-      ]
+      ],
+      "reviewedBy": "the maintainer",
+      "reviewedOn": "2026-08-11"
     },
     {
       "id": "caremark-line",
@@ -100,7 +102,9 @@
       "gated": false,
       "usedFor": [
         "references/materiality-factors.md"
-      ]
+      ],
+      "reviewedBy": "the maintainer",
+      "reviewedOn": "2026-08-11"
     },
     {
       "id": "materiality-standard",
@@ -114,7 +118,9 @@
       "usedFor": [
         "references/materiality-factors.md",
         "SKILL.md"
-      ]
+      ],
+      "reviewedBy": "the maintainer",
+      "reviewedOn": "2026-08-11"
     },
     {
       "id": "nis2",
