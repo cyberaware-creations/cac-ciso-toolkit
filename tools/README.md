@@ -16,6 +16,13 @@ something a user should be shipped.
 |---|---|
 | `check-versions.py` | The four plugin version strings agree, and they move whenever shipped content moves. Run by the `manifests` job in `.github/workflows/evals.yml`. |
 
+⚠️ **One standard here has no guard, deliberately: [`handoff-standard.md`](handoff-standard.md)
+(CAC-HO-1)** — how a document written outside this repo reaches it *before* repo content cites it.
+Twice, shipped files cited a document the reading session could not open; the fix then failed twice
+more, the last time on a surface that had been named precisely. It is prose because what goes
+missing is exactly what a script would need in order to check it, and the standard says so in its
+own last section rather than leaving the absence to look like an oversight.
+
 **No dependencies, no install step.** Python stdlib and node built-ins only. That is a deliberate
 constraint, not a happy accident — see "Why there is no `package.json`" at the end.
 
