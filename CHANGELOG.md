@@ -21,6 +21,72 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.123.0 — 2026-08-11
+
+**BL-54 T3 (R-5) — `set-score` records who is accountable for the loss and, optionally, who is
+responsible for the response.**
+
+
+### What it does
+
+`set-score` gains `--owner` and `--manager`. **An owner is required by the end of the command**,
+and the refusal names both roles — the point of the pair is the distinction, and the point of use
+is the only place a reader meets it:
+
+> *`--owner` is the person **accountable for the loss** if this risk occurs. `--manager` is
+> optional and is the person **responsible for the response** — the work of treating it. They are
+> often different people, and where they are, recording only one of them loses the distinction an
+> auditor asks about first.*
+
+**Recorded on `set-score` rather than `add`** because this is the command that turns a candidate
+into an assessed risk, and an assessed risk nobody is accountable for is the state T9 exists to
+escalate. **Capture freely; score strictly.**
+
+### ⭐ The design point that shaped the refusal
+
+**`gap_row_to_risk()` builds from `empty_risk()` and never sets an owner** — a CSF gap arrives
+unowned *by design*, and the sanctioned flow is `import` → `set-score` → `set-text`.
+
+A refusal demanding the owner **already be present** would deadlock that at step one — precisely
+the defect the description refusal beside it was carefully gated to avoid (BL-81 D-3). Requiring
+the owner **by the end of the command** asks for the same accountability without breaking the
+flow, because whoever scores the risk names the owner in the same act.
+
+⚠️ **The two refusals are ordered deliberately and the order is tested:** description first, since
+there is nothing to *own* if there is nothing to *score*. Putting the owner check first made
+`event-statement.sh` read the wrong refusal — caught by that suite, and the rationale is now a
+comment beside the code.
+
+### `set-score` now refuses unknown flags
+
+Until now it took `known=None` and **silently discarded** any flag it did not read — so
+`--ownr 'A Name'` would have scored the risk and thrown the owner away. `_cmd_add` has refused that
+exact typo since v0.78.0.
+
+This is what the repo's own ratchet asks for: `_FLAGS_UNDECLARED` is *"a list that may only
+shrink"*, and `set-score` leaves it. **14 → 13**, ceiling lowered to match.
+
+### Tests
+
+**308 → 316 checks**, all passing. The sequence asserted is the real one: an imported risk with no
+owner **refuses**; the refusal **names both roles** and says which is optional; naming an owner in
+the same act **lets it score**; and it then re-scores **without** `--owner`, because the
+requirement is a property of the risk rather than a mandatory flag on every re-score. Plus
+`--manager` recorded when supplied, the `--ownr` typo refused, and a whitespace-only `--owner`
+refused.
+
+⚠️ **The first draft of those tests asserted the success case first**, which persisted the owner
+and left the refusal untestable on that fixture. **The tests were wrong, not the code** —
+reordered, with the reason recorded so it is not reintroduced.
+
+**Fixtures:** ten call sites across the self-test and four suites now name an owner. That is the
+flow genuinely changing rather than churn.
+
+**Checks:** all eight risk-register suites · `check-sources`, `check-commands`, `check-twins` ·
+CAC-GP-1 unchanged at 44 / 86 / 126 — **T3 adds no guard; T10 is the task that moves those.**
+
+---
+
 ## v0.122.0 — 2026-08-11
 
 **CAC-HO-1's surface table said a route was impossible when it is only unavailable.**

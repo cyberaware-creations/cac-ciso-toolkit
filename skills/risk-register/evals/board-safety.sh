@@ -83,11 +83,11 @@ rm -f "$work/r.rr"
     echo "board-safety: FIXTURE FAILED — import-gaps errored"; exit 1; }
 
 # A score-only review: the path that used to authorise framework wording for a board.
-"$PY" "$RR/scripts/score_register.py" set-score "$work/r.rr" R-001 --residual 5 5 \
+"$PY" "$RR/scripts/score_register.py" set-score "$work/r.rr" R-001 --residual 5 5 --owner "Head of Ops" \
   --why "scored, not reworded" >/dev/null || {
     echo "board-safety: FIXTURE FAILED — could not score R-001"; exit 1; }
 # An over-appetite risk the board formally accepted, still current.
-"$PY" "$RR/scripts/score_register.py" set-score "$work/r.rr" R-002 --residual 5 5 --why x >/dev/null || {
+"$PY" "$RR/scripts/score_register.py" set-score "$work/r.rr" R-002 --residual 5 5 --owner "Head of Ops" --why x >/dev/null || {
   echo "board-safety: FIXTURE FAILED — could not score R-002"; exit 1; }
 "$PY" "$RR/scripts/score_register.py" accept "$work/r.rr" R-002 --approver "Audit Committee" \
   --justification "compensating controls; remediation funded" --revalidate 2099-01-31 \
@@ -96,7 +96,7 @@ rm -f "$work/r.rr"
 
 # An over-appetite risk the organisation has since treated out. Check 7 asserts the board
 # figures stop counting it — the headline must improve when a risk is closed.
-"$PY" "$RR/scripts/score_register.py" set-score "$work/r.rr" R-004 --residual 5 5 \
+"$PY" "$RR/scripts/score_register.py" set-score "$work/r.rr" R-004 --residual 5 5 --owner "Head of Ops" \
   --why "worst case before treatment" >/dev/null || {
     echo "board-safety: FIXTURE FAILED — could not score R-004"; exit 1; }
 "$PY" "$RR/scripts/score_register.py" set-status "$work/r.rr" R-004 closed \
