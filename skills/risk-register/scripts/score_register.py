@@ -61,6 +61,10 @@ Mutations (each appends an append-only history event and writes a schema-valid f
                                          Reword an imported gap as an if-then event
                                          statement; clears `provisionalTitle`.
   set-score    <register.rr> <id> [--inherent L I] [--residual L I] --why ...
+                                         [--owner ...] [--manager ...]
+                                         An owner is REQUIRED by the end of this command:
+                                         owner is accountable for the loss, manager is
+                                         responsible for the response.
   accept       <register.rr> <id> --approver ... --justification ... --revalidate DATE
   confirm      <register.rr> <id> --why ... [--review YYYY-MM-DD]
                                          Record that a risk was reviewed and nothing
@@ -4076,12 +4080,52 @@ def _cmd_set_response(args):
 
 
 def _cmd_set_score(args):
-    pos, opt = parse_flags(args)
+    # `known` added with --owner/--manager (BL-54 R-5). It is a tightening of an existing
+    # command and is deliberate: until now set-score SILENTLY IGNORED any flag it did not
+    # read, so `--ownr 'A Name'` would have scored the risk and dropped the owner on the
+    # floor. `_cmd_add` already refuses that exact typo and has a test for it; this is the
+    # same protection on the command that now carries the same field.
+    pos, opt = parse_flags(args, known={"inherent", "residual", "owner", "manager", "why"})
     if len(pos) < 2:
-        raise ValueError("usage: set-score <register.rr> <id> [--inherent L I] [--residual L I] --why '...'")
+        raise ValueError("usage: set-score <register.rr> <id> [--inherent L I] [--residual L I] "
+                         "[--owner '...'] [--manager '...'] --why '...'")
     reg = load_register(pos[0]); size = reg["settings"]["matrixSize"]; r = _find(reg, pos[1])
     if "why" not in opt:
         raise ValueError("set-score: --why is required (material change; the rationale is the audit trail).")
+    # BL-54 R-5 — THE TWO ROLES, and they are two because 8286 treats them as two.
+    #
+    # Recorded here rather than only on `add` because this is the command that turns a
+    # candidate into an assessed risk, and an assessed risk with nobody accountable for it is
+    # the state T9 exists to escalate. Capture freely; score strictly.
+    #
+    # ⚠️ THE OWNER MAY BE SUPPLIED IN THIS SAME ACT, and that is what stops this refusal
+    # deadlocking the import flow. `gap_row_to_risk` builds from `empty_risk` and NEVER sets an
+    # owner, so a CSF gap arrives unowned by design; the sanctioned path is import → set-score
+    # → set-text. A refusal that demanded the owner already be present would stop that path at
+    # its first step — the same defect the description refusal below was carefully gated to
+    # avoid (BL-81 D-3). Requiring it *by the end of this command* asks for the same
+    # accountability without breaking the flow.
+    for _role in ("owner", "manager"):
+        if _role in opt:
+            _val = str(_s(opt[_role]) or "").strip()
+            if not _val:
+                raise ValueError(f"set-score: --{_role} was given with no name.")
+            if _val != str(r.get(_role) or ""):
+                _append_event(reg, "risk-updated", riskId=pos[1], field=_role,
+                              frm=r.get(_role) or "", to=_val, rationale=opt["why"])
+                r[_role] = _val
+    if not str(r.get("owner") or "").strip():
+        raise ValueError(
+            f"set-score: {pos[1]} has no owner, and a scored risk with no owner is a loss "
+            f"nobody has agreed to carry.\n"
+            f"  Name one here: set-score {pos[0]} {pos[1]} ... --owner '<name or role>'\n"
+            f"  --owner is the person ACCOUNTABLE FOR THE LOSS if this risk occurs.\n"
+            f"  --manager is optional and is the person RESPONSIBLE FOR THE RESPONSE — "
+            f"the work of treating it.\n"
+            f"  They are often different people, and where they are, recording only one of "
+            f"them loses the distinction an auditor asks about first.\n"
+            f"  (An imported CSF gap arrives with no owner by design; this is the step that "
+            f"gives it one.)")
     # THE LEGACY HALF OF BL-81. `add` refuses an empty description from v0.78.0, but every
     # register written before it may hold risks that have none, and refusals guard WRITES,
     # never loads — such a register still opens and renders unchanged. What it must not do is
