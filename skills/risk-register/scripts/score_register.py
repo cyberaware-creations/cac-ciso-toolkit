@@ -61,6 +61,10 @@ Mutations (each appends an append-only history event and writes a schema-valid f
                                          Reword an imported gap as an if-then event
                                          statement; clears `provisionalTitle`.
   set-score    <register.rr> <id> [--inherent L I] [--residual L I] --why ...
+                                         [--owner ...] [--manager ...]
+                                         An owner is REQUIRED by the end of this command:
+                                         owner is accountable for the loss, manager is
+                                         responsible for the response.
   accept       <register.rr> <id> --approver ... --justification ... --revalidate DATE
   confirm      <register.rr> <id> --why ... [--review YYYY-MM-DD]
                                          Record that a risk was reviewed and nothing
@@ -2351,6 +2355,7 @@ def _cmd_self_test(_: list[str]) -> int:
         # makes it confirmable. A provisional *title* only warns: wording is a
         # board-eligibility question, not a magnitude one.
         _quiet(_cmd_set_score, [_pr, "R-001", "--residual", "4", "4",
+                                "--owner", "Head of Ops",
                                 "--why", "assessed; seed value was right"])
         # Caught rather than called bare: an over-strict confirm that also refused a
         # provisional *title* would otherwise abort the whole suite with an unnamed error
@@ -2385,6 +2390,7 @@ def _cmd_self_test(_: list[str]) -> int:
         # set-score is the sanctioned way through rather than an exception to the rule: it
         # affirms *and* clears provisionalScore, so the score it affirms has been assessed.
         "_cmd_set_score": (_cmd_set_score, ["R-001", "--residual", "4", "4",
+                                            "--owner", "Head of Ops",
                                             "--why", "assessed at the forum"], "clears"),
     }
     eq("every affirming writer is either probed or exempt with a reason",
@@ -2569,9 +2575,57 @@ def _cmd_self_test(_: list[str]) -> int:
             _lreg = load_register(_lr)
             _lreg["risks"][0]["provisionalTitle"] = True
             save_register(_lreg, _lr)
-            eq("...but an IMPORTED provisional risk with no description still scores",
+            # --- T3 / R-5: owner and manager on set-score ------------------------
+            # ORDER MATTERS HERE and the sequence is the real one: an imported risk
+            # arrives unowned, REFUSES, and then the person assessing it names an owner in
+            # the same act and it goes through. Asserting the success case first would
+            # persist the owner and make the refusal untestable on this fixture — which is
+            # exactly what the first draft of these tests did.
+            eq("an IMPORTED provisional risk with no owner REFUSES",
                _rejects(_cmd_set_score, [_lr, "R-001", "--residual", "4", "4",
+                                         "--why", "assessed"]), (True, True))
+            _noown = _why_refused(_cmd_set_score, [_lr, "R-001", "--residual", "4", "4",
+                                                   "--why", "assessed"])
+            # The refusal TEACHES the distinction rather than just enforcing it. Both roles are
+            # named at the point of use, which is the only place a reader meets them.
+            eq("...and the refusal names the owner as accountable for the loss",
+               "ACCOUNTABLE FOR THE LOSS" in _noown, True)
+            eq("...and names the manager as responsible for the response",
+               "RESPONSIBLE FOR THE RESPONSE" in _noown, True)
+            # Asserted separately from the two phrases above: a message could name both roles
+            # and still not say the optional one is optional.
+            eq("...and says which of the two is optional", "--manager is optional" in _noown, True)
+            # The gate that keeps the import flow alive: naming the owner IN THE SAME ACT is
+            # what lets an imported CSF gap — which has no description and no owner by design —
+            # still be assessed. A refusal demanding the owner already be present would
+            # deadlock import → set-score → set-text at step one (BL-81 D-3).
+            eq("...and naming an owner in the same act lets that imported risk score",
+               _rejects(_cmd_set_score, [_lr, "R-001", "--residual", "4", "4",
+                                         "--owner", "Head of Ops",
                                          "--why", "assessed"]), (False, False))
+            # An owner already on the risk needs no --owner. The requirement is a property of
+            # the RISK, not a mandatory flag on every re-score — otherwise every routine
+            # re-score would have to restate an owner nobody is changing.
+            eq("...and that risk, now owned, re-scores WITHOUT --owner",
+               _rejects(_cmd_set_score, [_lr, "R-001", "--residual", "3", "3",
+                                         "--why", "revised"]), (False, False))
+            # `manager` is optional in both directions: absent above, and recorded when given.
+            _quiet(_cmd_set_score, [_lr, "R-001", "--residual", "3", "2",
+                                    "--manager", "SecOps Lead", "--why", "revised again"])
+            eq("...and --manager is recorded when supplied",
+               load_register(_lr)["risks"][0].get("manager"), "SecOps Lead")
+            # ⚠️ THE TYPO. Until this task set-score took `known=None` and silently DISCARDED
+            # any flag it did not read, so `--ownr 'A Name'` scored the risk and threw the
+            # owner away. `_cmd_add` has refused that exact typo since v0.78.0; this is the
+            # same protection on the command that now carries the same field.
+            eq("...and a misspelled --ownr is refused rather than silently dropped",
+               _rejects(_cmd_set_score, [_lr, "R-001", "--residual", "3", "3",
+                                         "--ownr", "Head of Ops", "--why", "w"]), (True, True))
+            # An empty value is not a name. `_s` does not strip, so a bare or whitespace-only
+            # --owner would otherwise satisfy the presence check and record nothing.
+            eq("...and --owner with no name is refused",
+               _rejects(_cmd_set_score, [_lr, "R-001", "--residual", "3", "3",
+                                         "--owner", "   ", "--why", "w"]), (True, True))
 
         # --- cost validation (BL-105) -------------------------------------------
         eq("--cost refuses a negative", _rejects(_cmd_add, _add + ["--cost", "-5000"]),
@@ -3431,14 +3485,14 @@ def _reflist(v):
 # A new command cannot join it without editing this line, and the self-test refuses a command
 # that is neither declared nor listed.
 _FLAGS_UNDECLARED = frozenset({
-    "score", "import-gaps", "import-findings", "self-test", "set-score", "accept",
+    "score", "import-gaps", "import-findings", "self-test", "accept",
     "confirm", "set-status", "snapshot", "export-csv", "export-acceptances",
     "add-theme", "set-theme", "escalations",
 })
 
 # The self-test asserts the list is no LONGER than this. Lower it when a command is converted;
 # it may never go up. A ceiling rather than an equality on purpose — see the check itself.
-_UNDECLARED_CEILING = 14
+_UNDECLARED_CEILING = 13
 
 
 def parse_flags(args: list[str], known=None):
@@ -4076,9 +4130,15 @@ def _cmd_set_response(args):
 
 
 def _cmd_set_score(args):
-    pos, opt = parse_flags(args)
+    # `known` added with --owner/--manager (BL-54 R-5). It is a tightening of an existing
+    # command and is deliberate: until now set-score SILENTLY IGNORED any flag it did not
+    # read, so `--ownr 'A Name'` would have scored the risk and dropped the owner on the
+    # floor. `_cmd_add` already refuses that exact typo and has a test for it; this is the
+    # same protection on the command that now carries the same field.
+    pos, opt = parse_flags(args, known={"inherent", "residual", "owner", "manager", "why"})
     if len(pos) < 2:
-        raise ValueError("usage: set-score <register.rr> <id> [--inherent L I] [--residual L I] --why '...'")
+        raise ValueError("usage: set-score <register.rr> <id> [--inherent L I] [--residual L I] "
+                         "[--owner '...'] [--manager '...'] --why '...'")
     reg = load_register(pos[0]); size = reg["settings"]["matrixSize"]; r = _find(reg, pos[1])
     if "why" not in opt:
         raise ValueError("set-score: --why is required (material change; the rationale is the audit trail).")
@@ -4103,6 +4163,45 @@ def _cmd_set_score(args):
             f"'If <event>, then <consequence>' --why '...'\n"
             f"  (Registers written before v0.78.0 may hold risks like this; they load and "
             f"render unchanged, and refuse on the next write that re-scores them.)")
+    # BL-54 R-5 — THE TWO ROLES, and they are two because 8286 treats them as two.
+    #
+    # Recorded here rather than only on `add` because this is the command that turns a
+    # candidate into an assessed risk, and an assessed risk with nobody accountable for it is
+    # the state T9 exists to escalate. Capture freely; score strictly.
+    #
+    # ⚠️ THE OWNER MAY BE SUPPLIED IN THIS SAME ACT, and that is what stops this refusal
+    # deadlocking the import flow. `gap_row_to_risk` builds from `empty_risk` and NEVER sets an
+    # owner, so a CSF gap arrives unowned by design; the sanctioned path is import → set-score
+    # → set-text. A refusal that demanded the owner already be present would stop that path at
+    # its first step — the same defect the description refusal ABOVE was carefully gated to
+    # avoid (BL-81 D-3). Requiring it *by the end of this command* asks for the same
+    # accountability without breaking the flow.
+    #
+    # ⚠️ THE ORDER OF THE TWO REFUSALS IS DELIBERATE AND IS TESTED. The description refusal
+    # runs FIRST: there is nothing to own if there is nothing to score. `event-statement.sh`
+    # asserts the no-description message on a legacy risk that also has no owner, and this
+    # block sitting first made that suite read the wrong refusal.
+    for _role in ("owner", "manager"):
+        if _role in opt:
+            _val = str(_s(opt[_role]) or "").strip()
+            if not _val:
+                raise ValueError(f"set-score: --{_role} was given with no name.")
+            if _val != str(r.get(_role) or ""):
+                _append_event(reg, "risk-updated", riskId=pos[1], field=_role,
+                              frm=r.get(_role) or "", to=_val, rationale=opt["why"])
+                r[_role] = _val
+    if not str(r.get("owner") or "").strip():
+        raise ValueError(
+            f"set-score: {pos[1]} has no owner, and a scored risk with no owner is a loss "
+            f"nobody has agreed to carry.\n"
+            f"  Name one here: set-score {pos[0]} {pos[1]} ... --owner '<name or role>'\n"
+            f"  --owner is the person ACCOUNTABLE FOR THE LOSS if this risk occurs.\n"
+            f"  --manager is optional and is the person RESPONSIBLE FOR THE RESPONSE — "
+            f"the work of treating it.\n"
+            f"  They are often different people, and where they are, recording only one of "
+            f"them loses the distinction an auditor asks about first.\n"
+            f"  (An imported CSF gap arrives with no owner by design; this is the step that "
+            f"gives it one.)")
     changed = False
     for field in ("inherent", "residual"):
         if field in opt:

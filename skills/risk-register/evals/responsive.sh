@@ -119,9 +119,9 @@ rm -f "$work/r.rr"
 "$PY" "$RR/scripts/score_register.py" import-gaps "$work/gaps.csv" \
   --into "$work/r.rr" --write >/dev/null 2>&1 || {
     echo "responsive: FIXTURE FAILED — import-gaps errored"; exit 1; }
-"$PY" "$RR/scripts/score_register.py" set-score "$work/r.rr" R-001 --residual 5 5 --why x >/dev/null || {
+"$PY" "$RR/scripts/score_register.py" set-score "$work/r.rr" R-001 --residual 5 5 --owner "Head of Ops" --why x >/dev/null || {
   echo "responsive: FIXTURE FAILED — could not score R-001"; exit 1; }
-"$PY" "$RR/scripts/score_register.py" set-score "$work/r.rr" R-002 --residual 5 4 --why x >/dev/null || {
+"$PY" "$RR/scripts/score_register.py" set-score "$work/r.rr" R-002 --residual 5 4 --owner "Head of Ops" --why x >/dev/null || {
   echo "responsive: FIXTURE FAILED — could not score R-002"; exit 1; }
 
 for r in render_board render_dashboard render_report; do
