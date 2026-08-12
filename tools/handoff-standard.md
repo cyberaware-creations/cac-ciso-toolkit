@@ -49,11 +49,21 @@ URLs.
 
 | surface | Cowork → it | Code → it |
 |---|---|---|
-| A path under `~/Documents` | ✗ (container, no access to the Mac) | ✅ reads directly |
+| A path under `~/Documents` | ⚠️ only with a granted folder (device bridge); ✗ otherwise | ✅ reads directly |
 | A commit on a branch in this repo | ✅ if it has git or GitHub API access | ✅ |
 | A Notion attachment on the citing item | ✅ writes fine | ⛔ **404 — integration-scoped** |
 | Notion **page body** text | ✅ | ✅ — but Markdown rendering reflows tables and blockquotes, so **byte-exactness is lost** |
 | "Attached to this session" | — | ⛔ not a surface at all |
+
+> ⭐ **The durable fix for this whole class is the first row, and it is a permission rather than a
+> procedure.** Granting the repo folder to the writing session — the desktop bridge exposes
+> `device_commit_files`, which writes straight into any folder that has been granted — lets
+> research documents be written into `docs/research/` **directly**. No attachment, no download, no
+> human step, and **HO-1.1's problem stops existing** rather than being routed around.
+>
+> That row reads ⚠️ rather than ✅ only because the grant dialog has timed out twice with no
+> response. **A route that is unavailable is a different fact from a route that is impossible**, and
+> the difference is the whole reason this row is not marked ✗.
 
 ⚠️ **For a verbatim research document the last row of that table matters more than it looks.** The
 entire value of these documents is that they are byte-exact; a blockquote silently reflowed is a
