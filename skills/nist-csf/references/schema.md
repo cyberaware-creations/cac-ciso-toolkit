@@ -202,7 +202,7 @@ exactly the attribution this schema exists to make honest. A v1 rating normalize
 fields `null` — it still scores, exactly as it always did; it simply reports as unattributed.
 
 **The honest limit.** The CLI cannot prove a human typed the number — nothing stops a caller from
-passing `--confirmed-by "R. Calder"` when the maintainer said no such thing. What it enforces is only that no
+passing `--confirmed-by "R. Calder"` when R. Calder said no such thing. What it enforces is only that no
 rating exists without a named source and a named person attached to it. The actual discipline —
 asking who is deciding this, and pointing `--source` at a real recorded conversation rather than an
 invented id — is a behavioural rule for whoever operates this skill, not a mechanical one the tool

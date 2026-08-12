@@ -4,7 +4,7 @@
   "frameworkVersion": "2.0",
   "meta": {
     "clientName": "Crosswalk Golden Fixture",
-    "assessor": "the maintainer",
+    "assessor": "R. Calder, CISO",
     "scopeNote": "Hand-built parity fixture for crosswalk lenses. Not a real assessment.",
     "assessedAt": "2026-07-29"
   },
