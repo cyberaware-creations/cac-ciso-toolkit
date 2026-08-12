@@ -21,6 +21,32 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.122.0 — 2026-08-11
+
+**CAC-HO-1's surface table said a route was impossible when it is only unavailable.**
+
+The `~/Documents` row read `✗ (container, no access to the Mac)` for the writing side. That is
+wrong: the desktop bridge exposes `device_commit_files`, which writes a file **straight into any
+folder that has been granted to the session**. It is unavailable today because the grant dialog has
+timed out twice with no response — **a different fact from the route being impossible**, and the
+difference is what the row now carries: `⚠️ only with a granted folder (device bridge); ✗
+otherwise`.
+
+⭐ **And the note under the table says what follows from it**, because it changes what the standard
+is for: **granting the repo folder ends this entire class permanently.** Research documents get
+written into `docs/research/` directly — no attachment, no download, no human step — and HO-1.1's
+problem **stops existing** rather than being routed around.
+
+**This is the same failure the standard itself already carries one correction for.** v0.121.0 fixed
+an inference from *"the PDF cannot cross the transport"* to *"so those items are blocked"*; this
+fixes an inference from *"the container cannot reach the Mac by default"* to *"so it cannot at
+all."* **Both were true premises with a step missing after them**, in a file whose subject is
+routes that do not work.
+
+⛔ **No tooling.** One table cell and one note, as scoped.
+
+---
+
 ## v0.121.0 — 2026-08-11
 
 **A sentence shipped two releases ago was wrong, and correcting it unblocks two items that have
