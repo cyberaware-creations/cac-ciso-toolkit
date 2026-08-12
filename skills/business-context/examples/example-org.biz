@@ -3,7 +3,7 @@
   "family": "business-context",
   "meta": {
     "orgName": "Northwind Manufacturing",
-    "preparedBy": "D. Galleyne, CISO",
+    "preparedBy": "R. Calder, CISO",
     "scopeNote": "Group security programme, FY26. One legal entity; the Dublin subsidiary is in the same perimeter.",
     "fiscalYearEnd": "2026-12-31",
     "asOf": "2026-08-07"
@@ -32,7 +32,7 @@
     },
     "aiInUse": {
       "value": false,
-      "declaredBy": "D. Galleyne",
+      "declaredBy": "R. Calder",
       "declaredOn": "2026-06-30",
       "basis": "No models in production. Legal ops trialled a contract assistant in May and did not proceed."
     },
@@ -66,7 +66,7 @@
         "system": "CRM (Salesforce)",
         "enables": "every renewal conversation and the whole aftermarket pipeline",
         "atStake": "the client contact and contract data that 60% of group revenue renews through",
-        "declaredBy": "D. Galleyne",
+        "declaredBy": "R. Calder",
         "declaredOn": "2026-08-07",
         "basis": "FY26 planning workshop",
         "criticality": "high",
@@ -156,7 +156,7 @@
       "detail": {
         "from": null,
         "to": false,
-        "declaredBy": "D. Galleyne",
+        "declaredBy": "R. Calder",
         "declaredOn": "2026-06-30"
       }
     },
@@ -297,7 +297,7 @@
         },
         "aiInUse": {
           "value": false,
-          "declaredBy": "D. Galleyne",
+          "declaredBy": "R. Calder",
           "declaredOn": "2026-06-30",
           "basis": "No models in production. Legal ops trialled a contract assistant in May and did not proceed."
         },
@@ -325,7 +325,7 @@
             "system": "CRM (Salesforce)",
             "enables": "every renewal conversation and the whole aftermarket pipeline",
             "atStake": "the client contact and contract data that 60% of group revenue renews through",
-            "declaredBy": "D. Galleyne",
+            "declaredBy": "R. Calder",
             "declaredOn": "2026-08-07",
             "basis": "FY26 planning workshop"
           },

@@ -135,12 +135,12 @@ nobody can defend.
 # The moment a source comes up, log it — seconds, writes no ratings
 python3 scripts/profile_analysis.py intake add acme.csfp \
   --label "architecture review with infra team" --subjects ID.AM-01 ID.AM-02 \
-  --source-date 2026-03-14 --recorded-by "Darren"
+  --source-date 2026-03-14 --recorded-by "R. Calder"
 
 # Later, in its own session: work the backlog, five at a time
 python3 scripts/profile_analysis.py queue acme.csfp
 python3 scripts/profile_analysis.py set acme.csfp ID.AM-01 --current 2 \
-  --source in-0001 --confirmed-by "Darren" --rationale "..."
+  --source in-0001 --confirmed-by "R. Calder" --rationale "..."
 
 # When nobody knows the answer yet, that IS the outcome — record the question and move on
 python3 scripts/profile_analysis.py action add acme.csfp \

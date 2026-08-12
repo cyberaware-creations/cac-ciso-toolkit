@@ -95,9 +95,9 @@
   },
   "declaredAheadOfEmitters": {
     "note": "⚠️ THESE TWO ARE MAPPED BEFORE ANY PRODUCER EMITS THEM, which reverses how every other entry here arrived. `addedAfterDesign` records triggers found ALREADY BEING EMITTED with no home; these are placements decided in advance, so the triggers land in the right cluster the day they ship instead of appearing in `unclustered` first. NOTHING CHECKS THIS DIRECTION: _triggerscan.py asserts emitted -> mapped and has no reverse, so a mapping for a trigger nobody emits fails nothing and is invisible. If R-1 or R-4 ships under a DIFFERENT id these entries become dead weight silently — whoever writes the emitters must match these ids or change them here.",
-    "decidedBy": "BL-93 B2 — Darren, 2026-08-10. Placement was the first of BL-54's three blockers; the register-alignment design did not make the call.",
+    "decidedBy": "BL-93 B2 — the maintainer, 2026-08-10. Placement was the first of BL-54's three blockers; the register-alignment design did not make the call.",
     "triggers": {
-      "implicit-acceptance": "over-tolerance — R-1. A risk carried past the line with no acceptance recorded against it. ⚠️ THE ID WAS NOT WRITTEN DOWN ANYWHERE in the tree or the design, only the description 'implicit acceptance'; confirmed by Darren 2026-08-11 rather than inferred from it.",
+      "implicit-acceptance": "over-tolerance — R-1. A risk carried past the line with no acceptance recorded against it. ⚠️ THE ID WAS NOT WRITTEN DOWN ANYWHERE in the tree or the design, only the description 'implicit acceptance'; confirmed by the maintainer 2026-08-11 rather than inferred from it.",
       "residual-above-target": "over-tolerance — R-4. Residual risk standing above the target set for it."
     }
   }

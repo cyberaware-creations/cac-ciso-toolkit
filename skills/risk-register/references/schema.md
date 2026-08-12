@@ -140,7 +140,7 @@ makes the log defensible and the trend real):
 ```json
 {
   "ts": "2026-07-26T18:04:00Z",
-  "actor": "D. Alleyne",
+  "actor": "R. Calder",
   "riskId": "R-005",
   "type": "score-changed",
   "field": "residual",
@@ -520,7 +520,7 @@ fallback of the same shape:
   "type": "quantitative",           // one of: qualitative, semi-quantitative, quantitative
   "conformance": "partial",         // full | partial
   "deviations": "no monetised loss magnitude; frequency estimated from three incidents",
-  "setBy": "D. Galleyne",
+  "setBy": "R. Calder",
   "asOf": "2026-08-10"
 }
 ```

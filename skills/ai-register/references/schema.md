@@ -81,7 +81,7 @@ value still opens, because refusing to open it would strand whoever has to fix i
   "trace": ["Applicant tracking", "CRM"],
   "truncated": false,
   "confirmed": {
-    "value": "high", "by": "D. Galleyne", "on": "YYYY-MM-DD",
+    "value": "high", "by": "R. Calder", "on": "YYYY-MM-DD",
     "basis": "…", "scaleVersion": "v1", "againstDerived": "moderate"
   }
 }

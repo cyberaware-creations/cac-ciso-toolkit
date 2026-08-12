@@ -92,13 +92,13 @@
     {
       "event": "register-created",
       "target": "skills/exceptions-register/examples/example.exc",
-      "actor": "D. Alleyne",
+      "actor": "R. Calder",
       "ts": "2026-07-31T19:02:08+00:00"
     },
     {
       "event": "acceptance-added",
       "target": "A-001",
-      "actor": "D. Alleyne",
+      "actor": "R. Calder",
       "ts": "2026-07-31T19:02:08+00:00",
       "detail": {
         "title": "40-day patch window on nine internet-facing systems",
@@ -108,7 +108,7 @@
     {
       "event": "acceptance-added",
       "target": "A-002",
-      "actor": "D. Alleyne",
+      "actor": "R. Calder",
       "ts": "2026-07-31T19:02:08+00:00",
       "detail": {
         "title": "Customer records held by the CRM vendor without direct control",
@@ -118,7 +118,7 @@
     {
       "event": "exception-added",
       "target": "X-001",
-      "actor": "D. Alleyne",
+      "actor": "R. Calder",
       "ts": "2026-07-31T19:02:08+00:00",
       "detail": {
         "title": "Finance operates without phishing-resistant MFA",
@@ -128,7 +128,7 @@
     {
       "event": "exception-added",
       "target": "X-002",
-      "actor": "D. Alleyne",
+      "actor": "R. Calder",
       "ts": "2026-07-31T19:02:08+00:00",
       "detail": {
         "title": "Legacy OT segment excluded from endpoint detection",
@@ -138,7 +138,7 @@
     {
       "event": "acceptance-revalidated",
       "target": "A-001",
-      "actor": "D. Alleyne",
+      "actor": "R. Calder",
       "ts": "2026-07-31T19:02:20+00:00",
       "why": "Reviewed with Infrastructure: vendor cadence unchanged, virtual patching verified effective on the affected hosts in June.",
       "detail": {

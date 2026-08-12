@@ -21,7 +21,7 @@ ratings**, so it never blocks the conversation it interrupts.
 python3 scripts/profile_analysis.py intake add acme.csfp \
   --label "architecture review with infra team" \
   --subjects ID.AM-01 ID.AM-02 \
-  --source-date 2026-03-14 --recorded-by "Darren"
+  --source-date 2026-03-14 --recorded-by "R. Calder"
 ```
 
 `--label` is a note *about* the source, in the user's own words or confirmed by them.
@@ -56,7 +56,7 @@ Then, and only then:
 python3 scripts/profile_analysis.py intake add acme.csfp \
   --label "March architecture review — infra" \
   --subjects ID.AM-01 ID.AM-02 \
-  --source-date 2026-03-12 --recorded-by "Darren"
+  --source-date 2026-03-12 --recorded-by "R. Calder"
 ```
 
 Ask for the date. `--source-date` defaults to today, which is right for a conversation happening now
@@ -165,11 +165,11 @@ decision:
 ```bash
 python3 scripts/profile_analysis.py intake add acme.csfp \
   --label "IAM policy review and a sample of 20 OT accounts" --subjects PR.AA-01 \
-  --source-date 2026-07-20 --recorded-by "Darren"
+  --source-date 2026-07-20 --recorded-by "R. Calder"
 
 python3 scripts/profile_analysis.py set acme.csfp PR.AA-01 \
   --current 1 \
-  --source in-0001 --confirmed-by "Darren" \
+  --source in-0001 --confirmed-by "R. Calder" \
   --evidence "iam-policy-v4.pdf" "ticket:SEC-2211" \
   --notes "SSO covers corporate apps; plant OT still uses local accounts." \
   --rationale "Assessed against the IAM policy and a sample of 20 OT accounts."
@@ -241,7 +241,7 @@ python3 scripts/profile_analysis.py diff acme.csfp
 
 ```bash
 python3 scripts/profile_analysis.py set acme.csfp PR.AA-01 --current 2 \
-  --source in-0001 --confirmed-by "Darren" \
+  --source in-0001 --confirmed-by "R. Calder" \
   --rationale "OT identities migrated to the corporate IdP in October; 40 local accounts remain."
 ```
 
@@ -346,7 +346,7 @@ answers none of the four detection Subcategories on its own).
 python3 scripts/profile_analysis.py intake add acme.csfp \
   --label "cold-start walkthrough: how we know what's on the network" \
   --subjects ID.AM-01 ID.AM-02 \
-  --source-date 2026-07-28 --recorded-by "Darren"
+  --source-date 2026-07-28 --recorded-by "R. Calder"
 ```
 
 Four Subcategories' worth of material gathered in one question is a saving on *evidence
@@ -384,7 +384,7 @@ Confirm one at a time:
 
 ```bash
 python3 scripts/profile_analysis.py set acme.csfp ID.AM-01 --current 2 \
-  --source in-0001 --confirmed-by "Darren" \
+  --source in-0001 --confirmed-by "R. Calder" \
   --rationale "Asset inventory reviewed against the March architecture review; 40 servers untracked."
 ```
 

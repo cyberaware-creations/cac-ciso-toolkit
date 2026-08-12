@@ -58,7 +58,7 @@ cat > "$work/ctx.json" <<'JSON'
                   "dependsOn": ["SCADA gateway"]}]}
 JSON
 "$PY" "$V" classify "$work/s.vnd" --arrangement VA-001 --context "$work/ctx.json" \
-   --confirm high --by "D. Galleyne" >/dev/null 2>&1
+   --confirm high --by "R. Calder" >/dev/null 2>&1
 "$PY" "$V" classify "$work/s.vnd" --arrangement VA-002 --context "$work/ctx.json" \
    >/dev/null 2>&1
 "$PY" "$V" analyze "$work/s.vnd" --context "$work/ctx.json" --out "$work/a.json" >/dev/null 2>&1

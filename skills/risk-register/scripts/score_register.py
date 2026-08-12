@@ -2226,7 +2226,7 @@ def _cmd_self_test(_: list[str]) -> int:
 
     with tempfile.TemporaryDirectory() as _d:
         _rr = os.path.join(_d, "c.rr")
-        _quiet(_cmd_init, [_rr, "--client", "Fixture Co", "--assessor", "D. Alleyne"])
+        _quiet(_cmd_init, [_rr, "--client", "Fixture Co", "--assessor", "R. Calder"])
         _quiet(_cmd_add, [_rr, "--title", "Supplier concentration",
                           "--description", "If the sole logistics provider fails, then "
                                            "order fulfilment stops",
@@ -2252,7 +2252,7 @@ def _cmd_self_test(_: list[str]) -> int:
         # anyone working out which assertion it was.
         eq("confirm records the rationale", _ev.get("rationale"),
            "reviewed at the monthly risk forum; unchanged")
-        eq("confirm records the actor", _ev.get("actor"), "D. Alleyne")
+        eq("confirm records the actor", _ev.get("actor"), "R. Calder")
         eq("confirm carries a timestamp", bool(_ev.get("ts")), True)
         # Confirming asserts nothing new about magnitude, treatment or status.
         _r_before = [r for r in _norm_before["risks"] if r["id"] == "R-001"][0]
@@ -2333,7 +2333,7 @@ def _cmd_self_test(_: list[str]) -> int:
     # age on a number no human ever reviewed and feed a board freshness figure with it.
     with tempfile.TemporaryDirectory() as _d2:
         _pr = os.path.join(_d2, "p.rr")
-        _quiet(_cmd_init, [_pr, "--client", "Fixture Co", "--assessor", "D. Alleyne"])
+        _quiet(_cmd_init, [_pr, "--client", "Fixture Co", "--assessor", "R. Calder"])
         _quiet(_cmd_add, [_pr, "--title", "PR.AA-05 partially implemented",
                           "--description", "If access is not reviewed, then leavers keep "
                                            "credentials",
@@ -2399,7 +2399,7 @@ def _cmd_self_test(_: list[str]) -> int:
         _fn, _tail, _expected = _probes[_name]
         with tempfile.TemporaryDirectory() as _id:
             _ir = os.path.join(_id, "i.rr")
-            _quiet(_cmd_init, [_ir, "--client", "Fixture Co", "--assessor", "D. Alleyne"])
+            _quiet(_cmd_init, [_ir, "--client", "Fixture Co", "--assessor", "R. Calder"])
             _quiet(_cmd_add, [_ir, "--title", "PR.AA-05 partially implemented",
                               "--description", "If access is not reviewed, then leavers "
                                                "keep credentials",
@@ -2429,7 +2429,7 @@ def _cmd_self_test(_: list[str]) -> int:
     # The same date validation on every flag that writes a lexically-compared date.
     with tempfile.TemporaryDirectory() as _d3:
         _dr = os.path.join(_d3, "d.rr")
-        _quiet(_cmd_init, [_dr, "--client", "Fixture Co", "--assessor", "D. Alleyne"])
+        _quiet(_cmd_init, [_dr, "--client", "Fixture Co", "--assessor", "R. Calder"])
 
         def _rejects(fn, argv):
             raw = _raw(argv[0])
@@ -2553,7 +2553,7 @@ def _cmd_self_test(_: list[str]) -> int:
         # something re-scores one.
         with tempfile.TemporaryDirectory() as _ld:
             _lr = os.path.join(_ld, "legacy.rr")
-            _quiet(_cmd_init, [_lr, "--client", "Legacy Co", "--assessor", "D. Alleyne"])
+            _quiet(_cmd_init, [_lr, "--client", "Legacy Co", "--assessor", "R. Calder"])
             _lreg = load_register(_lr)
             _lrisk = empty_risk("R-001")
             _lrisk.update({"title": "Phishing", "description": "",

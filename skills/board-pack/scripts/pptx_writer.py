@@ -61,7 +61,7 @@ WORKBENCH = "F6F4EE"       # light working ground
 # --- Type floors (CAC deck legibility, BL-168 T1/T2) --------------------------
 #
 # TWO FLOORS, NOT ONE, because the deck is read at two distances and a single number would
-# have to serve both — which means being wrong for one of them. Darren's call, 2026-08-10:
+# have to serve both — which means being wrong for one of them. the maintainer's call, 2026-08-10:
 #
 #   the seven section-narrative slides   read at a desk, circulated before the meeting
 #   (including band-mix)                 -> NARRATIVE_TYPE_FLOOR, ~11pt

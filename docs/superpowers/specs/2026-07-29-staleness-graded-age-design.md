@@ -154,7 +154,7 @@ fresh.
 |---|---|
 | `nist-csf` operational | The "Stalest" panel (`render_operational.py:327`) keeps its list; each row gains its band. Its question line — *"Is this rating still true, or just old?"* — already says the right thing and is unchanged. |
 | `nist-csf` executive | The age cell grid (`render_executive.py:96`) gains the band distribution. The existing hint text stays verbatim; it is now doing more work than it was. |
-| `risk-register` operational | New "Confirmation age" panel in `attention_lists()` (`render_dashboard.py:79`) — band distribution plus the undated count. Per-risk cards gain `confirmed 42d ago · D. Alleyne` beside the existing review date. |
+| `risk-register` operational | New "Confirmation age" panel in `attention_lists()` (`render_dashboard.py:79`) — band distribution plus the undated count. Per-risk cards gain `confirmed 42d ago · R. Calder` beside the existing review date. |
 | `risk-register` board | One line in the executive summary block (`render_board.py:152`). Example: *"Of 24 live risks, 18 were confirmed within 90 days; 3 have not been confirmed in over a year (R-004, R-011, R-019); 2 carry no confirmation record."* |
 
 The board line cites risk **IDs only, never titles**, which keeps it clear of the

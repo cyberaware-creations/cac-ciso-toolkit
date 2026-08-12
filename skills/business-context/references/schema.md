@@ -40,7 +40,7 @@ Every declared value carries who said it, when, and on what basis — the patter
 for a confirmed rating.
 
 ```json
-"aiInUse": {"value": true, "declaredBy": "D. Galleyne", "declaredOn": "2026-07-14",
+"aiInUse": {"value": true, "declaredBy": "R. Calder", "declaredOn": "2026-07-14",
             "basis": "Legal ops deployed a contract-review assistant in May"}
 ```
 

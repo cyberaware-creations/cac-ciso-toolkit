@@ -340,7 +340,7 @@ gets its own state so it is confused with neither neighbour:
 ⚠️ **`countersigned` is NOT a read of the primary source.** The reviewer checked that the claim,
 the locator and the version are consistent with **what was recorded**; they did not
 independently open the instrument. That sentence is load-bearing — without it a reader, or
-Darren in two years, takes a counter-signature for a read. This is the field where the
+the maintainer in two years, takes a counter-signature for a read. This is the field where the
 temptation to overclaim is largest, so the wording lives once in `STATES` in `check-sources.py`
 and is quoted at every surface rather than paraphrased at each one.
 
@@ -357,7 +357,7 @@ that never happened — and **a counter-signature does not open the instrument**
 permanently unreadable source the check still has not happened. The refusal names the
 signature explicitly when one is present, so nobody concludes they mistyped it.
 
-**BL-242's local verification is a different thing and does clear it** (Darren, 2026-08-11):
+**BL-242's local verification is a different thing and does clear it** (the maintainer, 2026-08-11):
 there a licensed deployment holds the actual text and the wording is checked against it, so a
 check *has* happened. **Keep the two apart.** If they converge, this widens into *"any row can
 claim to be gated"*, which is the failure the refusal exists to stop.

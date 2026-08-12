@@ -171,7 +171,7 @@ Add to `_cmd_self_test`, near the other reference-data assertions:
 - [ ] **Step 2: Run it to watch it fail**
 
 ```bash
-cd /Users/darren/Documents/GitHub/cac-ciso-toolkit/skills/nist-csf
+cd ~/Documents/GitHub/cac-ciso-toolkit/skills/nist-csf
 python3 scripts/profile_analysis.py self-test
 ```
 
@@ -306,7 +306,7 @@ Expected: PASS, count above 351. Report the new total.
 - [ ] **Step 6: Prove a validator assertion can fail**
 
 ```bash
-cd /Users/darren/Documents/GitHub/cac-ciso-toolkit/skills/nist-csf
+cd ~/Documents/GitHub/cac-ciso-toolkit/skills/nist-csf
 python3 - <<'EOF'
 import json, sys
 sys.path.insert(0, "scripts")
@@ -327,7 +327,7 @@ Expected: refused. If accepted, the validator is wrong.
 - [ ] **Step 7: Commit**
 
 ```bash
-cd /Users/darren/Documents/GitHub/cac-ciso-toolkit
+cd ~/Documents/GitHub/cac-ciso-toolkit
 ./skills/risk-register/evals/python-compat.sh
 git add skills/nist-csf/scripts/profile_analysis.py skills/nist-csf/examples/fixture-cyber-ai.json
 git commit -m "feat(nist-csf): cyber-ai overlay dataset schema and validator"
@@ -1007,7 +1007,7 @@ Read the source directly for each. Expected total: **106 × 3 = 318** priority v
 - [ ] **Step 2: Validate**
 
 ```bash
-cd /Users/darren/Documents/GitHub/cac-ciso-toolkit/skills/nist-csf
+cd ~/Documents/GitHub/cac-ciso-toolkit/skills/nist-csf
 python3 - <<'EOF'
 import json, sys
 sys.path.insert(0, "scripts")
@@ -1036,7 +1036,7 @@ Record the sampled IDs and the result in `docs/superpowers/notes/`.
 - [ ] **Step 4: Run everything and commit**
 
 ```bash
-cd /Users/darren/Documents/GitHub/cac-ciso-toolkit
+cd ~/Documents/GitHub/cac-ciso-toolkit
 python3 skills/nist-csf/scripts/profile_analysis.py self-test
 git add skills/nist-csf/references/cyber-ai-profile.json docs/superpowers/notes/
 git commit -m "feat(nist-csf): the IR 8596 dataset, 318 values, spot-checked"
@@ -1094,7 +1094,7 @@ Add to the rules binding both dashboards:
 - [ ] **Step 5: Run the render gate — do not skip and do not trust a grep**
 
 ```bash
-cd /Users/darren/Documents/GitHub/cac-ciso-toolkit
+cd ~/Documents/GitHub/cac-ciso-toolkit
 ./skills/risk-register/evals/responsive.sh
 ```
 
@@ -1141,7 +1141,7 @@ Bump all four version occurrences (`.claude-plugin/plugin.json`, `.claude-plugin
 - [ ] **Step 4: Run the full gate**
 
 ```bash
-cd /Users/darren/Documents/GitHub/cac-ciso-toolkit
+cd ~/Documents/GitHub/cac-ciso-toolkit
 python3 skills/nist-csf/scripts/profile_analysis.py self-test
 python3 skills/nist-csf/scripts/csfa_compat.py self-test
 python3 skills/risk-register/scripts/score_register.py self-test

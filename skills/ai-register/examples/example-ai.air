@@ -3,7 +3,7 @@
   "family": "ai-register",
   "meta": {
     "orgName": "Northwind Manufacturing (fictional)",
-    "preparedBy": "D. Galleyne",
+    "preparedBy": "R. Calder",
     "scopeNote": "SPECIMEN. Every deployment, provider and finding here is invented.",
     "asOf": "2026-08-07"
   },
@@ -136,7 +136,7 @@
         "derivedFromLevel": "moderate",
         "confirmed": {
           "value": "high",
-          "by": "D. Galleyne",
+          "by": "R. Calder",
           "on": "2026-08-07",
           "basis": "a decision about a person, on regulated personal data",
           "scaleVersion": "v1",
@@ -336,7 +336,7 @@
         "derivedFromLevel": "high",
         "confirmed": {
           "value": "low",
-          "by": "D. Galleyne",
+          "by": "R. Calder",
           "on": "2026-08-07",
           "basis": "drafting only; a person edits everything before it leaves",
           "scaleVersion": "v1",
@@ -413,7 +413,7 @@
         "derivedFromLevel": "high",
         "confirmed": {
           "value": "high",
-          "by": "D. Galleyne",
+          "by": "R. Calder",
           "on": "2026-08-07",
           "basis": "the renewals desk works this list every morning",
           "scaleVersion": "v1",
@@ -494,7 +494,7 @@
         "derivedFromLevel": "high",
         "confirmed": {
           "value": "high",
-          "by": "D. Galleyne",
+          "by": "R. Calder",
           "on": "2026-08-07",
           "basis": "it changes production endpoints without a person in the loop",
           "scaleVersion": "v1",
@@ -781,7 +781,7 @@
     {
       "event": "classified",
       "target": "D-001",
-      "actor": "D. Galleyne",
+      "actor": "R. Calder",
       "ts": "2026-08-07T00:00:00+00:00",
       "why": "confirmed high",
       "detail": {
@@ -795,7 +795,7 @@
     {
       "event": "classified",
       "target": "D-002",
-      "actor": "D. Galleyne",
+      "actor": "R. Calder",
       "ts": "2026-08-07T00:00:00+00:00",
       "why": "confirmed low",
       "detail": {
@@ -810,7 +810,7 @@
     {
       "event": "classified",
       "target": "D-003",
-      "actor": "D. Galleyne",
+      "actor": "R. Calder",
       "ts": "2026-08-07T00:00:00+00:00",
       "why": "confirmed high",
       "detail": {
@@ -824,7 +824,7 @@
     {
       "event": "classified",
       "target": "D-004",
-      "actor": "D. Galleyne",
+      "actor": "R. Calder",
       "ts": "2026-08-07T00:00:00+00:00",
       "why": "confirmed high",
       "detail": {

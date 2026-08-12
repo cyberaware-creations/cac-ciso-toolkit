@@ -327,7 +327,7 @@ Run all three. Every one MUST fail, and the restore MUST return to green.
 **Mutant A — the band boundary.** Widens `beyond` so nothing is ever `wellBeyond`:
 
 ```bash
-cd /Users/darren/Documents/GitHub/cac-ciso-toolkit
+cd ~/Documents/GitHub/cac-ciso-toolkit
 cp skills/nist-csf/scripts/profile_analysis.py /tmp/pa.bak
 # Mutant: make `beyond` swallow everything, so beyond+wellBeyond no longer equals
 # olderThanThreshold at T=365 (where wellBeyond should be 0 and beyond should be 1).
@@ -635,7 +635,7 @@ def _age_note(row: dict) -> str:
 - [x] **Step 8: Verify both renderers still render**
 
 ```bash
-cd /Users/darren/Documents/GitHub/cac-ciso-toolkit
+cd ~/Documents/GitHub/cac-ciso-toolkit
 work=$(mktemp -d)
 python3 skills/nist-csf/scripts/profile_analysis.py self-test >/dev/null 2>&1
 python3 skills/nist-csf/renderers/render_executive.py \
@@ -730,7 +730,7 @@ Insert immediately after it:
     import tempfile as _tf
     _d = _tf.mkdtemp()
     _rr = os.path.join(_d, "c.rr")
-    _cmd_init([_rr, "--client", "Fixture Co", "--assessor", "D. Alleyne"])
+    _cmd_init([_rr, "--client", "Fixture Co", "--assessor", "R. Calder"])
     _cmd_add([_rr, "--title", "Supplier concentration", "--il", "4", "--ii", "4",
               "--rl", "3", "--ri", "4", "--why", "fixture"])
     _before = json.load(open(_rr))
@@ -743,7 +743,7 @@ Insert immediately after it:
     eq("confirm names the risk", _ev["riskId"], "R-001")
     eq("confirm records the rationale", _ev["rationale"],
        "reviewed at the monthly risk forum; unchanged")
-    eq("confirm records the actor", _ev["actor"], "D. Alleyne")
+    eq("confirm records the actor", _ev["actor"], "R. Calder")
     eq("confirm carries a timestamp", bool(_ev.get("ts")), True)
     # Confirming asserts nothing new about magnitude, treatment or status.
     _r_before = [r for r in _before["risks"] if r["id"] == "R-001"][0]
@@ -961,7 +961,7 @@ The byte-identity assertion is the one most likely to pass for the wrong reason 
 > test that fails to catch it.
 
 ```bash
-cd /Users/darren/Documents/GitHub/cac-ciso-toolkit
+cd ~/Documents/GitHub/cac-ciso-toolkit
 cp skills/risk-register/scripts/score_register.py /tmp/sr.bak
 # Mutant: move the --why guard AFTER the write, so a refused confirm still mutates.
 python3 - <<'PY'
@@ -1046,7 +1046,7 @@ chk() {
 
 rm -f "$work/a.rr"
 "$PY" "$RR/scripts/score_register.py" init "$work/a.rr" --client "Age Co" \
-  --assessor "D. Alleyne" >/dev/null || { echo "FIXTURE FAILED — init"; exit 1; }
+  --assessor "R. Calder" >/dev/null || { echo "FIXTURE FAILED — init"; exit 1; }
 "$PY" "$RR/scripts/score_register.py" add "$work/a.rr" --title "Supplier concentration" \
   --il 4 --ii 4 --rl 3 --ri 4 --why "fixture" >/dev/null || {
     echo "FIXTURE FAILED — add R-001"; exit 1; }
@@ -1087,7 +1087,7 @@ c = ctx()
 by = c.by_id
 out = []
 out.append(("R-001 dates from risk-added", by["R-001"]["lastConfirmedAt"] == today))
-out.append(("R-001 names the actor", by["R-001"]["lastConfirmedBy"] == "D. Alleyne"))
+out.append(("R-001 names the actor", by["R-001"]["lastConfirmedBy"] == "R. Calder"))
 out.append(("R-001 age is 0 days", by["R-001"]["confirmationAgeDays"] == 0))
 out.append(("R-001 bands as within", by["R-001"]["confirmationBand"] == "within"))
 # The load-bearing one: set-text, set-status and snapshot all landed after risk-added
@@ -1468,7 +1468,7 @@ Expected: 14 checks, all `PASS`, ending `confirmation-age: all checks passed`.
 The check that matters most is "R-002 still dates from risk-added". Confirm it dies when the mechanism does:
 
 ```bash
-cd /Users/darren/Documents/GitHub/cac-ciso-toolkit
+cd ~/Documents/GitHub/cac-ciso-toolkit
 cp skills/risk-register/scripts/score_register.py /tmp/sr2.bak
 python3 - <<'PY'
 import pathlib
@@ -1630,7 +1630,7 @@ and add this helper immediately **before** `def attention_lists(`:
 
 ```python
 def _confirmed_note(r: dict) -> str:
-    """`· confirmed 42d ago · D. Alleyne`, or an honest statement that nobody has.
+    """`· confirmed 42d ago · R. Calder`, or an honest statement that nobody has.
 
     Sits beside the review date rather than replacing it: the review date is a deadline
     somebody committed to, and the confirmation age is how long since anyone acted on it.
@@ -1963,7 +1963,7 @@ Expected: 9 checks, all `PASS`, ending `board-safety: all checks passed`. Check 
 An inverted test that cannot fail is decoration. Confirm it bites:
 
 ```bash
-cd /Users/darren/Documents/GitHub/cac-ciso-toolkit
+cd ~/Documents/GitHub/cac-ciso-toolkit
 cp skills/risk-register/renderers/render_board.py /tmp/rb.bak
 python3 - <<'PY'
 import pathlib
@@ -2169,7 +2169,7 @@ Operational views get the distribution; board views get one sentence. A board do
 an age histogram — it needs to know whether the picture in front of it is fresh.
 
 - **`render_dashboard.py`** — a "Confirmation age" panel counting live risks by band, plus
-  the undated count, and `confirmed 42d ago · D. Alleyne` on each attention card beside the
+  the undated count, and `confirmed 42d ago · R. Calder` on each attention card beside the
   review date rather than instead of it.
 - **`render_board.py`** — one sentence in the executive summary: *"Of 24 live risks, 18 were
   confirmed within the last 90 days; 3 have not been confirmed in over 360 days (R-004,
@@ -2270,7 +2270,7 @@ in #15 and is correct as it stands.
 - [x] **Step 7: Verify no doc drifted from the code**
 
 ```bash
-cd /Users/darren/Documents/GitHub/cac-ciso-toolkit
+cd ~/Documents/GitHub/cac-ciso-toolkit
 # Every event type the docs claim is emitted must actually be emitted, and vice versa.
 python3 - <<'PY'
 import re, pathlib, sys
@@ -2327,7 +2327,7 @@ Current version is `0.4.2`. This adds a subcommand and new derived output, so th
 > result through the guard's own keypaths rather than by eye.
 
 ```bash
-cd /Users/darren/Documents/GitHub/cac-ciso-toolkit
+cd ~/Documents/GitHub/cac-ciso-toolkit
 python3 - <<'PY'
 import json, pathlib
 OLD, NEW = "0.4.2", "0.5.0"
@@ -2360,7 +2360,7 @@ that they move together.
 - [x] **Step 2: Run every suite in the repo**
 
 ```bash
-cd /Users/darren/Documents/GitHub/cac-ciso-toolkit
+cd ~/Documents/GitHub/cac-ciso-toolkit
 echo "=== version guard ===";      ./tools/check-versions.py --self-test 2>&1 | tail -1
 echo "=== manifests ===";          ./tools/check-versions.py 2>&1 | tail -1
 echo "=== risk-register ===";      python3 skills/risk-register/scripts/score_register.py self-test 2>&1 | tail -2
@@ -2400,10 +2400,10 @@ The single most important invariant in both skills. Assert no age field leaked i
 written file:
 
 ```bash
-cd /Users/darren/Documents/GitHub/cac-ciso-toolkit
+cd ~/Documents/GitHub/cac-ciso-toolkit
 work=$(mktemp -d)
 python3 skills/risk-register/scripts/score_register.py init "$work/v.rr" \
-  --client "Verify Co" --assessor "D. Alleyne" >/dev/null
+  --client "Verify Co" --assessor "R. Calder" >/dev/null
 python3 skills/risk-register/scripts/score_register.py add "$work/v.rr" \
   --title "Test risk" --il 3 --ii 3 --rl 2 --ri 3 --why "verify" >/dev/null
 python3 skills/risk-register/scripts/score_register.py confirm "$work/v.rr" R-001 \
@@ -2424,7 +2424,7 @@ Expected: `PASS: no derived age field is stored`.
 - [x] **Step 4: Commit and push as one PR**
 
 ```bash
-cd /Users/darren/Documents/GitHub/cac-ciso-toolkit
+cd ~/Documents/GitHub/cac-ciso-toolkit
 git add .claude-plugin/plugin.json .claude-plugin/marketplace.json .codex-plugin/plugin.json
 git commit -m "chore: 0.5.0 — graded age in both skills"
 git push -u origin HEAD

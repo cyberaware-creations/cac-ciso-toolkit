@@ -237,7 +237,7 @@ tells the next reader nothing about whether somebody looked.
 
 ```bash
 python3 scripts/vendor_register.py assess store.vnd --arrangement VA-001 \
-  --by "D. Galleyne" --confirm PR-001 --confirm PR-002 \
+  --by "R. Calder" --confirm PR-001 --confirm PR-002 \
   --reject PR-003 --why "the report describes the vendor's own testing, not an independent test"
 ```
 
@@ -269,7 +269,7 @@ ask   → 7 open                      nothing supplied yet
 ingest  a SOC 2 as T1
 propose three questions, cited
 ask   → 7 open                      ← the reading layer changed NOTHING
-assess  --by "D. Galleyne" --confirm PR-001 PR-002 PR-003
+assess  --by "R. Calder" --confirm PR-001 PR-002 PR-003
 ask   → 4 open                      ← a named person closed three
 ```
 
@@ -308,7 +308,7 @@ python3 scripts/vendor_register.py set-scale acme.vnd --levels low moderate high
 
 # Criticality: derivation proposes, a named person assigns
 python3 scripts/vendor_register.py classify acme.vnd --arrangement VA-001 \
-    --context ctx.json --confirm high --by "D. Galleyne" --basis "board minute 2026-06-11"
+    --context ctx.json --confirm high --by "R. Calder" --basis "board minute 2026-06-11"
 
 # The reading layer — tier the artifact, propose with a citation, a person assesses
 python3 scripts/vendor_register.py ingest acme.vnd --arrangement VA-001 --kind soc2-type2 ...

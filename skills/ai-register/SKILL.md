@@ -190,7 +190,7 @@ python3 scripts/ai_register.py deploy acme.air --system S-001 \
     --data-class "applicant personal data" --supports "Applicant tracking" \
     --consequential --by CISO
 python3 scripts/ai_register.py classify acme.air --deployment D-001 --context ctx.json \
-    --confirm high --by "D. Galleyne" --basis "a decision about a person"
+    --confirm high --by "R. Calder" --basis "a decision about a person"
 python3 scripts/ai_register.py ask acme.air --deployment D-001 --context ctx.json
 python3 scripts/ai_register.py ingest acme.air --deployment D-001 --kind red-team-report \
     --tier T1 --source "Fabrikam Security, engagement 41" \

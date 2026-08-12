@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The posture report says what is RECORDED, and never how good it is (BL-222).
 #
-# The framing, in Darren's words: *"We are not creating a scoring — we are evaluating the
+# The framing, in the maintainer's words: *"We are not creating a scoring — we are evaluating the
 # completeness of the defensibility of the program. They could write a policy stating there are
 # to be no authentications… the tool would be able to show you addressed that (even though
 # that's a huge security issue)."*

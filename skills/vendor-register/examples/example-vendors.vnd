@@ -3,7 +3,7 @@
   "family": "vendor-register",
   "meta": {
     "orgName": "Northwind Manufacturing",
-    "preparedBy": "D. Galleyne, CISO",
+    "preparedBy": "R. Calder, CISO",
     "scopeNote": "Group third-party arrangements, FY26. One legal entity; the Dublin subsidiary is in the same perimeter.",
     "asOf": "2026-08-07"
   },
@@ -31,7 +31,7 @@
       "designations": [],
       "provenance": {
         "value": "Contoso Cloud",
-        "declaredBy": "D. Galleyne",
+        "declaredBy": "R. Calder",
         "declaredOn": "2026-08-07",
         "basis": ""
       }
@@ -45,7 +45,7 @@
       "designations": [],
       "provenance": {
         "value": "Fabrikam Analytics",
-        "declaredBy": "D. Galleyne",
+        "declaredBy": "R. Calder",
         "declaredOn": "2026-08-07",
         "basis": ""
       }
@@ -59,7 +59,7 @@
       "designations": [],
       "provenance": {
         "value": "Tailspin Logistics IT",
-        "declaredBy": "D. Galleyne",
+        "declaredBy": "R. Calder",
         "declaredOn": "2026-08-07",
         "basis": ""
       }
@@ -270,28 +270,28 @@
     {
       "event": "vendor-added",
       "target": "V-001",
-      "actor": "D. Galleyne",
+      "actor": "R. Calder",
       "ts": "2026-08-07T21:43:01+00:00",
       "why": "Contoso Cloud"
     },
     {
       "event": "vendor-added",
       "target": "V-002",
-      "actor": "D. Galleyne",
+      "actor": "R. Calder",
       "ts": "2026-08-07T21:43:01+00:00",
       "why": "Fabrikam Analytics"
     },
     {
       "event": "vendor-added",
       "target": "V-003",
-      "actor": "D. Galleyne",
+      "actor": "R. Calder",
       "ts": "2026-08-07T21:43:01+00:00",
       "why": "Tailspin Logistics IT"
     },
     {
       "event": "arrangement-added",
       "target": "VA-001",
-      "actor": "D. Galleyne",
+      "actor": "R. Calder",
       "ts": "2026-08-07T21:43:01+00:00",
       "why": "production hosting for the plant historian",
       "detail": {
@@ -302,7 +302,7 @@
     {
       "event": "arrangement-added",
       "target": "VA-002",
-      "actor": "D. Galleyne",
+      "actor": "R. Calder",
       "ts": "2026-08-07T21:43:01+00:00",
       "why": "CRM hosting and support",
       "detail": {
@@ -313,7 +313,7 @@
     {
       "event": "arrangement-added",
       "target": "VA-003",
-      "actor": "D. Galleyne",
+      "actor": "R. Calder",
       "ts": "2026-08-07T21:43:01+00:00",
       "why": "marketing attribution sandbox",
       "detail": {
@@ -324,7 +324,7 @@
     {
       "event": "arrangement-added",
       "target": "VA-004",
-      "actor": "D. Galleyne",
+      "actor": "R. Calder",
       "ts": "2026-08-07T21:43:01+00:00",
       "why": "warehouse routing (superseded)",
       "detail": {
@@ -407,7 +407,7 @@
     {
       "event": "arrangement-added",
       "target": "VA-005",
-      "actor": "D. Galleyne",
+      "actor": "R. Calder",
       "ts": "2026-08-07T21:43:02+00:00",
       "why": "warehouse routing (replacement)",
       "detail": {

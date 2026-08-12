@@ -147,7 +147,7 @@ def check_shape(skill, doc, today):
                 # not happened, so the gate would still be timing nothing.
                 #
                 # ⚠️ BL-242's LOCAL VERIFICATION IS A DIFFERENT THING AND DOES CLEAR THIS
-                # (Darren, 2026-08-11): there a licensed deployment holds the actual text and
+                # (the maintainer, 2026-08-11): there a licensed deployment holds the actual text and
                 # the wording is checked against it, so a check HAS happened. Keep the two
                 # apart. If they ever converge, this widens into "any row can claim to be
                 # gated", which is the failure this refusal exists to stop.
@@ -811,7 +811,7 @@ def check_do_not_cite(root="."):
 # says "I read the machine's reading and accept it". It is NOT a read of the primary source:
 # the reviewer checked that the claim, the locator and the version are consistent with what
 # was recorded, and did not independently open the instrument. Without that sentence a
-# reader -- or Darren in two years -- takes a counter-signature for a read, and this is the
+# reader -- or the maintainer in two years -- takes a counter-signature for a read, and this is the
 # field where the temptation to overclaim is largest.
 STATES = (
     ("unverified",
@@ -1111,11 +1111,11 @@ def _self_test():
 
         ok(release_gate(with_override("ovok", {
             "source": "demo/s1", "reason": "EUR-Lex unreachable; re-check booked",
-            "owner": "D. Galleyne", "date": "2026-08-08"})) is True,
+            "owner": "R. Calder", "date": "2026-08-08"})) is True,
            "a reasoned override lets the release through")
         ok(release_gate(with_override("ovempty", {
             "source": "demo/s1", "reason": "   ",
-            "owner": "D. Galleyne", "date": "2026-08-08"})) is False,
+            "owner": "R. Calder", "date": "2026-08-08"})) is False,
            "an override with an empty reason still fails")
         ok(release_gate(with_override("ovnoowner", {
             "source": "demo/s1", "reason": "busy", "date": "2026-08-08"})) is False,
@@ -1142,11 +1142,11 @@ def _self_test():
         ok(check_sources(tree(tmp, "csself", [row(reviewedBy="claude-code",
                                                   reviewedOn="2026-01-01")])) is False,
            "RW-1.12: a machine countersigning its own reading fails")
-        ok(check_sources(tree(tmp, "csnodate", [row(reviewedBy="D Galleyne")])) is False,
+        ok(check_sources(tree(tmp, "csnodate", [row(reviewedBy="R Calder")])) is False,
            "RW-1.12: `reviewedBy` with no `reviewedOn` fails -- an endorsement that cannot age")
         ok(check_sources(tree(tmp, "csorphan", [row(reviewedOn="2026-01-01")])) is False,
            "RW-1.12: `reviewedOn` with no `reviewedBy` fails -- a date signs nothing")
-        ok(check_sources(tree(tmp, "csok", [row(reviewedBy="D Galleyne",
+        ok(check_sources(tree(tmp, "csok", [row(reviewedBy="R Calder",
                                                 reviewedOn="2026-01-01")])) is True,
            "RW-1.12: a dated human counter-signature passes, beside `checkedBy`")
         # ⛔ T4 (BL-228), the case this item could most easily have got wrong. A
@@ -1154,13 +1154,13 @@ def _self_test():
         # test cannot pass by the row being broken for some other reason.
         ok(check_sources(tree(tmp, "csnogate",
                               [row(checkedBy="unverified", whyUnverified="paywalled",
-                                   reviewedBy="D Galleyne", reviewedOn="2026-01-01",
+                                   reviewedBy="R Calder", reviewedOn="2026-01-01",
                                    gated=True, reviewIntervalDays=365)])) is False,
            "T4: an unverified row a PERSON countersigned still cannot be gated -- accepting a "
            "recorded reading is not opening the instrument, so the check still never happened")
         ok(check_sources(tree(tmp, "csnogateok",
                               [row(checkedBy="unverified", whyUnverified="paywalled",
-                                   reviewedBy="D Galleyne", reviewedOn="2026-01-01",
+                                   reviewedBy="R Calder", reviewedOn="2026-01-01",
                                    gated=False)])) is True,
            "T4, the other direction: that same row is perfectly valid UNGATED -- the "
            "counter-signature is refused the gate, not refused")
@@ -1170,14 +1170,14 @@ def _self_test():
         with contextlib.redirect_stdout(_t4):
             check_sources(tree(tmp, "csnogatemsg",
                                [row(checkedBy="unverified", whyUnverified="paywalled",
-                                    reviewedBy="D Galleyne", reviewedOn="2026-01-01",
+                                    reviewedBy="R Calder", reviewedOn="2026-01-01",
                                     gated=True, reviewIntervalDays=365)]))
         ok("counter-signature does NOT change this" in _t4.getvalue(),
            "T4: the refusal names the counter-signature rather than repeating the generic "
            "unverified message, which would read as the signature not having registered")
         # T3 -- the three states, derived rather than stored, and each row in exactly one.
         ok(source_state(row()) == "claude-code"
-           and source_state(row(reviewedBy="D Galleyne",
+           and source_state(row(reviewedBy="R Calder",
                                 reviewedOn="2026-01-01")) == "countersigned"
            and source_state(row(checkedBy="unverified",
                                 whyUnverified="paywalled")) == "unverified",
@@ -1186,7 +1186,7 @@ def _self_test():
         # `unverified`, not `countersigned`. Endorsing a reading nobody made is still not a read,
         # and reporting it as countersigned would launder the very row this standard exists for.
         ok(source_state(row(checkedBy="unverified", whyUnverified="paywalled",
-                            reviewedBy="D Galleyne",
+                            reviewedBy="R Calder",
                             reviewedOn="2026-01-01")) == "unverified",
            "T3: `unverified` outranks a counter-signature -- endorsing a reading that was "
            "never made does not promote the row")
@@ -1201,8 +1201,8 @@ def _self_test():
         with contextlib.redirect_stdout(_rec):
             check_sources(tree(tmp, "recon",
                                [row(id="a", checkedBy="unverified", whyUnverified="paywalled",
-                                    reviewedBy="D Galleyne", reviewedOn="2026-01-01"),
-                                row(id="b", reviewedBy="D Galleyne",
+                                    reviewedBy="R Calder", reviewedOn="2026-01-01"),
+                                row(id="b", reviewedBy="R Calder",
                                     reviewedOn="2026-01-01")]))
         _out = _rec.getvalue()
         ok("2 of 2 countersigned" in _out and "--report shows 1 countersigned, not 2" in _out,
@@ -1210,7 +1210,7 @@ def _self_test():
            "itself with --report rather than leaving two different numbers on one subject")
         _quiet = io.StringIO()
         with contextlib.redirect_stdout(_quiet):
-            check_sources(tree(tmp, "noover", [row(reviewedBy="D Galleyne",
+            check_sources(tree(tmp, "noover", [row(reviewedBy="R Calder",
                                                    reviewedOn="2026-01-01")]))
         ok("--report shows" not in _quiet.getvalue(),
            "...and stays silent when there is no overlap, so the line means something when "

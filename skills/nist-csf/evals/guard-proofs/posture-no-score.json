@@ -1,7 +1,7 @@
 {
   "guard": "skills/nist-csf/evals/posture-no-score.sh",
   "forbids": "a posture report that scores the program rather than reporting what is recorded, and an outcome map that silently drops outcomes it forgot to classify",
-  "note": "Registered with the feature (BL-222 T6). The framing is Darren's: the report answers 'can you show your work?' and never 'is your work any good?'. A policy forbidding authentication is a terrible control and a perfectly valid record, and this is the page most likely to be read as a verdict because it is the page that aggregates.",
+  "note": "Registered with the feature (BL-222 T6). The framing is the maintainer's: the report answers 'can you show your work?' and never 'is your work any good?'. A policy forbidding authentication is a terrible control and a perfectly valid record, and this is the page most likely to be read as a verdict because it is the page that aggregates.",
   "mutations": [
     {
       "half": "no-score",

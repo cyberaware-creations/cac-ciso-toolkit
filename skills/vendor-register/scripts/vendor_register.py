@@ -2055,7 +2055,7 @@ def _cmd_self_test(_args):
         path = os.path.join(work, "t.vnd")
 
         # --- T1: round trip -------------------------------------------------
-        store = new_store("Acme Manufacturing", "D. Galleyne")
+        store = new_store("Acme Manufacturing", "R. Calder")
         save(path, store)
         loaded = load(path)
         eq(loaded["meta"]["orgName"], "Acme Manufacturing", "a store round-trips")
@@ -2098,7 +2098,7 @@ def _cmd_self_test(_args):
            "documented and tested are separate fields, both empty to start")
 
         # --- T3: provenance -------------------------------------------------
-        wrapped = declared("high", "D. Galleyne", "FY26 review")
+        wrapped = declared("high", "R. Calder", "FY26 review")
         eq(value_of(wrapped), "high", "a wrapped value reads through")
         ok(is_attributed(wrapped), "and is attributed")
         eq(value_of("high"), "high", "a bare value loads rather than being refused")
@@ -2119,7 +2119,7 @@ def _cmd_self_test(_args):
              "dependsOn": ["SCADA gateway"]},
             {"system": "CRM", "criticality": "moderate"},
         ]}
-        classify(store, "VA-001", ctx, confirm="high", by="D. Galleyne")
+        classify(store, "VA-001", ctx, confirm="high", by="R. Calder")
         eq(store["arrangements"][0]["criticality"]["confirmed"]["scaleVersion"], "v1",
            "a confirmed level records the scale version it was assigned under")
         refuses(lambda: set_scale(store, ["minor", "major"]),
@@ -2228,7 +2228,7 @@ def _cmd_self_test(_args):
         eq(block["derived"], UNTRACED, "classify without --confirm derives only")
         eq(block["confirmed"], None, "and assigns nothing")
         # A confirmed level MAY differ from the derived one. That is a finding, not an error.
-        conflict = classify(store, "VA-002", ctx, confirm="moderate", by="D. Galleyne",
+        conflict = classify(store, "VA-002", ctx, confirm="moderate", by="R. Calder",
                             basis="it fronts the customer portal")
         eq(conflict["confirmed"]["value"], "moderate",
            "a confirmed level differing from the derived one is stored without complaint")
@@ -2281,7 +2281,7 @@ def _cmd_self_test(_args):
         refuses(lambda: review(store, "Q3", ""), "and a reason")
         snap = review(store, "Q3 FY26", "quarterly third-party review")
         eq(snap["settings"]["criticalityScale"], DEFAULT_SCALE, "a snapshot freezes the scale")
-        classify(store, "VA-001", ctx, confirm="low", by="D. Galleyne")
+        classify(store, "VA-001", ctx, confirm="low", by="R. Calder")
         frozen = next(a for a in store["snapshots"][-1]["arrangements"] if a["id"] == "VA-001")
         eq(frozen["criticality"]["confirmed"]["value"], "high",
            "and still reports the level in force then, after a re-classification")
@@ -2324,11 +2324,11 @@ def _cmd_self_test(_args):
         ok("criticality-unreconciled" in _triggers(s),
            "derived with nobody having assigned the final level escalates unreconciled")
         s, rec = _fixture(supports="CRM")
-        classify(s, rec["id"], ctx, confirm="high", by="D. Galleyne")
+        classify(s, rec["id"], ctx, confirm="high", by="R. Calder")
         ok("criticality-conflict" in _triggers(s),
            "derived and confirmed disagreeing is a finding, not an error")
         s, rec = _fixture(supports="Plant historian (Dublin)", starts_on="2020-01-01")
-        classify(s, rec["id"], ctx, confirm="high", by="D. Galleyne")
+        classify(s, rec["id"], ctx, confirm="high", by="R. Calder")
         trig = _triggers(s)
         ok("assessment-overdue" in trig, "beyond its cadence escalates overdue")
         ok("exit-untested" in trig,
@@ -2337,7 +2337,7 @@ def _cmd_self_test(_args):
         # triggers did not fire at `low` the arrangement that quietly stopped being low
         # would be the one thing this register never mentions.
         s, rec = _fixture(supports="CRM", starts_on="2026-01-01")
-        classify(s, rec["id"], ctx, confirm="low", by="D. Galleyne")
+        classify(s, rec["id"], ctx, confirm="low", by="R. Calder")
         s["arrangements"][0]["assessments"].append({"on": "2026-02-01", "by": "D"})
         record_subprocessor(s, rec["id"], "New Fourth Party", "2026-07-01")
         trig = _triggers(s, "2026-08-07")
@@ -2404,7 +2404,7 @@ def _cmd_self_test(_args):
 
         # An expired artifact escalates only when something LEANS on it.
         ev_rec = ev_store["arrangements"][0]
-        classify(ev_store, "VA-001", ctx, confirm="high", by="D. Galleyne")
+        classify(ev_store, "VA-001", ctx, confirm="high", by="R. Calder")
         ev_rec["assessments"].append({"on": "2027-01-15", "by": "D"})
         eq(any(e["trigger"] == "evidence-expired"
                for e in escalations(ev_store, "2027-02-01")), False,
@@ -2479,11 +2479,11 @@ def _cmd_self_test(_args):
         bt.pop("declares", None)
 
         # A criticality-gated battery narrows only for a real level below the top.
-        classify(bt_store, "VA-001", ctx, confirm="low", by="D. Galleyne")
+        classify(bt_store, "VA-001", ctx, confirm="low", by="R. Calder")
         res = batteries_for(bt, bt_store, None)
         ok(not any(b["id"] == "exit" for b in res["applied"]),
            "a low-criticality arrangement is not asked for a tested exit")
-        classify(bt_store, "VA-001", ctx, confirm="high", by="D. Galleyne")
+        classify(bt_store, "VA-001", ctx, confirm="high", by="R. Calder")
         ok(any(b["id"] == "exit" for b in batteries_for(bt, bt_store, None)["applied"]),
            "and a top-criticality one is")
         ok(all(x.get("declaredBy") is not None and "declaredOn" in x
@@ -2495,7 +2495,7 @@ def _cmd_self_test(_args):
         add_vendor(pb, "Contoso Cloud")
         pbr = add_arrangement(pb, "V-001", "hosting", "CTO", supports="CRM",
                               starts_on="2026-01-01")
-        classify(pb, "VA-001", ctx, confirm="moderate", by="D. Galleyne")
+        classify(pb, "VA-001", ctx, confirm="moderate", by="R. Calder")
         soc2 = ingest(pb, "VA-001", "soc2-type2", "T1", "auditor PDF",
                       scope="the hosting platform", period_start="2025-01-01",
                       period_end="2025-12-31")
@@ -2525,18 +2525,18 @@ def _cmd_self_test(_args):
 
         refuses(lambda: assess(pb, "VA-001", "", confirm=[pr["id"]]),
                 "assess with no --by is refused", "nobody's name on it")
-        refuses(lambda: assess(pb, "VA-001", "D. Galleyne", reject=[pr["id"]]),
+        refuses(lambda: assess(pb, "VA-001", "R. Calder", reject=[pr["id"]]),
                 "--reject with no --why is refused", "tells a later reader nothing")
         eq([r for r in (pbr.get("requirements") or []) if r.get("met")], [],
            "and a refused assessment satisfies nothing either")
 
-        act = assess(pb, "VA-001", "D. Galleyne", on="2026-06-30", confirm=[pr["id"]],
+        act = assess(pb, "VA-001", "R. Calder", on="2026-06-30", confirm=[pr["id"]],
                      note="FY26 H1 review")
         met = [r for r in pbr["requirements"] if r.get("met")]
         eq(len(met), 1, "a confirmed proposal satisfies its requirement")
         eq(at(met, 0, "evidenceRef"), soc2["id"], "...naming the evidence that satisfied it")
         ok(str(at(met, 0, "citation")).startswith("SOC 2 section IV"), "...and the citation")
-        eq(at(met, 0, "checkedBy"), "D. Galleyne", "...and the person who confirmed it")
+        eq(at(met, 0, "checkedBy"), "R. Calder", "...and the person who confirmed it")
         eq(open_proposals(pbr), [], "and it leaves the working view")
 
         # THE SEAM PLAN 1 LEFT OPEN. `_last_assessed` has been reading this list since
@@ -2550,7 +2550,7 @@ def _cmd_self_test(_args):
         # A rejected proposal is retained, hidden from the working view, present on export.
         pr2 = propose(pb, "VA-001", "penetration testing cadence", soc2["id"],
                       "SOC 2 section III mentions annual testing", by="reading layer")
-        assess(pb, "VA-001", "D. Galleyne", on="2026-07-01", reject=[pr2["id"]],
+        assess(pb, "VA-001", "R. Calder", on="2026-07-01", reject=[pr2["id"]],
                why="the report describes the vendor's own testing, not an independent test")
         eq(open_proposals(pbr), [], "a rejected proposal leaves the working view")
         kept = [x for x in pbr["proposals"] if x["status"] == "rejected"]
@@ -2574,7 +2574,7 @@ def _cmd_self_test(_args):
             st = new_store("Ask Ltd")
             add_vendor(st, "Contoso Cloud")
             add_arrangement(st, "V-001", "hosting", "CTO", supports="CRM")
-            classify(st, "VA-001", ctx, confirm=level, by="D. Galleyne")
+            classify(st, "VA-001", ctx, confirm=level, by="R. Calder")
             return st, st["arrangements"][0]
 
         def _cover(st, keys, tier="T1", period_end="2026-12-31"):
@@ -2587,7 +2587,7 @@ def _cmd_self_test(_args):
             for key in keys:
                 if tier in SATISFYING_TIERS:
                     pr = propose(st, "VA-001", key, ev["id"], "cited passage for %s" % key)
-                    assess(st, "VA-001", "D. Galleyne", on="2026-01-05", confirm=[pr["id"]])
+                    assess(st, "VA-001", "R. Calder", on="2026-01-05", confirm=[pr["id"]])
                 else:
                     # A T3 cannot be proposed against at all, which IS the point. Record the
                     # closure the only other way a store could carry one, so the check below
@@ -2708,7 +2708,7 @@ def _cmd_self_test(_args):
         add_arrangement(roi_store, "V-001", "hosting", "CTO", supports="CRM",
                         starts_on="2026-01-01")
         add_arrangement(roi_store, "V-001", "sandbox", "CMO")     # no supports, unclassified
-        classify(roi_store, "VA-001", ctx, confirm="high", by="D. Galleyne")
+        classify(roi_store, "VA-001", ctx, confirm="high", by="R. Calder")
         out = export_roi(roi_store, dora_on, today="2026-08-08")
         eq(out["complete"], False, "an incomplete register does NOT export as complete")
         eq([g["arrangementRef"] for g in out["gaps"]], ["VA-002"],
@@ -2719,7 +2719,7 @@ def _cmd_self_test(_args):
         row = next(r for r in out["rows"] if r["arrangementRef"] == "VA-001")
         eq(row["criticalityScaleVersion"], "v1",
            "a filed criticality carries the scale it was assigned under")
-        eq(row["criticalityConfirmedBy"], "D. Galleyne", "and who assigned it")
+        eq(row["criticalityConfirmedBy"], "R. Calder", "and who assigned it")
         # A DERIVED level is a proposal. Filing one as though a person assigned it is the
         # failure this whole skill refuses.
         classify(roi_store, "VA-002", ctx)
@@ -2734,7 +2734,7 @@ def _cmd_self_test(_args):
         fb = new_store("Bridge Ltd")
         add_vendor(fb, "Contoso Cloud", jurisdiction="IE")
         add_arrangement(fb, "V-001", "hosting", "CTO", supports="CRM", gvsc=["GV.SC-05"])
-        classify(fb, "VA-001", ctx, confirm="high", by="D. Galleyne")
+        classify(fb, "VA-001", ctx, confirm="high", by="R. Calder")
         eq(export_findings(fb)["findings"], [],
            "a register with nothing recorded as unmet exports no findings")
         review_requirements(fb, "VA-001", "breach notification within 24h",

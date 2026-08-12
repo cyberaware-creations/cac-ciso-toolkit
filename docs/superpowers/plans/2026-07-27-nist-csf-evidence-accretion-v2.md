@@ -221,12 +221,12 @@ Add to `_cmd_self_test`, **after the Task 3 block** (it needs an intake record t
                    "--ts", "2026-01-01T00:00:00Z"])
         _cmd_intake(["add", _p, "--label", "architecture review with infra team",
                      "--subjects", "ID.AM-01", "ID.AM-02",
-                     "--source-date", "2026-03-14", "--recorded-by", "Darren",
+                     "--source-date", "2026-03-14", "--recorded-by", "R. Calder",
                      "--ts", "2026-03-16T00:00:00Z"])
         for bad, why in (
             (["--current", "2", "--rationale", "x"], "no attribution at all"),
             (["--current", "2", "--rationale", "x", "--source", "in-0001"], "no --confirmed-by"),
-            (["--current", "2", "--rationale", "x", "--confirmed-by", "Darren"], "no --source"),
+            (["--current", "2", "--rationale", "x", "--confirmed-by", "R. Calder"], "no --source"),
         ):
             try:
                 _cmd_set([_p, "ID.AM-01"] + bad + ["--ts", "2026-03-20T00:00:00Z"])
@@ -237,7 +237,7 @@ Add to `_cmd_self_test`, **after the Task 3 block** (it needs an intake record t
             checks += 1
         try:
             _cmd_set([_p, "ID.AM-01", "--current", "2", "--rationale", "x",
-                      "--source", "in-9999", "--confirmed-by", "Darren",
+                      "--source", "in-9999", "--confirmed-by", "R. Calder",
                       "--ts", "2026-03-20T00:00:00Z"])
             failures.append("set --source with an unknown intake id should have been refused")
         except ValueError as exc:
@@ -250,18 +250,18 @@ Add to `_cmd_self_test`, **after the Task 3 block** (it needs an intake record t
         eq(load_store(_p)["assessments"][0]["target"], 3, "target writes without attribution")
 
         _cmd_set([_p, "ID.AM-01", "--current", "2", "--rationale", "confirmed at review",
-                  "--source", "in-0001", "--confirmed-by", "Darren",
+                  "--source", "in-0001", "--confirmed-by", "R. Calder",
                   "--ts", "2026-03-20T00:00:00Z"])
         st = load_store(_p)
         a = [x for x in st["assessments"] if x["subcategoryId"] == "ID.AM-01"][0]
         eq(a["current"], 2, "attributed current rating is written")
         eq(a["source"], "in-0001", "source is recorded on the assessment")
-        eq(a["confirmedBy"], "Darren", "confirmedBy is recorded on the assessment")
+        eq(a["confirmedBy"], "R. Calder", "confirmedBy is recorded on the assessment")
         eq(a["confirmedAt"], "2026-03-20", "confirmedAt is the date of the decision")
         eq(a["lastReviewed"], "2026-03-20", "a Current move still refreshes lastReviewed")
         ev = [e for e in st["history"] if e.get("type") == "rating-changed"][-1]
         eq(ev.get("source"), "in-0001", "the history event carries the source")
-        eq(ev.get("confirmedBy"), "Darren", "the history event carries the confirmer")
+        eq(ev.get("confirmedBy"), "R. Calder", "the history event carries the confirmer")
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -416,7 +416,7 @@ Add to `_cmd_self_test`, after the Task 1 block:
                    "--ts", "2026-01-01T00:00:00Z"])
         _cmd_intake(["add", _p, "--label", "architecture review with infra team",
                      "--subjects", "ID.AM-01", "ID.AM-02", "ID.AM-03",
-                     "--source-date", "2026-03-14", "--recorded-by", "Darren",
+                     "--source-date", "2026-03-14", "--recorded-by", "R. Calder",
                      "--ts", "2026-03-16T09:00:00Z"])
         st = load_store(_p)
         eq(len(st["intake"]), 1, "one intake record written")
@@ -426,7 +426,7 @@ Add to `_cmd_self_test`, after the Task 1 block:
         eq(r["subjects"], ["ID.AM-01", "ID.AM-02", "ID.AM-03"], "subjects are stored in order")
         eq(r["sourceDate"], "2026-03-14", "sourceDate is when the conversation happened")
         eq(r["recordedAt"], "2026-03-16", "recordedAt is when it entered the store")
-        eq(r["recordedBy"], "Darren", "recordedBy is recorded")
+        eq(r["recordedBy"], "R. Calder", "recordedBy is recorded")
         eq([a for a in st["assessments"] if a["subcategoryId"] == "ID.AM-01"][0]["current"], None,
            "intake writes no ratings")
         ev = [e for e in st["history"] if e.get("type") == "intake-recorded"]
@@ -610,7 +610,7 @@ Run:
 python3 skills/nist-csf/scripts/profile_analysis.py init --name Demo --out /tmp/d.csfp --owner CISO
 python3 skills/nist-csf/scripts/profile_analysis.py intake add /tmp/d.csfp \
   --label "architecture review with infra team" --subjects ID.AM-01 ID.AM-02 ID.AM-03 \
-  --source-date 2026-03-14 --recorded-by Darren
+  --source-date 2026-03-14 --recorded-by "R. Calder"
 python3 skills/nist-csf/scripts/profile_analysis.py intake list /tmp/d.csfp
 ```
 Expected: `Recorded in-0001: architecture review with infra team`, then a list line showing `3 Subcategories · 0 confirmed`
@@ -792,9 +792,9 @@ Add to `_cmd_self_test`, after the cold-start block:
     # --- Derivation layer: derived, never stored ---
     fx_assess = [
         {"subcategoryId": "ID.AM-01", "applicability": "in-scope", "current": 2, "target": 3,
-         "confirmedAt": "2026-03-20", "confirmedBy": "Darren", "source": "in-0001"},
+         "confirmedAt": "2026-03-20", "confirmedBy": "R. Calder", "source": "in-0001"},
         {"subcategoryId": "ID.AM-02", "applicability": "in-scope", "current": 1, "target": 3,
-         "confirmedAt": "2025-06-01", "confirmedBy": "Darren", "source": "in-0001"},
+         "confirmedAt": "2025-06-01", "confirmedBy": "R. Calder", "source": "in-0001"},
         {"subcategoryId": "ID.AM-03", "applicability": "in-scope", "current": None, "target": 3,
          "confirmedAt": None, "confirmedBy": None, "source": None},
         {"subcategoryId": "PR.AA-01", "applicability": "in-scope", "current": None, "target": 3,
@@ -802,16 +802,16 @@ Add to `_cmd_self_test`, after the cold-start block:
         {"subcategoryId": "PR.AA-03", "applicability": "not-applicable", "current": None,
          "target": None, "confirmedAt": None, "confirmedBy": None, "source": None},
         {"subcategoryId": "PR.DS-11", "applicability": "in-scope", "current": 3, "target": 3,
-         "confirmedAt": "2026-01-10", "confirmedBy": "Darren", "source": "in-0002"},
+         "confirmedAt": "2026-01-10", "confirmedBy": "R. Calder", "source": "in-0002"},
     ]
     fx_intake = [
         {"id": "in-0001", "label": "architecture review", "sourceDate": "2026-03-14",
          "recordedAt": "2026-03-16", "subjects": ["ID.AM-01", "ID.AM-02", "ID.AM-03"],
-         "recordedBy": "Darren"},
+         "recordedBy": "R. Calder"},
         {"id": "in-0002", "label": "backup restore test", "sourceDate": "2026-01-08",
-         "recordedAt": "2026-01-09", "subjects": ["PR.DS-11"], "recordedBy": "Darren"},
+         "recordedAt": "2026-01-09", "subjects": ["PR.DS-11"], "recordedBy": "R. Calder"},
         {"id": "in-0003", "label": "vendor DR conversation", "sourceDate": "2026-06-02",
-         "recordedAt": "2026-06-03", "subjects": ["PR.DS-11"], "recordedBy": "Darren"},
+         "recordedAt": "2026-06-03", "subjects": ["PR.DS-11"], "recordedBy": "R. Calder"},
     ]
     ev = derive_evidence(fx_assess, fx_intake, index, core, today="2026-07-27",
                          threshold_pct=60, age_days=180)
@@ -1267,7 +1267,7 @@ Add to `_cmd_self_test`, after the queue block:
                      "ID.AM-01", "ID.AM-02", "--source-date", "2026-03-14",
                      "--ts", "2026-03-16T00:00:00Z"])
         _cmd_set([_p, "ID.AM-01", "--current", "2", "--rationale", "confirmed",
-                  "--source", "in-0001", "--confirmed-by", "Darren",
+                  "--source", "in-0001", "--confirmed-by", "R. Calder",
                   "--ts", "2026-03-20T00:00:00Z"])
         _cmd_analyze([_p, "--today", "2026-07-27", "--out", _out])
         with open(_out, encoding="utf-8") as _fh:
@@ -1644,9 +1644,9 @@ python3 skills/nist-csf/scripts/profile_analysis.py init --name "Partial Co" --o
 python3 skills/nist-csf/scripts/profile_analysis.py quickstart-target /tmp/pc.csfp --rationale baseline
 python3 skills/nist-csf/scripts/profile_analysis.py intake add /tmp/pc.csfp \
   --label "architecture review with infra team" --subjects ID.AM-01 ID.AM-02 ID.AM-03 \
-  --source-date 2026-03-14 --recorded-by Darren
+  --source-date 2026-03-14 --recorded-by "R. Calder"
 python3 skills/nist-csf/scripts/profile_analysis.py set /tmp/pc.csfp ID.AM-01 --current 2 \
-  --source in-0001 --confirmed-by Darren --rationale "quarterly discovery scans confirmed"
+  --source in-0001 --confirmed-by "R. Calder" --rationale "quarterly discovery scans confirmed"
 python3 skills/nist-csf/scripts/profile_analysis.py analyze /tmp/pc.csfp --today 2026-07-27 > /tmp/pc.json
 python3 skills/nist-csf/renderers/render_executive.py --in /tmp/pc.json --out /tmp/pc-exec.html --offline
 grep -c "Coverage is not reported at this level of assessment" /tmp/pc-exec.html
@@ -1847,31 +1847,31 @@ python3 skills/nist-csf/scripts/profile_analysis.py quickstart-target "$P" \
 
 python3 skills/nist-csf/scripts/profile_analysis.py intake add "$P" \
   --label "asset management workshop with infrastructure" --subjects ID.AM-01 ID.AM-02 ID.AM-03 ID.AM-05 \
-  --source-date 2025-05-20 --recorded-by Darren --ts 2025-06-01T00:00:00Z
+  --source-date 2025-05-20 --recorded-by "R. Calder" --ts 2025-06-01T00:00:00Z
 python3 skills/nist-csf/scripts/profile_analysis.py intake add "$P" \
   --label "annual backup restore test debrief" --subjects PR.DS-11 RC.RP-01 \
-  --source-date 2026-01-08 --recorded-by Darren --ts 2026-01-09T00:00:00Z
+  --source-date 2026-01-08 --recorded-by "R. Calder" --ts 2026-01-09T00:00:00Z
 python3 skills/nist-csf/scripts/profile_analysis.py intake add "$P" \
   --label "identity programme steering, notes only" --subjects PR.AA-01 PR.AA-03 PR.AA-05 \
-  --source-date 2026-05-12 --recorded-by Darren --ts 2026-05-14T00:00:00Z
+  --source-date 2026-05-12 --recorded-by "R. Calder" --ts 2026-05-14T00:00:00Z
 python3 skills/nist-csf/scripts/profile_analysis.py intake add "$P" \
   --label "DR walkthrough after the June outage" --subjects RC.RP-01 \
-  --source-date 2026-06-30 --recorded-by Darren --ts 2026-07-02T00:00:00Z
+  --source-date 2026-06-30 --recorded-by "R. Calder" --ts 2026-07-02T00:00:00Z
 
 # Confirmed >12 months ago — makes the age distribution real.
 python3 skills/nist-csf/scripts/profile_analysis.py set "$P" ID.AM-01 --current 2 \
-  --source in-0001 --confirmed-by Darren --ts 2025-06-02T00:00:00Z \
+  --source in-0001 --confirmed-by "R. Calder" --ts 2025-06-02T00:00:00Z \
   --rationale "Workshop confirmed quarterly discovery scans across corporate IT; OT out of band."
 python3 skills/nist-csf/scripts/profile_analysis.py set "$P" ID.AM-02 --current 1 \
-  --source in-0001 --confirmed-by Darren --ts 2025-06-02T00:00:00Z \
+  --source in-0001 --confirmed-by "R. Calder" --ts 2025-06-02T00:00:00Z \
   --rationale "Software inventory exists for managed endpoints only."
 # Confirmed this year.
 python3 skills/nist-csf/scripts/profile_analysis.py set "$P" PR.DS-11 --current 3 \
-  --source in-0002 --confirmed-by Darren --ts 2026-01-10T00:00:00Z \
+  --source in-0002 --confirmed-by "R. Calder" --ts 2026-01-10T00:00:00Z \
   --rationale "Restore test passed end to end within RTO."
 # Confirmed, then newer material arrived -> revisit.
 python3 skills/nist-csf/scripts/profile_analysis.py set "$P" RC.RP-01 --current 2 \
-  --source in-0002 --confirmed-by Darren --ts 2026-01-10T00:00:00Z \
+  --source in-0002 --confirmed-by "R. Calder" --ts 2026-01-10T00:00:00Z \
   --rationale "Recovery plan executed during the restore test."
 # Scoped out, so the four-way split has an n/a bucket.
 python3 skills/nist-csf/scripts/profile_analysis.py set "$P" PR.AA-06 \
@@ -2092,7 +2092,7 @@ Append-only, mirroring `history[]`.
   "sourceDate": "2026-03-14",
   "recordedAt": "2026-03-16",
   "subjects": ["ID.AM-01", "ID.AM-02", "ID.AM-03"],
-  "recordedBy": "Darren"
+  "recordedBy": "R. Calder"
 }
 ```
 
@@ -2206,7 +2206,7 @@ bears on. Rate nothing.
 python3 scripts/profile_analysis.py intake add acme.csfp \
   --label "architecture review with infra team" \
   --subjects ID.AM-01 ID.AM-02 ID.AM-03 \
-  --source-date 2026-03-14 --recorded-by Darren
+  --source-date 2026-03-14 --recorded-by "R. Calder"
 ```
 
 The label is a note **about** the source, not a quote **from** it, and it is human-authored or
@@ -2219,7 +2219,7 @@ Entered when there is time to decide, never mid-conversation.
 ```bash
 python3 scripts/profile_analysis.py queue acme.csfp --top 5
 python3 scripts/profile_analysis.py set acme.csfp ID.AM-01 --current 2 \
-  --source in-0001 --confirmed-by Darren \
+  --source in-0001 --confirmed-by "R. Calder" \
   --rationale "March review: quarterly discovery scans across corporate IT; OT out of band."
 ```
 
@@ -2262,7 +2262,7 @@ python3 scripts/profile_analysis.py intake add acme.csfp \
 # Its own session, when there is time to decide.
 python3 scripts/profile_analysis.py queue acme.csfp --top 5
 python3 scripts/profile_analysis.py set acme.csfp ID.AM-01 --current 2 \
-  --source in-0001 --confirmed-by Darren --rationale "..."
+  --source in-0001 --confirmed-by "R. Calder" --rationale "..."
 ```
 
 **`set --current` refuses without `--source` and `--confirmed-by`.** Every confirmed rating answers

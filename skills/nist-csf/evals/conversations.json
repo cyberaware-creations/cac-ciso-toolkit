@@ -47,7 +47,7 @@
     {
       "id": "V5",
       "fixture": "seeded.csfp",
-      "prompt": "Set ID.AM-01 to Current 2 in seeded.csfp. I'm Darren, it's from the March architecture review, and the reason is: the CMDB covers corporate IT and is reconciled quarterly, but OT assets are not in it.",
+      "prompt": "Set ID.AM-01 to Current 2 in seeded.csfp. I'm R. Calder, it's from the March architecture review, and the reason is: the CMDB covers corporate IT and is reconciled quarterly, but OT assets are not in it.",
       "expect": {
         "ratingsWritten": 1,
         "attributedWrites": 1

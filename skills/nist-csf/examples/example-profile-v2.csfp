@@ -508,7 +508,7 @@
       "evidenceRefs": [],
       "lastReviewed": "2025-06-02",
       "confirmedAt": "2025-06-02",
-      "confirmedBy": "Darren",
+      "confirmedBy": "R. Calder",
       "source": "in-0001"
     },
     {
@@ -522,7 +522,7 @@
       "evidenceRefs": [],
       "lastReviewed": "2025-06-02",
       "confirmedAt": "2025-06-02",
-      "confirmedBy": "Darren",
+      "confirmedBy": "R. Calder",
       "source": "in-0001"
     },
     {
@@ -956,7 +956,7 @@
       "evidenceRefs": [],
       "lastReviewed": "2026-01-10",
       "confirmedAt": "2026-01-10",
-      "confirmedBy": "Darren",
+      "confirmedBy": "R. Calder",
       "source": "in-0002"
     },
     {
@@ -1446,7 +1446,7 @@
       "evidenceRefs": [],
       "lastReviewed": "2026-01-10",
       "confirmedAt": "2026-01-10",
-      "confirmedBy": "Darren",
+      "confirmedBy": "R. Calder",
       "source": "in-0002"
     },
     {
@@ -2653,7 +2653,7 @@
       "to": 2,
       "rationale": "Workshop confirmed quarterly discovery scans across corporate IT; OT out of band.",
       "source": "in-0001",
-      "confirmedBy": "Darren"
+      "confirmedBy": "R. Calder"
     },
     {
       "ts": "2025-06-02T00:00:00Z",
@@ -2665,7 +2665,7 @@
       "to": 1,
       "rationale": "Software inventory exists for managed endpoints only.",
       "source": "in-0001",
-      "confirmedBy": "Darren"
+      "confirmedBy": "R. Calder"
     },
     {
       "ts": "2026-01-10T00:00:00Z",
@@ -2677,7 +2677,7 @@
       "to": 3,
       "rationale": "Restore test passed end to end within RTO.",
       "source": "in-0002",
-      "confirmedBy": "Darren"
+      "confirmedBy": "R. Calder"
     },
     {
       "ts": "2026-01-10T00:00:00Z",
@@ -2689,7 +2689,7 @@
       "to": 2,
       "rationale": "Recovery plan executed during the restore test.",
       "source": "in-0002",
-      "confirmedBy": "Darren"
+      "confirmedBy": "R. Calder"
     },
     {
       "ts": "2026-01-10T00:00:00Z",
@@ -3160,7 +3160,7 @@
           "evidenceRefs": [],
           "lastReviewed": "2025-06-02",
           "confirmedAt": "2025-06-02",
-          "confirmedBy": "Darren",
+          "confirmedBy": "R. Calder",
           "source": "in-0001"
         },
         {
@@ -3174,7 +3174,7 @@
           "evidenceRefs": [],
           "lastReviewed": "2025-06-02",
           "confirmedAt": "2025-06-02",
-          "confirmedBy": "Darren",
+          "confirmedBy": "R. Calder",
           "source": "in-0001"
         },
         {
@@ -3608,7 +3608,7 @@
           "evidenceRefs": [],
           "lastReviewed": "2026-01-10",
           "confirmedAt": "2026-01-10",
-          "confirmedBy": "Darren",
+          "confirmedBy": "R. Calder",
           "source": "in-0002"
         },
         {
@@ -4098,7 +4098,7 @@
           "evidenceRefs": [],
           "lastReviewed": "2026-01-10",
           "confirmedAt": "2026-01-10",
-          "confirmedBy": "Darren",
+          "confirmedBy": "R. Calder",
           "source": "in-0002"
         },
         {
@@ -4578,7 +4578,7 @@
         "ID.AM-03",
         "ID.AM-05"
       ],
-      "recordedBy": "Darren"
+      "recordedBy": "R. Calder"
     },
     {
       "id": "in-0002",
@@ -4589,7 +4589,7 @@
         "PR.DS-11",
         "RC.RP-01"
       ],
-      "recordedBy": "Darren"
+      "recordedBy": "R. Calder"
     },
     {
       "id": "in-0003",
@@ -4601,7 +4601,7 @@
         "PR.AA-03",
         "PR.AA-05"
       ],
-      "recordedBy": "Darren"
+      "recordedBy": "R. Calder"
     },
     {
       "id": "in-0004",
@@ -4611,7 +4611,7 @@
       "subjects": [
         "RC.RP-01"
       ],
-      "recordedBy": "Darren"
+      "recordedBy": "R. Calder"
     }
   ]
 }

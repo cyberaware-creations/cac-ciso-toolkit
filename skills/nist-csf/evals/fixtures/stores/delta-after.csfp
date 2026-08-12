@@ -506,7 +506,7 @@
       "evidenceRefs": [],
       "lastReviewed": "2026-07-03",
       "confirmedAt": "2026-07-03",
-      "confirmedBy": "Darren",
+      "confirmedBy": "R. Calder",
       "source": "in-0001"
     },
     {
@@ -1584,7 +1584,7 @@
       "to": 2,
       "rationale": "March review: quarterly discovery across corporate IT; OT out of band.",
       "source": "in-0001",
-      "confirmedBy": "Darren"
+      "confirmedBy": "R. Calder"
     }
   ],
   "snapshots": [],
@@ -1600,7 +1600,7 @@
         "ID.AM-02",
         "ID.AM-03"
       ],
-      "recordedBy": "Darren"
+      "recordedBy": "R. Calder"
     },
     {
       "id": "in-0002",
@@ -1611,7 +1611,7 @@
         "PR.AA-01",
         "PR.AA-03"
       ],
-      "recordedBy": "Darren"
+      "recordedBy": "R. Calder"
     },
     {
       "id": "in-0003",
@@ -1622,7 +1622,7 @@
         "PR.DS-11",
         "RC.RP-03"
       ],
-      "recordedBy": "Darren"
+      "recordedBy": "R. Calder"
     }
   ]
 }

@@ -263,7 +263,7 @@ profile as it stood.
 - `applies --skill vendor [--subject-declares ai=true]`, human output and `--json`.
 - §2.4 — the human form is the sentence a consumer embeds verbatim:
   > *AI battery — not assessed. No AI processing declared for this vendor (org profile:
-  > `aiInUse: false`, declared 2026-07-14 by D. Galleyne).*
+  > `aiInUse: false`, declared 2026-07-14 by R. Calder).*
 - An unknown `--skill` is **refused**, naming the known set. A typo that silently returns "ask
   nothing" is the worst possible failure here.
 

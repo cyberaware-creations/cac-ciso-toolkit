@@ -1212,7 +1212,7 @@ else
   bad "the refusal names the offending store" "$(head -2 "$work/org.err")"
 fi
 "$PY" "$here/_orgfixture.py" "$M" "$work/unsigned.json" "$work" --section metrics \
-  --org "Contoso Freight" --declared-by "D. Galleyne"
+  --org "Contoso Freight" --declared-by "R. Calder"
 if "$PY" "$A" assemble "$work/unsigned.json" --out "$work/u.json" >"$work/u.err" 2>&1; then
   bad "an unsigned consolidation is still refused" \
       "a consolidation with no basis was accepted; that is the silent merge with an extra key"
@@ -1220,12 +1220,12 @@ else
   ok "a consolidation declared without a basis is still refused"
 fi
 "$PY" "$here/_orgfixture.py" "$M" "$work/signed.json" "$work" --section metrics \
-  --org "Contoso Freight" --declared-by "D. Galleyne, CISO" \
+  --org "Contoso Freight" --declared-by "R. Calder, CISO" \
   --basis "wholly owned subsidiary, consolidated for group reporting"
 if "$PY" "$A" assemble "$work/signed.json" --out "$work/s.json" >/dev/null 2>&1; then
   if "$PY" -c 'import json,sys
 notes = json.load(open(sys.argv[1]))["provenance"]["missing"]
-sys.exit(0 if any("consolidates 2 organisations" in n and "D. Galleyne, CISO" in n
+sys.exit(0 if any("consolidates 2 organisations" in n and "R. Calder, CISO" in n
                   for n in notes) else 1)' "$work/s.json"; then
     ok "an attributed consolidation assembles, and the page names who declared it"
   else
@@ -1318,7 +1318,7 @@ full_n="$("$PY" "$here/_deckfit.py" "$work/dm_full.pptx" --slides)"
 #
 # ⚠️ AND THE BAND ITSELF WAS TWO DIFFERENT NUMBERS. The test read 8-18 while the sentence it
 # printed said "12-18", so a 9-slide core passed while announcing it was inside 12-18 — a
-# green tick over a false statement, which is worse than a red one. Decided by Darren
+# green tick over a false statement, which is worse than a red one. Decided by the maintainer
 # 2026-08-11: 12-18, the band the message already claimed. The test now enforces what it says.
 (cd "$skill/renderers" && "$PY" render_pack.py --in "$CJ" --html "$work/cur.html" \
   --pptx "$work/cur_board.pptx" --deck-mode board) >/dev/null 2>&1

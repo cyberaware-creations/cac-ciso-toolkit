@@ -2416,7 +2416,7 @@ def _cmd_self_test(_args):
         path = os.path.join(work, "t.air")
 
         # --- T1: round trip ---------------------------------------------------
-        store = new_store("Acme Manufacturing", "D. Galleyne")
+        store = new_store("Acme Manufacturing", "R. Calder")
         save(path, store)
         loaded = load(path)
         eq(loaded["meta"]["orgName"], "Acme Manufacturing", "a store round-trips")
@@ -2527,7 +2527,7 @@ def _cmd_self_test(_args):
         eq(criticality_rank(store, "high"), 2, "while a real level ranks normally")
         refuses(lambda: classify(store, "D-002", ctx, confirm="high"),
                 "--confirm with no --by is refused", "cannot be defended")
-        classify(store, "D-002", ctx, confirm="high", by="D. Galleyne")
+        classify(store, "D-002", ctx, confirm="high", by="R. Calder")
         eq(criticality_of(dep2), "high", "and a confirmed level is what the register acts on")
 
         # --- T5: autonomy as a gate -------------------------------------------
@@ -2669,7 +2669,7 @@ def _cmd_self_test(_args):
         # Every skip carries a declarer and a date. A skip that cannot say who narrowed it is
         # indistinguishable from a question nobody thought to ask.
         low = deploy(store, "S-001", "internal search", "Head of IT", "informs", by="CIO")
-        classify(store, low["id"], ctx, confirm="low", by="D. Galleyne")
+        classify(store, low["id"], ctx, confirm="low", by="R. Calder")
         skips = batteries_for(find_deployment(store, low["id"]), store, None)["skipped"]
         ok(skips, "a low-criticality 'informs' deployment does have skips to inspect")
         ok(all(s.get("declaredBy") and "declaredOn" in s for s in skips),
@@ -2761,7 +2761,7 @@ def _cmd_self_test(_args):
             d = deploy(s, sysrec["id"], "drafting", "CMO", "informs", by="CIO")
             map_exposure(s, d["id"])
             classify(s, d["id"], {"crownJewels": [{"system": "CRM", "criticality": "low"}]},
-                     confirm="low", by="D. Galleyne")
+                     confirm="low", by="R. Calder")
             assess(s, d["id"], "CISO", on="2026-06-01")
             return s, sysrec, d
 
@@ -2827,7 +2827,7 @@ def _cmd_self_test(_args):
 
         s, _, dep_e = fresh()
         classify(s, dep_e["id"], {"crownJewels": [{"system": "CRM", "criticality": "high"}]},
-                 confirm="high", by="D. Galleyne")
+                 confirm="high", by="R. Calder")
         ok("assessment-overdue" in triggers(s, "2027-08-01"),
            "a high-criticality deployment past its cadence fires assessment-overdue")
         ok("assessment-overdue" not in triggers(s, "2026-07-01"),

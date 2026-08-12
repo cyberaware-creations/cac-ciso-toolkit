@@ -1118,7 +1118,7 @@ def _cmd_self_test(_args) -> int:
         path = os.path.join(work, "t.biz")
 
         # --- T1: the envelope ------------------------------------------------
-        store = new_store("Acme Manufacturing", "D. Galleyne")
+        store = new_store("Acme Manufacturing", "R. Calder")
         save(path, store)
         eq(load(path)["meta"]["orgName"], "Acme Manufacturing", "init writes the org name")
         eq({k: v for k, v in load(path).items() if k != "updatedAt"},
@@ -1174,7 +1174,7 @@ def _cmd_self_test(_args) -> int:
         # --- T3: declare -----------------------------------------------------
         store = load(path)
         before = open(path, "rb").read()
-        refuses(lambda: declare_flag(store, "aiInUse", True, "D. Galleyne", ""),
+        refuses(lambda: declare_flag(store, "aiInUse", True, "R. Calder", ""),
                 "a flag with no --basis is refused", "requires --basis")
         refuses(lambda: declare_flag(store, "aiInUse", True, "", "a reason"),
                 "a flag with no --by is refused", "requires --by")
@@ -1183,12 +1183,12 @@ def _cmd_self_test(_args) -> int:
            "and every refusal leaves the file byte-identical")
 
         n_hist = len(store["history"])
-        val, warn = declare_flag(store, "aiInUse", "true", "D. Galleyne",
+        val, warn = declare_flag(store, "aiInUse", "true", "R. Calder",
                                  "Legal ops deployed a contract-review assistant in May")
         eq(val, True, "'true' from a shell is the boolean True")
         eq(warn, "", "a documented flag warns about nothing")
         eq(len(store["history"]) - n_hist, 1, "a valid declare appends exactly one entry")
-        eq(store["history"][-1]["detail"]["declaredBy"], "D. Galleyne",
+        eq(store["history"][-1]["detail"]["declaredBy"], "R. Calder",
            "and the entry carries who declared it")
         eq(value_of(store["profile"]["aiInUse"]), True, "the flag is readable")
         eq(is_attributed(store["profile"]["aiInUse"]), True, "and attributed")
@@ -1202,7 +1202,7 @@ def _cmd_self_test(_args) -> int:
         eq(parse_flag_value("42"), 42, "a number is a number")
         eq(parse_flag_value("hybrid"), "hybrid", "and anything else is itself")
 
-        _, warn = declare_flag(store, "quantumReadiness", "false", "D. Galleyne",
+        _, warn = declare_flag(store, "quantumReadiness", "false", "R. Calder",
                                "Not assessed this cycle")
         ok(warn, "an undocumented flag is accepted with a warning, never refused")
         eq(value_of(store["profile"]["quantumReadiness"]), False, "and is recorded")
@@ -1222,7 +1222,7 @@ def _cmd_self_test(_args) -> int:
 
         cj = add_crown_jewel(store, "CRM", "every client renewal conversation",
                              "the client data 60% of revenue depends on",
-                             by="D. Galleyne", basis="FY26 planning review")
+                             by="R. Calder", basis="FY26 planning review")
         eq(cj["atStake"], "the client data 60% of revenue depends on",
            "a crown jewel records what is lost, not just what it does")
         eq(len(store["context"]["crownJewels"]), 1, "and lands once")
@@ -1239,7 +1239,7 @@ def _cmd_self_test(_args) -> int:
         # On a scratch store: the export cases below pin this one to a single crown jewel,
         # and a fixture quietly gaining rows is how a downstream assertion starts passing
         # for the wrong reason.
-        scratch = new_store("Scratch Ltd", "D. Galleyne")
+        scratch = new_store("Scratch Ltd", "R. Calder")
         # A level with no basis is refused, both directions, exactly as sensitivity is. The
         # record-level `basis` answers why this is a crown jewel at all; this one answers who
         # ranked it there and against what, and it is the question a board page raises.
@@ -1304,7 +1304,7 @@ def _cmd_self_test(_args) -> int:
         # And the promise the decision rests on, proved rather than asserted: a store written
         # in the pre-v0.74.0 shape LOADS, and comes back with its bare string intact. If a
         # converter or a schema bump ever creeps in, this is the check that fails.
-        legacy = new_store("Legacy Ltd", "D. Galleyne")
+        legacy = new_store("Legacy Ltd", "R. Calder")
         legacy["context"]["crownJewels"].append(
             {"system": "CRM", "enables": "renewals", "atStake": "the client data",
              "criticality": "high"})
@@ -1484,7 +1484,7 @@ def _cmd_self_test(_args) -> int:
 
         # 3. Flag false -> skipped, WITH its provenance. §2.4: an auditor must be able to
         #    tell a question correctly out of scope from one nobody asked.
-        prof = {"secItem105Scope": declared(False, "D. Galleyne", "2026-07-14",
+        prof = {"secItem105Scope": declared(False, "R. Calder", "2026-07-14",
                                             "No class of securities registered under the "
                                             "Exchange Act; no s.15(d) obligation")}
         got = applies(prof, QS)
@@ -1493,11 +1493,11 @@ def _cmd_self_test(_args) -> int:
         eq([r["battery"] for r in got["undeclared"]], ["dora-windows"],
            "a skipped battery is not also undeclared — it was answered, with a no")
         rec = got["skipped"][0]
-        eq(rec["declaredBy"], "D. Galleyne", "the skip carries who declared it")
+        eq(rec["declaredBy"], "R. Calder", "the skip carries who declared it")
         eq(rec["declaredOn"], "2026-07-14", "and when")
         ok(rec["basis"].startswith("No class of securities"), "and on what basis")
         sentence = skip_sentence(rec)
-        for needle in ("secItem105Scope", "2026-07-14", "D. Galleyne", "not assessed"):
+        for needle in ("secItem105Scope", "2026-07-14", "R. Calder", "not assessed"):
             ok(needle in sentence, "the rendered skip names %s" % needle)
 
         # AP-2's third row, and the reason this whole section grew a list. `not assessed`
@@ -1579,7 +1579,7 @@ def _cmd_self_test(_args) -> int:
         # The worked store needs a false flag for the narrowing below to be real rather
         # than a lucky absence — absence asks everything, so a store with nothing declared
         # would "pass" a narrowing test by never narrowing.
-        declare_flag(store, "listedEntity", "false", "D. Galleyne",
+        declare_flag(store, "listedEntity", "false", "R. Calder",
                      "Privately held; no admitted securities")
         save(path, store)
         store = load(path)
@@ -1644,7 +1644,7 @@ def _cmd_self_test(_args) -> int:
 
         # Now declare SEC scope false, so the rest of this file exercises a real narrowing
         # rather than the absence above.
-        declare_flag(store, "secItem105Scope", "false", "D. Galleyne",
+        declare_flag(store, "secItem105Scope", "false", "R. Calder",
                      "No registered class and no s.15(d) obligation; confirmed by counsel")
         save(path, store)
         store = load(path)
@@ -1676,7 +1676,7 @@ def _cmd_self_test(_args) -> int:
         ok(payload["applicability"]["incident"]["skipped"][0]["sentence"].startswith(
             "SEC Item 1.05 disclosure window — not assessed."),
            "each skip carries its own rendered §2.4 sentence")
-        ok("D. Galleyne" in payload["applicability"]["incident"]["skipped"][0]["sentence"],
+        ok("R. Calder" in payload["applicability"]["incident"]["skipped"][0]["sentence"],
            "...naming the declarer, so the consumer embeds it rather than rebuilding it")
         # §2.4.1 travels too, or the consumer re-derives it from the raw flags —
         # which is the re-implementation §2.2 already forbids, one clause along.

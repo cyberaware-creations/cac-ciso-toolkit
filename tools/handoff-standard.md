@@ -28,7 +28,7 @@ Then the fix failed twice more, which is the part worth writing down.
 ## HO-1.1 A hand-off names the surface, and the surface has a direction
 
 **"Attached to this session" is not a surface.** Cowork and Claude Code do not share a filesystem.
-`SendUserFile` delivers a file into Darren's conversation; it does not touch the machine Code runs
+`SendUserFile` delivers a file into the maintainer's conversation; it does not touch the machine Code runs
 on. Two briefs said "attached" meaning that, and nothing arrived either time.
 
 **Naming the surface is necessary and it is not sufficient.** On the third attempt the surface was

@@ -357,7 +357,7 @@ the profile declared the entity not listed. Every page was true; the document wa
 
 ```json
 "consolidation": {
-  "declaredBy": "D. Galleyne, CISO",
+  "declaredBy": "R. Calder, CISO",
   "basis": "Contoso Freight is a wholly owned subsidiary, consolidated for group reporting"
 }
 ```

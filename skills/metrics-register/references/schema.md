@@ -113,7 +113,7 @@ how one number becomes a bullet on one page and a gauge on the next.
 
 ```json
 { "metricId": "M-001", "period": "2026-Q3", "value": 91.4, "date": "2026-10-01",
-  "source": "Tanium export", "actor": "D. Alleyne", "ts": "ISO-8601", "note": "" }
+  "source": "Tanium export", "actor": "R. Calder", "ts": "ISO-8601", "note": "" }
 ```
 
 Append-only. A value is **never** silently overwritten: a correction is a new reading for the same

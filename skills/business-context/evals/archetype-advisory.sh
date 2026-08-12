@@ -60,10 +60,10 @@ def org(revenue, headcount):
                         ("regulatedDataHeld", True), ("criticalVendorCount", 9),
                         ("concentrationConcern", True), ("primarySector", "manufacturing"),
                         ("jurisdictions", "IE,GB,US")):
-        bc.declare_flag(s, flag, value, by="D. Galleyne", basis="A/B fixture")
+        bc.declare_flag(s, flag, value, by="R. Calder", basis="A/B fixture")
     bc.set_revenue(s, exact=revenue, currency="USD", fiscal_year="FY26",
                    by="CFO", basis="A/B fixture")
-    bc.declare_flag(s, "headcountBand", headcount, by="D. Galleyne", basis="A/B fixture")
+    bc.declare_flag(s, "headcountBand", headcount, by="R. Calder", basis="A/B fixture")
     return s
 
 small = bc.context_payload(org(5e6, "1-50"))

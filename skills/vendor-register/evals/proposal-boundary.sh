@@ -90,7 +90,7 @@ else
 fi
 
 # --- 6-7. and a named person closes it, with the trail --------------------------
-"$PY" "$V" assess "$S" --arrangement VA-001 --by "D. Galleyne" --on 2026-06-30 \
+"$PY" "$V" assess "$S" --arrangement VA-001 --by "R. Calder" --on 2026-06-30 \
    --confirm PR-001 >/dev/null 2>&1
 if "$PY" -c '
 import json, sys

@@ -96,7 +96,7 @@ echo
 
 SR="$RR/scripts/score_register.py"
 rm -f "$work"/*.rr
-"$PY" "$SR" init "$work/a.rr" --client "Age Co" --assessor "D. Alleyne" >/dev/null \
+"$PY" "$SR" init "$work/a.rr" --client "Age Co" --assessor "R. Calder" >/dev/null \
   || die "init"
 "$PY" "$SR" add "$work/a.rr" --title "Supplier concentration" \
   --description "If the sole logistics provider fails, then order fulfilment stops" \
@@ -144,7 +144,7 @@ rm -f "$work"/*.rr
 #
 # Titles are deliberately long, because a check that no title fragment reaches a board
 # sentence proves nothing over titles too short to notice.
-"$PY" "$SR" init "$work/m.rr" --client "Mixed Co" --assessor "D. Alleyne" >/dev/null \
+"$PY" "$SR" init "$work/m.rr" --client "Mixed Co" --assessor "R. Calder" >/dev/null \
   || die "init m.rr"
 while IFS= read -r t; do
   [ -n "$t" ] || continue
@@ -278,7 +278,7 @@ add_try("a malformed reviewDate degrades rather than crashing",
 c = ctx()
 by = c.by_id
 add("R-001 dates from risk-added", by["R-001"]["lastConfirmedAt"] == today)
-add("R-001 names the actor", by["R-001"]["lastConfirmedBy"] == "D. Alleyne")
+add("R-001 names the actor", by["R-001"]["lastConfirmedBy"] == "R. Calder")
 add("R-001 age is 0 days", by["R-001"]["confirmationAgeDays"] == 0)
 add("R-001 bands as within", by["R-001"]["confirmationBand"] == "within")
 # Pinned as an exact tail rather than a membership test, so a fixture that stopped
@@ -371,7 +371,7 @@ for e in rawu["history"]:
 cu = ctx("u.rr")
 add("an unreadable ts keeps the confirmer and drops only the distance",
     cu.by_id["R-001"]["lastConfirmedAt"] == "2026-02-30"
-    and cu.by_id["R-001"]["lastConfirmedBy"] == "D. Alleyne"
+    and cu.by_id["R-001"]["lastConfirmedBy"] == "R. Calder"
     and cu.by_id["R-001"]["confirmationAgeDays"] is None
     and cu.by_id["R-001"]["confirmationBand"] is None)
 add("an unreadable ts is counted apart from undated",
@@ -394,7 +394,7 @@ for e in rawmix["history"]:
     if e.get("riskId") == "R-001" and e["type"] in AFFIRMING_LITERAL and not _seen:
         e["ts"] = "not-a-date"          # sorts ABOVE any ISO date
         _seen = True
-rawmix["history"].append({"ts": base.isoformat() + "T09:00:00Z", "actor": "D. Alleyne",
+rawmix["history"].append({"ts": base.isoformat() + "T09:00:00Z", "actor": "R. Calder",
                           "riskId": "R-001", "type": "risk-confirmed",
                           "rationale": "readable, and later in real time"})
 (work / "mix.rr").write_text(json.dumps(rawmix))
@@ -1022,9 +1022,9 @@ add("AGE_BAND_LABEL covers exactly the engine's four bands, no more",
 # committed to and the confirmation age is how long since anyone acted on it. Asserted as
 # one string so replacing the detail fails even though both halves would still be present.
 add("the per-risk note sits beside the existing detail, not instead of it",
-    "residual 25 Critical · confirmed 0d ago · D. Alleyne" in HTML["a"])
+    "residual 25 Critical · confirmed 0d ago · R. Calder" in HTML["a"])
 add("an unreadable date is not captioned 'never confirmed'",
-    "confirmed, but the date cannot be read: 2026-02-30 · D. Alleyne" in HTML["u"]
+    "confirmed, but the date cannot be read: 2026-02-30 · R. Calder" in HTML["u"]
     and "never confirmed" not in HTML["u"])
 add("a genuinely unconfirmed risk says so on its card",
     "no owner assigned · never confirmed" in HTML["b"])

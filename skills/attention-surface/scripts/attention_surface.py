@@ -784,7 +784,7 @@ def _cmd_self_test(_args):
     work = _tf.mkdtemp()
     try:
         path = os.path.join(work, "t.att")
-        store = new_store("Acme Manufacturing", "D. Galleyne")
+        store = new_store("Acme Manufacturing", "R. Calder")
         save(path, store)
         eq(load(path)["meta"]["orgName"], "Acme Manufacturing", "a store round-trips")
         wrong = os.path.join(work, "w.rr")
@@ -859,7 +859,7 @@ def _cmd_self_test(_args):
         ok("baseline" in diff_against(mixed, None)["note"], "...and the output says why")
         refuses(lambda: record_review(store, first, ""),
                 "recording a review with no name is refused", "who looked")
-        rec = record_review(store, first, "D. Galleyne", label="week 32")
+        rec = record_review(store, first, "R. Calder", label="week 32")
         eq(len(rec["keys"]), 3, "a recorded review stores the escalation keys")
         ok("because" not in json.dumps(rec),
            "...and NOT the evidence prose, which belongs to the producer")
@@ -875,7 +875,7 @@ def _cmd_self_test(_args):
         eq(diff_against(moved, last_review(store))["new"], [],
            "an item whose EVIDENCE wording changed is not reported as new")
         refuses(lambda: last_review(store, "week 99"), "an unknown --since label is refused")
-        eq(last_review(store, "week 32")["by"], "D. Galleyne", "and a known one resolves")
+        eq(last_review(store, "week 32")["by"], "R. Calder", "and a known one resolves")
 
         # --- absence is visible --------------------------------------------------
         got = read_producer("risk-register", os.path.join(work, "nope.rr"), "2026-08-01")

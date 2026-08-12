@@ -73,7 +73,7 @@ the business cannot lose, and it says so alongside what the business is worth.
 
 ```bash
 E=scripts/business_context.py
-python3 $E init context.biz --org "Northwind Manufacturing" --prepared-by "D. Galleyne, CISO"
+python3 $E init context.biz --org "Northwind Manufacturing" --prepared-by "R. Calder, CISO"
 
 python3 $E declare context.biz --flag listedEntity --value false \
   --by "General Counsel" --basis "Privately held; no securities admitted to trading."
@@ -107,7 +107,7 @@ outgrow any enumeration shipped here.
 python3 $E set-fact context.biz --crown-jewel "CRM (Salesforce)" \
   --enables "every renewal conversation and the whole aftermarket pipeline" \
   --at-stake "the client contact and contract data that 60% of group revenue renews through" \
-  --by "D. Galleyne" --basis "FY26 planning workshop"
+  --by "R. Calder" --basis "FY26 planning workshop"
 
 python3 $E set-revenue context.biz --exact 412000000 --currency EUR --fiscal-year FY26 \
   --by "CFO" --basis "FY26 audited consolidated accounts"

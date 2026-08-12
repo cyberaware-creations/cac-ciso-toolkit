@@ -186,7 +186,7 @@ fi
 #
 # ⚠️ DECLARED, NOT YET ENFORCED. Raising the emitted sizes to meet these floors forces real
 # editorial cuts — BL-126 measured 0.24" of headroom on the mix slide — and deciding what
-# gets dropped per slide is Darren's, not a machine's. T1 and T2 establish the vocabulary;
+# gets dropped per slide is the maintainer's, not a machine's. T1 and T2 establish the vocabulary;
 # T3 onward applies it. These checks pin the vocabulary so it cannot drift before then, and
 # they pin the CURRENT sub-floor inventory so nothing new slips under it in the meantime.
 #

@@ -82,7 +82,7 @@ def tiles(ctx: C.Context) -> str:
 
 
 def _confirmed_note(r: dict) -> str:
-    """`· confirmed 42d ago · D. Alleyne`, or an honest statement of what is missing.
+    """`· confirmed 42d ago · R. Calder`, or an honest statement of what is missing.
 
     Sits beside the review date rather than replacing it: the review date is a deadline
     somebody committed to, and the confirmation age is how long since anyone acted on it.

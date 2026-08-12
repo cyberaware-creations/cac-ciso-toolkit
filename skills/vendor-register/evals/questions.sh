@@ -34,7 +34,7 @@ build() {  # build <store> <tier>
   "$PY" "$V" add-arrangement "$1" --vendor V-001 --services hosting --owner CTO \
      --supports "CRM (Salesforce)" >/dev/null 2>&1
   "$PY" "$V" classify "$1" --arrangement VA-001 --context "$work/ctx.json" \
-     --confirm high --by "D. Galleyne" >/dev/null 2>&1
+     --confirm high --by "R. Calder" >/dev/null 2>&1
   if [ "$2" = "T1" ]; then
     "$PY" "$V" ingest "$1" --arrangement VA-001 --kind soc2-type2 --tier T1 \
        --source "auditor PDF" --scope "the hosting platform" \
@@ -58,7 +58,7 @@ open_count() {  # open_count <store>
 "$PY" "$V" add-arrangement "$work/base.vnd" --vendor V-001 --services hosting --owner CTO \
    --supports "CRM (Salesforce)" >/dev/null 2>&1
 "$PY" "$V" classify "$work/base.vnd" --arrangement VA-001 --context "$work/ctx.json" \
-   --confirm high --by "D. Galleyne" >/dev/null 2>&1
+   --confirm high --by "R. Calder" >/dev/null 2>&1
 baseline=$(open_count "$work/base.vnd")
 if [ "${baseline:-0}" -ge 4 ]; then
   ok "a register with no evidence asks its full applicable set ($baseline questions)"
@@ -77,7 +77,7 @@ for key in $THREE; do
      --evidence EV-001 --citation "SOC 2 section IV, control for $key" >/dev/null 2>&1
   n=$((n + 1))
 done
-"$PY" "$V" assess "$work/t1.vnd" --arrangement VA-001 --by "D. Galleyne" \
+"$PY" "$V" assess "$work/t1.vnd" --arrangement VA-001 --by "R. Calder" \
    --confirm PR-001 --confirm PR-002 --confirm PR-003 >/dev/null 2>&1
 t1_open=$(open_count "$work/t1.vnd")
 if [ "${t1_open:-0}" -eq $((baseline - 3)) ]; then
@@ -137,7 +137,7 @@ s = json.load(open(sys.argv[1]))
 print(" ".join("--confirm %s" % p["id"] for p in s["arrangements"][0]["proposals"]
                if p["status"] == "proposed"))' "$work/t1.vnd")
 # shellcheck disable=SC2086
-"$PY" "$V" assess "$work/t1.vnd" --arrangement VA-001 --by "D. Galleyne" $ids >/dev/null 2>&1
+"$PY" "$V" assess "$work/t1.vnd" --arrangement VA-001 --by "R. Calder" $ids >/dev/null 2>&1
 out=$("$PY" "$V" ask "$work/t1.vnd" --arrangement VA-001 --context "$work/ctx.json" \
         --today 2026-06-01 2>/dev/null)
 left=$(open_count "$work/t1.vnd")

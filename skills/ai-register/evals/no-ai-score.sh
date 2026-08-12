@@ -56,7 +56,7 @@ cat > "$work/ctx.json" <<'JSON'
  "crownJewels": [{"system": "CRM", "criticality": "high"}]}
 JSON
 "$PY" "$A" classify "$S" --deployment D-001 --context "$work/ctx.json" \
-   --confirm high --by "D. Galleyne" >/dev/null 2>&1
+   --confirm high --by "R. Calder" >/dev/null 2>&1
 
 n=$("$PY" -c 'import json,sys;print(len(json.load(open(sys.argv[1]))["deployments"]))' \
     "$S" 2>/dev/null || echo 0)

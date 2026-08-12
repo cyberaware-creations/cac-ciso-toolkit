@@ -436,7 +436,7 @@ Read the output. Confirm no row proposes a rating, the footer states the one-rec
 - [ ] **Step 7: Check the floor and commit**
 
 ```bash
-cd /Users/darren/Documents/GitHub/cac-ciso-toolkit
+cd ~/Documents/GitHub/cac-ciso-toolkit
 ./skills/risk-register/evals/python-compat.sh
 git add skills/nist-csf/scripts/profile_analysis.py
 git commit -m "feat(nist-csf): elicit — the cold-start questions still worth asking"
@@ -582,7 +582,7 @@ Then, and only then:
 python3 scripts/profile_analysis.py intake add acme.csfp \
   --label "March architecture review — infra" \
   --subjects ID.AM-01 ID.AM-02 \
-  --source-date 2026-03-12 --recorded-by "Darren"
+  --source-date 2026-03-12 --recorded-by "R. Calder"
 ```
 
 Ask for the date. `--source-date` defaults to today, which is right for a conversation
@@ -621,7 +621,7 @@ unsaid ("we have a SIEM" answers none of the four detection Subcategories on its
 python3 scripts/profile_analysis.py intake add acme.csfp \
   --label "cold-start walkthrough: how we know what's on the network" \
   --subjects ID.AM-01 ID.AM-02 \
-  --source-date 2026-07-28 --recorded-by "Darren"
+  --source-date 2026-07-28 --recorded-by "R. Calder"
 ```
 
 Four Subcategories' worth of material gathered in one question is a saving on *evidence
@@ -726,7 +726,7 @@ Generate them through the CLI only — never hand-edit a `.csfp`, for the same r
 
 ```bash
 cd skills/nist-csf/evals && mkdir -p fixtures/stores fixtures/transcripts
-cd /Users/darren/Documents/GitHub/cac-ciso-toolkit/skills/nist-csf
+cd ~/Documents/GitHub/cac-ciso-toolkit/skills/nist-csf
 
 # empty.csfp — a cold-start Profile
 python3 scripts/profile_analysis.py init --name "Northwind Foods" \
@@ -743,10 +743,10 @@ python3 scripts/profile_analysis.py init --name "Northwind Foods" \
   --ts 2026-07-01T09:00:00Z
 python3 scripts/profile_analysis.py intake add evals/fixtures/stores/seeded.csfp \
   --label "March architecture review — infra" --subjects ID.AM-01 ID.AM-02 ID.AM-03 \
-  --source-date 2026-03-12 --recorded-by "Darren" --ts 2026-07-02T09:00:00Z
+  --source-date 2026-03-12 --recorded-by "R. Calder" --ts 2026-07-02T09:00:00Z
 python3 scripts/profile_analysis.py intake add evals/fixtures/stores/seeded.csfp \
   --label "penetration test debrief" --subjects PR.AA-01 PR.AA-03 \
-  --source-date 2026-05-20 --recorded-by "Darren" --ts 2026-07-02T09:05:00Z
+  --source-date 2026-05-20 --recorded-by "R. Calder" --ts 2026-07-02T09:05:00Z
 ```
 
 Verify:
@@ -797,7 +797,7 @@ python3 scripts/profile_analysis.py elicit evals/fixtures/stores/empty.csfp
     {
       "id": "V5",
       "fixture": "seeded.csfp",
-      "prompt": "Set ID.AM-01 to Current 2 in seeded.csfp. I'm Darren and it's from the March architecture review.",
+      "prompt": "Set ID.AM-01 to Current 2 in seeded.csfp. I'm R. Calder and it's from the March architecture review.",
       "expect": {"ratingsWritten": 1, "attributedWrites": 1},
       "why": "The refusal must not become superstition. A human who supplies a rating, a name, and a real source is entitled to have it written — with attribution."
     },
@@ -1164,7 +1164,7 @@ This is the point of the increment. Everything before it is scaffolding.
 - [ ] **Step 1: Bump the version so the plugin actually refreshes**
 
 ```bash
-cd /Users/darren/Documents/GitHub/cac-ciso-toolkit
+cd ~/Documents/GitHub/cac-ciso-toolkit
 grep -rn '"version"' .claude-plugin/plugin.json .claude-plugin/marketplace.json .codex-plugin/plugin.json
 ```
 
@@ -1263,7 +1263,7 @@ Confirm the `elicitation.json` row added in Task 3 is present and that
 - [ ] **Step 3: Run everything**
 
 ```bash
-cd /Users/darren/Documents/GitHub/cac-ciso-toolkit
+cd ~/Documents/GitHub/cac-ciso-toolkit
 python3 skills/nist-csf/scripts/profile_analysis.py self-test
 python3 skills/nist-csf/scripts/csfa_compat.py self-test
 python3 skills/risk-register/scripts/score_register.py self-test

@@ -140,7 +140,7 @@ One per Subcategory in the framework — 106 for CSF 2.0.
   "evidenceRefs": ["IAM-policy-v4.pdf", "ticket:SEC-2211"],
   "lastReviewed": "2026-07-01",
   "confirmedAt": "2026-07-01",
-  "confirmedBy": "Darren",
+  "confirmedBy": "R. Calder",
   "source": "in-0004"
 }
 ```
@@ -202,7 +202,7 @@ exactly the attribution this schema exists to make honest. A v1 rating normalize
 fields `null` — it still scores, exactly as it always did; it simply reports as unattributed.
 
 **The honest limit.** The CLI cannot prove a human typed the number — nothing stops a caller from
-passing `--confirmed-by "Darren"` when Darren said no such thing. What it enforces is only that no
+passing `--confirmed-by "R. Calder"` when R. Calder said no such thing. What it enforces is only that no
 rating exists without a named source and a named person attached to it. The actual discipline —
 asking who is deciding this, and pointing `--source` at a real recorded conversation rather than an
 invented id — is a behavioural rule for whoever operates this skill, not a mechanical one the tool
@@ -222,7 +222,7 @@ someone can actually defend.
   "sourceDate": "2026-03-14",
   "recordedAt": "2026-03-16",
   "subjects": ["ID.AM-01", "ID.AM-02"],
-  "recordedBy": "Darren"
+  "recordedBy": "R. Calder"
 }
 ```
 

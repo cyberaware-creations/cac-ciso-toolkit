@@ -127,7 +127,7 @@
       "value": 93.0,
       "date": "2026-04-01",
       "source": "quarterly pull",
-      "actor": "D. Alleyne",
+      "actor": "R. Calder",
       "ts": "2026-07-31T18:25:13+00:00",
       "note": ""
     },
@@ -137,7 +137,7 @@
       "value": 88.0,
       "date": "2026-07-01",
       "source": "quarterly pull",
-      "actor": "D. Alleyne",
+      "actor": "R. Calder",
       "ts": "2026-07-31T18:25:13+00:00",
       "note": ""
     },
@@ -147,7 +147,7 @@
       "value": 11.0,
       "date": "2026-04-01",
       "source": "quarterly pull",
-      "actor": "D. Alleyne",
+      "actor": "R. Calder",
       "ts": "2026-07-31T18:25:13+00:00",
       "note": ""
     },
@@ -157,7 +157,7 @@
       "value": 8.0,
       "date": "2026-07-01",
       "source": "quarterly pull",
-      "actor": "D. Alleyne",
+      "actor": "R. Calder",
       "ts": "2026-07-31T18:25:13+00:00",
       "note": ""
     },
@@ -167,7 +167,7 @@
       "value": 4.1,
       "date": "2026-04-01",
       "source": "quarterly pull",
-      "actor": "D. Alleyne",
+      "actor": "R. Calder",
       "ts": "2026-07-31T18:25:13+00:00",
       "note": ""
     },
@@ -177,7 +177,7 @@
       "value": 6.8,
       "date": "2026-07-01",
       "source": "quarterly pull",
-      "actor": "D. Alleyne",
+      "actor": "R. Calder",
       "ts": "2026-07-31T18:25:13+00:00",
       "note": ""
     },
@@ -187,7 +187,7 @@
       "value": 96.0,
       "date": "2026-04-01",
       "source": "quarterly pull",
-      "actor": "D. Alleyne",
+      "actor": "R. Calder",
       "ts": "2026-07-31T18:25:13+00:00",
       "note": ""
     },
@@ -197,7 +197,7 @@
       "value": 99.0,
       "date": "2026-07-01",
       "source": "quarterly pull",
-      "actor": "D. Alleyne",
+      "actor": "R. Calder",
       "ts": "2026-07-31T18:25:13+00:00",
       "note": ""
     },
@@ -207,7 +207,7 @@
       "value": 2140000.0,
       "date": "2026-07-01",
       "source": "quarterly pull",
-      "actor": "D. Alleyne",
+      "actor": "R. Calder",
       "ts": "2026-07-31T18:25:13+00:00",
       "note": ""
     },
@@ -217,7 +217,7 @@
       "value": 40.0,
       "date": "2025-11-15",
       "source": "quarterly pull",
-      "actor": "D. Alleyne",
+      "actor": "R. Calder",
       "ts": "2026-07-31T18:25:13+00:00",
       "note": ""
     }
@@ -226,13 +226,13 @@
     {
       "event": "register-created",
       "target": "skills/metrics-register/examples/example-metrics.mtr",
-      "actor": "D. Alleyne",
+      "actor": "R. Calder",
       "ts": "2026-07-31T18:24:39+00:00"
     },
     {
       "event": "metric-added",
       "target": "M-001",
-      "actor": "D. Alleyne",
+      "actor": "R. Calder",
       "ts": "2026-07-31T18:24:39+00:00",
       "detail": {
         "name": "Critical patches applied within SLA",
@@ -242,7 +242,7 @@
     {
       "event": "metric-added",
       "target": "M-002",
-      "actor": "D. Alleyne",
+      "actor": "R. Calder",
       "ts": "2026-07-31T18:24:39+00:00",
       "detail": {
         "name": "Median attacker dwell time",
@@ -252,7 +252,7 @@
     {
       "event": "metric-added",
       "target": "M-003",
-      "actor": "D. Alleyne",
+      "actor": "R. Calder",
       "ts": "2026-07-31T18:24:39+00:00",
       "detail": {
         "name": "Phishing simulation click rate",
@@ -262,7 +262,7 @@
     {
       "event": "metric-added",
       "target": "M-004",
-      "actor": "D. Alleyne",
+      "actor": "R. Calder",
       "ts": "2026-07-31T18:24:39+00:00",
       "detail": {
         "name": "Privileged accounts with MFA",
@@ -272,7 +272,7 @@
     {
       "event": "metric-added",
       "target": "M-005",
-      "actor": "D. Alleyne",
+      "actor": "R. Calder",
       "ts": "2026-07-31T18:24:39+00:00",
       "detail": {
         "name": "Malicious emails blocked",
@@ -282,7 +282,7 @@
     {
       "event": "metric-added",
       "target": "M-006",
-      "actor": "D. Alleyne",
+      "actor": "R. Calder",
       "ts": "2026-07-31T18:24:39+00:00",
       "detail": {
         "name": "Backup restores tested",
@@ -292,7 +292,7 @@
     {
       "event": "threshold-set",
       "target": "M-001",
-      "actor": "D. Alleyne",
+      "actor": "R. Calder",
       "ts": "2026-07-31T18:24:54+00:00",
       "detail": {
         "target": 95.0,
@@ -303,7 +303,7 @@
     {
       "event": "threshold-set",
       "target": "M-002",
-      "actor": "D. Alleyne",
+      "actor": "R. Calder",
       "ts": "2026-07-31T18:24:54+00:00",
       "detail": {
         "target": 5.0,
@@ -314,7 +314,7 @@
     {
       "event": "threshold-set",
       "target": "M-003",
-      "actor": "D. Alleyne",
+      "actor": "R. Calder",
       "ts": "2026-07-31T18:24:54+00:00",
       "detail": {
         "target": 3.0,
@@ -325,7 +325,7 @@
     {
       "event": "threshold-set",
       "target": "M-004",
-      "actor": "D. Alleyne",
+      "actor": "R. Calder",
       "ts": "2026-07-31T18:24:54+00:00",
       "detail": {
         "target": 100.0,
@@ -336,7 +336,7 @@
     {
       "event": "threshold-set",
       "target": "M-006",
-      "actor": "D. Alleyne",
+      "actor": "R. Calder",
       "ts": "2026-07-31T18:24:54+00:00",
       "detail": {
         "target": 100.0,
@@ -347,7 +347,7 @@
     {
       "event": "metric-linked",
       "target": "M-001",
-      "actor": "D. Alleyne",
+      "actor": "R. Calder",
       "ts": "2026-07-31T18:24:55+00:00",
       "detail": {
         "csf": [
@@ -361,7 +361,7 @@
     {
       "event": "metric-linked",
       "target": "M-004",
-      "actor": "D. Alleyne",
+      "actor": "R. Calder",
       "ts": "2026-07-31T18:24:55+00:00",
       "detail": {
         "csf": [
@@ -375,7 +375,7 @@
     {
       "event": "metric-linked",
       "target": "M-006",
-      "actor": "D. Alleyne",
+      "actor": "R. Calder",
       "ts": "2026-07-31T18:24:55+00:00",
       "detail": {
         "csf": [
@@ -387,7 +387,7 @@
     {
       "event": "reading-recorded",
       "target": "M-001",
-      "actor": "D. Alleyne",
+      "actor": "R. Calder",
       "ts": "2026-07-31T18:25:13+00:00",
       "detail": {
         "period": "2026-Q2",
@@ -398,7 +398,7 @@
     {
       "event": "reading-recorded",
       "target": "M-001",
-      "actor": "D. Alleyne",
+      "actor": "R. Calder",
       "ts": "2026-07-31T18:25:13+00:00",
       "detail": {
         "period": "2026-Q3",
@@ -409,7 +409,7 @@
     {
       "event": "reading-recorded",
       "target": "M-002",
-      "actor": "D. Alleyne",
+      "actor": "R. Calder",
       "ts": "2026-07-31T18:25:13+00:00",
       "detail": {
         "period": "2026-Q2",
@@ -420,7 +420,7 @@
     {
       "event": "reading-recorded",
       "target": "M-002",
-      "actor": "D. Alleyne",
+      "actor": "R. Calder",
       "ts": "2026-07-31T18:25:13+00:00",
       "detail": {
         "period": "2026-Q3",
@@ -431,7 +431,7 @@
     {
       "event": "reading-recorded",
       "target": "M-003",
-      "actor": "D. Alleyne",
+      "actor": "R. Calder",
       "ts": "2026-07-31T18:25:13+00:00",
       "detail": {
         "period": "2026-Q2",
@@ -442,7 +442,7 @@
     {
       "event": "reading-recorded",
       "target": "M-003",
-      "actor": "D. Alleyne",
+      "actor": "R. Calder",
       "ts": "2026-07-31T18:25:13+00:00",
       "detail": {
         "period": "2026-Q3",
@@ -453,7 +453,7 @@
     {
       "event": "reading-recorded",
       "target": "M-004",
-      "actor": "D. Alleyne",
+      "actor": "R. Calder",
       "ts": "2026-07-31T18:25:13+00:00",
       "detail": {
         "period": "2026-Q2",
@@ -464,7 +464,7 @@
     {
       "event": "reading-recorded",
       "target": "M-004",
-      "actor": "D. Alleyne",
+      "actor": "R. Calder",
       "ts": "2026-07-31T18:25:13+00:00",
       "detail": {
         "period": "2026-Q3",
@@ -475,7 +475,7 @@
     {
       "event": "reading-recorded",
       "target": "M-005",
-      "actor": "D. Alleyne",
+      "actor": "R. Calder",
       "ts": "2026-07-31T18:25:13+00:00",
       "detail": {
         "period": "2026-Q3",
@@ -486,7 +486,7 @@
     {
       "event": "reading-recorded",
       "target": "M-006",
-      "actor": "D. Alleyne",
+      "actor": "R. Calder",
       "ts": "2026-07-31T18:25:13+00:00",
       "detail": {
         "period": "2025-Q4",

@@ -21,6 +21,110 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.124.0 — 2026-08-11
+
+**BL-257 — a real person's name shipped as the example CISO across ten skills, and 110 lines of it
+spelled his surname wrong.**
+
+> ⚠️ **This entry deliberately does not reproduce the strings it removed.** Naming them here would
+> put them straight back into shipped content and would fail the check BL-258 proposes. They are
+> described instead.
+
+### What was there
+
+**395 lines across 59 files**, `.git` excluded. One persona in **five** written forms. Counts are
+measured token occurrences, so a line carrying forename and surname contributes to two rows:
+
+| token | count | what it was |
+|---|---:|---|
+| the misspelled surname | 110 | **not the maintainer's name at all** |
+| the correct surname | 67 | right spelling, still a real person |
+| a lowercase `initial.surname` handle | 62 | the `actor` on every event in one example store |
+| the bare forename | 138 | fixture values and prose attributions, mixed together |
+| a `/Users/<name>` home path | 22 | **one of them inside a shipped example store** |
+
+⚠️ **The misspelling is not a spelling of anything.** It appears to be the maintainer's email local
+part read as a surname — a machine deriving a person's name from a login, which then propagated
+across three skills without once being checked against the person. In a product whose pitch is
+citation accuracy, that shipped a factual error about a real human 110 times, for roughly forty
+releases. **Nothing caught it:** `check-twins.py` compares code paths, not fixture vocabulary.
+
+**The persona is now `R. Calder`** — collision-checked at zero occurrences before adoption — with
+`, CISO` only on the capacity fields (`assessor`, `preparedBy`). Three spellings collapse to one.
+
+### ⭐ Three categories, three different answers — and conflating them was the way to make it worse
+
+**A · Fixture personas → `R. Calder`.** Example stores, self-test fixtures, eval fixtures, schema
+samples, `SKILL.md` command examples, and `check-sources.py`'s own self-tests.
+
+**B · Attributions of real product decisions → `the maintainer`.** A rationale reading *"BL-162,
+<name>'s decision 2026-08-11"* becomes *"BL-162, the maintainer's decision 2026-08-11"*. **These
+record who actually decided something about the product.** A single blind replace would have
+overwritten real provenance with a fictional persona — the one outcome worse than leaving it
+alone. Run as a separate pass, with every replacement written out as an explicit pair rather than
+as a pattern.
+
+**C · Machine paths → `~`.** Not in the plan's two categories, and found by measuring rather than
+by reading the brief. A home path leaks a username exactly as a name does. **One was inside a
+shipped example**: `example-incident.inc`'s `store-created` event had recorded the absolute path of
+the maintainer's laptop. Every other `target` in every example store is a record id; this one was
+an artifact of how the file was generated. It is now the bare filename.
+
+### ⚠️ Historical literals are a fourth case, and they are not renamable
+
+Three CHANGELOG lines **quote a value that was really written into `reviewedBy` by v0.112.0 and
+v0.113.0**. Substituting inside those quotes would leave the file stating that a string was written
+which never was. **The sentences were rephrased so the fact survives and the name does not** — the
+count, the versions and the row totals are all still there.
+
+### The fixture sweep created its own defect, in one line
+
+`nist-csf/references/schema.md:205` explains that the tool cannot stop you passing
+`--confirmed-by` for someone who said no such thing. The sweep moved the **flag value** to the new
+persona and left the **prose subject** on the old name, so one sentence named two different people.
+**Caught by re-reading the remainder rather than by a test**, which is the honest description:
+nothing in the suite would have failed on it.
+
+### ⛔ Not in this item, and filed instead
+
+**The deny-list check** — a scan asserting no personal name appears in shipped content, the same
+shape as `no-regime-dates`. **The sweep is the fix; the check is what stops the recurrence.** Filed
+as **BL-258**, carrying the three scoping calls this sweep turned up: what counts as shipped
+content, that machine paths are the same exposure, and that historical literals need an escape.
+Whether it ships in v1.0 or after is open and is the maintainer's call.
+
+### Verification
+
+**A case-insensitive scan for the forename, both surname spellings and the home path returns 0
+lines in 0 files** — down from 395 lines in 59 files. `R. Calder` appears on 278 lines. The exact
+command is on BL-257; it is not repeated here for the reason given at the top of this entry.
+
+**Every engine self-test:** ai-register 164 · attention-surface 49 · board-pack 137 ·
+business-context 221 · exceptions 114 · incident 201 · metrics 105 · csfa-compat 47 · nist-csf 667
+· policy 89 · risk-register 316 · vendor 238. **Every eval suite across all twelve skills passes.**
+`check-sources`, `check-commands`, `check-twins`, `check-versions` all clean.
+
+⭐ **CAC-GP-1 re-read after the six regenerated fixtures: 44 / 86 / 126, unchanged.** A guard proof
+and `guard-registry.json` were both in that set, so the counts were the check on whether anything
+structural moved. Nothing did. **The constants were not touched.**
+
+**`delta-before.csfp` and `delta-after.csfp` moved in the same change**, as a matched pair — a
+divergence there would still have passed while silently measuring something else.
+
+### One premise that did not survive checking
+
+BL-257 and its brief both quote `example-register.rr` as containing `"client": "Northwind
+Manufacturing (fictional)"` directly above the assessor line, presenting *"the organisation is
+marked fictional, the person beside it is real"* as one file's two lines. **It is two files.** That
+example's client is `Acme Manufacturing Co.` and carries **no** fictional marker on either the org
+or the person; the `(fictional)` convention lives in board-pack, attention-surface and ai-register.
+The defect was real and the fix is unchanged — but the single-line illustration of it does not
+exist in the tree, and T2's *"do the same for the person"* had nothing in that file to be
+symmetrical with. **The marker went to `README.md`'s Layout section instead**, which is the one
+place that covers all ten skills' examples at once.
+
+---
+
 ## v0.123.0 — 2026-08-11
 
 **BL-54 T3 (R-5) — `set-score` records who is accountable for the loss and, optionally, who is
@@ -212,7 +316,7 @@ value of these documents.
 ### What else the standard carries
 
 **HO-1.2** — a research document that shipped code cites lives in **`docs/research/`** *before* the
-citation is written (BL-227 T2, Darren's decision). Notion carries a document across; the repo is
+citation is written (BL-227 T2, the maintainer's decision). Notion carries a document across; the repo is
 where it lives. **It does not relocate BL-90's three**, whose `docs/superpowers/` split comes from
 how the plan cites them.
 
@@ -296,7 +400,7 @@ the PDF is not in the tree.
 **BL-54 — R-1 and R-4 have a cluster. One of BL-54's three blockers clears; the other two
 stand.**
 
-⚖️ **Decision BL-93 B2 (Darren, 2026-08-10)** placed **R-1 (implicit acceptance)** and **R-4
+⚖️ **Decision BL-93 B2 (the maintainer, 2026-08-10)** placed **R-1 (implicit acceptance)** and **R-4
 (residual above target)** in **`over-tolerance`**, which the register-alignment design had left
 open. `attention-surface/references/clusters.json` now carries both, `datasetVersion` **4 → 5**.
 
@@ -330,7 +434,7 @@ emitters matches these ids or changes them here.
 `residual-above-target` was given. **R-1 appeared only as the description *"implicit
 acceptance"*** — no id anywhere in the tree, the docs, or the design. The kebab-case form is
 obvious, and guessing it was still the wrong move: a wrong id here dies silently for the reason
-above. **`implicit-acceptance` confirmed by Darren before it was written.**
+above. **`implicit-acceptance` confirmed by the maintainer before it was written.**
 
 **Two small things the assertions caught**, both worth having: `datasetVersion` is a **string**
 (`"4"`, not `4`), and the pre-edit trigger list was asserted exactly rather than appended to.
@@ -343,7 +447,7 @@ do not reconstruct the rest).
 
 v0.111.0 corrected five dates written as 2026-08-12, recorded that the machine clock is
 authoritative, and explained why. **The very next release dated its own heading 2026-08-12
-anyway**, along with its *"Decided by Darren"* line — because the brief was again headed a day
+anyway**, along with its *"Decided by the maintainer"* line — because the brief was again headed a day
 ahead, and the header was again taken over the clock. Both corrected here.
 
 **The lesson v0.111.0 drew was too narrow.** It treated the problem as five stale strings and
@@ -368,7 +472,7 @@ always said it would stay until a person sits down and signs.**
 
 ### What was wrong with them
 
-v0.112.0 wrote `reviewedBy: "Darren Galleyne"` into 36 rows and v0.113.0 into the remaining 19.
+v0.112.0 wrote the maintainer's name into `reviewedBy` on 36 rows and v0.113.0 into the remaining 19.
 **A script wrote them, under his name.**
 
 The definition shipped in the same batch says a counter-signature means *a named person read the
@@ -386,7 +490,7 @@ The writes were carefully guarded — no row pre-signed, no `unverified` row gat
 all asserted before writing. **The guarding was not the problem. A counter-signature written by
 anyone but the counter-signer is not one.**
 
-⚖️ **Decided by Darren, 2026-08-11: unwind.** The machinery stays; only the values go.
+⚖️ **Decided by the maintainer, 2026-08-11: unwind.** The machinery stays; only the values go.
 
 ### What did not change
 
@@ -417,7 +521,7 @@ probably a worse one. The record is the point, and it is now in the file.
 
 ### Still to come, deliberately not here
 
-**The name form** is Darren's to supply, and gets recorded before the real signing so the eventual
+**The name form** is the maintainer's to supply, and gets recorded before the real signing so the eventual
 signature does not repeat the chosen-not-derived problem. **The habit question** — whether signing
 becomes part of *declaring* a source or stays a periodic sitting with a nagging count — is
 deferred until after the real signing.
@@ -442,7 +546,7 @@ file is built **not** to be. Once v0.114.0 gave the repo an exemplar, that claim
 
 ### What changed
 
-⚖️ **Decided by Darren, 2026-08-11: the band is 12–18**, the one the message already claimed, and
+⚖️ **Decided by the maintainer, 2026-08-11: the band is 12–18**, the one the message already claimed, and
 **the assertion moves to `pack.curated.manifest.json`.**
 
 - The exemplar's board core is **16** — inside 12–18, and it passes.
@@ -464,7 +568,7 @@ its own page assumed cutting the specimen to five asks would make it fit. Measur
 (`render_pack.py:893`), so one-per-decision on five asks is +4 slides, +1 for the recap — **+5
 against 2 slides of headroom.**
 
-**BL-166 must find three slides elsewhere rather than the band moving for it** — Darren's call,
+**BL-166 must find three slides elsewhere rather than the band moving for it** — the maintainer's call,
 taken with the arithmetic in front of him. The named candidates, now on that item: the
 undrawn-charts placeholder, the *"Third parties — positive risk"* split, and the provenance page.
 None is free, and the provenance one touches this toolkit's honesty discipline directly.
@@ -478,7 +582,7 @@ None is free, and the provenance one touches this toolkit's honesty discipline d
 **BL-123 — the board-pack specimen now models the five-ask convention, because two specimens
 ship instead of one file trying to be two things.**
 
-⚖️ **Decision D-10, answered by Darren: option A, two manifests.**
+⚖️ **Decision D-10, answered by the maintainer: option A, two manifests.**
 
 ### Why the obvious fix was the wrong one
 
@@ -598,7 +702,7 @@ itself is unchanged on all 55 and still records that a machine opened the page.
 
 ## v0.112.0 — 2026-08-11
 
-**The counter-signature count is no longer zero. Darren Galleyne countersigned all 36 gated
+**The counter-signature count is no longer zero. The maintainer countersigned all 36 gated
 rows on 2026-08-11.**
 
 Two releases ago this said *"the machinery ships; the values stay at zero until a person signs."*
@@ -649,7 +753,7 @@ than changed silently, because a date moving in a shipped file with nothing behi
 what someone diffing this later would have to guess at.**
 
 The overnight brief was headed **2026-08-12**; the machine clock was **2026-08-11 09:34 PDT**. The
-brief's header was taken as authoritative and it should not have been. Confirmed with Darren, who
+brief's header was taken as authoritative and it should not have been. Confirmed with the maintainer, who
 called it: the clock is right.
 
 **What was wrong, and what was not.** Nothing in any `sources.json` was invalid and no check ever
@@ -657,7 +761,7 @@ failed — every `checkedOn` was already ≤ 2026-08-11, which is why `check-sou
 throughout. ⚠️ **The error was entirely in prose**, which is the half no validator reads:
 
 - the `v0.109.0` and `v0.110.0` headings below
-- the attribution line *"Darren, 2026-08-12"* in the v0.109.0 entry
+- the maintainer attribution line dated 2026-08-12 in the v0.109.0 entry
 - the same attribution inside `sp-800-63b`'s `intervalBecause` — **the only shipped-content
   instance, and the one that mattered**: a quote attributed to a day that had not happened yet
 - the drift note in `sources-schema.md`, which cited *"the live tree on 2026-08-12"* — a line
@@ -691,7 +795,7 @@ have self-tests. **What was missing was the meaning, the surface, and the bounda
 
 ⚠️ **And the sentence that stops it overclaiming: this is NOT a read of the primary source.** The
 reviewer checked that the claim, the locator and the version are consistent with **what was
-recorded**; they did not independently open the instrument. Without that, a reader — or Darren
+recorded**; they did not independently open the instrument. Without that, a reader — or the maintainer
 in two years — takes a counter-signature for a read. It lives once, in `STATES`, and is quoted
 at every surface rather than paraphrased at each.
 
@@ -723,7 +827,7 @@ the signature when one is present, so the next person to hit it does not add it 
 they mistyped something. Both directions are asserted: the row fails **gated**, and the same row
 **passes ungated**. The signature is refused the gate, not refused.
 
-**BL-242's local verification is a different thing and does clear it** (Darren, 2026-08-11) —
+**BL-242's local verification is a different thing and does clear it** (the maintainer, 2026-08-11) —
 there the licensed text is present and the wording is checked against it, so a check *has*
 happened. Kept apart deliberately; if they converge this widens into *"any row can claim to be
 gated"*.
@@ -760,7 +864,7 @@ This was flagged rather than changed last time, and the reasoning for flagging i
 **CAC-RW-1.13 requires a stated reason for a deviation, and a machine-supplied reason would
 satisfy the schema while defeating the rule.** So it waited for a human answer, and got one.
 
-**Darren, 2026-08-11 — and it is general, not about this row:**
+**The maintainer, 2026-08-11 — and it is general, not about this row:**
 
 > *"We can ship with recommended or default review timeline values, but the CISO should be able
 > to override them locally. It's up to them to decide how they run their program."*
@@ -3758,7 +3862,7 @@ gate clean; all five new rules proved to fail on their own violation.
 
 ## v0.62.0 — 2026-08-09
 
-**`candidate` gains a third answer: `permanent`.** Darren's decision, closing the enrolment
+**`candidate` gains a third answer: `permanent`.** The maintainer's decision, closing the enrolment
 item at one candidate rather than eleven or zero.
 
 `business-context/evals/archetype-advisory.sh` will never be enrolled, and the reason is worth

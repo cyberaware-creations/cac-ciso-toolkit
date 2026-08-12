@@ -45,7 +45,7 @@ Fold the built crosswalk overlays into the `nist-csf` skill so a single `.csfa` 
 - `skills/nist-csf/assets/` (+ `brand.md`) — brand tokens for the coverage ramp
 
 ## Pre-flight checks
-- [ ] Design + handoff reviewed; ISO/CIS CAC labels reviewed by Darren
+- [ ] Design + handoff reviewed; ISO/CIS CAC labels reviewed by the maintainer
 - [ ] `crosswalk-overlay-kit.zip` unzipped into a scratch dir in the repo
 - [ ] Baseline `nist-csf` self-test + evals passing on a clean tree
 - [ ] Git worktree created

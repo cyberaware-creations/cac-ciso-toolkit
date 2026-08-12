@@ -4079,19 +4079,19 @@ def _cmd_self_test(_args):
 
     bad_intake = copy.deepcopy(store)
     bad_intake["intake"] = [{"id": "in-0001", "label": "x", "sourceDate": "14 March 2026",
-                              "recordedAt": "2026-03-16", "subjects": [], "recordedBy": "Darren"}]
+                              "recordedAt": "2026-03-16", "subjects": [], "recordedBy": "R. Calder"}]
     ok(any("sourceDate" in p for p in check_store(bad_intake, index)),
        "check_store reports a malformed intake sourceDate")
 
     unpadded_source = copy.deepcopy(store)
     unpadded_source["intake"] = [{"id": "in-0001", "label": "x", "sourceDate": "2026-3-1",
-                                   "recordedAt": "2026-03-16", "subjects": [], "recordedBy": "Darren"}]
+                                   "recordedAt": "2026-03-16", "subjects": [], "recordedBy": "R. Calder"}]
     ok(any("sourceDate" in p for p in check_store(unpadded_source, index)),
        "check_store reports an unpadded intake sourceDate")
 
     unpadded_recorded = copy.deepcopy(store)
     unpadded_recorded["intake"] = [{"id": "in-0001", "label": "x", "sourceDate": "2026-03-01",
-                                     "recordedAt": "2026-3-2", "subjects": [], "recordedBy": "Darren"}]
+                                     "recordedAt": "2026-3-2", "subjects": [], "recordedBy": "R. Calder"}]
     ok(any("recordedAt" in p for p in check_store(unpadded_recorded, index)),
        "check_store reports an unpadded intake recordedAt")
 
@@ -4403,7 +4403,7 @@ def _cmd_self_test(_args):
                    "--ts", "2026-01-01T00:00:00Z"])
         _cmd_intake(["add", _p, "--label", "architecture review with infra team",
                      "--subjects", "ID.AM-01", "ID.AM-02", "ID.AM-03",
-                     "--source-date", "2026-03-14", "--recorded-by", "Darren",
+                     "--source-date", "2026-03-14", "--recorded-by", "R. Calder",
                      "--ts", "2026-03-16T09:00:00Z"])
         st = load_store(_p)
         eq(len(st["intake"]), 1, "one intake record written")
@@ -4413,7 +4413,7 @@ def _cmd_self_test(_args):
         eq(r["subjects"], ["ID.AM-01", "ID.AM-02", "ID.AM-03"], "subjects are stored in order")
         eq(r["sourceDate"], "2026-03-14", "sourceDate is when the conversation happened")
         eq(r["recordedAt"], "2026-03-16", "recordedAt is when it entered the store")
-        eq(r["recordedBy"], "Darren", "recordedBy is recorded")
+        eq(r["recordedBy"], "R. Calder", "recordedBy is recorded")
         eq([a for a in st["assessments"] if a["subcategoryId"] == "ID.AM-01"][0]["current"], None,
            "intake writes no ratings")
         ev = [e for e in st["history"] if e.get("type") == "intake-recorded"]
@@ -4450,7 +4450,7 @@ def _cmd_self_test(_args):
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf):
             _cmd_intake(["add", _p_nowarn, "--label", "attributed note",
-                         "--subjects", "ID.AM-02", "--recorded-by", "Darren",
+                         "--subjects", "ID.AM-02", "--recorded-by", "R. Calder",
                          "--ts", "2026-01-03T00:00:00Z"])
         ok("Warning: no recorder" not in buf.getvalue(),
            "--recorded-by suppresses the recorder warning")
@@ -4520,12 +4520,12 @@ def _cmd_self_test(_args):
                    "--ts", "2026-01-01T00:00:00Z"])
         _cmd_intake(["add", _p, "--label", "architecture review with infra team",
                      "--subjects", "ID.AM-01", "ID.AM-02",
-                     "--source-date", "2026-03-14", "--recorded-by", "Darren",
+                     "--source-date", "2026-03-14", "--recorded-by", "R. Calder",
                      "--ts", "2026-03-16T00:00:00Z"])
         for bad, why in (
             (["--current", "2", "--rationale", "x"], "no attribution at all"),
             (["--current", "2", "--rationale", "x", "--source", "in-0001"], "no --confirmed-by"),
-            (["--current", "2", "--rationale", "x", "--confirmed-by", "Darren"], "no --source"),
+            (["--current", "2", "--rationale", "x", "--confirmed-by", "R. Calder"], "no --source"),
         ):
             try:
                 _cmd_set([_p, "ID.AM-01"] + bad + ["--ts", "2026-03-20T00:00:00Z"])
@@ -4541,7 +4541,7 @@ def _cmd_self_test(_args):
             checks += 1
         try:
             _cmd_set([_p, "ID.AM-01", "--current", "2", "--rationale", "x",
-                      "--source", "in-9999", "--confirmed-by", "Darren",
+                      "--source", "in-9999", "--confirmed-by", "R. Calder",
                       "--ts", "2026-03-20T00:00:00Z"])
             failures.append("set --source with an unknown intake id should have been refused")
         except ValueError as exc:
@@ -4557,18 +4557,18 @@ def _cmd_self_test(_args):
            "target writes without attribution")
 
         _cmd_set([_p, "ID.AM-01", "--current", "2", "--rationale", "confirmed at review",
-                  "--source", "in-0001", "--confirmed-by", "Darren",
+                  "--source", "in-0001", "--confirmed-by", "R. Calder",
                   "--ts", "2026-03-20T00:00:00Z"])
         st = load_store(_p)
         a = [x for x in st["assessments"] if x["subcategoryId"] == "ID.AM-01"][0]
         eq(a["current"], 2, "attributed current rating is written")
         eq(a["source"], "in-0001", "source is recorded on the assessment")
-        eq(a["confirmedBy"], "Darren", "confirmedBy is recorded on the assessment")
+        eq(a["confirmedBy"], "R. Calder", "confirmedBy is recorded on the assessment")
         eq(a["confirmedAt"], "2026-03-20", "confirmedAt is the date of the decision")
         eq(a["lastReviewed"], "2026-03-20", "a Current move still refreshes lastReviewed")
         ev = [e for e in st["history"] if e.get("type") == "rating-changed"][-1]
         eq(ev.get("source"), "in-0001", "the history event carries the source")
-        eq(ev.get("confirmedBy"), "Darren", "the history event carries the confirmer")
+        eq(ev.get("confirmedBy"), "R. Calder", "the history event carries the confirmer")
 
         # Clearing a rating is not a claim, so it needs no attribution.
         _cmd_set([_p, "ID.AM-01", "--current", "null", "--rationale", "withdrawn: source disputed",
@@ -4584,10 +4584,10 @@ def _cmd_self_test(_args):
         # the assessment ends up naming a source and a confirmer for a rating that, after
         # this call, does not exist.
         _cmd_set([_p, "ID.AM-01", "--current", "2", "--rationale", "re-confirmed",
-                  "--source", "in-0001", "--confirmed-by", "Darren",
+                  "--source", "in-0001", "--confirmed-by", "R. Calder",
                   "--ts", "2026-03-22T00:00:00Z"])
         _cmd_set([_p, "ID.AM-01", "--current", "null", "--rationale", "withdrawn again",
-                  "--source", "in-0001", "--confirmed-by", "Darren",
+                  "--source", "in-0001", "--confirmed-by", "R. Calder",
                   "--ts", "2026-03-23T00:00:00Z"])
         a3 = [x for x in load_store(_p)["assessments"]
               if x["subcategoryId"] == "ID.AM-01"][0]
@@ -5175,9 +5175,9 @@ def _cmd_self_test(_args):
     # --- Derivation layer: derived, never stored ---
     fx_assess = [
         {"subcategoryId": "ID.AM-01", "applicability": "in-scope", "current": 2, "target": 3,
-         "confirmedAt": "2026-03-20", "confirmedBy": "Darren", "source": "in-0001"},
+         "confirmedAt": "2026-03-20", "confirmedBy": "R. Calder", "source": "in-0001"},
         {"subcategoryId": "ID.AM-02", "applicability": "in-scope", "current": 1, "target": 3,
-         "confirmedAt": "2025-06-01", "confirmedBy": "Darren", "source": "in-0001"},
+         "confirmedAt": "2025-06-01", "confirmedBy": "R. Calder", "source": "in-0001"},
         {"subcategoryId": "ID.AM-03", "applicability": "in-scope", "current": None, "target": 3,
          "confirmedAt": None, "confirmedBy": None, "source": None},
         {"subcategoryId": "PR.AA-01", "applicability": "in-scope", "current": None, "target": 3,
@@ -5185,16 +5185,16 @@ def _cmd_self_test(_args):
         {"subcategoryId": "PR.AA-03", "applicability": "not-applicable", "current": None,
          "target": None, "confirmedAt": None, "confirmedBy": None, "source": None},
         {"subcategoryId": "PR.DS-11", "applicability": "in-scope", "current": 3, "target": 3,
-         "confirmedAt": "2026-01-10", "confirmedBy": "Darren", "source": "in-0002"},
+         "confirmedAt": "2026-01-10", "confirmedBy": "R. Calder", "source": "in-0002"},
     ]
     fx_intake = [
         {"id": "in-0001", "label": "architecture review", "sourceDate": "2025-05-20",
          "recordedAt": "2026-03-16", "subjects": ["ID.AM-01", "ID.AM-02", "ID.AM-03"],
-         "recordedBy": "Darren"},
+         "recordedBy": "R. Calder"},
         {"id": "in-0002", "label": "backup restore test", "sourceDate": "2026-01-08",
-         "recordedAt": "2026-01-09", "subjects": ["PR.DS-11"], "recordedBy": "Darren"},
+         "recordedAt": "2026-01-09", "subjects": ["PR.DS-11"], "recordedBy": "R. Calder"},
         {"id": "in-0003", "label": "vendor DR conversation", "sourceDate": "2026-06-02",
-         "recordedAt": "2026-06-03", "subjects": ["PR.DS-11"], "recordedBy": "Darren"},
+         "recordedAt": "2026-06-03", "subjects": ["PR.DS-11"], "recordedBy": "R. Calder"},
     ]
     ev = derive_evidence(fx_assess, fx_intake, index, core, today="2026-07-27",
                          threshold_pct=60, age_days=180)
@@ -5248,18 +5248,18 @@ def _cmd_self_test(_args):
          "confirmedAt": None, "confirmedBy": None, "source": None},
         # Confirmed, dated, and intake postdates the confirmation.
         {"subcategoryId": "GV.OC-02", "applicability": "in-scope", "current": 1, "target": 2,
-         "confirmedAt": "2026-01-01", "confirmedBy": "Darren", "source": "in-r02"},
+         "confirmedAt": "2026-01-01", "confirmedBy": "R. Calder", "source": "in-r02"},
         # Confirmed, dated, and every bearing record predates the confirmation.
         {"subcategoryId": "GV.OC-03", "applicability": "in-scope", "current": 1, "target": 2,
-         "confirmedAt": "2026-06-01", "confirmedBy": "Darren", "source": "in-r03"},
+         "confirmedAt": "2026-06-01", "confirmedBy": "R. Calder", "source": "in-r03"},
     ]
     reason_intake = [
         {"id": "in-r01", "label": "control walkthrough", "sourceDate": "2026-05-01",
-         "recordedAt": "2026-05-02", "subjects": ["GV.OC-01"], "recordedBy": "Darren"},
+         "recordedAt": "2026-05-02", "subjects": ["GV.OC-01"], "recordedBy": "R. Calder"},
         {"id": "in-r02", "label": "policy review", "sourceDate": "2026-03-01",
-         "recordedAt": "2026-03-02", "subjects": ["GV.OC-02"], "recordedBy": "Darren"},
+         "recordedAt": "2026-03-02", "subjects": ["GV.OC-02"], "recordedBy": "R. Calder"},
         {"id": "in-r03", "label": "prior review", "sourceDate": "2026-01-01",
-         "recordedAt": "2026-01-02", "subjects": ["GV.OC-03"], "recordedBy": "Darren"},
+         "recordedAt": "2026-01-02", "subjects": ["GV.OC-03"], "recordedBy": "R. Calder"},
     ]
     ev_reason = derive_evidence(reason_assess, reason_intake, index, core, today="2026-07-27",
                                 threshold_pct=0, age_days=180)
@@ -5297,7 +5297,7 @@ def _cmd_self_test(_args):
        ]["confirmedAt"], None, "the v1 fixture's GV.OC-01 carries no confirmedAt")
     v1_intake = [{"id": "in-0001", "label": "audit found the asset inventory is stale",
                   "sourceDate": "2026-07-20", "recordedAt": "2026-07-27",
-                  "subjects": ["GV.OC-01"], "recordedBy": "Darren"}]
+                  "subjects": ["GV.OC-01"], "recordedBy": "R. Calder"}]
     ev_v1 = derive_evidence(v1_store["assessments"], v1_intake, index, core, today="2026-07-27",
                             threshold_pct=60, age_days=180)
     v1_revisit = {r["subcategoryId"]: r for r in ev_v1["revisit"]}
@@ -5517,7 +5517,7 @@ def _cmd_self_test(_args):
     ]
     tie_intake = [{"id": "in-tie", "label": "one review, three subjects",
                    "sourceDate": "2026-05-01", "recordedAt": "2026-05-02",
-                   "subjects": ["ID.AM-03", "ID.AM-02", "ID.AM-01"], "recordedBy": "Darren"}]
+                   "subjects": ["ID.AM-03", "ID.AM-02", "ID.AM-01"], "recordedBy": "R. Calder"}]
     ev_tie = derive_evidence(tie_assess, tie_intake, index, core, today="2026-07-27",
                              threshold_pct=60, age_days=180)
     eq([r["subcategoryId"] for r in ev_tie["pending"]], ["ID.AM-01", "ID.AM-02", "ID.AM-03"],
@@ -5655,7 +5655,7 @@ def _cmd_self_test(_args):
                      "ID.AM-01", "ID.AM-02", "--source-date", "2026-03-14",
                      "--ts", "2026-03-16T00:00:00Z"])
         _cmd_set([_p, "ID.AM-01", "--current", "2", "--rationale", "confirmed",
-                  "--source", "in-0001", "--confirmed-by", "Darren",
+                  "--source", "in-0001", "--confirmed-by", "R. Calder",
                   "--ts", "2026-03-20T00:00:00Z"])
         _cmd_analyze([_p, "--today", "2026-07-27", "--out", _out])
         with open(_out, encoding="utf-8") as _fh:

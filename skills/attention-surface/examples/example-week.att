@@ -3,7 +3,7 @@
   "family": "attention-surface",
   "meta": {
     "orgName": "Northwind Manufacturing (fictional)",
-    "preparedBy": "D. Galleyne",
+    "preparedBy": "R. Calder",
     "asOf": "2026-08-07"
   },
   "sources": {
@@ -19,7 +19,7 @@
     {
       "on": "2026-07-31",
       "ts": "2026-07-31T09:00:00+00:00",
-      "by": "D. Galleyne",
+      "by": "R. Calder",
       "label": "week 31",
       "note": "Monday review, before the AI register was populated.",
       "keys": [

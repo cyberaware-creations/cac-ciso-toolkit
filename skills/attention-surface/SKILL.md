@@ -181,7 +181,7 @@ python3 scripts/attention_surface.py init week.att --org "Acme Manufacturing"
 python3 scripts/attention_surface.py add-source week.att --skill vendor-register \
     --store ../vendors.vnd
 python3 scripts/attention_surface.py review week.att --context ctx.json
-python3 scripts/attention_surface.py review week.att --record --by "D. Galleyne" --label "week 32"
+python3 scripts/attention_surface.py review week.att --record --by "R. Calder" --label "week 32"
 python3 scripts/attention_surface.py review week.att --since "week 31"
 python3 scripts/attention_surface.py brief week.att
 python3 scripts/attention_surface.py reviews week.att
