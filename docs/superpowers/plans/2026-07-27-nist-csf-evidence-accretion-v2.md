@@ -610,7 +610,7 @@ Run:
 python3 skills/nist-csf/scripts/profile_analysis.py init --name Demo --out /tmp/d.csfp --owner CISO
 python3 skills/nist-csf/scripts/profile_analysis.py intake add /tmp/d.csfp \
   --label "architecture review with infra team" --subjects ID.AM-01 ID.AM-02 ID.AM-03 \
-  --source-date 2026-03-14 --recorded-by the maintainer
+  --source-date 2026-03-14 --recorded-by "R. Calder"
 python3 skills/nist-csf/scripts/profile_analysis.py intake list /tmp/d.csfp
 ```
 Expected: `Recorded in-0001: architecture review with infra team`, then a list line showing `3 Subcategories · 0 confirmed`
@@ -1644,9 +1644,9 @@ python3 skills/nist-csf/scripts/profile_analysis.py init --name "Partial Co" --o
 python3 skills/nist-csf/scripts/profile_analysis.py quickstart-target /tmp/pc.csfp --rationale baseline
 python3 skills/nist-csf/scripts/profile_analysis.py intake add /tmp/pc.csfp \
   --label "architecture review with infra team" --subjects ID.AM-01 ID.AM-02 ID.AM-03 \
-  --source-date 2026-03-14 --recorded-by the maintainer
+  --source-date 2026-03-14 --recorded-by "R. Calder"
 python3 skills/nist-csf/scripts/profile_analysis.py set /tmp/pc.csfp ID.AM-01 --current 2 \
-  --source in-0001 --confirmed-by the maintainer --rationale "quarterly discovery scans confirmed"
+  --source in-0001 --confirmed-by "R. Calder" --rationale "quarterly discovery scans confirmed"
 python3 skills/nist-csf/scripts/profile_analysis.py analyze /tmp/pc.csfp --today 2026-07-27 > /tmp/pc.json
 python3 skills/nist-csf/renderers/render_executive.py --in /tmp/pc.json --out /tmp/pc-exec.html --offline
 grep -c "Coverage is not reported at this level of assessment" /tmp/pc-exec.html
@@ -1847,31 +1847,31 @@ python3 skills/nist-csf/scripts/profile_analysis.py quickstart-target "$P" \
 
 python3 skills/nist-csf/scripts/profile_analysis.py intake add "$P" \
   --label "asset management workshop with infrastructure" --subjects ID.AM-01 ID.AM-02 ID.AM-03 ID.AM-05 \
-  --source-date 2025-05-20 --recorded-by the maintainer --ts 2025-06-01T00:00:00Z
+  --source-date 2025-05-20 --recorded-by "R. Calder" --ts 2025-06-01T00:00:00Z
 python3 skills/nist-csf/scripts/profile_analysis.py intake add "$P" \
   --label "annual backup restore test debrief" --subjects PR.DS-11 RC.RP-01 \
-  --source-date 2026-01-08 --recorded-by the maintainer --ts 2026-01-09T00:00:00Z
+  --source-date 2026-01-08 --recorded-by "R. Calder" --ts 2026-01-09T00:00:00Z
 python3 skills/nist-csf/scripts/profile_analysis.py intake add "$P" \
   --label "identity programme steering, notes only" --subjects PR.AA-01 PR.AA-03 PR.AA-05 \
-  --source-date 2026-05-12 --recorded-by the maintainer --ts 2026-05-14T00:00:00Z
+  --source-date 2026-05-12 --recorded-by "R. Calder" --ts 2026-05-14T00:00:00Z
 python3 skills/nist-csf/scripts/profile_analysis.py intake add "$P" \
   --label "DR walkthrough after the June outage" --subjects RC.RP-01 \
-  --source-date 2026-06-30 --recorded-by the maintainer --ts 2026-07-02T00:00:00Z
+  --source-date 2026-06-30 --recorded-by "R. Calder" --ts 2026-07-02T00:00:00Z
 
 # Confirmed >12 months ago — makes the age distribution real.
 python3 skills/nist-csf/scripts/profile_analysis.py set "$P" ID.AM-01 --current 2 \
-  --source in-0001 --confirmed-by the maintainer --ts 2025-06-02T00:00:00Z \
+  --source in-0001 --confirmed-by "R. Calder" --ts 2025-06-02T00:00:00Z \
   --rationale "Workshop confirmed quarterly discovery scans across corporate IT; OT out of band."
 python3 skills/nist-csf/scripts/profile_analysis.py set "$P" ID.AM-02 --current 1 \
-  --source in-0001 --confirmed-by the maintainer --ts 2025-06-02T00:00:00Z \
+  --source in-0001 --confirmed-by "R. Calder" --ts 2025-06-02T00:00:00Z \
   --rationale "Software inventory exists for managed endpoints only."
 # Confirmed this year.
 python3 skills/nist-csf/scripts/profile_analysis.py set "$P" PR.DS-11 --current 3 \
-  --source in-0002 --confirmed-by the maintainer --ts 2026-01-10T00:00:00Z \
+  --source in-0002 --confirmed-by "R. Calder" --ts 2026-01-10T00:00:00Z \
   --rationale "Restore test passed end to end within RTO."
 # Confirmed, then newer material arrived -> revisit.
 python3 skills/nist-csf/scripts/profile_analysis.py set "$P" RC.RP-01 --current 2 \
-  --source in-0002 --confirmed-by the maintainer --ts 2026-01-10T00:00:00Z \
+  --source in-0002 --confirmed-by "R. Calder" --ts 2026-01-10T00:00:00Z \
   --rationale "Recovery plan executed during the restore test."
 # Scoped out, so the four-way split has an n/a bucket.
 python3 skills/nist-csf/scripts/profile_analysis.py set "$P" PR.AA-06 \
@@ -2206,7 +2206,7 @@ bears on. Rate nothing.
 python3 scripts/profile_analysis.py intake add acme.csfp \
   --label "architecture review with infra team" \
   --subjects ID.AM-01 ID.AM-02 ID.AM-03 \
-  --source-date 2026-03-14 --recorded-by the maintainer
+  --source-date 2026-03-14 --recorded-by "R. Calder"
 ```
 
 The label is a note **about** the source, not a quote **from** it, and it is human-authored or
@@ -2219,7 +2219,7 @@ Entered when there is time to decide, never mid-conversation.
 ```bash
 python3 scripts/profile_analysis.py queue acme.csfp --top 5
 python3 scripts/profile_analysis.py set acme.csfp ID.AM-01 --current 2 \
-  --source in-0001 --confirmed-by the maintainer \
+  --source in-0001 --confirmed-by "R. Calder" \
   --rationale "March review: quarterly discovery scans across corporate IT; OT out of band."
 ```
 
@@ -2262,7 +2262,7 @@ python3 scripts/profile_analysis.py intake add acme.csfp \
 # Its own session, when there is time to decide.
 python3 scripts/profile_analysis.py queue acme.csfp --top 5
 python3 scripts/profile_analysis.py set acme.csfp ID.AM-01 --current 2 \
-  --source in-0001 --confirmed-by the maintainer --rationale "..."
+  --source in-0001 --confirmed-by "R. Calder" --rationale "..."
 ```
 
 **`set --current` refuses without `--source` and `--confirmed-by`.** Every confirmed rating answers
