@@ -107,7 +107,8 @@ try:
 except Exception as exc:                                # noqa: BLE001 — any escape is a fail
     print("LOADS a pre-v0.78.0 register no longer opens: %s" % exc)
 
-rescore = ["set-score", legacy, "R-001", "--residual", "4", "4", "--why", "revised"]
+rescore = ["set-score", legacy, "R-001", "--residual", "4", "4",
+           "--owner", "Head of Ops", "--why", "revised"]
 refused, msg = run(rescore)
 print("RESCORE %s" % ("refused" if refused else "RE-SCORED A TOPIC"))
 print("RESCORE-WHY %s" % ("ok" if "set-text" in msg else "the refusal does not name the way through"))

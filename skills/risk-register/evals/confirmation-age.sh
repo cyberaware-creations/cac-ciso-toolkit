@@ -568,7 +568,8 @@ add("confirm becomes the affirming event",
     c2.by_id["R-001"]["history"][-1]["type"] == "risk-confirmed")
 add("confirm keeps the age at 0", c2.by_id["R-001"]["confirmationAgeDays"] == 0)
 
-run("set-score", str(work / "a.rr"), "R-001", "--residual", "5", "5", "--why", SCORE_WHY)
+run("set-score", str(work / "a.rr"), "R-001", "--residual", "5", "5",
+    "--owner", "Head of Ops", "--why", SCORE_WHY)
 run("confirm", str(work / "a.rr"), "R-001", "--why", CONFIRM_WHY)
 # Two further CHANGE_EXPLAINING members exercised end to end rather than merely listed.
 # Reducing the frozenset to {"score-changed"} passed the whole suite before these existed.
