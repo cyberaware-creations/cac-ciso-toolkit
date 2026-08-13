@@ -57,14 +57,28 @@ TS_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?([+-]\d{2}:\d{2}|Z)?
 INCIDENT_ID_RE = re.compile(r"^I-\d{3,}$")
 
 # The six factors, fixed and documented one by one in references/materiality-factors.md.
+#
+# The walk is CSF 2.0 (NIST CSWP 29) RS.AN-08 — "An incident's magnitude is estimated and
+# validated" — worked one factor at a time so the estimate is RECORDED rather than asserted.
 FACTOR_KEYS = ("financial", "operational", "data", "regulatory", "reputational", "aggregation")
 
-# Three words, chosen because they do not add up. There is no scale, no weight and no total:
-# a materiality determination is a legal standard, not an arithmetic, and a score would invite
-# its user to defend a number they did not choose.
+# Three words, chosen because they do not add up. There is no scale, no weight and no total.
+#
+# RS.AN-08 is also why there is none. The outcome it names is an estimate that is VALIDATED —
+# a judgment somebody reached and somebody else checked — and NIST supplies no scale to reach
+# it with and no threshold to read it against. A tool that manufactured either would be
+# answering, on its own authority, the question the framework it implements leaves to a person.
+#
+# A materiality determination is also a legal standard rather than an arithmetic, and a score
+# would invite its user to defend a number they did not choose.
 ASSESSMENTS = ("bearing", "no-bearing", "unknown")
 
+# RS.MA-02, "Incident reports are triaged and validated" — the states a report moves through
+# while somebody works out what it is. `not-yet-determinable` is a triage outcome and not a
+# failure to triage.
 DETERMINATION_STATES = ("assessing", "material", "not-material", "not-yet-determinable")
+# RS.CO-03, "Information is shared with designated internal and external stakeholders" — the
+# decision to share, recorded as a decision. Whether it was the right one is not ours to say.
 DISCLOSURE_DECISIONS = ("pending", "file", "no-file")
 
 REGIMES = ("sec-1.05", "dora")
@@ -151,22 +165,26 @@ CLOCK_STATES = (CLOCK_NA, CLOCK_NOT_STARTED, CLOCK_ANCHOR_MISSING, CLOCK_SCOPE_U
 #
 # Deliberately NOT escalated, each for a reason worth keeping:
 #
-#   * Elapsed days with no determination. Item 1.05 requires the determination "without
-#     unreasonable delay" and names no number of days. `derive` reports the elapsed distance
-#     and declines to judge it; an escalation would BE that judgment — manufacturing the
-#     standard the rule declines to set, then producing a dated, discoverable record of the
-#     day this organisation supposedly crossed it.
+#   * Elapsed days with no determination. RS.AN-08 asks that magnitude be estimated and
+#     validated; it names no interval to do it in, and neither does anything else in RS.
+#     `derive` reports the elapsed distance and declines to judge it; an escalation would BE
+#     that judgment — manufacturing a standard no source sets, then producing a dated,
+#     discoverable record of the day this organisation supposedly crossed it. Item 1.05 says
+#     "without unreasonable delay" and likewise names no number of days.
 #   * A window that is DUE. Inside the window is on schedule. Due is the attention list and
 #     overdue is the escalation — the same line exceptions-register draws between
 #     `revalidation-due` and `revalidation-overdue`.
 #   * Unassessed factors. Already reported as completeness. A gap in the worksheet is not a
 #     clock that ran out.
 #   * Anything counting `bearing` factors. That is a score wearing different clothes, and the
-#     moment one exists somebody reads 4-of-6 as a threshold.
+#     moment one exists somebody reads 4-of-6 as a threshold. RS.AN-08 asks for an estimate
+#     that is validated, not a total that is computed — a count of `bearing` factors is the
+#     second thing wearing the name of the first.
 #
 # Note what is missing from the defaults: a number. Every other register in the suite tunes an
-# escalation with a count or a window. The only quantities this one could tune are the ones
-# the SEC and DORA already set, and they are not this file's to move.
+# escalation with a count or a window. CSF supplies no threshold anywhere in RS — it names
+# outcomes, not magnitudes — so there is no NIST quantity here to tune. The only quantities
+# this file could tune are the ones the SEC and DORA already set, and they are not its to move.
 ESCALATION_DEFAULTS = {
     "windowOverdue": True,
     "anchorMissing": True,
@@ -402,6 +420,14 @@ def save_store(path: str, store: dict) -> None:
 
 def append_history(store: dict, event: str, target: str, actor: str,
                    why: str = "", detail: dict = None) -> None:
+    """Append only. CSF 2.0 (NIST CSWP 29) RS.AN-06 — "Actions performed during an
+    investigation are recorded, and the records' integrity and provenance are preserved".
+
+    Provenance is the reason every entry carries an actor and a timestamp, and integrity is
+    the reason nothing here ever edits or removes an earlier one: the sequence of what was
+    known and when it was decided is the artifact, and a history that could be tidied would
+    not be one.
+    """
     entry = {"event": event, "target": target, "actor": actor or "", "ts": now_ts()}
     if why:
         entry["why"] = why
@@ -881,6 +907,13 @@ def set_disclosure(store: dict, iid: str, decision: str, basis: str, regimes=(),
 
 
 def record_filing(store: dict, iid: str, window: str, at: str, actor: str = "") -> dict:
+    """That a notification happened, recorded as a fact with a date and an actor.
+
+    CSF 2.0 (NIST CSWP 29) RS.CO-02 — "Internal and external stakeholders are notified of
+    incidents". Notifying stakeholders is a CSF outcome and belongs in the record. WHEN a
+    notification falls due is a different question with a different source, and this function
+    answers only the first: it records what a human did, and never computes what they must do.
+    """
     inc = find_incident(store, iid)
     if window not in WINDOW_PRECISION:
         raise Refusal(f"--window must be one of {', '.join(sorted(WINDOW_PRECISION))}; "
@@ -1165,6 +1198,10 @@ def dora_clocks(inc: dict, now_iso: str) -> list:
 
 def incident_band(inc: dict, clocks: list) -> str:
     """One word for where this incident stands. A running clock outranks the determination.
+
+    RS.MA-03, "Incidents are categorized and prioritized" — one word is the category, and the
+    ordering below is the prioritisation. Both are DERIVED from what the record already holds
+    rather than chosen, so two people reading the same store get the same word.
 
     The ordering matters and it is not obvious. An incident can be determined **not material**
     for Item 1.05 and still owe a DORA report on a live clock — "not material" and "no
