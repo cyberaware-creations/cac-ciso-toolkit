@@ -4,11 +4,12 @@
 # Holding a revenue figure creates an obvious temptation: divide an impact by it and call the
 # result a materiality threshold. It must not exist.
 #
-# `incident-materiality` refuses to emit a verdict precisely because a generated number is
-# discoverable alongside the determination it disagreed with — "the tool scored it 3.2, below
-# our threshold" is not a defensible position, and a plaintiff does not need it to be. This
-# skill supplies the denominator so a human can weigh it. Supplying the denominator must not
-# smuggle the verdict back in through the back door.
+# `incident-materiality` refuses to emit a verdict because CSF 2.0 RS.AN-08 asks that an
+# incident's magnitude be ESTIMATED AND VALIDATED and supplies no scale and no threshold to do
+# it with. A generated number is also discoverable alongside the determination it disagreed
+# with — "the tool scored it 3.2, below our threshold" is not a defensible position, and a
+# plaintiff does not need it to be. This skill supplies the denominator so a human can weigh
+# it. Supplying the denominator must not smuggle the verdict back in through the back door.
 #
 # TWO checks, because either alone is weak:
 #

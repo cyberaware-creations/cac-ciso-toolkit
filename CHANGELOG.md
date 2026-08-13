@@ -21,6 +21,75 @@ Versions are `MAJOR.MINOR.PATCH`. `0.13.0`–`0.15.0` never existed; the version
 
 ---
 
+## v0.125.0 — 2026-08-12
+
+**BL-260 Phase 0 — `incident-materiality` had eleven legal sources and not one NIST row. It now
+stands on CSF 2.0.**
+
+This is the first release of a scope correction, and the correction is not a defect fix. The
+product is a **NIST CSF 2.0 program tool that guides and reports** — it never decides for the
+CISO. A layer had grown inside it that computed legal deadlines, which is telling a CISO when an
+obligation expires rather than guiding them. That layer is coming out.
+
+**This release removes nothing.** It is deliberately additive and ships alone, because cutting
+eleven legal sources out of a skill whose `sources.json` declared no NIST publication at all
+would leave it citing nothing. The grounding lands first; the deletions follow in their own
+releases.
+
+### The line the whole decision turns on
+
+> `RS.CO-02` — *"Internal and external stakeholders are notified of incidents"*
+
+Recording **that** stakeholders were notified is a CSF outcome. Computing **when** they must be
+is not. That sentence is NIST's, not ours, and it is what every later phase of BL-260 is
+measured against.
+
+### What landed
+
+- **Six CSF 2.0 Subcategories now ground the skill**, declared in one new `csf-2-0` source row
+  (`NIST CSWP 29`, gated, 365-day interval) and named where they bite:
+
+  | Subcategory | grounds |
+  | --- | --- |
+  | `RS.AN-08` | the six-factor walk, and the refusal to score it |
+  | `RS.AN-06` | the append-only history |
+  | `RS.MA-02` | the determination states |
+  | `RS.MA-03` | the incident band |
+  | `RS.CO-02` | the record that a notification happened |
+  | `RS.CO-03` | the disclosure decision |
+
+  All six texts were read verbatim from the bundled CPRT export
+  (`skills/nist-csf/references/nist-csf-2.0-core.json`, `csf-2.0.xlsx` sha256 `cc4ec545…f9b616`),
+  not from recall. The row records what was **not** checked as well: no Implementation Example is
+  quoted and no informativeReference was followed.
+
+- **The no-verdict refusals are re-justified on NIST.** They were argued from *TSC Indus. v.
+  Northway* and *Basic v. Levinson*; they are now argued from `RS.AN-08` — *estimated and
+  validated*, which does not say scored, and to which NIST attaches no scale and no threshold.
+  This is the better argument, because it comes from the framework the product is built on
+  rather than from a body of law the product is leaving. **Every behaviour is byte-identical**:
+  `ASSESSMENTS` is still three unsummable words, no escalation counts `bearing` factors, elapsed
+  days are still reported and never judged, and `no-derived-materiality` still holds at 7 checks.
+
+- **`SKILL.md` gains a grounding section** — and says plainly that this release does **not** yet
+  keep the `RS.CO-02` line, because the clock half still computes Item 1.05 and DORA windows.
+  Claiming otherwise would have been false for as long as Phase 1 takes.
+
+### Judgment call worth naming
+
+The brief said *replace* the legal reasoning. Where a legal citation was the **whole**
+justification for a refusal, it was replaced. Where it was also doing a second job — *TSC*/*Basic*
+define the standard the still-present SEC clock computes against — the NIST grounding was made
+load-bearing and the legal sentence left in place for the phase that removes the clock. Nothing
+here was left unjustified, and nothing true was deleted while the thing it explains still ships.
+
+### Ratchets
+
+`44 / 86 / 126` — unmoved, and asserted rather than adjusted. Every `incident-materiality` suite
+green at its existing count (58 / 20 / 4 / 39 / 14 / 21 / 9), both self-tests unchanged at
+201/201 and 221/221. ⚠️ `EXPECTED_GUARDS` moves **down** in Phase 1 for the first time in this
+repo's history; it does not move here.
+
 ## v0.124.0 — 2026-08-11
 
 **BL-257 — a real person's name shipped as the example CISO across ten skills, and 110 lines of it

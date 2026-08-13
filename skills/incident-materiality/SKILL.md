@@ -40,6 +40,36 @@ defensibly.
 structures and documents it; it does not make it. Involve counsel on the determination and on
 any filing.
 
+## What this skill is grounded in
+
+The spine is **NIST CSF 2.0** (NIST CSWP 29), and every part of the record answers a named
+Subcategory outcome rather than a house convention:
+
+| Subcategory | the outcome, verbatim | what it grounds here |
+| --- | --- | --- |
+| `RS.AN-08` | *"An incident's magnitude is estimated and validated"* | the six-factor walk |
+| `RS.AN-06` | *"Actions performed during an investigation are recorded, and the records' integrity and provenance are preserved"* | the append-only history |
+| `RS.MA-02` | *"Incident reports are triaged and validated"* | the determination states |
+| `RS.MA-03` | *"Incidents are categorized and prioritized"* | the incident band |
+| `RS.CO-02` | *"Internal and external stakeholders are notified of incidents"* | the record that a notification happened |
+| `RS.CO-03` | *"Information is shared with designated internal and external stakeholders"* | the disclosure decision |
+
+**`RS.AN-08` is why there is no verdict.** *Estimated and validated* is a judgment somebody
+reached and somebody else checked. NIST supplies no scale to reach it with and no threshold to
+read it against, so neither does this engine — see [The engine never emits a
+verdict](#the-engine-never-emits-a-verdict).
+
+**`RS.CO-02` draws the line this skill is being moved to.** That stakeholders *were notified* is
+a CSF outcome and belongs in the record. *When* a notification falls due is a different question
+with a different source, and it is not what the Subcategory says. The principle is: record what
+a human did, never compute what they must do.
+
+⚠️ **This release does not yet keep that line, and says so rather than implying otherwise.** The
+clock half below still computes Item 1.05 and DORA windows from statutory instruments. Those
+computations are being removed — this section is the grounding that replaces them, landed first
+and deliberately, so that the skill changes what it stands on rather than being left standing on
+nothing. Until they are gone, treat every statutory window here as the deviation, not the model.
+
 ## The two halves, and they are deliberately unequal
 
 **The judgment half records what a human decided.** Six factors, each with a written
@@ -54,7 +84,11 @@ days for Item 1.05, clock hours for DORA, exact in both.
 No scale, no weight, no threshold, no total. `analyze` reports *which* factors have been
 assessed and which have not — completeness — and never how many came back `bearing`.
 
-Three reasons, and the third is the one that matters:
+**The first reason is `RS.AN-08` itself.** It says an incident's magnitude is *estimated and
+validated*; it does not say scored, and NIST attaches no scale and no threshold to it. There is
+no number here to compute because the framework never supplies one.
+
+Three more reasons, and the third is the one that matters:
 
 1. **Materiality is a legal standard, not an arithmetic.** *TSC Indus., Inc. v. Northway, Inc.*,
    426 U.S. 438 (1976), does not decompose into weighted factors. Full citations, and the limit

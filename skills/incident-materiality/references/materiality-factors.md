@@ -6,9 +6,23 @@ It is a **recorded checklist**. Six factors, each assessed by a human with a wri
 each stamped with who assessed it and when. Working through them forces completeness — the
 common failure in a materiality call is not a wrong answer, it is a factor nobody looked at.
 
+**Where the walk comes from.** NIST CSF 2.0 (NIST CSWP 29) names the outcome directly, in
+`RS.AN-08`: *"An incident's magnitude is estimated and validated"*. That is this framework in
+the framework's own words — estimating magnitude is what the six factors do, and validating it
+is why every assessment carries a named assessor and a written rationale rather than standing
+on its own.
+
 It is **not a scoring model**. There is no scale, no weight, no threshold and no total. The
 engine never emits `material: yes`, never counts how many factors came back `bearing`, and never
-recommends. Three reasons, and the third is the one that matters:
+recommends.
+
+**The first reason is `RS.AN-08` itself: it says *estimated and validated*, and it does not say
+scored.** NIST names the outcome and supplies no scale to reach it with and no threshold to read
+it against — nothing in the Respond Function carries a magnitude at all. A tool that invented
+one would be answering, on its own authority, a question the framework it implements leaves to a
+person, in a document that outlives the person.
+
+Three more reasons, and the third is the one that matters:
 
 1. **Materiality is a legal standard, not an arithmetic.** The test is whether there is a
    substantial likelihood that a reasonable investor would consider the information important
@@ -42,8 +56,11 @@ insurance recovery, and the effect on financial condition or results of operatio
 narrower question than the rule asks.
 
 **Honest limit:** a quantitative threshold — 5% of pre-tax income, or any other rule of thumb —
-is a screening heuristic, not the standard. Something below any threshold can still be material
-on qualitative grounds, and this framework does not encode a threshold for that reason.
+is a screening heuristic, not a test anything here is entitled to apply. `RS.AN-08` asks for an
+estimate that is validated and names no figure; something below any threshold can still matter
+on qualitative grounds. This framework does not encode a threshold for that reason, and
+`business-context` supplies the revenue denominator without ever dividing by it — a rule its
+own `no-derived-materiality` guard enforces rather than trusts.
 
 ### 2. `operational` — disruption to operations
 

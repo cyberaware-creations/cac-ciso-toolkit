@@ -3,6 +3,23 @@
   "skill": "incident-materiality",
   "sources": [
     {
+      "id": "csf-2-0",
+      "label": "NIST Cybersecurity Framework 2.0",
+      "publisher": "NIST",
+      "instrument": "NIST CSWP 29, Subcategories RS.MA-02, RS.MA-03, RS.AN-06, RS.AN-08, RS.CO-02 and RS.CO-03",
+      "version": "CSF 2.0, 26 Feb. 2024",
+      "checkedOn": "2026-08-12",
+      "checkedBy": "claude-code",
+      "gated": true,
+      "reviewIntervalDays": 365,
+      "usedFor": [
+        "SKILL.md",
+        "references/materiality-factors.md",
+        "scripts/incident_analysis.py"
+      ],
+      "howChecked": "Read against the bundled CPRT export rather than from recall: skills/nist-csf/references/nist-csf-2.0-core.json, whose own source block records csf-2.0.xlsx sha256 cc4ec545881141711dacf056e4c806057325b441081f704d9aa32c4eeaf9b616. All six Subcategory texts were read verbatim from that file on 2026-08-12 and none is paraphrased where it is quoted: RS.MA-02 'Incident reports are triaged and validated', RS.MA-03 'Incidents are categorized and prioritized', RS.AN-06 \"Actions performed during an investigation are recorded, and the records' integrity and provenance are preserved\", RS.AN-08 \"An incident's magnitude is estimated and validated\", RS.CO-02 'Internal and external stakeholders are notified of incidents', RS.CO-03 'Information is shared with designated internal and external stakeholders'. ⚠️ NOT checked and NOT claimed: no Implementation Example is quoted from any of the six, and no informativeReference was followed. What these rows carry is what each Subcategory outcome IS, which is the whole of what this skill leans on."
+    },
+    {
       "id": "sec-cyber-rule",
       "label": "SEC cybersecurity disclosure rule",
       "publisher": "US Securities and Exchange Commission",
